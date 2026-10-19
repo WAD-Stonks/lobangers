@@ -1,0 +1,227 @@
+/* Readability refinements are scoped away from the cinematic story. */
+.landing-hero {
+  height: auto;
+  min-height: 0;
+}
+.hero-benefits {
+  flex-wrap: wrap;
+}
+.hero-benefits > span {
+  min-width: 0;
+  flex: 1 1 170px;
+}
+.hero-benefits strong {
+  white-space: normal;
+  font-size: 15px;
+}
+.hero-benefits small {
+  font-size: 14px;
+  line-height: 1.5;
+  color: #575e52;
+}
+.hero-deal-copy > small {
+  font-size: 12px;
+  color: #545b4e;
+  letter-spacing: 0.02em;
+}
+.hero-map-area > .hero-deal {
+  width: min(510px, 50%);
+}
+.hero-deal-copy span {
+  font-size: 14px;
+  color: #575e52;
+}
+.hero-deal-copy del {
+  font-size: 14px;
+  color: #62695c;
+}
+
+.landing-nav-links,
+.landing-mobile-menu,
+.landing-menu-toggle {
+  font-size: 16px;
+}
+.landing-menu-toggle,
+.landing-mobile-menu a {
+  min-height: 44px;
+}
+.landing-menu-toggle {
+  padding: 8px 12px;
+}
+.cuisine-intro > p,
+.cuisine-empty p {
+  font-size: 16px;
+  color: #575e52;
+}
+.cuisine-intro h2 > span {
+  color: #ac432c;
+}
+.sample-disclosure {
+  max-width: 760px;
+  margin: 0 auto 28px;
+  padding: 14px 18px;
+  font-size: 14px;
+  color: #4f5848;
+  background: #f3f0e4;
+  border: 1px solid #d9d9c9;
+  border-radius: 12px;
+}
+.sample-disclosure strong {
+  display: block;
+  color: #293123;
+}
+.cuisine-filters > button,
+.deal-grid-toolbar select {
+  min-height: 44px;
+  font-size: 14px;
+}
+.deal-grid-toolbar > p {
+  font-size: 14px;
+}
+.deal-grid-toolbar > p > span {
+  font-size: 13px;
+  color: #575e52;
+}
+.food-sample,
+.food-offer {
+  font-size: 12px;
+}
+.landing-food-content > small,
+.landing-food-content > small > span,
+.landing-food-content del {
+  font-size: 13px;
+  color: #58614f;
+}
+.landing-food-content > h3 {
+  font-size: 18px;
+}
+.landing-food-content > p {
+  font-size: 14px;
+  color: #575e52;
+}
+.landing-food-content > div {
+  flex-wrap: wrap;
+}
+.landing-food-content a {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 44px;
+  height: auto;
+  margin: 8px 0 0;
+  padding: 9px 12px;
+  font-size: 14px;
+  font-weight: 650;
+  border-color: #b7bcae;
+  border-radius: 12px;
+}
+.landing-footer p,
+.landing-footer small {
+  color: #575e52;
+  font-size: 14px;
+}
+.landing-final .final-food {
+  animation-iteration-count: 1;
+}
+@media (max-width: 1150px) {
+  .hero-map-area {
+    padding-bottom: 0;
+  }
+  .hero-map-area > .hero-deal {
+    position: relative;
+    top: auto;
+    left: auto;
+    transform: none;
+    width: min(480px, 88%);
+    margin: 22px auto 0;
+    padding: 16px;
+    gap: 14px;
+  }
+  .hero-map-scene .island-marker:last-child {
+    margin-top: 0;
+  }
+}
+@media (max-width: 800px) {
+  .landing-hero {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .hero-copy {
+    min-width: 0;
+  }
+  .hero-copy > .landing-button {
+    max-width: 100%;
+    font-size: 18px;
+    padding: 12px 20px;
+    gap: 12px;
+  }
+  .hero-map-scene .island-marker {
+    min-width: 44px;
+    min-height: 58px;
+  }
+  .hero-deal > img {
+    width: 100px;
+    height: 130px;
+    align-self: center;
+  }
+  .hero-deal-copy strong {
+    font-size: 18px;
+  }
+
+  .deal-grid-toolbar,
+  .deal-grid-toolbar > div {
+    flex-wrap: wrap;
+  }
+  .landing-deal-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 600px) {
+  .hero-benefits {
+    display: grid;
+    gap: 16px;
+    max-width: 360px;
+  }
+  .hero-benefits > span {
+    flex-direction: row;
+    align-items: center;
+    text-align: left;
+    gap: 14px;
+  }
+  .hero-benefits strong {
+    margin-top: 0;
+  }
+  .hero-benefits small br {
+    display: none;
+  }
+  .hero-deal > img {
+    width: 80px;
+    height: 116px;
+  }
+  .hero-deal-copy strong {
+    font-size: 16px;
+  }
+  .hero-deal-copy b {
+    font-size: 28px;
+  }
+  .hero-deal-badge {
+    font-size: 12px;
+  }
+  .landing-deal-grid {
+    grid-template-columns: 1fr;
+  }
+  .cuisine-grid-leave-active {
+    width: 100%;
+  }
+}
+
+/* Centre the desktop composition in the first viewport beneath the navbar.
+   Intrinsic content height still wins on shorter screens. */
+@media (min-width: 1151px) {
+  .landing-hero {
+    min-height: 100svh;
+    padding-top: 88px;
+    padding-bottom: 56px;
+    align-content: center;
+  }
+}

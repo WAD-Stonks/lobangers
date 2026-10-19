@@ -1,0 +1,11 @@
+{
+  "revision": 6,
+  "edited_base_characters": ["s", "t"],
+  "unchanged_layout_tables": ["hmtx", "GPOS", "hhea", "OS/2"],
+  "formats": {
+    "LobangPop-Heavy.woff2": "4c6d9021e8c98a6d1097a92e388e74a15281af4ff1e59cf6114efead11d93a5e",
+    "LobangPop-Heavy.ttf": "6dcbe76fe54e7d0e821594525b9b5795240a7caca77f04dc5337e1005cf8bc7c",
+    "LobangPop-Heavy.woff": "773f70e801b651d6e8d590d7c5bb893babe2a7f8b66b855b235c7694e32e8330"
+  },
+  "checks": "All formats decoded, unchanged simple glyphs and composite placements preserved."
+}

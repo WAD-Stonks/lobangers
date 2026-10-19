@@ -1,0 +1,177 @@
+// Illustration coordinates belong to the supplied raster, not to the geographic basemap.
+export const regions = [
+  {
+    name: 'North',
+    area: 'Woodlands',
+    x: 32,
+    y: 23,
+    lat: 1.436,
+    lng: 103.786,
+    color: '#ec7555',
+    icon: '🍔',
+  },
+  {
+    name: 'North-East',
+    area: 'Sengkang',
+    x: 75,
+    y: 30,
+    lat: 1.392,
+    lng: 103.895,
+    color: '#8e78bd',
+    icon: '🧋',
+  },
+  {
+    name: 'West',
+    area: 'Jurong',
+    x: 19,
+    y: 47,
+    lat: 1.333,
+    lng: 103.743,
+    color: '#4a986e',
+    icon: '🍜',
+  },
+  {
+    name: 'East',
+    area: 'Tampines',
+    x: 87,
+    y: 49,
+    lat: 1.353,
+    lng: 103.945,
+    color: '#e8a237',
+    icon: '🍨',
+  },
+  {
+    name: 'Central',
+    area: 'Novena',
+    x: 54,
+    y: 58,
+    lat: 1.32,
+    lng: 103.844,
+    color: '#4f99b2',
+    icon: '🍗',
+  },
+] as const
+
+export type SampleDeal = {
+  id: string
+  title: string
+  restaurant: string
+  cuisine: string
+  region: number
+  price: number
+  original: number
+  badge: string
+  image: string
+  icon: string
+}
+export const samples = [
+  {
+    id: 'sample-burger',
+    title: 'Smash burger, big savings.',
+    restaurant: 'The Burger Corner',
+    cuisine: 'Western',
+    region: 0,
+    price: 5.9,
+    original: 9,
+    badge: '35% OFF',
+    image: '/landing/burger.jpg',
+    icon: '🍔',
+  },
+  {
+    id: 'sample-tea',
+    title: 'A little sip of happiness.',
+    restaurant: 'Neighbourhood Tea Co.',
+    cuisine: 'Others',
+    region: 1,
+    price: 2.5,
+    original: 5,
+    badge: '50% OFF',
+    image: '/landing/tea.jpg',
+    icon: '🧋',
+  },
+  {
+    id: 'sample-noodles',
+    title: 'Noodles worth slurping for.',
+    restaurant: 'Little Noodle Kitchen',
+    cuisine: 'Chinese',
+    region: 2,
+    price: 3,
+    original: 6,
+    badge: '$3 DEAL',
+    image: '/landing/noodles.jpg',
+    icon: '🍜',
+  },
+  {
+    id: 'sample-gelato',
+    title: 'Sweet deal. Sweeter scoop.',
+    restaurant: 'Sunday Scoops',
+    cuisine: 'Others',
+    region: 3,
+    price: 3.2,
+    original: 4,
+    badge: '20% OFF',
+    image: '/landing/dessert.jpg',
+    icon: '🍨',
+  },
+  {
+    id: 'sample-rice',
+    title: 'Your comfort food, for less.',
+    restaurant: 'Everyday Chicken Rice',
+    cuisine: 'Singaporean / Local',
+    region: 4,
+    price: 5,
+    original: 7,
+    badge: 'SAVE $2',
+    image: '/landing/rice.jpg',
+    icon: '🍗',
+  },
+  {
+    id: 'sample-japanese',
+    title: 'A bowl full of good things.',
+    restaurant: 'Little Bowl',
+    cuisine: 'Japanese',
+    region: 3,
+    price: 6.9,
+    original: 9.9,
+    badge: 'SAVE $3',
+    image: '/landing/noodles.jpg',
+    icon: '🍱',
+  },
+  {
+    id: 'sample-malay',
+    title: 'Lunch with a little extra.',
+    restaurant: 'Kampung Kitchen',
+    cuisine: 'Malay',
+    region: 2,
+    price: 4.5,
+    original: 6,
+    badge: '25% OFF',
+    image: '/landing/rice.jpg',
+    icon: '🍛',
+  },
+  {
+    id: 'sample-indian',
+    title: 'Spice up your lunch break.',
+    restaurant: 'The Curry Table',
+    cuisine: 'Indian',
+    region: 0,
+    price: 5.5,
+    original: 8,
+    badge: 'SAVE $2.50',
+    image: '/landing/rice.jpg',
+    icon: '🍛',
+  },
+] as const satisfies readonly SampleDeal[]
+export const cuisines = [
+  'All Cuisines',
+  'Chinese',
+  'Malay',
+  'Indian',
+  'Japanese',
+  'Korean',
+  'Western',
+  'Thai',
+  'Singaporean / Local',
+  'Others',
+]
+export const money = (value: number) => `S$${value.toFixed(2)}`

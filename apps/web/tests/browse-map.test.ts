@@ -79,7 +79,7 @@ const fakeGeolocation = (
 
 describe('browse page', () => {
   it('renders the scaffolded browse page with filters and map region', async () => {
-    const { wrapper } = await mountAt('/')
+    const { wrapper } = await mountAt('/browse')
 
     expect(wrapper.get('h1').text()).toBe('Browse deals')
     expect(wrapper.get('[data-testid="deals-status"]').text()).toBe('Loading deals…')
@@ -95,7 +95,7 @@ describe('browse page', () => {
   })
 
   it('starts with the map spanning the canvas and the list panel closed', async () => {
-    const { wrapper } = await mountAt('/')
+    const { wrapper } = await mountAt('/browse')
 
     expect(wrapper.find('main.container').exists()).toBe(false)
     expect(wrapper.get('main').classes()).toContain('site-canvas')
@@ -111,7 +111,7 @@ describe('browse page', () => {
   })
 
   it('opens the deal list panel from the toggle and closes it from the panel', async () => {
-    const { wrapper } = await mountAt('/')
+    const { wrapper } = await mountAt('/browse')
 
     await wrapper.get(TOGGLE).trigger('click')
     expect(wrapper.get(TOGGLE).attributes('aria-expanded')).toBe('true')
@@ -222,7 +222,7 @@ describe('browse page', () => {
     expect(wrapper.find('.site-canvas').exists()).toBe(false)
   })
 
-  it('links back to the browse landing page from the header', async () => {
+  it('links back to the landing page from the header', async () => {
     const { router, wrapper } = await mountAt('/getting-started')
 
     await wrapper.get('[data-testid="nav-toggle"]').trigger('click')
@@ -230,18 +230,18 @@ describe('browse page', () => {
     await flushPromises()
 
     expect(router.currentRoute.value.path).toBe('/')
-    expect(wrapper.find('.site-canvas').exists()).toBe(true)
+    expect(wrapper.find('.landing-canvas').exists()).toBe(true)
   })
 
-  it('redirects the old /browse address to the landing page', async () => {
+  it('keeps the browse map directly accessible', async () => {
     const { router } = await mountAt('/browse')
 
-    expect(router.currentRoute.value.path).toBe('/')
+    expect(router.currentRoute.value.path).toBe('/browse')
     expect(router.currentRoute.value.name).toBe('browse')
   })
 
   it('updates filter state immutably from the controls', async () => {
-    const { wrapper } = await mountAt('/')
+    const { wrapper } = await mountAt('/browse')
 
     const checkbox = wrapper.get<HTMLInputElement>('#browse-valid-now')
     expect(checkbox.element.checked).toBe(true)
