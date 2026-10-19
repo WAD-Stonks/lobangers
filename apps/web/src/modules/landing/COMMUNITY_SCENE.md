@@ -16,8 +16,8 @@ The WebGL module is a separate dynamic chunk. DPR is capped at 1.5. Rendering is
 - 10–19%: platform rises; 15–27%: counter, walls and posts assemble.
 - 23–34%: awning and illuminated sign settle; 30–40%: food and decorations enter with small deterministic staggered scale changes.
 - 35–55%: HTML sample reports arrive and settle along short curves. SVG dotted paths stay behind the model.
-- 55–70%: report icons travel toward the community summary. The secondary pulse counts recent sample observations, never an availability percentage.
-- 70–85%: the community-reported status is revealed in the community summary. The counter stays clear of additional signboards.
+- 55–70%: report icons travel toward the counter-mounted flip sign. The secondary pulse counts recent sample observations, never an availability percentage.
+- 70–85%: a small framed HTML sign flips from checking reports to the derived community status. It follows the projected counter anchor; the roof restaurant/price sign stays visible. The still view shows the completed status beneath the stall.
 - 85–95%: non-interactive voting previews, signup explanation and actual navigation links enter.
 
 All motion is a pure function of scroll position and reverses when scrolling upward. The camera never orbits. Physical assembly stays in the same 3D world space; report and CTA text stays accessible HTML.

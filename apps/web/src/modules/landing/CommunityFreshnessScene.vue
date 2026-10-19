@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import CommunityOrbit from '@web/modules/landing/CommunityOrbit.vue'
 import CommunityPulse from '@web/modules/landing/CommunityPulse.vue'
-import { communityTimeline, deriveCommunityStatus, hawkerLayout, sampleReports } from '@web/modules/landing/community-freshness'
+import { communityTimeline, deriveCommunityStatus, hawkerLayout, sampleReports, statusTone } from '@web/modules/landing/community-freshness'
 import { money, type SampleDeal } from '@web/modules/landing/deals'
 import HawkerStallModel from '@web/modules/landing/HawkerStallModel.vue'
 import { hawkerPhotoAnchor } from '@web/modules/landing/hawker-projection'
@@ -23,6 +23,18 @@ const progress = computed(() => props.reduced ? 1 : clamp((props.storyProgress -
 const motion = computed(() => communityTimeline(progress.value, props.reduced))
 const layout = computed(() => hawkerLayout(props.viewport.width, props.viewport.height, motion.value.cta))
 const evidence = deriveCommunityStatus(sampleReports)
+const statusTarget = computed(() => ({
+  x: layout.value.x + (anchors.value.status.x - .5) * layout.value.size,
+  y: layout.value.top + anchors.value.status.y * layout.value.height,
+}))
+const statusStyle = computed(() => props.reduced ? {} : ({
+  left: `${statusTarget.value.x}px`,
+  top: `${statusTarget.value.y}px`,
+  width: `${Math.max(160, Math.min(230, layout.value.size * .27))}px`,
+  opacity: motion.value.food,
+  '--status-glow': `${Math.sin(motion.value.flip * Math.PI) * 16}px`,
+  transform: `translate(-50%, -50%) perspective(700px) rotateX(${motion.value.flip * 180}deg)`,
+}))
 const chapters = [
   { label: 'THE STALL COMES ALIVE', title: 'Your own', accent: 'hawker stall.', copy: 'Your discovered offer becomes a little corner of Singapore.' },
   { label: 'THE COMMUNITY ORBIT', title: 'The word', accent: 'on the street.', copy: 'Recent observations circle the stall. Each report adds context to the deal.' },
@@ -111,9 +123,13 @@ const statusVisible = computed(() => props.reduced || motion.value.flip >= .5)
       </div>
     </article>
     <div class="community-food-display" :style="photoStyle" :aria-hidden="reduced || offer < .1 || motion.handoff > .95"><img class="community-food-photo" :src="deal.image" :alt="`${deal.restaurant} illustrative deal photograph in a counter-mounted display`" loading="lazy" width="640" height="480" /></div>
+    <div class="community-status-panel" :style="statusStyle" aria-hidden="true">
+      <div class="status-panel-front"><span>COMMUNITY REPORTS</span><strong>Checking the latest…</strong></div>
+      <div class="status-panel-back" :class="`tone-${statusTone(evidence.status)}`"><strong>✓ {{ evidence.status }}</strong><small>Sample reports · not a guarantee</small></div>
+    </div>
     <p class="visually-hidden">{{ deal.restaurant }} · {{ area }} · {{ deal.title }} · {{ money(deal.price) }}. Sample offer.</p>
     <p class="visually-hidden">{{ statusVisible ? `Illustrative community-reported status: ${evidence.status}. Latest sample report: 18 minutes ago. Not a guarantee of availability.` : 'Checking community reports.' }}</p>
-    <CommunityOrbit :progress="progress" :pulse="motion.pulse" :width="viewport.width" :height="viewport.height" :stall-bottom="layout.top + layout.height" :stall-x="layout.x" :stall-y="layout.top + layout.height * .5" :stall-size="layout.size" :pulse-x="pulseTarget.x" :pulse-y="pulseTarget.y" :reduced="reduced" />
+    <CommunityOrbit :progress="progress" :pulse="motion.pulse" :width="viewport.width" :height="viewport.height" :stall-bottom="layout.top + layout.height" :stall-x="layout.x" :stall-y="layout.top + layout.height * .5" :stall-size="layout.size" :pulse-x="statusTarget.x" :pulse-y="statusTarget.y" :reduced="reduced" />
     <div class="community-pulse-position" :style="pulseStyle" :aria-hidden="!reduced && progress < .52">
       <CommunityPulse :progress="motion.pulse" :complete="motion.pulse === 1" />
     </div>
