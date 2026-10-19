@@ -189,7 +189,8 @@ watch(
   color: var(--ink-muted);
 }
 
-/* Wide screens: a floating rounded card in the right-hand grid column, over the map. */
+/* Wide screens: a white column in the right-hand grid slot, over the map. It runs from the top
+   of the viewport, so only its bottom corners are rounded. */
 @media (min-width: 992px) {
   .browse-panel {
     position: relative;
@@ -198,10 +199,10 @@ watch(
     grid-column: 2;
     grid-row: 1;
     max-height: none;
-    height: calc(100% - var(--site-header-clearance) - var(--space-5));
-    margin: var(--site-header-clearance) var(--space-5) var(--space-5) 0;
+    height: calc(100% - var(--space-5));
+    margin: 0 var(--space-5) var(--space-5) 0;
     overflow: hidden auto;
-    border-radius: var(--radius-card);
+    border-radius: 0 0 var(--radius-card) var(--radius-card);
     box-shadow: var(--shadow-card);
     transform: none;
     transition: none;

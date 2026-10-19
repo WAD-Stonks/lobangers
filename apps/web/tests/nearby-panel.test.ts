@@ -44,6 +44,22 @@ describe('BrowsePanel list', () => {
     expect(wrapper.emitted('select')).toEqual([['b', 'v2']])
   })
 
+  it('shows the title once when a deal has no price or offer label of its own', () => {
+    const challenge = deal(
+      'c',
+      'Big Eater Challenge: tiered discounts',
+      'Big Eater Challenge: tiered discounts',
+    )
+    const rows: readonly DealRow[] = [
+      { key: 'c:v1', deal: challenge, venue: BISHAN, distanceMetres: 420 },
+    ]
+    const wrapper = mount(BrowsePanel, { props: { open: true, status: 'ready', rows } })
+
+    const item = wrapper.get('[data-testid="nearby-list"] li')
+    expect(item.text()).toBe('Big Eater Challenge: tiered discountsBishan St 22 · 420 m away')
+    expect(item.find('.deal-rows__price').exists()).toBe(false)
+  })
+
   it('shows an outlet with several deals to choose from', () => {
     const venue = { ...BISHAN, deals: [KOPI, PRATA] }
     const wrapper = mount(BrowsePanel, {

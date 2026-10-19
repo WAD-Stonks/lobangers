@@ -19,6 +19,13 @@ const metaText = (row: DealRow) =>
   row.distanceMetres === null
     ? row.venue.name
     : `${row.venue.name} · ${formatDistance(row.distanceMetres)} away`
+
+// The API falls back to the title when a deal has no price or offer wording, so a label that
+// merely repeats the title is left out rather than shown twice.
+const priceText = (row: DealRow): string | null => {
+  const label = row.deal.label.trim()
+  return label && label !== row.deal.title.trim() ? label : null
+}
 </script>
 
 <template>
@@ -36,7 +43,7 @@ const metaText = (row: DealRow) =>
           <span class="deal-rows__title">{{ row.deal.title }}</span>
           <span class="deal-rows__meta">{{ metaText(row) }}</span>
         </span>
-        <span class="deal-rows__price">{{ row.deal.label }}</span>
+        <span v-if="priceText(row)" class="deal-rows__price">{{ priceText(row) }}</span>
       </button>
     </li>
   </ol>
@@ -81,11 +88,17 @@ const metaText = (row: DealRow) =>
   min-width: 0;
 }
 
+/* Two lines at most in the list; the detail view shows the full title. */
 .deal-rows__title {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
   font-family: var(--font-display);
   font-size: var(--text-md);
   font-weight: 600;
   line-height: 1.3;
+  overflow-wrap: anywhere;
 }
 
 .deal-rows__meta {
@@ -94,11 +107,16 @@ const metaText = (row: DealRow) =>
   color: var(--ink-muted);
 }
 
+/* Keeps its full width (the title wraps instead) up to a third of the row, so a long label
+   cannot crush the title column but a short price is never squeezed down to an ellipsis. */
 .deal-rows__price {
   flex: 0 0 auto;
+  max-width: 33%;
+  overflow: hidden;
   font-family: var(--font-display);
   font-size: var(--text-md);
   font-weight: 700;
   white-space: nowrap;
+  text-overflow: ellipsis;
 }
 </style>

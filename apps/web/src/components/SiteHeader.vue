@@ -20,44 +20,23 @@ const { isOpen, close, toggle } = useSiteMenu({ root, toggle: toggleButton, pane
         <img :src="logoUrl" alt="Lobangers" class="site-logo" />
       </RouterLink>
 
-      <button
-        ref="toggleButton"
-        type="button"
-        class="site-toggle"
-        data-testid="nav-toggle"
-        :aria-controls="SITE_MENU_ID"
-        :aria-expanded="isOpen"
-        :aria-label="isOpen ? 'Close menu' : 'Open menu'"
-        @click="toggle"
-      >
+      <button ref="toggleButton" type="button" class="site-toggle" data-testid="nav-toggle"
+        :aria-controls="SITE_MENU_ID" :aria-expanded="isOpen" :aria-label="isOpen ? 'Close menu' : 'Open menu'"
+        @click="toggle">
         <span class="site-toggle__bar" aria-hidden="true" />
         <span class="site-toggle__bar" aria-hidden="true" />
         <span class="site-toggle__bar" aria-hidden="true" />
       </button>
 
       <Transition name="site-menu">
-        <ul
-          v-if="isOpen"
-          :id="SITE_MENU_ID"
-          ref="panel"
-          class="site-menu"
-          data-testid="nav-menu"
-        >
-          <li
-            v-for="(link, index) in SITE_NAV_LINKS"
-            :key="link.to"
-            class="site-menu__item"
-            :style="{ '--i': index }"
-          >
+        <ul v-if="isOpen" :id="SITE_MENU_ID" ref="panel" class="site-menu" data-testid="nav-menu">
+          <li v-for="(link, index) in SITE_NAV_LINKS" :key="link.to" class="site-menu__item" :style="{ '--i': index }">
             <RouterLink class="site-menu__link" :to="link.to" @click="close">
               {{ link.label }}
             </RouterLink>
           </li>
-          <li
-            class="site-menu__item site-menu__account"
-            :style="{ '--i': SITE_NAV_LINKS.length }"
-            data-testid="nav-account"
-          >
+          <li class="site-menu__item site-menu__account" :style="{ '--i': SITE_NAV_LINKS.length }"
+            data-testid="nav-account">
             <AccountMenu />
           </li>
         </ul>
@@ -301,5 +280,6 @@ const { isOpen, close, toggle } = useSiteMenu({ root, toggle: toggleButton, pane
   aspect-ratio: 5.6;
   object-fit: cover;
   object-position: center 48%;
+  margin-top: -8px;
 }
 </style>
