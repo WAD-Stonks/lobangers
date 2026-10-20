@@ -1,3 +1,0 @@
-Built-in imagegen edit. Input: apps/web/public/landing/singapore-map-hero-1536.webp
-Prompt: Preserve the 1536x1024 composition and every land feature, label and landmark position. Change only the outer sea boundary near bottom/right canvas edges into a gently scalloped, fully enclosed contour with a clean white margin. Preserve watercolor palette and interior wave marks; no new elements, no rescaling or recentering.
-Production derivatives: lossily encoded WebP at 1536 and 768 pixels wide; original generated PNG retained here.
