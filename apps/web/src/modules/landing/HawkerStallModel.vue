@@ -51,7 +51,7 @@ onBeforeUnmount(() => {disposed=true;cancelAnimationFrame(frame);observer?.disco
 
 <template>
   <div class="hawker-renderer" :class="{ 'webgl-ready': ready }" :data-renderer="ready ? 'three' : 'vector-fallback'">
-    <canvas ref="canvas" class="hawker-canvas" aria-hidden="true" @webglcontextlost="contextLost" />
+    <canvas v-show="active" ref="canvas" class="hawker-canvas" aria-hidden="true" @webglcontextlost="contextLost" />
     <HawkerStallFallback v-if="!ready" :motion="motion" :cuisine="deal.cuisine" :badge="deal.badge" />
     <p class="visually-hidden">Miniature hawker stall with a coral and gold striped awning, green pillars, a food display, bowls, plants and stools. {{ deal.restaurant }}, {{ area }}. Illustrative offer.</p>
   </div>

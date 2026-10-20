@@ -20,7 +20,8 @@ const { progress, reduced: systemReduced, viewport } = useStoryProgress(root)
 const manualStill = ref(false)
 const compactStill = computed(() => viewport.value.height < 700 || viewport.value.width < 360 || (viewport.value.width <= 1100 && viewport.value.height < 820))
 const reduced = computed(() => systemReduced.value || manualStill.value || compactStill.value)
-const { playing, play, stop } = useStoryPlayback(root, reduced)
+const playbackToggle = ref<HTMLButtonElement | null>(null)
+const { playing, play, stop } = useStoryPlayback(root, reduced, playbackToggle)
 const toggleStill = async () => {
   stop()
   manualStill.value = !manualStill.value
@@ -290,7 +291,7 @@ const shuffle = () => {
         <p class="story-hint">{{ scene.hint }}</p>
         <div v-if="chapter < 2 && !reduced" class="story-play-controls">
           <button type="button" @click="shuffle">↝ Shuffle deals</button>
-          <button type="button" :aria-pressed="playing" @click="play">{{ playing ? 'Ⅱ Pause story' : '▶ Auto-play story' }}</button>
+          <button ref="playbackToggle" type="button" :aria-pressed="playing" @click="play">{{ playing ? 'Ⅱ Pause story' : '▶ Auto-play story' }}</button>
         </div>
         <button v-if="playing && chapter >= 2" type="button" class="story-pause" @click="stop">Ⅱ Pause story</button>
         
