@@ -356,9 +356,10 @@ for (const width of [320, 390, 1280]) {
     const errors: string[] = []
     page.on('pageerror', (error) => errors.push(error.message))
     await page.setViewportSize({ width, height: 850 })
-    await page.goto('/')
+    await page.goto('/browse')
     await page.getByTestId('nav-toggle').click()
-    await page.getByRole('link', { name: 'Platform admin', exact: true }).click()
+    await expect(page.getByRole('link', { name: 'Platform admin', exact: true })).toHaveCount(0)
+    await page.goto('/admin/accounts')
     await expect(page).toHaveURL('/admin/accounts')
     await page.getByTestId(`account-${userA}`).click()
     const details = page.getByRole('region', { name: 'Account details' })

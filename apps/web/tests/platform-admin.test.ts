@@ -112,8 +112,11 @@ it('routes platform administration separately and uses server denial, not a clie
   expect(wrapper.text()).toContain('Sign in to manage accounts')
   expect(wrapper.find('input[type="password"]').exists()).toBe(true)
   await wrapper.get('[data-testid="nav-toggle"]').trigger('click')
-  expect(wrapper.get('nav a[href="/admin/accounts"]').text()).toBe('Platform admin')
-  expect(wrapper.find('nav a[href="/admin/ingestion"]').exists()).toBe(true)
+  expect(wrapper.find('[data-testid="nav-menu"] a[href="/admin/accounts"]').exists()).toBe(false)
+  expect(wrapper.find('[data-testid="nav-menu"] a[href="/admin/ingestion"]').exists()).toBe(false)
+  expect(wrapper.get('nav[aria-label="Administration"] a[href="/admin/accounts"]').text()).toBe(
+    'Accounts',
+  )
   expect(rest.requests).not.toHaveBeenCalled()
 })
 

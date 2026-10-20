@@ -31,7 +31,7 @@ const navigate = (event: MouseEvent, href: string) => {
           </li>
         </ul>
       </nav>
-      <a class="admin-map-link" href="/" @click="navigate($event, '/')">
+      <a class="admin-map-link" href="/browse" @click="navigate($event, '/browse')">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true"><path d="m14 7-5 5 5 5 M9 12h11" /></svg>
         Back to map
       </a>

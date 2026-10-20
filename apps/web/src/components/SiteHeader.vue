@@ -3,10 +3,13 @@ import logoUrl from '@web/assets/logo.png'
 import AccountMenu from '@web/components/AccountMenu.vue'
 import { SITE_MENU_ID, SITE_NAV_LINKS } from '@web/components/site-nav-links'
 import { useSiteMenu } from '@web/components/use-site-menu'
-import { ref } from 'vue'
+import { authClient } from '@web/lib/auth-client'
+import { computed, ref } from 'vue'
 import { RouterLink } from 'vue-router'
 
 const root = ref<HTMLElement | null>(null)
+const session = authClient.useSession()
+const links = computed(() => SITE_NAV_LINKS.filter((link) => !link.roles || link.roles.includes(session.value.data?.user.role ?? '')))
 withDefaults(defineProps<{ embedded?: boolean }>(), { embedded: false })
 const toggleButton = ref<HTMLElement | null>(null)
 const panel = ref<HTMLElement | null>(null)
@@ -45,7 +48,7 @@ const { isOpen, close, toggle } = useSiteMenu({ root, toggle: toggleButton, pane
           data-testid="nav-menu"
         >
           <li
-            v-for="(link, index) in SITE_NAV_LINKS"
+            v-for="(link, index) in links"
             :key="link.to"
             class="site-menu__item"
             :style="{ '--i': index }"
@@ -56,7 +59,7 @@ const { isOpen, close, toggle } = useSiteMenu({ root, toggle: toggleButton, pane
           </li>
           <li
             class="site-menu__item site-menu__account"
-            :style="{ '--i': SITE_NAV_LINKS.length }"
+            :style="{ '--i': links.length }"
             data-testid="nav-account"
           >
             <AccountMenu />

@@ -16,11 +16,12 @@ function createSubmissionRouter() {
 }
 
 describe('protected local submission route', () => {
-  it('keeps the current browse map and legacy browse redirect alongside the prototype', () => {
+  it('keeps the landing page and browse map alongside protected submission', () => {
     const router = createSubmissionRouter()
-    expect(router.resolve('/').name).toBe('browse')
-    expect(router.resolve('/').meta.layout).toBe('canvas')
-    expect(router.resolve('/browse').matched[0]?.redirect).toEqual({ name: 'browse' })
+    expect(router.resolve('/').name).toBe('landing')
+    expect(router.resolve('/').meta.layout).toBe('landing')
+    expect(router.resolve('/browse').name).toBe('browse')
+    expect(router.resolve('/browse').meta.layout).toBe('canvas')
     expect(router.resolve('/submit-deal').name).toBe('submit-deal')
     expect(router.resolve('/submit-deal').meta.requiresAuth).toBe(true)
     expect(router.resolve('/submissionform').name).toBe('not-found')

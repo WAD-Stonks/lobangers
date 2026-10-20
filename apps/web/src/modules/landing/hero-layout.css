@@ -1,0 +1,651 @@
+/* biome-ignore-all lint/style/noDescendingSpecificity: Independent hero elements share tag names but do not overlap selectors. */
+/* Composition follows the supplied hero reference; discovery and motion stay shared. */
+.landing-hero {
+  max-width: 1920px;
+  grid-template-columns: 44% 56%;
+  padding: 120px 5% 24px;
+  background: radial-gradient(ellipse at 78% 45%, #fff6df80, transparent 65%);
+  background-color: var(--landing-paper);
+}
+.landing-hero h1 {
+  position: relative;
+  font-size: clamp(96px, 8vw, 150px);
+  width: fit-content;
+  max-width: 100%;
+  color: #090b0a;
+  line-height: 0.84;
+  letter-spacing: 0;
+  word-spacing: -0.16em;
+  text-align: left;
+  margin: 0 0 30px;
+  transform: none;
+  -webkit-text-stroke: 0;
+}
+.landing-hero .headline-line:first-of-type {
+  padding-left: 0.15em;
+}
+.hero-headline-accent {
+  position: absolute;
+  fill: none;
+  stroke-width: 11px;
+  stroke-linecap: round;
+  pointer-events: none;
+}
+.landing-hero .accent-coral {
+  width: 0.55em;
+  height: 0.65em;
+  top: -0.35em;
+  left: -0.32em;
+  stroke: #ff7657;
+}
+.landing-hero .accent-yellow {
+  width: 0.52em;
+  height: 0.52em;
+  top: 0.64em;
+  right: -0.04em;
+  stroke: #ffda53;
+}
+.lobangers-landing .hero-underline:after {
+  left: 24%;
+  right: 48%;
+  bottom: 0.1em;
+  height: 0.12em;
+  background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 80 20'%3E%3Cpath d='M5 12 Q40 6 75 12' fill='none' stroke='%23ffda53' stroke-width='10' stroke-linecap='round'/%3E%3C/svg%3E")
+    center / 100% 100% no-repeat;
+  border-radius: 0;
+}
+.hero-subtitle {
+  color: #252923;
+  font-size: clamp(17px, 1.55vw, 28px);
+  line-height: 1.45;
+  font-weight: 650;
+  white-space: nowrap;
+  margin: 32px 0 23px;
+}
+.hero-copy > .landing-button {
+  position: relative;
+  background: #ffda53;
+  font-size: clamp(17px, 1.1vw, 20px);
+  padding: 13px 22px;
+  min-height: 48px;
+  gap: 14px;
+  border-radius: 48px;
+  box-shadow: 0 10px 25px #a3801820;
+}
+.hero-copy > .landing-button > span {
+  font-size: 1.35em;
+  line-height: 1;
+}
+.hero-copy > .landing-button:after {
+  content: "";
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  right: -30px;
+  top: 44%;
+  border-radius: 8px;
+  background: #ffda53;
+  box-shadow:
+    -6px -25px 0 #ffda53,
+    -6px 25px 0 #ffda53;
+  transform: rotate(-15deg);
+  pointer-events: none;
+}
+.hero-benefits {
+  flex-wrap: nowrap;
+  gap: 18px;
+  margin-top: 38px;
+  max-width: none;
+}
+.hero-benefits > span {
+  align-items: flex-start;
+  gap: 10px;
+  flex: 1;
+}
+.hero-benefits b {
+  flex-shrink: 0;
+  width: 53px;
+  height: 53px;
+  font-size: 30px;
+  background: #ffede3;
+}
+.hero-benefits > span:nth-child(2) b {
+  background: #ffe6e2;
+}
+.hero-benefits > span:nth-child(3) b {
+  background: #fff0df;
+}
+.hero-benefits strong {
+  display: block;
+  white-space: nowrap;
+  font-size: clamp(11px, 0.85vw, 16px);
+  line-height: 1.35;
+  margin: 3px 0 4px;
+}
+.hero-benefits small {
+  display: block;
+  font-size: clamp(10px, 0.74vw, 14px);
+  line-height: 1.4;
+  color: #777c77;
+  font-weight: 400;
+}
+.hero-map-area {
+  width: 124%;
+  margin-left: -8%;
+  padding-bottom: 0;
+}
+@media (min-width: 801px) {
+  .hero-map-area {
+    /* Let the eastern waterfront bleed to the edge, like the reference,
+       while keeping the pins and animated landmarks inside the viewport. */
+    padding-bottom: 0;
+  }
+}
+.hero-map-scene .island-marker {
+  width: 48px;
+  height: 64px;
+}
+.hero-map-scene .pin-ring {
+  width: 52px;
+  height: 52px;
+}
+.hero-deal {
+  top: 42%;
+  width: min(510px, 82%);
+  padding: 16px;
+  gap: 18px;
+  border-radius: 25px;
+  box-shadow: 0 14px 35px #3c432536;
+}
+.hero-deal > img {
+  width: 155px;
+  height: 162px;
+}
+.hero-deal-copy strong {
+  font-size: 18px;
+}
+.hero-deal-copy b {
+  font-size: 32px;
+  color: #e54932;
+}
+@media (min-width: 801px) and (max-width: 1150px) {
+  .landing-hero h1 {
+    font-size: 8.3vw;
+  }
+  .hero-benefits {
+    gap: 10px;
+  }
+  .hero-benefits > span {
+    gap: 6px;
+  }
+  .hero-benefits b {
+    width: 36px;
+    height: 36px;
+    font-size: 23px;
+  }
+  .hero-benefits small {
+    font-size: 9px;
+  }
+  .hero-benefits small br {
+    display: none;
+  }
+  .hero-deal {
+    width: 380px;
+    padding: 11px;
+    gap: 12px;
+  }
+  .hero-deal > img {
+    width: 114px;
+    height: 144px;
+  }
+  .hero-deal-copy strong {
+    font-size: 15px;
+  }
+  .hero-deal-copy b {
+    font-size: 27px;
+  }
+}
+@media (max-width: 800px) {
+  .landing-hero {
+    grid-template-columns: 1fr;
+    padding: 160px 7% 32px;
+  }
+  .landing-hero h1 {
+    font-size: clamp(60px, 13vw, 100px);
+    margin-inline: auto;
+    margin-bottom: 25px;
+  }
+  .accent-coral {
+    width: 42px;
+    height: 48px;
+    left: 0;
+    top: -35px;
+  }
+  .accent-yellow {
+    width: 40px;
+    height: 40px;
+    right: 0;
+  }
+  .hero-subtitle {
+    white-space: normal;
+    max-width: 540px;
+    margin: 28px auto 23px;
+    font-size: 19px;
+  }
+  .hero-copy > .landing-button {
+    font-size: 18px;
+    padding: 12px 20px;
+  }
+  .hero-benefits {
+    justify-content: center;
+    max-width: 620px;
+    margin: 34px auto 0;
+    gap: 12px;
+  }
+  .hero-benefits > span {
+    flex: 1;
+    text-align: left;
+    gap: 8px;
+  }
+  .hero-benefits b {
+    width: 38px;
+    height: 38px;
+    font-size: 23px;
+  }
+  .hero-benefits strong {
+    font-size: 11px;
+  }
+  .hero-benefits small {
+    font-size: 10px;
+  }
+  .hero-benefits small br {
+    display: none;
+  }
+  .hero-map-area {
+    width: 100%;
+    margin: 30px 0 5px;
+  }
+  .hero-map-scene .island-marker {
+    width: 48px;
+    height: 64px;
+  }
+  .hero-map-scene .pin-ring {
+    width: 40px;
+    height: 40px;
+  }
+  .hero-deal {
+    width: min(480px, 88%);
+  }
+  .hero-deal > img {
+    width: 134px;
+    height: 150px;
+  }
+}
+@media (max-width: 480px) {
+  .landing-hero {
+    padding-top: 145px;
+  }
+  .landing-hero h1 {
+    font-size: 16.4vw;
+    -webkit-text-stroke: 0;
+  }
+  .accent-coral {
+    width: 35px;
+    height: 40px;
+    left: 0;
+    top: -27px;
+  }
+  .accent-yellow {
+    width: 30px;
+    height: 30px;
+    right: -6px;
+  }
+  .hero-subtitle {
+    font-size: 17px;
+    max-width: 320px;
+  }
+  .hero-benefits {
+    gap: 9px;
+  }
+  .hero-benefits > span {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 5px;
+  }
+  .hero-benefits strong {
+    font-size: 10px;
+  }
+  .hero-benefits small {
+    font-size: 9px;
+  }
+  .hero-deal {
+    padding: 10px;
+    gap: 11px;
+    border-radius: 20px;
+  }
+  .hero-deal > img {
+    width: 102px;
+    height: 130px;
+  }
+  .hero-deal-copy strong {
+    font-size: 14px;
+  }
+  .hero-deal-copy b {
+    font-size: 25px;
+  }
+  .hero-map-scene .island-marker {
+    width: 40px;
+    height: 53px;
+  }
+  .hero-map-scene .pin-ring {
+    width: 34px;
+    height: 34px;
+  }
+}
+
+/* Reference-style food pins: white pictograms, teardrop silhouette and ground dots. */
+.hero-food-pin,
+.food-map-pin {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.food-map-pin {
+  overflow: visible;
+  filter: drop-shadow(0 4px 4px #754d2926);
+}
+.hero-map-scene .pin-label {
+  display: none;
+}
+.hero-map-scene .island-marker {
+  animation: hero-food-pin-pop 0.7s cubic-bezier(0.16, 1.35, 0.3, 1) both;
+  animation-delay: calc(0.3s + var(--pin-index) * 0.18s);
+  transform-origin: 50% 90%;
+}
+.hero-map-scene .pin-ring {
+  left: 50%;
+  top: 5%;
+  translate: -50% 0;
+}
+.hero-map-scene .island-marker:focus-visible .hero-food-pin {
+  outline: 3px solid #24271e;
+  outline-offset: 5px;
+  border-radius: 45%;
+}
+@keyframes hero-food-pin-pop {
+  from {
+    opacity: 0;
+    translate: 0 28px;
+  }
+  to {
+    opacity: 1;
+    translate: 0 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .hero-map-scene .island-marker {
+    animation: none;
+  }
+}
+
+.hero-map-scene .island-marker::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  min-width: 44px;
+  min-height: 44px;
+  transform: translate(-50%, -50%);
+}
+
+/* The underline finishes first, followed by the coral and yellow rays. */
+.accent-coral path,
+.accent-yellow path {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: hero-accent-ray 0.5s cubic-bezier(0.16, 1.25, 0.3, 1) both;
+  animation-delay: calc(2.1s + var(--ray-index) * 0.12s);
+}
+.accent-yellow path {
+  animation-delay: calc(2.9s + var(--ray-index) * 0.12s);
+}
+@keyframes hero-accent-ray {
+  0% {
+    opacity: 0;
+    stroke-dashoffset: 1;
+    scale: 0.7;
+  }
+  45% {
+    opacity: 1;
+    scale: 1.12;
+  }
+  100% {
+    opacity: 1;
+    stroke-dashoffset: 0;
+    scale: 1;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .accent-coral path,
+  .accent-yellow path {
+    opacity: 1;
+    stroke-dashoffset: 0;
+  }
+}
+
+/* Hover the nested artwork so pin entrance and story zoom transforms stay independent. */
+.hero-food-pin {
+  flex-shrink: 0;
+  transform-origin: 50% 90%;
+  transition:
+    transform 0.25s ease,
+    filter 0.25s ease;
+}
+.island-marker:is(:hover, :focus-visible) .hero-food-pin {
+  transform: translateY(-5px) scale(1.1);
+  filter: drop-shadow(0 5px 4px #79523e30);
+}
+.island-marker:focus-visible .hero-food-pin {
+  outline: 3px solid #2c2926;
+  outline-offset: 4px;
+  border-radius: 45%;
+}
+.hero-map-area > .hero-deal {
+  transition:
+    transform 0.25s ease,
+    box-shadow 0.25s ease;
+}
+.hero-map-area > .hero-deal:hover,
+.hero-map-area > .hero-deal:focus-visible {
+  transform: translate(-50%, -50%) translateY(-6px) scale(1.025);
+  box-shadow: 0 20px 45px #62462c30;
+}
+@media (max-width: 800px) {
+  .hero-map-area > .hero-deal:hover,
+  .hero-map-area > .hero-deal:focus-visible {
+    transform: translateY(-4px) scale(1.015);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .hero-food-pin,
+  .hero-map-area > .hero-deal {
+    transition: none;
+  }
+  .island-marker:is(:hover, :focus-visible) .hero-food-pin {
+    transform: none;
+  }
+  .hero-map-area > .hero-deal:hover,
+  .hero-map-area > .hero-deal:focus-visible {
+    transform: translate(-50%, -50%);
+  }
+}
+@media (max-width: 800px) and (prefers-reduced-motion: reduce) {
+  .hero-map-area > .hero-deal:hover,
+  .hero-map-area > .hero-deal:focus-visible {
+    transform: none;
+  }
+}
+
+/* Selection scaling has its own wrapper so entrance animation cannot freeze its size. */
+.pin-selection {
+  display: block;
+  flex-shrink: 0;
+  width: 100%;
+  height: 100%;
+}
+.hero-map-scene .island-marker,
+.hero-map-scene .island-marker.active {
+  scale: 1;
+}
+.hero-map-scene .pin-selection {
+  transform: scale(0.92);
+  transform-origin: 50% 90%;
+  transition: transform 0.45s cubic-bezier(0.2, 1.35, 0.35, 1);
+}
+.hero-map-scene .active .pin-selection {
+  transform: scale(1.28);
+}
+.hero-map-scene .pin-ring {
+  width: 70%;
+  height: auto;
+  aspect-ratio: 1;
+  top: 10%;
+  border: 2.5px solid #de8568;
+  animation: none;
+  opacity: 0;
+  pointer-events: none;
+}
+.hero-map-scene .active > .pin-ring {
+  top: -3%;
+  animation: hero-selection-pulse 2.4s linear infinite;
+}
+.hero-map-scene .active > .pin-ring-secondary {
+  animation-delay: 1.2s;
+}
+@keyframes hero-selection-pulse {
+  0% {
+    scale: 1;
+    opacity: 0.95;
+  }
+  25% {
+    scale: 1.5;
+    opacity: 0.75;
+  }
+  85%,
+  100% {
+    scale: 2.6;
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .hero-map-scene .pin-selection {
+    transition: none;
+  }
+  .hero-map-scene .active > .pin-ring {
+    animation: none;
+    opacity: 0;
+  }
+}
+
+.hero-deal-copy > .hero-deal-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 5px;
+  font-size: 12px;
+  font-weight: 750;
+  color: #795034;
+}
+.hero-deal-action > span {
+  display: inline;
+  margin-top: 0;
+  transition: transform 0.25s ease;
+}
+.hero-deal:is(:hover, :focus-visible) .hero-deal-action > span {
+  transform: translateX(4px);
+}
+.hero-map-area > .hero-deal:active {
+  box-shadow: 0 5px 18px #62462c30;
+}
+@media (prefers-reduced-motion: reduce) {
+  .hero-deal-action > span {
+    transition: none;
+  }
+  .hero-deal:is(:hover, :focus-visible) .hero-deal-action > span {
+    transform: none;
+  }
+}
+
+.hero-map-area > .hero-deal:focus-visible {
+  outline: 3px solid #795034;
+  outline-offset: 5px;
+}
+
+/* The selected hero bitmap includes the full lower-right ocean itself. */
+@media (min-width: 1151px) {
+  .landing-hero {
+    overflow: clip;
+  }
+}
+
+.hero-map-scene .island-art {
+  mask: url("/landing/hero-water-edge-mask.svg") center / 100% 100% no-repeat;
+}
+
+/* Keep the original hero artwork aligned with its 3:2 landmark frame. */
+.hero-map-scene > .illustrated-map {
+  isolation: auto;
+  background: transparent;
+  mix-blend-mode: normal;
+}
+
+.hero-copy > .landing-button {
+  transition:
+    translate 0.22s ease,
+    scale 0.22s ease,
+    box-shadow 0.22s ease,
+    background-color 0.22s ease;
+}
+.hero-copy > .landing-button > span {
+  transition: transform 0.22s ease;
+}
+.hero-copy > .landing-button::after {
+  transition: transform 0.25s ease;
+}
+.hero-copy > .landing-button:is(:hover, :focus-visible) {
+  translate: 0 -3px;
+  scale: 1.025;
+  background-color: #ffdf68;
+  box-shadow: 0 12px 24px #a3801830;
+}
+.hero-copy > .landing-button:is(:hover, :focus-visible) > span {
+  transform: translateX(5px);
+}
+.hero-copy > .landing-button:is(:hover, :focus-visible)::after {
+  transform: rotate(-5deg) scale(1.12);
+}
+.hero-copy > .landing-button:active {
+  translate: 0 -1px;
+  scale: 0.99;
+}
+@media (prefers-reduced-motion: reduce) {
+  .hero-copy > .landing-button,
+  .hero-copy > .landing-button > span,
+  .hero-copy > .landing-button::after {
+    transition: none;
+  }
+  .hero-copy > .landing-button:is(:hover, :focus-visible, :active) {
+    translate: none;
+    scale: 1;
+  }
+  .hero-copy > .landing-button:is(:hover, :focus-visible) > span {
+    transform: none;
+  }
+  .hero-copy > .landing-button:is(:hover, :focus-visible)::after {
+    transform: rotate(-15deg);
+  }
+}

@@ -31,16 +31,16 @@ async function mountAt(path: string) {
 }
 
 describe('starter navigation', () => {
-  it('lands on the full-bleed browse map', async () => {
+  it('lands on the food discovery landing page', async () => {
     const { wrapper } = await mountAt('/')
 
-    expect(wrapper.find('.site-canvas').exists()).toBe(true)
-    expect(wrapper.find('[data-testid="browse-canvas"]').exists()).toBe(true)
-    expect(wrapper.get('[data-testid="panel-toggle"]').text()).toBe('Show list')
+    expect(wrapper.find('.landing-canvas').exists()).toBe(true)
+    expect(wrapper.get('h1').text()).toContain('Bang for')
+    expect(wrapper.find('a[href="/browse"]').exists()).toBe(true)
   })
 
   it('navigates to the developer setup page from the header', async () => {
-    const { router, wrapper } = await mountAt('/')
+    const { router, wrapper } = await mountAt('/browse')
 
     await wrapper.get('[data-testid="nav-toggle"]').trigger('click')
     await wrapper.get('[data-testid="nav-menu"] a[href="/getting-started"]').trigger('click')
