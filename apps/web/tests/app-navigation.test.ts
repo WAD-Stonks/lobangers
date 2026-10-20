@@ -47,6 +47,16 @@ describe('starter navigation', () => {
     expect(wrapper.get('[data-testid="panel-toggle"]').attributes('aria-label')).toBe('Show list')
   })
 
+  it('shows the splash screen only while the map loads, not on the landing page', async () => {
+    const landing = await mountAt('/')
+    expect(landing.wrapper.find('[data-testid="splash-screen"]').exists()).toBe(false)
+    landing.wrapper.unmount()
+
+    const map = await mountAt('/browse')
+    expect(map.wrapper.find('[data-testid="splash-screen"]').exists()).toBe(true)
+    map.wrapper.unmount()
+  })
+
   it('navigates to the developer setup page from the header', async () => {
     const { router, wrapper } = await mountAt('/browse')
 

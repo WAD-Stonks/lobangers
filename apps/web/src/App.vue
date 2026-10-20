@@ -13,9 +13,12 @@ const administration = computed(() => route.path === '/admin' || route.path.star
 
 <template>
   <BApp>
-    <SplashScreen />
-    <!-- The map shell owns the whole viewport and brings its own header and landmarks. -->
-    <RouterView v-if="layout === 'canvas'" />
+    <!-- The map shell owns the whole viewport and brings its own header and landmarks. The splash
+         covers the map while it loads; other pages, the landing page included, open without it. -->
+    <template v-if="layout === 'canvas'">
+      <SplashScreen />
+      <RouterView />
+    </template>
     <!-- The landing page brings its own navbar. -->
     <main v-else-if="layout === 'landing'" class="landing-canvas">
       <RouterView />
