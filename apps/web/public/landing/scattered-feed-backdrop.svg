@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 1000" fill="none">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 1000" fill="none" aria-hidden="true" focusable="false">
   <!-- Unconnected conversation fragments frame the real posts without adding content. -->
   <g transform="translate(730 120) rotate(-9)">
     <rect width="360" height="204" rx="28" fill="#eacb9a" fill-opacity=".14" stroke="#d3b57e" stroke-opacity=".22"/>
