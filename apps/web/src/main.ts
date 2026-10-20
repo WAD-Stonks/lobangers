@@ -1,6 +1,7 @@
 import { createApp } from 'vue'
 import '@broke-oclock/ui/styles.css'
 import '@web/assets/main.css'
+import '@web/assets/bootstrap-theme.css'
 import App from '@web/App.vue'
 import router from '@web/router'
 

@@ -12,6 +12,7 @@ const TAMPINES = { id: '5eed03000000000000000001', name: 'Kopi Tampines', lat: 1
 
 const base = {
   category: 'DRINKS',
+  cuisine: null,
   description: 'Seed',
   offerType: 'FIXED_PRICE' as const,
   priceMinor: 100,

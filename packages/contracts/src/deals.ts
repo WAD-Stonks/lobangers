@@ -31,6 +31,8 @@ export const dealPinSchema = z.strictObject({
   id: objectIdSchema,
   title: z.string(),
   category: z.string(),
+  // One of DEAL_CUISINES (see deal-cuisines.ts), or null when no cuisine applies.
+  cuisine: z.string().nullable(),
   label: z.string(),
   description: z.string(),
   offerType: offerTypeSchema,

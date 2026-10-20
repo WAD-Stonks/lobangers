@@ -5,6 +5,11 @@ import { describe, expect, it, vi } from 'vitest'
 import { ref } from 'vue'
 import { createMemoryHistory, createRouter } from 'vue-router'
 
+// Synthetic REST boundary and signed-out session: these tests cover navigation only.
+vi.mock('@web/lib/api-client', () => ({
+  api: { deals: { list: vi.fn().mockResolvedValue({ items: [], categories: [] }) } },
+}))
+
 // Synthetic signed-out session: these tests cover the shell, not authentication.
 vi.mock('@web/lib/auth-client', () => ({
   authClient: { useSession: () => ref({ data: null, isPending: false }), signOut: vi.fn() },
@@ -26,8 +31,8 @@ async function mountAt(path: string) {
 }
 
 describe('site header pill', () => {
-  it('shows the Lobangers logo linking home and keeps the menu collapsed', async () => {
-    const { wrapper } = await mountAt('/browse')
+  it('shows the Lobangers logo linking home on pages outside the map', async () => {
+    const { wrapper } = await mountAt('/getting-started')
 
     const brand = wrapper.get(`${NAV} a[href="/"]`)
     expect(brand.get('img').attributes('alt')).toBe('Lobangers')
@@ -40,7 +45,7 @@ describe('site header pill', () => {
     wrapper.unmount()
   })
 
-  it('reveals every destination and the sign-in links behind the hamburger', async () => {
+  it('reveals every destination and the sign-in links behind the map menu button', async () => {
     const { wrapper } = await mountAt('/')
 
     await wrapper.get(TOGGLE).trigger('click')
@@ -50,18 +55,21 @@ describe('site header pill', () => {
     expect(toggle.attributes('aria-label')).toBe('Close menu')
     const menu = wrapper.get(MENU)
     expect(menu.attributes('id')).toBe('site-menu')
+    expect(menu.attributes('aria-label')).toBe('Site')
     const hrefs = menu.findAll('a').map((link) => link.attributes('href'))
     expect(hrefs).toEqual([
+      '/login?redirect=/',
+      '/register?redirect=/',
+      '/add',
       '/',
-      '/deals',
+      '/?view=list',
       '/getting-started',
       '/admin',
       '/admin/accounts',
       '/admin/ingestion',
-      '/login',
-      '/register',
     ])
     expect(menu.get('a[href="/"]').attributes('aria-current')).toBe('page')
+    expect(menu.get('a[href="/?view=list"]').attributes('aria-current')).toBeUndefined()
     wrapper.unmount()
   })
 

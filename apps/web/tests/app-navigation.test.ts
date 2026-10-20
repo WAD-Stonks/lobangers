@@ -31,12 +31,12 @@ async function mountAt(path: string) {
 }
 
 describe('starter navigation', () => {
-  it('lands on the full-bleed browse map', async () => {
+  it('lands on the full-bleed map shell', async () => {
     const { wrapper } = await mountAt('/')
 
-    expect(wrapper.find('.site-canvas').exists()).toBe(true)
-    expect(wrapper.find('[data-testid="browse-canvas"]').exists()).toBe(true)
-    expect(wrapper.get('[data-testid="panel-toggle"]').text()).toBe('Show list')
+    expect(wrapper.find('[data-testid="map-shell"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="primary-nav"]').exists()).toBe(false)
+    expect(wrapper.get('[data-testid="panel-toggle"]').attributes('aria-label')).toBe('Show list')
   })
 
   it('navigates to the developer setup page from the header', async () => {

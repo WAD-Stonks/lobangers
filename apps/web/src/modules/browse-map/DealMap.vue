@@ -4,49 +4,68 @@ import 'leaflet.markercluster/dist/MarkerCluster.css'
 import 'leaflet.markercluster/dist/MarkerCluster.Default.css'
 import L from 'leaflet'
 import 'leaflet.markercluster'
+import type { AreaBounds } from '@web/modules/browse-map/apply-filters'
 import { readCartoApiKey, resolveBasemap } from '@web/modules/browse-map/basemap'
+import { distanceMetres } from '@web/modules/browse-map/distance'
 import {
   BOUNDS_VISCOSITY,
+  CLUSTER_ICON_PX,
+  FLY_DURATION_S,
   FOCUS_ZOOM,
   MAX_ACCURACY_HALO_METRES,
   MAX_ZOOM,
   MIN_ZOOM,
+  NEARBY_PAN_METRES,
+  PAN_DURATION_S,
   USER_ACCURACY_STYLE,
   USER_DOT_CLASS,
   USER_DOT_SIZE_PX,
-  ZOOM_CONTROL_POSITION,
 } from '@web/modules/browse-map/map-config'
 import { SINGAPORE_BOUNDS, toBoundsTuple } from '@web/modules/browse-map/singapore-bounds'
 import type { Coordinates, VenuePin } from '@web/modules/browse-map/types'
-import { createVenuePinIcon } from '@web/modules/browse-map/venue-pin'
+import { createVenuePinIcon, type PinState } from '@web/modules/browse-map/venue-pin'
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 
-// The map always opens fitted to Singapore. `focus` later pans/zooms to a point, for example
-// the visitor's located position; it is ignored on first paint so the island is shown whole.
-// `userPosition` draws the "you are here" dot; `userAccuracyMetres` sizes its halo.
+export type MapOffset = { readonly x: number; readonly y: number }
+
+// The map stays mounted for the whole shell. It opens fitted to Singapore; `focus` later flies
+// to a point. `focusOffset` is how far the visible centre sits from the map's centre (the side
+// panel or bottom sheet covers part of it), so a focused pin lands beside the panel.
 const props = withDefaults(
   defineProps<{
     pins?: readonly VenuePin[]
     focus?: Coordinates | null
-    focusZoom?: number
+    focusOffset?: MapOffset
+    // Pixels the panel, sheet or header cover on each side; the first fit keeps the island clear of them.
+    viewPadding?: { top: number; right: number; bottom: number; left: number }
     userPosition?: Coordinates | null
     userAccuracyMetres?: number | null
+    selectedVenueId?: string | null
+    hoveredVenueId?: string | null
+    hoverEnabled?: boolean
+    reducedMotion?: boolean
   }>(),
   {
     pins: () => [],
     focus: null,
-    focusZoom: FOCUS_ZOOM,
+    focusOffset: () => ({ x: 0, y: 0 }),
+    viewPadding: () => ({ top: 0, right: 0, bottom: 0, left: 0 }),
     userPosition: null,
     userAccuracyMetres: null,
+    selectedVenueId: null,
+    hoveredVenueId: null,
+    hoverEnabled: true,
+    reducedMotion: false,
   },
 )
-const emit = defineEmits<{ select: [id: string] }>()
+const emit = defineEmits<{ select: [id: string]; hover: [id: string | null]; moved: [] }>()
 
 const container = ref<HTMLDivElement | null>(null)
 let map: L.Map | null = null
 let cluster: L.MarkerClusterGroup | null = null
 let userLayer: L.LayerGroup | null = null
 let resizeObserver: ResizeObserver | null = null
+const markers = new Map<string, { marker: L.Marker; pin: VenuePin; key: string }>()
 
 // The canvas resizes the map when the list panel opens; Leaflet must re-measure its container.
 const observeResize = (element: HTMLElement) => {
@@ -56,23 +75,46 @@ const observeResize = (element: HTMLElement) => {
   return observer
 }
 
-// Each outlet is one pin: a tinted category bubble with a price (or deal count) badge below.
 const pinTitle = (pin: VenuePin) =>
   pin.deals.length === 1 ? `${pin.deals[0]?.title} at ${pin.name}` : `${pin.deals.length} deals at ${pin.name}`
+
+const stateFor = (venueId: string): PinState => ({
+  selected: props.selectedVenueId === venueId,
+  dimmed: props.selectedVenueId !== null && props.selectedVenueId !== venueId,
+  hot: props.hoveredVenueId === venueId,
+})
+const stateKey = (state: PinState) => `${state.selected}${state.dimmed}${state.hot}`
 
 const syncPins = (pins: readonly VenuePin[]) => {
   if (!cluster) return
   cluster.clearLayers()
+  markers.clear()
   for (const pin of pins) {
     const title = pinTitle(pin)
-    L.marker([pin.lat, pin.lng], {
-      icon: createVenuePinIcon(pin),
+    const state = stateFor(pin.id)
+    const marker = L.marker([pin.lat, pin.lng], {
+      icon: createVenuePinIcon(pin, state),
       title,
       alt: title,
       riseOnHover: true,
     })
       .on('click', () => emit('select', pin.id))
-      .addTo(cluster)
+      .on('mouseover', () => props.hoverEnabled && emit('hover', pin.id))
+      .on('mouseout', () => props.hoverEnabled && emit('hover', null))
+    marker.addTo(cluster)
+    markers.set(pin.id, { marker, pin, key: stateKey(state) })
+  }
+}
+
+// Only markers whose state changed get a new icon, so hovering a row stays cheap.
+const syncPinStates = () => {
+  for (const [id, entry] of markers) {
+    const state = stateFor(id)
+    const key = stateKey(state)
+    if (key === entry.key) continue
+    entry.marker.setIcon(createVenuePinIcon(entry.pin, state))
+    entry.marker.setZIndexOffset(state.selected || state.hot ? 1000 : 0)
+    markers.set(id, { ...entry, key })
   }
 }
 
@@ -82,9 +124,7 @@ const syncUserPosition = (position: Coordinates | null, accuracy: number | null)
   if (!position) return
   const latLng = L.latLng(position.lat, position.lng)
   if (accuracy !== null && accuracy <= MAX_ACCURACY_HALO_METRES) {
-    L.circle(latLng, { ...USER_ACCURACY_STYLE, radius: accuracy, interactive: false }).addTo(
-      userLayer,
-    )
+    L.circle(latLng, { ...USER_ACCURACY_STYLE, radius: accuracy, interactive: false }).addTo(userLayer)
   }
   const icon = L.divIcon({
     className: USER_DOT_CLASS,
@@ -96,32 +136,67 @@ const syncUserPosition = (position: Coordinates | null, accuracy: number | null)
     .addTo(userLayer)
 }
 
+// Where the map centre must go so `target` shows at the visible centre beside the panel.
+const centreFor = (target: L.LatLng, zoom: number): L.LatLng => {
+  if (!map) return target
+  const point = map.project(target, zoom).subtract([props.focusOffset.x, props.focusOffset.y])
+  return map.unproject(point, zoom)
+}
+
+// Short hops between nearby deals pan; anything further flies.
+const focusOn = (focus: Coordinates) => {
+  if (!map) return
+  const target = L.latLng(focus.lat, focus.lng)
+  const animate = !props.reducedMotion
+  const nearby =
+    map.getZoom() >= FOCUS_ZOOM - 1 && distanceMetres(map.getCenter(), focus) < NEARBY_PAN_METRES
+  if (nearby) {
+    map.panTo(centreFor(target, map.getZoom()), { animate, duration: PAN_DURATION_S })
+    return
+  }
+  map.flyTo(centreFor(target, FOCUS_ZOOM), FOCUS_ZOOM, { animate, duration: FLY_DURATION_S })
+}
+
 onMounted(() => {
   if (!container.value) return
-  const bounds = L.latLngBounds(
-    toBoundsTuple(SINGAPORE_BOUNDS).map(([lat, lng]) => L.latLng(lat, lng)),
-  )
+  const bounds = L.latLngBounds(toBoundsTuple(SINGAPORE_BOUNDS).map(([lat, lng]) => L.latLng(lat, lng)))
   map = L.map(container.value, {
     minZoom: MIN_ZOOM,
     maxZoom: MAX_ZOOM,
     maxBounds: bounds,
     maxBoundsViscosity: BOUNDS_VISCOSITY,
-    // Floating filters occupy the top-left corner, so zoom lives bottom-right like Google Maps.
+    // MapControls draws its own zoom buttons in the shell's control stack.
     zoomControl: false,
+    zoomAnimation: !props.reducedMotion,
+    fadeAnimation: !props.reducedMotion,
+    markerZoomAnimation: !props.reducedMotion,
   })
-  map.fitBounds(bounds)
-  L.control.zoom({ position: ZOOM_CONTROL_POSITION }).addTo(map)
+  const { top, right, bottom, left } = props.viewPadding
+  map.fitBounds(bounds, { paddingTopLeft: [left, top], paddingBottomRight: [right, bottom] })
   const basemap = resolveBasemap(readCartoApiKey())
   L.tileLayer(basemap.url, { attribution: basemap.attribution, maxZoom: MAX_ZOOM }).addTo(map)
-  cluster = L.markerClusterGroup()
+  cluster = L.markerClusterGroup({
+    animate: !props.reducedMotion,
+    // 44px so a cluster is as easy to tap as any other control.
+    iconCreateFunction: (group) =>
+      L.divIcon({
+        html: `<div><span>${group.getChildCount()}</span></div>`,
+        className: 'marker-cluster',
+        iconSize: L.point(CLUSTER_ICON_PX, CLUSTER_ICON_PX),
+      }),
+  })
   cluster.addTo(map)
   userLayer = L.layerGroup().addTo(map)
+  // Only a drag by the visitor offers "Search this area"; flyTo and panTo never fire dragend.
+  map.on('dragend', () => emit('moved'))
   syncPins(props.pins)
   syncUserPosition(props.userPosition, props.userAccuracyMetres)
+  if (props.focus) focusOn(props.focus)
   resizeObserver = observeResize(container.value)
 })
 
 watch(() => props.pins, syncPins)
+watch(() => [props.selectedVenueId, props.hoveredVenueId] as const, syncPinStates)
 watch(
   () => [props.userPosition, props.userAccuracyMetres] as const,
   ([position, accuracy]) => syncUserPosition(position, accuracy),
@@ -129,7 +204,7 @@ watch(
 watch(
   () => props.focus,
   (focus) => {
-    if (focus) map?.flyTo([focus.lat, focus.lng], props.focusZoom)
+    if (focus) focusOn(focus)
   },
 )
 
@@ -140,13 +215,25 @@ onBeforeUnmount(() => {
   map = null
   cluster = null
   userLayer = null
+  markers.clear()
+})
+
+defineExpose({
+  zoomIn: () => map?.zoomIn(1, { animate: !props.reducedMotion }),
+  zoomOut: () => map?.zoomOut(1, { animate: !props.reducedMotion }),
+  getArea: (): AreaBounds | null => {
+    const bounds = map?.getBounds()
+    return bounds
+      ? { south: bounds.getSouth(), west: bounds.getWest(), north: bounds.getNorth(), east: bounds.getEast() }
+      : null
+  },
 })
 </script>
 
 <template>
-  <section aria-label="Deal map" class="deal-map-region" data-testid="deal-map">
+  <div class="deal-map-region" data-testid="deal-map">
     <div ref="container" class="deal-map" />
-  </section>
+  </div>
 </template>
 
 <style scoped>
@@ -157,12 +244,10 @@ onBeforeUnmount(() => {
   height: 100%;
 }
 
-
 .deal-map :deep(.leaflet-container) {
   font-family: var(--font-sans);
   background: var(--map-canvas);
 }
-
 
 .deal-map :deep(.deal-map-pin) {
   background: transparent;
@@ -179,43 +264,104 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: 2px;
   transform: translate(-50%, -50%);
-  transition: transform 160ms ease;
+  transition:
+    transform 200ms var(--ease-out),
+    opacity 200ms ease;
 }
 
 .deal-map :deep(.deal-map-pin__bubble) {
+  position: relative;
   display: grid;
   place-items: center;
   box-sizing: border-box;
-  width: 52px;
-  height: 52px;
+  width: 44px;
+  height: 44px;
   color: var(--ink);
   background: var(--pin-tint, var(--tint-other));
-  border: 4px solid var(--paper-white);
+  border: 3px solid var(--paper-white);
   border-radius: 50%;
   box-shadow: var(--shadow-pill);
+  transition: border-color 200ms ease;
 }
 
 .deal-map :deep(.deal-map-pin__bubble svg) {
-  width: 22px;
-  height: 22px;
+  width: 20px;
+  height: 20px;
+}
+
+.deal-map :deep(.deal-map-pin__flag) {
+  position: absolute;
+  top: -5px;
+  right: -7px;
+  display: grid;
+  place-items: center;
+  box-sizing: border-box;
+  width: 18px;
+  height: 18px;
+  color: var(--paper-white);
+  border: 2px solid var(--paper-white);
+  border-radius: 50%;
+}
+
+.deal-map :deep(.deal-map-pin__flag svg) {
+  width: 9px;
+  height: 9px;
+}
+
+.deal-map :deep(.deal-map-pin__flag--verified) {
+  background: var(--ok);
+}
+
+.deal-map :deep(.deal-map-pin__flag--ending) {
+  background: var(--coral);
 }
 
 .deal-map :deep(.deal-map-pin__badge) {
-  padding: 3px 10px;
+  padding: 2px 9px;
   font-family: var(--font-display);
   font-size: var(--text-xs);
-  font-weight: 700;
+  font-weight: 600;
   line-height: 1.3;
   white-space: nowrap;
   color: var(--paper-white);
-  background: var(--ink);
+  background: var(--ink-strong);
   border-radius: var(--radius-pill);
   box-shadow: var(--shadow-pill);
 }
 
-.deal-map :deep(.deal-map-pin:hover .deal-map-pin__stack),
-.deal-map :deep(.deal-map-pin:focus-visible .deal-map-pin__stack) {
-  transform: translate(-50%, -50%) scale(1.06);
+.deal-map :deep(.deal-map-pin.is-hot .deal-map-pin__stack) {
+  transform: translate(-50%, -50%) translateY(-6px) scale(1.1);
+}
+
+.deal-map :deep(.deal-map-pin.is-hot .deal-map-pin__badge),
+.deal-map :deep(.deal-map-pin.is-selected .deal-map-pin__badge) {
+  background: var(--coral);
+}
+
+.deal-map :deep(.deal-map-pin.is-selected .deal-map-pin__bubble) {
+  border-color: var(--coral);
+}
+
+.deal-map :deep(.deal-map-pin.is-selected .deal-map-pin__stack) {
+  animation: pin-bounce 220ms var(--ease-out);
+}
+
+.deal-map :deep(.deal-map-pin.is-dimmed .deal-map-pin__stack) {
+  opacity: 0.4;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .deal-map :deep(.deal-map-pin:hover .deal-map-pin__stack) {
+    transform: translate(-50%, -50%) translateY(-4px);
+  }
+}
+
+.deal-map :deep(.deal-map-pin:focus-visible) {
+  outline: none;
+}
+
+.deal-map :deep(.deal-map-pin:focus-visible .deal-map-pin__bubble) {
+  box-shadow: 0 0 0 3px var(--sunny-ring);
 }
 
 /* Cluster bubbles: a soft sunny ring around a solid sunny count. */
@@ -224,6 +370,10 @@ onBeforeUnmount(() => {
 }
 
 .deal-map :deep(.marker-cluster div) {
+  width: 34px;
+  height: 34px;
+  margin: 5px;
+  line-height: 34px;
   font-family: var(--font-display);
   font-weight: 700;
   color: var(--ink);
@@ -239,37 +389,6 @@ onBeforeUnmount(() => {
   box-shadow: 0 2px 6px rgba(27, 27, 31, 0.3);
 }
 
-/* Bottom-right controls slide left while the list card covers that corner of the map. */
-.deal-map :deep(.leaflet-right) {
-  right: var(--map-right-inset, 0px);
-  transition: right 420ms cubic-bezier(0.22, 1, 0.36, 1);
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .deal-map :deep(.leaflet-right) {
-    transition: none;
-  }
-}
-
-/* Zoom control and attribution restyled as small white paper cards. */
-.deal-map :deep(.leaflet-bar) {
-  border: 0;
-  border-radius: var(--radius-control);
-  box-shadow: var(--shadow-pill);
-  overflow: hidden;
-}
-
-.deal-map :deep(.leaflet-bar a) {
-  color: var(--ink);
-  background: var(--paper-white);
-  border-bottom-color: var(--hairline);
-}
-
-.deal-map :deep(.leaflet-bar a:hover),
-.deal-map :deep(.leaflet-bar a:focus-visible) {
-  background: var(--paper);
-}
-
 .deal-map :deep(.leaflet-control-attribution) {
   color: var(--ink-muted);
   background: rgba(255, 255, 255, 0.85);
@@ -278,5 +397,29 @@ onBeforeUnmount(() => {
 
 .deal-map :deep(.leaflet-control-attribution a) {
   color: var(--ink);
+}
+
+@keyframes pin-bounce {
+  40% {
+    transform: translate(-50%, -50%) scale(1.12);
+  }
+
+  to {
+    transform: translate(-50%, -50%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .deal-map :deep(.deal-map-pin__stack) {
+    transition: opacity 150ms ease;
+  }
+
+  .deal-map :deep(.deal-map-pin.is-selected .deal-map-pin__stack) {
+    animation: none;
+  }
+
+  .deal-map :deep(.deal-map-pin.is-hot .deal-map-pin__stack) {
+    transform: translate(-50%, -50%);
+  }
 }
 </style>

@@ -13,15 +13,11 @@ const layout = computed(() => routeLayout(route))
 <template>
   <BApp>
     <SplashScreen />
-    <div
-      class="min-vh-100 bg-light-subtle text-body site-layout"
-      :class="{ 'site-layout--shell': layout === 'shell' }"
-    >
+    <!-- The map shell owns the whole viewport and brings its own header and landmarks. -->
+    <RouterView v-if="layout === 'canvas'" />
+    <div v-else class="min-vh-100 bg-light-subtle text-body site-layout site-layout--shell">
       <SiteHeader />
-      <main v-if="layout === 'canvas'" class="site-canvas">
-        <RouterView />
-      </main>
-      <AppShell v-else>
+      <AppShell>
         <RouterView />
       </AppShell>
     </div>
@@ -31,16 +27,5 @@ const layout = computed(() => routeLayout(route))
 <style scoped>
 .site-layout--shell {
   padding-top: var(--site-header-clearance);
-}
-
-/* Full-bleed canvas: the page owns the viewport and the fixed header floats over it. */
-.site-canvas {
-  height: 100vh;
-}
-
-@supports (height: 100dvh) {
-  .site-canvas {
-    height: 100dvh;
-  }
 }
 </style>

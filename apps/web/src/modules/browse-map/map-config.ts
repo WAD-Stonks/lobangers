@@ -5,7 +5,10 @@ export const FOCUS_ZOOM = 15
 // Zoom 11 keeps the whole island on screen; anything wider shows only sea and Johor.
 export const MIN_ZOOM = 11
 export const MAX_ZOOM = 19
-export const ZOOM_CONTROL_POSITION = 'bottomright'
+// Selecting a deal flies there; hopping to a deal this close (at street zoom) pans instead.
+export const FLY_DURATION_S = 0.65
+export const PAN_DURATION_S = 0.4
+export const NEARBY_PAN_METRES = 1500
 // 1 = the edge is a hard wall; lower values let the map bounce past it and spring back.
 export const BOUNDS_VISCOSITY = 1
 
@@ -27,6 +30,7 @@ export const MAX_ACCURACY_HALO_METRES = 500
 // Venue pins (tinted category bubble plus a black price badge) are built by venue-pin.ts;
 // the class is styled in DealMap.vue.
 export const DEAL_PIN_CLASS = 'deal-map-pin'
-export const DEAL_PIN_BUBBLE_PX = 52
+export const DEAL_PIN_BUBBLE_PX = 44
+export const CLUSTER_ICON_PX = 44
 // Longer labels are cut so a badge never grows into a banner across the map.
 export const DEAL_PIN_LABEL_MAX_CHARS = 14

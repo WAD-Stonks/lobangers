@@ -9,6 +9,8 @@
     "./platform-admin": "./src/platform-admin.ts",
     "./deals": "./src/deals.ts",
     "./deal-categories": "./src/deal-categories.ts",
+    "./deal-copy": "./src/deal-copy.ts",
+    "./deal-cuisines": "./src/deal-cuisines.ts",
     "./venues": "./src/venues.ts",
     "./account": "./src/account.ts"
   },

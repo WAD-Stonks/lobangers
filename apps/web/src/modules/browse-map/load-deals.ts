@@ -10,9 +10,9 @@ import type {
   VenuePin,
 } from '@web/modules/browse-map/types'
 
-export const toDealsQuery = (filters: BrowseFilters): DealsQuery => ({
-  ...(filters.category ? { category: filters.category } : {}),
-  ...(filters.priceMaxMinor === null ? {} : { priceMaxMinor: filters.priceMaxMinor }),
+// Only validity goes to the API: it also checks start dates the client never sees. Every other
+// filter runs client-side (apply-filters.ts) so the filter sheet can count matches live.
+export const toDealsQuery = (filters: Pick<BrowseFilters, 'validNow'>): DealsQuery => ({
   validNow: filters.validNow ? 'true' : 'false',
 })
 

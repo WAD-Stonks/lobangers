@@ -52,6 +52,38 @@
   --shadow-card: 0 12px 32px rgba(27, 27, 31, 0.1), 0 1px 2px rgba(27, 27, 31, 0.05);
   --shadow-pill: 0 6px 18px rgba(27, 27, 31, 0.14);
 
+  /* Secondary surfaces from the map-shell design: hover washes, tags and switches. */
+  --ink-strong: #1d1d22;
+  --ink-strong-hover: #2c2c33;
+  --paper-hover: #f6f5f2;
+  --paper-sunk: #efede8;
+  --hairline-strong: #c9c6bf;
+  --track: #d6d3cc;
+  --sunny-wash: #fdf6dc;
+  --ok: #3f9a5f;
+  --tag-ok-bg: #e2f0e6;
+  --tag-ok-ink: #1d5531;
+  --tag-end-bg: #fbe0d7;
+  --tag-end-ink: #8a3115;
+  --tag-new-bg: #efede8;
+  --tag-new-ink: #55545a;
+  --tag-info-bg: #dfe7fc;
+  --tag-info-ink: #22448f;
+  --tag-build-bg: #fbefc2;
+  --tag-build-ink: #5f4a00;
+  --radius-sheet: 1.75rem;
+
+  /* Motion: two curves, UI under 300ms. */
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1); /* things entering */
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1); /* things moving on screen */
+  --dur-press: 140ms;
+  --dur-small: 180ms; /* chips, menu, toggles */
+  --dur-panel: 260ms; /* panel slides, sheet snaps */
+
+  /* Control sizes: a 44px touch target and the 52px header pills. Desktop tightens both below. */
+  --hit: 44px;
+  --control-h: 52px;
+
   /* Shown behind map tiles while they load; matches the paper land colour so nothing flashes. */
   --map-canvas: var(--paper);
   /* Space the fixed header card takes above page content (top offset + card height). */
@@ -67,9 +99,32 @@
   background: var(--paper);
 }
 
+/* Desktop with a mouse reads better a notch denser: rem-based type and spacing drop to 90%,
+   and controls to a 40px target (still well above WCAG's 24px minimum for a fine pointer).
+   Touch screens keep the full size. */
+@media (min-width: 992px) and (pointer: fine) {
+  html {
+    font-size: 90%;
+  }
+
+  :root {
+    --hit: 40px;
+    --control-h: 46px;
+  }
+}
+
 body {
   min-width: 320px;
   margin: 0;
+}
+
+/* The map shell owns the viewport: only its panel scrolls, never the page. */
+html.is-canvas,
+html.is-canvas body {
+  height: 100%;
+  /* clip, not hidden: focus and scrollIntoView can still scroll a hidden box. */
+  overflow: clip;
+  scroll-behavior: auto;
 }
 
 a:focus-visible,

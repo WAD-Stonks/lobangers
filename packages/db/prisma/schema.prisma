@@ -198,6 +198,8 @@ model Deal {
   title           String
   description     String
   category        String
+  // One of DEAL_CUISINES in contracts; null when a cuisine does not apply (a supermarket deal).
+  cuisine         String?
   offerType       OfferType
   terms           String?
   priceMinor      Int?
