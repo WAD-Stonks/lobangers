@@ -8,6 +8,7 @@ import { RouterView, useRoute } from 'vue-router'
 
 const route = useRoute()
 const layout = computed(() => routeLayout(route))
+const administration = computed(() => route.path === '/admin' || route.path.startsWith('/admin/'))
 </script>
 
 <template>
@@ -15,8 +16,16 @@ const layout = computed(() => routeLayout(route))
     <SplashScreen />
     <!-- The map shell owns the whole viewport and brings its own header and landmarks. -->
     <RouterView v-if="layout === 'canvas'" />
-    <div v-else class="min-vh-100 bg-light-subtle text-body site-layout site-layout--shell">
-      <SiteHeader />
+    <!-- The landing page brings its own navbar. -->
+    <main v-else-if="layout === 'landing'" class="landing-canvas">
+      <RouterView />
+    </main>
+    <div
+      v-else
+      class="min-vh-100 bg-light-subtle text-body site-layout"
+      :class="{ 'site-layout--shell': !administration, 'site-layout--admin': administration }"
+    >
+      <SiteHeader :embedded="administration" />
       <AppShell>
         <RouterView />
       </AppShell>

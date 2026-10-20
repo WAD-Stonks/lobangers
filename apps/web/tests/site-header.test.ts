@@ -1,23 +1,46 @@
 import { flushPromises, mount } from '@vue/test-utils'
 import App from '@web/App.vue'
+import SiteHeader from '@web/components/SiteHeader.vue'
 import routes from '@web/router/routes'
 import { describe, expect, it, vi } from 'vitest'
 import { ref } from 'vue'
 import { createMemoryHistory, createRouter } from 'vue-router'
 
-// Synthetic REST boundary and signed-out session: these tests cover navigation only.
+const identity = vi.hoisted(() => ({ role: null as string | null }))
+
+// Synthetic signed-out session: these tests cover the shell, not authentication.
 vi.mock('@web/lib/api-client', () => ({
   api: { deals: { list: vi.fn().mockResolvedValue({ items: [], categories: [] }) } },
 }))
-
-// Synthetic signed-out session: these tests cover the shell, not authentication.
 vi.mock('@web/lib/auth-client', () => ({
-  authClient: { useSession: () => ref({ data: null, isPending: false }), signOut: vi.fn() },
+  authClient: {
+    useSession: () =>
+      ref({
+        data: identity.role ? { user: { role: identity.role, name: 'Test user' } } : null,
+        isPending: false,
+      }),
+    signOut: vi.fn(),
+  },
 }))
 
 const NAV = '[data-testid="primary-nav"]'
 const TOGGLE = '[data-testid="nav-toggle"]'
 const MENU = '[data-testid="nav-menu"]'
+
+it('supports an inline admin header without changing the floating map default', async () => {
+  const router = createRouter({
+    history: createMemoryHistory(),
+    routes: [{ path: '/', component: SiteHeader }],
+  })
+  await router.push('/')
+  const wrapper = mount(SiteHeader, { props: { embedded: true }, global: { plugins: [router] } })
+  expect(wrapper.classes()).toContain('site-header--embedded')
+  await wrapper.get(TOGGLE).trigger('click')
+  expect(wrapper.find(MENU).exists()).toBe(true)
+  await wrapper.setProps({ embedded: false })
+  expect(wrapper.classes()).not.toContain('site-header--embedded')
+  wrapper.unmount()
+})
 
 async function mountAt(path: string) {
   const router = createRouter({ history: createMemoryHistory(), routes })
@@ -45,8 +68,8 @@ describe('site header pill', () => {
     wrapper.unmount()
   })
 
-  it('reveals every destination and the sign-in links behind the map menu button', async () => {
-    const { wrapper } = await mountAt('/')
+  it('reveals public destinations and sign-in links without administration', async () => {
+    const { wrapper } = await mountAt('/browse')
 
     await wrapper.get(TOGGLE).trigger('click')
 
@@ -58,23 +81,21 @@ describe('site header pill', () => {
     expect(menu.attributes('aria-label')).toBe('Site')
     const hrefs = menu.findAll('a').map((link) => link.attributes('href'))
     expect(hrefs).toEqual([
-      '/login?redirect=/',
-      '/register?redirect=/',
+      '/login?redirect=/browse',
+      '/register?redirect=/browse',
       '/add',
       '/',
-      '/?view=list',
+      '/browse',
+      '/deals',
+      '/submit-deal',
       '/getting-started',
-      '/admin',
-      '/admin/accounts',
-      '/admin/ingestion',
     ])
-    expect(menu.get('a[href="/"]').attributes('aria-current')).toBe('page')
-    expect(menu.get('a[href="/?view=list"]').attributes('aria-current')).toBeUndefined()
+    expect(menu.get('a[href="/browse"]').attributes('aria-current')).toBe('page')
     wrapper.unmount()
   })
 
   it('navigates from a menu link and collapses afterwards', async () => {
-    const { router, wrapper } = await mountAt('/')
+    const { router, wrapper } = await mountAt('/browse')
 
     await wrapper.get(TOGGLE).trigger('click')
     await wrapper.get(`${MENU} a[href="/getting-started"]`).trigger('click')
@@ -87,7 +108,7 @@ describe('site header pill', () => {
   })
 
   it('closes on Escape and returns focus to the toggle', async () => {
-    const { wrapper } = await mountAt('/')
+    const { wrapper } = await mountAt('/browse')
 
     await wrapper.get(TOGGLE).trigger('click')
     expect(wrapper.find(MENU).exists()).toBe(true)
@@ -100,7 +121,7 @@ describe('site header pill', () => {
   })
 
   it('closes when clicking outside the pill', async () => {
-    const { wrapper } = await mountAt('/')
+    const { wrapper } = await mountAt('/browse')
 
     await wrapper.get(TOGGLE).trigger('click')
     expect(wrapper.find(MENU).exists()).toBe(true)
@@ -111,4 +132,15 @@ describe('site header pill', () => {
     expect(wrapper.find(MENU).exists()).toBe(false)
     wrapper.unmount()
   })
+})
+
+it('shows administration destinations only for an administrator', async () => {
+  identity.role = 'ADMIN'
+  const { wrapper } = await mountAt('/browse')
+  await wrapper.get(TOGGLE).trigger('click')
+  expect(wrapper.find(`${MENU} a[href="/admin"]`).exists()).toBe(true)
+  expect(wrapper.find(`${MENU} a[href="/admin/accounts"]`).exists()).toBe(true)
+  expect(wrapper.find(`${MENU} a[href="/admin/ingestion"]`).exists()).toBe(true)
+  identity.role = null
+  wrapper.unmount()
 })

@@ -1,0 +1,20 @@
+@font-face {
+  font-family: "Lobang Pop";
+  src:
+    url("./LobangPop-Heavy.woff2") format("woff2"),
+    url("./LobangPop-Heavy.woff") format("woff"),
+    url("./LobangPop-Heavy.ttf") format("truetype");
+  font-weight: 900;
+  font-style: normal;
+  font-display: swap;
+}
+.lobang-pop,
+.lobang-headline {
+  font-family: "Lobang Pop", sans-serif;
+  font-weight: 900;
+  font-style: normal;
+}
+.lobang-headline {
+  line-height: 1.02;
+  letter-spacing: 0;
+}

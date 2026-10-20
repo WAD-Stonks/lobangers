@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1536 1024" aria-hidden="true" focusable="false">
+  <defs><filter id="paint" x="-2%" y="-2%" width="104%" height="104%"><feGaussianBlur stdDeviation="1.6"/></filter></defs>
+  <!-- Broad asymmetric curves finish the sea below the ferry route.
+       The Sentosa artwork, at x&lt;740, retains the complete original frame. -->
+  <path fill="white" filter="url(#paint)" d="M-10-10H1546V966C1470 958 1430 996 1350 990S1270 956 1210 966S1140 998 1070 990S1005 958 945 966S865 1006 810 1006L740 1034H-10Z"/>
+</svg>

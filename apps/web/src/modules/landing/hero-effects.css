@@ -1,0 +1,451 @@
+/* Hero entrances and interactions; no scroll-driven transforms. */
+.hero-waterfront,
+.waterfront-art {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+.hero-waterfront {
+  z-index: 3;
+}
+.waterfront-art {
+  overflow: visible;
+}
+.waterfront-waves {
+  animation: waterfront-wave-drift 5s ease-in-out infinite alternate;
+}
+.hero-ferry-route {
+  animation: waterfront-sail 28s ease-in-out infinite;
+}
+.hero-ferry-bob {
+  animation: waterfront-bob 3s ease-in-out infinite;
+}
+/* Match the 28s sailing cycle; reverse the wake during the mid-trip pause. */
+.hero-ferry-wake-direction {
+  transform-box: view-box;
+  transform-origin: 0 0;
+  transform: scaleX(-1);
+  animation: waterfront-wake-direction 28s step-end infinite;
+}
+@keyframes waterfront-wake-direction {
+  0%,
+  100% {
+    transform: scaleX(-1);
+  }
+  50% {
+    transform: scaleX(1);
+  }
+}
+.hero-ferry-wake {
+  animation: waterfront-wake 1.8s ease-in-out infinite alternate;
+}
+@keyframes waterfront-sail {
+  0%,
+  100% {
+    transform: translate(1280px, 908px);
+  }
+  45% {
+    transform: translate(941px, 927px);
+  }
+  55% {
+    transform: translate(941px, 927px);
+  }
+}
+@keyframes waterfront-bob {
+  0%,
+  100% {
+    transform: translateY(0) rotate(-1deg);
+  }
+  50% {
+    transform: translateY(-5px) rotate(1deg);
+  }
+}
+@keyframes waterfront-wake {
+  from {
+    opacity: 0.25;
+    transform: scaleX(0.85);
+  }
+  to {
+    opacity: 0.8;
+    transform: scaleX(1.1);
+  }
+}
+@keyframes waterfront-wave-drift {
+  from {
+    translate: -4px 0;
+    opacity: 0.45;
+  }
+  to {
+    translate: 5px -3px;
+    opacity: 0.9;
+  }
+}
+.hero-landmark {
+  position: absolute;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  pointer-events: auto;
+  cursor: pointer;
+  border-radius: 40%;
+  -webkit-tap-highlight-color: transparent;
+}
+/* Expand touch targets without changing the artwork's geometry. */
+.hero-landmark::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 100%;
+  height: 100%;
+  min-width: 44px;
+  min-height: 44px;
+  transform: translate(-50%, -50%);
+}
+.hero-landmark:focus-visible {
+  outline: 3px solid #c85534;
+  outline-offset: 5px;
+}
+.hero-flyer {
+  left: 63.48%;
+  top: 58.79%;
+  width: 8.08%;
+  height: 14.65%;
+}
+.hero-flyer > svg {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  filter: drop-shadow(0 3px 2px #254d5818);
+}
+.hero-flyer-wheel {
+  transform-box: view-box;
+  transform-origin: 62px 62px;
+  animation: waterfront-wheel 14s linear infinite;
+}
+.flyer-spinning .hero-flyer-wheel {
+  animation-duration: 3s;
+}
+@keyframes waterfront-wheel {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.hero-merlion {
+  left: 73.3%;
+  top: 67%;
+  width: 6.3%;
+  height: 14%;
+}
+.landmark-hint {
+  position: absolute;
+  left: 50%;
+  top: 100%;
+  transform: translate(-50%, 5px);
+  white-space: nowrap;
+  padding: 6px 9px;
+  border: 1px solid #e9dfc7;
+  background: #fffdf6;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px #47431c12;
+  color: #4d5948;
+  font-size: 10px;
+  font-weight: 700;
+  opacity: 0;
+  transition: opacity 0.2s;
+  pointer-events: none;
+}
+.hero-landmark:is(:hover, :focus-visible) .landmark-hint,
+.flyer-spinning .hero-flyer .landmark-hint,
+.merlion-splashing .hero-merlion .landmark-hint {
+  opacity: 1;
+}
+.merlion-jets {
+  opacity: 1;
+}
+.merlion-stream-core {
+  opacity: 0.75;
+}
+.merlion-stream-flow {
+  stroke-dasharray: 6 9;
+  animation: merlion-water-flow 0.6s linear infinite;
+}
+.merlion-stream-edge {
+  opacity: 0.6;
+}
+.merlion-stream-sheen {
+  opacity: 0.65;
+}
+.merlion-droplets {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: merlion-droplets 0.9s ease-in-out infinite alternate;
+}
+.merlion-water-ripple {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: merlion-water-ripple 1.6s ease-out infinite;
+}
+.merlion-splashing .merlion-jets {
+  filter: drop-shadow(0 0 4px #fff);
+}
+@keyframes merlion-water-flow {
+  to {
+    stroke-dashoffset: -30;
+  }
+}
+@keyframes merlion-droplets {
+  from {
+    translate: 0 -2px;
+    opacity: 0.55;
+  }
+  to {
+    translate: 0 3px;
+    opacity: 1;
+  }
+}
+@keyframes merlion-water-ripple {
+  from {
+    scale: 0.65;
+    opacity: 0.9;
+  }
+  to {
+    scale: 1.5;
+    opacity: 0.2;
+  }
+}
+.hero-map-scene .island-markers {
+  z-index: 2;
+}
+
+.hero-discovered-food {
+  animation: discovery-food 0.65s cubic-bezier(0.16, 1.15, 0.3, 1) both;
+}
+.hero-deal-badge {
+  animation: discovery-sticker 0.7s cubic-bezier(0.16, 1.3, 0.3, 1) both;
+}
+@keyframes discovery-food {
+  from {
+    opacity: 0.4;
+    scale: 0.95;
+  }
+  to {
+    opacity: 1;
+    scale: 1;
+  }
+}
+@keyframes discovery-sticker {
+  from {
+    scale: 0.75;
+    rotate: -12deg;
+  }
+  to {
+    scale: 1;
+    rotate: 0deg;
+  }
+}
+.waterfront-paused
+  :is(
+    .waterfront-waves,
+    .hero-ferry-route,
+    .hero-cable-car-travel,
+    .hero-cable-car-sway,
+    .hero-ferry-bob,
+    .hero-ferry-wake,
+    .hero-ferry-wake-direction,
+    .hero-flyer-wheel,
+    .merlion-stream-flow,
+    .merlion-droplets,
+    .merlion-water-ripple
+  ),
+.hero-ambient-paused .pin-ring {
+  animation-play-state: paused;
+}
+@media (max-width: 800px) {
+  .landmark-hint {
+    font-size: 8px;
+    padding: 5px 7px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .hero-ferry-route {
+    transform: translate(1280px, 908px);
+  }
+  .merlion-splashing .merlion-jets {
+    opacity: 1;
+  }
+}
+
+/* A tap sends a visible pressure surge into a spray and two spreading rings. */
+.merlion-burst {
+  pointer-events: none;
+}
+.merlion-surge {
+  stroke-dasharray: 200;
+  animation: merlion-surge 1.25s ease-out both;
+}
+.merlion-spray-drop {
+  animation: merlion-spray-flight 1.25s cubic-bezier(0.15, 0.65, 0.35, 1) both;
+}
+.merlion-burst-ring {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: merlion-burst-ring 1.5s ease-out both;
+}
+.burst-ring-second {
+  animation-delay: 0.2s;
+}
+.merlion-splash-crown {
+  transform-origin: 0 0;
+  animation: merlion-splash-crown 1.1s ease-out both;
+}
+@keyframes merlion-surge {
+  0% {
+    stroke-dashoffset: 200;
+    opacity: 0;
+  }
+  20% {
+    opacity: 1;
+  }
+  65% {
+    stroke-dashoffset: 0;
+    opacity: 0.9;
+  }
+  100% {
+    stroke-dashoffset: -200;
+    opacity: 0;
+  }
+}
+@keyframes merlion-spray-flight {
+  0% {
+    transform: translate(0, 0);
+    opacity: 0;
+  }
+  15% {
+    opacity: 1;
+  }
+  60% {
+    transform: translate(var(--spray-x), var(--spray-y));
+    opacity: 1;
+  }
+  100% {
+    transform: translate(var(--spray-x), 8px);
+    opacity: 0;
+  }
+}
+@keyframes merlion-burst-ring {
+  from {
+    scale: 0.5;
+    opacity: 0.95;
+  }
+  to {
+    scale: 3.6;
+    opacity: 0;
+  }
+}
+@keyframes merlion-splash-crown {
+  0% {
+    scale: 0.3;
+    opacity: 0;
+  }
+  25% {
+    scale: 1;
+    opacity: 1;
+  }
+  100% {
+    scale: 1.2 0.2;
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .merlion-burst {
+    display: none;
+  }
+}
+
+.hero-cable-car-travel {
+  transform: translate(519.75px, 819px);
+  animation: waterfront-cable-car 18s linear infinite;
+}
+.hero-cable-car-sway {
+  transform-box: view-box;
+  transform-origin: 0 0;
+  animation: waterfront-cable-sway 3.2s ease-in-out infinite;
+}
+/* Samples follow the cable quadratic, with easing baked into the trip. */
+@keyframes waterfront-cable-car {
+  0%,
+  100% {
+    transform: translate(477.59px, 815.16px);
+  }
+  5%,
+  95% {
+    transform: translate(479.661px, 815.825px);
+  }
+  10%,
+  90% {
+    transform: translate(485.667px, 817.476px);
+  }
+  15%,
+  85% {
+    transform: translate(495.008px, 819.224px);
+  }
+  20%,
+  80% {
+    transform: translate(506.756px, 820px);
+  }
+  25%,
+  75% {
+    transform: translate(519.75px, 819px);
+  }
+  30%,
+  70% {
+    transform: translate(532.713px, 816.044px);
+  }
+  35%,
+  65% {
+    transform: translate(544.382px, 811.7px);
+  }
+  40%,
+  60% {
+    transform: translate(553.624px, 807.12px);
+  }
+  45%,
+  55% {
+    transform: translate(559.55px, 803.651px);
+  }
+  50% {
+    transform: translate(561.59px, 802.36px);
+  }
+}
+@keyframes waterfront-cable-sway {
+  0%,
+  100% {
+    transform: rotate(-2.5deg);
+  }
+  50% {
+    transform: rotate(2.5deg);
+  }
+}
+
+.hero-map-area > .hero-deal {
+  animation: hero-selected-deal-pop 0.6s cubic-bezier(0.16, 1.2, 0.3, 1) both;
+  transform-origin: center;
+}
+.hero-map-area > .hero-deal-initial {
+  animation-delay: 1.65s;
+}
+@keyframes hero-selected-deal-pop {
+  from {
+    opacity: 0;
+    scale: 0.88;
+    translate: 0 18px;
+  }
+  to {
+    opacity: 1;
+    scale: 1;
+    translate: 0 0;
+  }
+}

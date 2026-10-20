@@ -38,7 +38,13 @@ const authQuery = computed(() =>
   route.name === 'login' || route.name === 'register' ? route.query : { redirect: route.fullPath },
 )
 
-const menuLinks = computed(() => (user.value ? [...SITE_NAV_LINKS, ...ACCOUNT_NAV_LINKS] : SITE_NAV_LINKS))
+// Role-limited rows (administration) only show for that role, as in the site header.
+const visibleSiteLinks = computed(() =>
+  SITE_NAV_LINKS.filter((link) => !link.roles || link.roles.includes(user.value?.role ?? '')),
+)
+const menuLinks = computed(() =>
+  user.value ? [...visibleSiteLinks.value, ...ACCOUNT_NAV_LINKS] : visibleSiteLinks.value,
+)
 // Exact match including the query: RouterLink's own check ignores it, so "/" and
 // "/?view=list" would both look current.
 const isCurrent = (to: string) => router.resolve(to).fullPath === route.fullPath

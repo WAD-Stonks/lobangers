@@ -12,6 +12,7 @@ const deal = (id: string, title: string, overrides: Record<string, unknown>) => 
   id,
   title,
   category: 'FOOD',
+  cuisine: null,
   label: title,
   description: `Synthetic description for ${title}.`,
   offerType: 'FIXED_PRICE',
@@ -93,7 +94,7 @@ for (const width of [390, 1280]) {
     test('browse: a quick chip filters pins, list and URL, and survives opening a deal', async ({
       page,
     }) => {
-      await page.goto('/')
+      await page.goto('/browse')
       await expect(rows(page)).toHaveCount(3)
       await expect(page.locator('.deal-map-pin')).toHaveCount(3)
 
@@ -112,7 +113,7 @@ for (const width of [390, 1280]) {
     })
 
     test('pin to deal: each pin opens its deal with the panel at the top', async ({ page }) => {
-      await page.goto('/')
+      await page.goto('/browse')
       await expect(page.locator('.deal-map-pin')).toHaveCount(3)
       await page.locator('.deal-map-pin[title^="Synthetic fishball"]').dispatchEvent('click')
       await expect(panelHeading(page)).toHaveText('Synthetic fishball noodles')
@@ -126,7 +127,7 @@ for (const width of [390, 1280]) {
     })
 
     test('filters sheet: live count, badge, and focus back on Escape', async ({ page }) => {
-      await page.goto('/')
+      await page.goto('/browse')
       await expect(rows(page)).toHaveCount(3)
       const allFilters = page.getByTestId('all-filters')
       await allFilters.click()
@@ -164,7 +165,7 @@ for (const width of [390, 1280]) {
       context,
     }) => {
       await context.grantPermissions([])
-      await page.goto('/')
+      await page.goto('/browse')
       await page.getByTestId('near-me').click()
       await expect(page.getByTestId('location-status')).toContainText(/refused|unavailable/)
       await expect(rows(page)).toHaveCount(3)
@@ -173,7 +174,7 @@ for (const width of [390, 1280]) {
     test('keyboard only: the menu opens from the logo and Escape returns focus', async ({
       page,
     }) => {
-      await page.goto('/')
+      await page.goto('/browse')
       await page.keyboard.press('Tab')
       const toggle = page.getByTestId('nav-toggle')
       await expect(toggle).toBeFocused()
@@ -196,7 +197,7 @@ test('hot card: rotates, pauses and opens its deal', async ({ page }) => {
   await page.clock.install()
   await page.setViewportSize({ width: 1280, height: 844 })
   await mockApi(page)
-  await page.goto('/')
+  await page.goto('/browse')
   const position = page.getByTestId('hot-position')
   await expect(position).toHaveText('1 of 3')
   await page.mouse.move(1200, 60)

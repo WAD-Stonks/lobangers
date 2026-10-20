@@ -1,0 +1,147 @@
+/* One cream, sage and gold palette; each scene uses a different visual metaphor. */
+.hero-paper-background {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  overflow: hidden;
+  background: radial-gradient(ellipse at 17% 56%, #fff1cd66, transparent 49%);
+}
+/* Broad rounded bands echo the island coastline without repeating a grid. */
+.hero-paper-background::before {
+  content: "";
+  position: absolute;
+  left: -140px;
+  bottom: -150px;
+  width: 650px;
+  height: 300px;
+  border-radius: 50%;
+  border: 34px solid #dce6ce55;
+  box-shadow: 0 0 0 30px #e8eddc33;
+  transform: rotate(-14deg);
+}
+.hero-paper-background::after {
+  content: "";
+  position: absolute;
+  width: 560px;
+  height: 560px;
+  left: -350px;
+  top: 20%;
+  border-radius: 50%;
+  background: #f7e6bb38;
+}
+/* Separate conversation fragments reinforce the problem of scattered sources. */
+.story-scrapbook-background {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    url("/landing/scattered-feed-backdrop.svg") center / cover no-repeat,
+    radial-gradient(ellipse at 80% 48%, #ede7d5, transparent 63%);
+}
+/* The transition stays quiet so its scroll-revealed problem statement leads. */
+.story-intro {
+  background: radial-gradient(ellipse at 50% 70%, #faedda55, transparent 65%);
+}
+/* Overlapping circular washes give the community scene a calm, shared space. */
+.hawker-environment {
+  background:
+    radial-gradient(ellipse at 68% 44%, #fff2ce, transparent 63%),
+    linear-gradient(130deg, #f8f3e5 28%, #edf0df);
+}
+.hawker-environment::before {
+  background:
+    radial-gradient(circle at 96% 24%, #c5d6b85c 0 18%, transparent 18.2%),
+    radial-gradient(circle at 87% 82%, #e0c98d38 0 24%, transparent 24.2%);
+  opacity: 1;
+  mask-image: linear-gradient(90deg, transparent 45%, black);
+}
+.hawker-floor {
+  background: radial-gradient(ellipse at 55% 30%, #e8e4ce, #e2ddc4 75%);
+}
+.hawker-sun {
+  border-color: #e3bd5c24;
+}
+/* Soft circular accents frame the menu while keeping its centre clear. */
+.cuisine-discovery {
+  position: relative;
+  isolation: isolate;
+  background: radial-gradient(ellipse at 50% 0, #edf0e366, transparent 45%);
+}
+.cuisine-discovery::before,
+.cuisine-discovery::after {
+  content: "";
+  position: absolute;
+  top: 75px;
+  width: 180px;
+  height: 180px;
+  border-radius: 50%;
+  z-index: -1;
+  pointer-events: none;
+  background: #e6eddb;
+  opacity: 0.65;
+}
+.cuisine-discovery::before {
+  left: 2%;
+  box-shadow: 28px 30px 0 8px #f5ead4;
+  mask-image: radial-gradient(ellipse at 15% 15%, black, transparent 75%);
+}
+.cuisine-discovery::after {
+  right: 2%;
+  background: #f6dfce;
+  box-shadow: -28px 30px 0 8px #f5ead4;
+  mask-image: radial-gradient(ellipse at 85% 15%, black, transparent 75%);
+}
+/* A warm gold finish makes the final invitation feel optimistic and conclusive. */
+.landing-final {
+  background: radial-gradient(ellipse at 50% 28%, #ffe68b, #f7d65a 80%);
+}
+.landing-final::before,
+.landing-final::after {
+  content: "";
+  position: absolute;
+  bottom: -65px;
+  width: 290px;
+  height: 290px;
+  border: 1px solid #b28b3a26;
+  border-radius: 50%;
+  box-shadow:
+    0 0 0 35px #fff5d51a,
+    0 0 0 70px #fff5d514;
+  z-index: -1;
+  pointer-events: none;
+}
+.landing-final::before {
+  left: -150px;
+}
+.landing-final::after {
+  right: -150px;
+  bottom: auto;
+  top: -65px;
+}
+@media (max-width: 800px) {
+  .hero-paper-background::before {
+    width: 370px;
+    height: 180px;
+    left: -170px;
+    bottom: -120px;
+    border-width: 22px;
+    opacity: 0.6;
+  }
+  .hero-paper-background::after {
+    display: none;
+  }
+  .story-scrapbook-background {
+    background-position:
+      65% center,
+      center;
+  }
+  .cuisine-discovery::before,
+  .cuisine-discovery::after {
+    width: 80px;
+    height: 80px;
+    top: 25px;
+    opacity: 0.3;
+  }
+}

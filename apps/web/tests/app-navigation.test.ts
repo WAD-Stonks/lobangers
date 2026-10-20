@@ -31,8 +31,16 @@ async function mountAt(path: string) {
 }
 
 describe('starter navigation', () => {
-  it('lands on the full-bleed map shell', async () => {
+  it('lands on the food discovery landing page', async () => {
     const { wrapper } = await mountAt('/')
+
+    expect(wrapper.find('.landing-canvas').exists()).toBe(true)
+    expect(wrapper.get('h1').text()).toContain('Bang for')
+    expect(wrapper.find('a[href="/browse"]').exists()).toBe(true)
+  })
+
+  it('opens the full-bleed map shell at /browse', async () => {
+    const { wrapper } = await mountAt('/browse')
 
     expect(wrapper.find('[data-testid="map-shell"]').exists()).toBe(true)
     expect(wrapper.find('[data-testid="primary-nav"]').exists()).toBe(false)
@@ -40,7 +48,7 @@ describe('starter navigation', () => {
   })
 
   it('navigates to the developer setup page from the header', async () => {
-    const { router, wrapper } = await mountAt('/')
+    const { router, wrapper } = await mountAt('/browse')
 
     await wrapper.get('[data-testid="nav-toggle"]').trigger('click')
     await wrapper.get('[data-testid="nav-menu"] a[href="/getting-started"]').trigger('click')

@@ -59,7 +59,7 @@ const SHELL = '[data-testid="map-shell"]'
 describe('map shell routes', () => {
   it('gives only the shell route the full-bleed canvas, and its children inherit it', () => {
     const canvas = routes.filter((route) => route.meta?.layout === 'canvas')
-    expect(canvas.map((route) => route.path)).toEqual(['/'])
+    expect(canvas.map((route) => route.path)).toEqual(['/browse'])
     expect(canvas[0]?.children?.map((child) => child.name)).toEqual([
       'browse',
       'deal',
@@ -74,7 +74,7 @@ describe('map shell routes', () => {
   })
 
   it.each([
-    ['/', '3 deals'],
+    ['/browse', '3 deals'],
     [`/deals/${'c'.repeat(24)}`, 'Synthetic iced kopi'],
     [`/venues/${'a'.repeat(24)}`, 'Loading venue'],
     ['/login', 'Welcome back'],
@@ -103,9 +103,10 @@ describe('map shell routes', () => {
     expect(router.currentRoute.value.query).toEqual({ q: 'kopi', view: 'list' })
   })
 
-  it('keeps redirecting /browse to the map', async () => {
+  it('serves the map at /browse and leaves / to the landing page', async () => {
     const { router } = await mountAt('/browse')
-    expect(router.currentRoute.value.fullPath).toBe('/')
+    expect(router.currentRoute.value.name).toBe('browse')
+    expect(router.resolve('/').name).toBe('landing')
   })
 
   it('sends guarded children to log in with a redirect back', async () => {

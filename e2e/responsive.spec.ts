@@ -10,6 +10,7 @@ const DEALS = [
     id: '1'.repeat(24),
     title: LONG_TITLE,
     category: 'FOOD',
+    cuisine: null,
     label: '$3.80',
     description: 'Synthetic deal with a deliberately unbroken title.',
     offerType: 'FIXED_PRICE',
@@ -38,8 +39,8 @@ const VENUE_DETAIL = {
 
 const WIDTHS = [320, 360, 390, 768, 834, 1024, 1194, 1280, 1440]
 const ROUTES = [
-  '/',
-  '/?view=list',
+  '/browse',
+  '/browse?view=list',
   `/deals/${DEALS[0]?.id}`,
   `/venues/${VENUE.id}`,
   '/login',
@@ -109,7 +110,7 @@ for (const width of WIDTHS) {
 test('long text never widens the panel', async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 800 })
   await mockApi(page)
-  for (const route of ['/', `/deals/${DEALS[0]?.id}`, `/venues/${VENUE.id}`]) {
+  for (const route of ['/browse', `/deals/${DEALS[0]?.id}`, `/venues/${VENUE.id}`]) {
     await page.goto(route)
     const body = page.getByTestId('panel-body')
     await expect(body).toBeVisible()
@@ -139,7 +140,7 @@ test('the filter sheet fits without scrolling inside on tablet and desktop', asy
   await mockApi(page)
   for (const width of [768, 1024, 1280]) {
     await page.setViewportSize({ width, height: 800 })
-    await page.goto('/')
+    await page.goto('/browse')
     await page.getByTestId('all-filters').click()
     const body = page.getByTestId('filter-sheet-body')
     await expect(body).toBeVisible()
@@ -152,7 +153,7 @@ test('the chip row sits below the search field and no chip is clipped', async ({
   await mockApi(page)
   for (const width of WIDTHS) {
     await page.setViewportSize({ width, height: 800 })
-    await page.goto('/')
+    await page.goto('/browse')
     const search = await page.getByRole('search').boundingBox()
     const chips = await page.getByTestId('quick-chips').boundingBox()
     expect(chips && search && chips.y >= search.y + search.height, `${width}px`).toBe(true)
@@ -178,7 +179,7 @@ test('reduced motion keeps the hot card still but panels still change', async ({
   await page.route('**/api/deals*', (route) =>
     route.fulfill({ json: { items: [...DEALS, second], categories: ['FOOD'] } }),
   )
-  await page.goto('/')
+  await page.goto('/browse')
   await expect(page.getByTestId('hot-position')).toHaveText('1 of 2')
   await page.clock.runFor(6000)
   await expect(page.getByTestId('hot-position')).toHaveText('1 of 2')
@@ -197,7 +198,7 @@ test('screenshots for review', async ({ page }, info) => {
   for (const width of [390, 834, 1024, 1280, 1440]) {
     await page.setViewportSize({ width, height: 844 })
     for (const [name, route] of [
-      ['browse', '/'],
+      ['browse', '/browse'],
       ['deal', `/deals/${DEALS[0]?.id}`],
       ['venue', `/venues/${VENUE.id}`],
     ] as const) {
@@ -206,7 +207,7 @@ test('screenshots for review', async ({ page }, info) => {
       await expect(page.getByTestId('shell-panel').locator('[data-panel-heading]')).toBeVisible()
       await page.screenshot({ path: info.outputPath(`map-shell-${name}-${width}.png`) })
     }
-    await page.goto('/')
+    await page.goto('/browse')
     await expect(page.getByTestId('splash-screen')).toBeHidden()
     await page.getByTestId('all-filters').click()
     await settled('filter-sheet')

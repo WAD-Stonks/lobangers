@@ -67,7 +67,7 @@ afterEach(() => {
 
 describe('browse panel', () => {
   it('lists every loaded deal with a count, asking the API only for valid deals', async () => {
-    const { wrapper } = await mountAt('/')
+    const { wrapper } = await mountAt('/browse')
     expect(rest.list).toHaveBeenCalledWith({ validNow: 'true' })
     expect(wrapper.get('[data-testid="shell-panel"] h1').text()).toBe('3 deals')
     expect(rowTitles(wrapper)).toEqual([
@@ -79,13 +79,13 @@ describe('browse panel', () => {
   })
 
   it('says why distances are missing when location is unavailable, and still lists deals', async () => {
-    const { wrapper } = await mountAt('/')
+    const { wrapper } = await mountAt('/browse')
     expect(wrapper.get('[data-testid="location-status"]').text()).toContain('Location unavailable')
     expect(rowTitles(wrapper)).toHaveLength(3)
   })
 
   it('applies the Under $5 chip to the URL, the list and the pins, and Back undoes it', async () => {
-    const { router, wrapper } = await mountAt('/')
+    const { router, wrapper } = await mountAt('/browse')
     await chip(wrapper, 'Under $5')?.trigger('click')
     await flushPromises()
     expect(router.currentRoute.value.query.max).toBe('5')
@@ -101,7 +101,7 @@ describe('browse panel', () => {
   })
 
   it('searches after Enter and clears from the field', async () => {
-    const { router, wrapper } = await mountAt('/')
+    const { router, wrapper } = await mountAt('/browse')
     const input = wrapper.get('input[type="search"]')
     await input.setValue('noodle')
     await wrapper.get('form[role="search"]').trigger('submit')
@@ -115,7 +115,7 @@ describe('browse panel', () => {
   })
 
   it('shows an empty state whose button clears the filters', async () => {
-    const { router, wrapper } = await mountAt('/?q=nothing-matches')
+    const { router, wrapper } = await mountAt('/browse?q=nothing-matches')
     expect(wrapper.get('[data-testid="deals-status"]').text()).toContain(
       'No deals match all of these',
     )
@@ -128,7 +128,7 @@ describe('browse panel', () => {
   it('offers a retry when deals fail to load', async () => {
     vi.spyOn(console, 'error').mockImplementation(() => undefined)
     rest.list.mockRejectedValueOnce(new Error('network'))
-    const { wrapper } = await mountAt('/')
+    const { wrapper } = await mountAt('/browse')
     expect(wrapper.get('[data-testid="deals-status"]').text()).toContain("Deals didn't load")
     await wrapper.get('[data-testid="deals-status"] button').trigger('click')
     await flushPromises()
@@ -136,7 +136,7 @@ describe('browse panel', () => {
   })
 
   it('switches to the list view and back from the toggle', async () => {
-    const { router, wrapper } = await mountAt('/')
+    const { router, wrapper } = await mountAt('/browse')
     const toggle = () => wrapper.get('[data-testid="panel-toggle"]')
     expect(toggle().attributes('aria-label')).toBe('Show list')
     await toggle().trigger('click')
@@ -147,7 +147,7 @@ describe('browse panel', () => {
   })
 
   it('highlights the pin for a hovered row, and the row for a hovered pin', async () => {
-    const { wrapper } = await mountAt('/')
+    const { wrapper } = await mountAt('/browse')
     await wrapper.get('[data-testid="nearby-list"] a').trigger('mouseenter')
     expect(map(wrapper).props('hoveredVenueId')).toBe(KOPI_VENUE.id)
 
@@ -161,7 +161,7 @@ describe('browse panel', () => {
 
 describe('opening deals and venues', () => {
   it('opens a deal from a row, focuses the map on it and links back with the filters', async () => {
-    const { router, wrapper } = await mountAt('/?cat=drinks')
+    const { router, wrapper } = await mountAt('/browse?cat=drinks')
     await wrapper.get('[data-testid="nearby-list"] a').trigger('click')
     await flushPromises()
     expect(router.currentRoute.value.name).toBe('deal')
@@ -171,11 +171,11 @@ describe('opening deals and venues', () => {
     )
     expect(map(wrapper).props('selectedVenueId')).toBe(KOPI_VENUE.id)
     expect(map(wrapper).props('focus')).toEqual({ lat: KOPI_VENUE.lat, lng: KOPI_VENUE.lng })
-    expect(wrapper.get('.panel-frame__back').attributes('href')).toBe('/?cat=drinks')
+    expect(wrapper.get('.panel-frame__back').attributes('href')).toBe('/browse?cat=drinks')
   })
 
   it('opens the deal straight from a pin with one deal, and the venue for a pin with several', async () => {
-    const { router, wrapper } = await mountAt('/')
+    const { router, wrapper } = await mountAt('/browse')
     map(wrapper).vm.$emit('select', KOPI_VENUE.id)
     await flushPromises()
     expect(router.currentRoute.value.fullPath).toBe(`/deals/${KOPI.id}?at=${KOPI_VENUE.id}`)
@@ -203,7 +203,7 @@ describe('opening deals and venues', () => {
   })
 
   it('opens the ending-soon card deal in the same deal panel', async () => {
-    const { router, wrapper } = await mountAt('/')
+    const { router, wrapper } = await mountAt('/browse')
     expect(wrapper.get('[data-testid="hot-card"]').text()).toContain('Synthetic noodle set')
     await wrapper.get('[data-testid="hot-open"]').trigger('click')
     await flushPromises()
@@ -249,7 +249,7 @@ describe('saving from the deal panel', () => {
 
 describe('brand menu', () => {
   it('offers Log in and Sign up when signed out, and closes on Escape back to the button', async () => {
-    const { wrapper } = await mountAt('/')
+    const { wrapper } = await mountAt('/browse')
     const toggle = wrapper.get('[data-testid="nav-toggle"]')
     expect(toggle.attributes('aria-controls')).toBe('site-menu')
     await toggle.trigger('click')
@@ -274,7 +274,7 @@ describe('brand menu', () => {
       ],
       nextCursor: null,
     })
-    const { wrapper } = await mountAt('/')
+    const { wrapper } = await mountAt('/browse')
     await wrapper.get('[data-testid="nav-toggle"]').trigger('click')
     expect(wrapper.get('[data-testid="signed-in-name"]').text()).toContain('Synthetic Student')
     expect(wrapper.get('[data-testid="saved-count"]').text()).toBe('1 saved deal')
@@ -286,7 +286,7 @@ describe('brand menu', () => {
   })
 
   it('closes when the route changes', async () => {
-    const { wrapper } = await mountAt('/')
+    const { wrapper } = await mountAt('/browse')
     await wrapper.get('[data-testid="nav-toggle"]').trigger('click')
     await wrapper.get('[data-testid="nav-menu"] a[href="/getting-started"]').trigger('click')
     await flushPromises()
@@ -296,7 +296,7 @@ describe('brand menu', () => {
 
 describe('filter sheet', () => {
   it('counts matches live, badges the chip, clears, and returns focus on Escape', async () => {
-    const { router, wrapper } = await mountAt('/')
+    const { router, wrapper } = await mountAt('/browse')
     const allFilters = wrapper.get('[data-testid="all-filters"]')
     await allFilters.trigger('click')
     await flushPromises()
@@ -345,7 +345,7 @@ describe('review regressions', () => {
   })
 
   it('closes the sheet when a panel opens and moves focus to its heading', async () => {
-    const { router, wrapper } = await mountAt('/')
+    const { router, wrapper } = await mountAt('/browse')
     await wrapper.get('[data-testid="all-filters"]').trigger('click')
     await flushPromises()
     await router.push(`/deals/${KOPI.id}`)
@@ -364,7 +364,7 @@ describe('review regressions', () => {
   it('drops a pending search when a panel opens before it fires', async () => {
     vi.useFakeTimers()
     try {
-      const { router, wrapper } = await mountAt('/')
+      const { router, wrapper } = await mountAt('/browse')
       await wrapper.get('input[type="search"]').setValue('noodle')
       await router.push(`/deals/${KOPI.id}`)
       await vi.advanceTimersByTimeAsync(500)

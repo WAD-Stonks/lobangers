@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 1000" fill="none" aria-hidden="true" focusable="false">
+  <!-- Unconnected conversation fragments frame the real posts without adding content. -->
+  <g transform="translate(730 120) rotate(-9)">
+    <rect width="360" height="204" rx="28" fill="#eacb9a" fill-opacity=".14" stroke="#d3b57e" stroke-opacity=".22"/>
+    <circle cx="37" cy="37" r="10" fill="#d3b57e" fill-opacity=".22"/>
+    <path d="M62 34H170M62 47H126M30 80H325M30 98H267" stroke="#d3b57e" stroke-opacity=".22" stroke-width="5" stroke-linecap="round"/>
+  </g>
+  <g transform="translate(1345 165) rotate(8)">
+    <rect width="320" height="270" rx="28" fill="#c7d8c2" fill-opacity=".2" stroke="#a0b599" stroke-opacity=".22"/>
+    <path d="M29 35H143M29 55H101M29 220H202M29 238H139" stroke="#a0b599" stroke-opacity=".25" stroke-width="5" stroke-linecap="round"/>
+  </g>
+  <g transform="translate(930 650) rotate(7)">
+    <path d="M0 26Q0 0 26 0H385Q411 0 411 26V177Q411 203 385 203H85L47 233V203H26Q0 203 0 177Z" fill="#efc7b7" fill-opacity=".15" stroke="#d9ae99" stroke-opacity=".25"/>
+    <path d="M30 38H143M30 63H250M30 88H205" stroke="#d9ae99" stroke-opacity=".25" stroke-width="5" stroke-linecap="round"/>
+  </g>
+</svg>
