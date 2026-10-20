@@ -4,7 +4,7 @@ export const SINGAPORE_CENTER = { lat: 1.3521, lng: 103.8198 } as const
 export const FOCUS_ZOOM = 15
 // Zoom 11 keeps the whole island on screen; anything wider shows only sea and Johor.
 export const MIN_ZOOM = 11
-export const MAX_ZOOM = 19
+export const MAX_ZOOM = 17
 // Selecting a deal flies there; hopping to a deal this close (at street zoom) pans instead.
 export const FLY_DURATION_S = 0.65
 export const PAN_DURATION_S = 0.4

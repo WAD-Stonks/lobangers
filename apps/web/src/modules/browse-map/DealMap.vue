@@ -21,6 +21,7 @@ import {
   USER_DOT_CLASS,
   USER_DOT_SIZE_PX,
 } from '@web/modules/browse-map/map-config'
+import { mountAmbient } from '@web/modules/map-ambient/ambient-layer'
 import { SINGAPORE_BOUNDS, toBoundsTuple } from '@web/modules/browse-map/singapore-bounds'
 import type { Coordinates, VenuePin } from '@web/modules/browse-map/types'
 import { createVenuePinIcon, type PinState } from '@web/modules/browse-map/venue-pin'
@@ -65,6 +66,7 @@ let map: L.Map | null = null
 let cluster: L.MarkerClusterGroup | null = null
 let userLayer: L.LayerGroup | null = null
 let resizeObserver: ResizeObserver | null = null
+let disposeAmbient: (() => void) | null = null
 const markers = new Map<string, { marker: L.Marker; pin: VenuePin; key: string }>()
 
 // The canvas resizes the map when the list panel opens; Leaflet must re-measure its container.
@@ -187,6 +189,7 @@ onMounted(() => {
   })
   cluster.addTo(map)
   userLayer = L.layerGroup().addTo(map)
+  disposeAmbient = mountAmbient(map, { reducedMotion: props.reducedMotion })
   // Only a drag by the visitor offers "Search this area"; flyTo and panTo never fire dragend.
   map.on('dragend', () => emit('moved'))
   syncPins(props.pins)
@@ -211,6 +214,8 @@ watch(
 onBeforeUnmount(() => {
   resizeObserver?.disconnect()
   resizeObserver = null
+  disposeAmbient?.()
+  disposeAmbient = null
   map?.remove()
   map = null
   cluster = null

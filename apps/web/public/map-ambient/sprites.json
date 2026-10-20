@@ -1,0 +1,105 @@
+{
+  "mbs": {
+    "frames": 1,
+    "frameCssPx": 240,
+    "angles": [
+      -13
+    ],
+    "anchor": [
+      126,
+      186
+    ]
+  },
+  "flyer": {
+    "frames": 1,
+    "frameCssPx": 220,
+    "angles": [
+      -13
+    ],
+    "anchor": [
+      115,
+      195
+    ]
+  },
+  "ferry": {
+    "frames": 8,
+    "frameCssPx": 120,
+    "angles": [
+      -13,
+      -58,
+      -148,
+      -175,
+      167,
+      122,
+      32,
+      5
+    ],
+    "anchor": [
+      61,
+      74
+    ]
+  },
+  "bus": {
+    "frames": 8,
+    "frameCssPx": 88,
+    "angles": [
+      -13,
+      -58,
+      -148,
+      -175,
+      167,
+      122,
+      32,
+      5
+    ],
+    "anchor": [
+      47,
+      64
+    ]
+  },
+  "plane": {
+    "frames": 8,
+    "frameCssPx": 150,
+    "angles": [
+      -13,
+      -58,
+      -148,
+      -175,
+      167,
+      122,
+      32,
+      5
+    ],
+    "anchor": [
+      75,
+      128
+    ]
+  },
+  "bird": {
+    "frames": 6,
+    "frameCssPx": 56,
+    "angles": [
+      -13,
+      -13,
+      -13,
+      -13,
+      -13,
+      -13
+    ],
+    "anchor": [
+      28,
+      58
+    ]
+  },
+  "cloudA": {
+    "frames": 1,
+    "frameCssPx": 240,
+    "angles": [
+      -13
+    ],
+    "anchor": [
+      116,
+      249
+    ]
+  }
+}

@@ -1,0 +1,43 @@
+/* SPIKE: ambient map decoration. Never takes pointer input; sits under the deal pins. */
+.ambient-pane {
+  pointer-events: none;
+  transition: opacity 400ms ease;
+}
+
+.ambient-sky {
+  position: absolute;
+  top: 0;
+  left: 0;
+  overflow: hidden;
+  pointer-events: none;
+  transition: opacity 500ms ease;
+}
+
+.ambient-pane.is-hidden,
+.ambient-sky.is-hidden,
+.ambient-sprite.is-hidden {
+  opacity: 0;
+}
+
+.ambient-sprite {
+  position: absolute;
+  top: 0;
+  left: 0;
+  background-repeat: no-repeat;
+  will-change: transform;
+}
+
+.ambient-cloud {
+  opacity: 0.92;
+}
+
+.ambient-cloud-shadow {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 220px;
+  height: 90px;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, rgba(60, 50, 30, 0.14), rgba(60, 50, 30, 0));
+  will-change: transform;
+}
