@@ -75,6 +75,23 @@ describe('hawker renderer lifecycle', () => {
     expect(create).toHaveBeenLastCalledWith(expect.any(HTMLCanvasElement), samples[0], 'Woodlands')
     wrapper.unmount()
   })
+  it('hides the completed canvas while inactive and reuses it when the scene returns', async () => {
+    enableWebGL()
+    const wrapper = mount(HawkerStallModel, {
+      props: { ...props, active: true },
+      attachTo: document.body,
+    })
+    await flushPromises()
+    const canvas = wrapper.get('canvas')
+    expect(canvas.isVisible()).toBe(true)
+    await wrapper.setProps({ active: false, motion: communityTimeline(0) })
+    expect(canvas.isVisible()).toBe(false)
+    expect(engine.dispose).not.toHaveBeenCalled()
+    await wrapper.setProps({ active: true, motion: communityTimeline(0.5) })
+    expect(canvas.isVisible()).toBe(true)
+    expect(create).toHaveBeenCalledTimes(1)
+    wrapper.unmount()
+  })
   it('restores vector artwork if the WebGL context is lost', async () => {
     enableWebGL()
     const wrapper = mount(HawkerStallModel, { props: { ...props, active: true } })
