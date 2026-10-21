@@ -45,6 +45,21 @@ describe('classifyDealCategory', () => {
     ).toBe('DRINKS')
   })
 
+  it.each([
+    ['☕STARBUCKS☕', 'DRINKS'],
+    ['🧋HEYTEA🧋', 'DRINKS'],
+    ['#TIGERSUGARSG', 'DRINKS'],
+    ['#Playmade🧋', 'DRINKS'],
+    ['CHAGEE’s Adorable Bes-Tea Brew Crew Plushies', 'DRINKS'],
+    ['#TukTukCha', 'DRINKS'],
+    ['🍗 IKEA🍗', 'FOOD'],
+    ['🥘HAIDILAO DEALS🥘', 'FOOD'],
+    ['🎂 Cat & the Fiddle 🍰', 'DESSERT'],
+    ['🍦 Soft serve at the hall', 'DESSERT'],
+  ])('classifies the brand-only title "%s" as %s', (title, category) => {
+    expect(classifyDealCategory(title)).toBe(category)
+  })
+
   it('matches whole words only and ignores case', () => {
     expect(classifyDealCategory('CHEESECAKE slices')).toBe('DESSERT')
     expect(classifyDealCategory('Teapot sale')).toBe('FOOD')

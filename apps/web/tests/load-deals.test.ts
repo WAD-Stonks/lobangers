@@ -22,6 +22,7 @@ const base = {
   rawValidityText: null,
   votes: { alive: 0, dead: 0 },
   commentCount: 0,
+  images: [],
 }
 const KOPI: DealPin = {
   ...base,
@@ -48,20 +49,30 @@ describe('toVenuePins', () => {
 })
 
 describe('toDealRows', () => {
-  it('lists one row per deal and outlet in query order without distances when unlocated', () => {
+  it('lists each deal once, at its first outlet, without distances when unlocated', () => {
     const rows = toDealRows(toVenuePins([KOPI, TOAST]), null)
-    expect(rows.map((row) => row.key)).toEqual([
-      `${KOPI.id}:${BEDOK.id}`,
-      `${TOAST.id}:${BEDOK.id}`,
-      `${KOPI.id}:${TAMPINES.id}`,
-    ])
+    expect(rows.map((row) => row.key)).toEqual([`${KOPI.id}:${BEDOK.id}`, `${TOAST.id}:${BEDOK.id}`])
     expect(rows.every((row) => row.distanceMetres === null)).toBe(true)
   })
 
-  it('puts the nearest outlet first when a position is known', () => {
+  it('shows a multi-outlet deal at its nearest outlet when a position is known', () => {
     const rows = toDealRows(toVenuePins([KOPI, TOAST]), { lat: 1.35, lng: 103.94 })
-    expect(rows[0]?.venue.id).toBe(TAMPINES.id)
-    expect(rows[0]?.distanceMetres).toBe(0)
+    const kopi = rows.find((row) => row.deal.id === KOPI.id)
+    expect(rows).toHaveLength(2)
+    expect(kopi?.venue.id).toBe(TAMPINES.id)
+    expect(kopi?.distanceMetres).toBe(0)
+    expect(rows[0]?.deal.id).toBe(KOPI.id)
+  })
+
+  it('counts only the outlets still on the map', () => {
+    const all = toDealRows(toVenuePins([KOPI, TOAST]), null)
+    expect(all.find((row) => row.deal.id === KOPI.id)?.outletCount).toBe(2)
+    expect(all.find((row) => row.deal.id === TOAST.id)?.outletCount).toBe(1)
+
+    const tampinesOnly = toVenuePins([KOPI, TOAST]).filter((pin) => pin.id === TAMPINES.id)
+    const [row] = toDealRows(tampinesOnly, null)
+    expect(row?.venue.id).toBe(TAMPINES.id)
+    expect(row?.outletCount).toBe(1)
   })
 })
 

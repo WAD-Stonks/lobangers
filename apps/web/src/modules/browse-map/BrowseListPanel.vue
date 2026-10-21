@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { SortKey } from '@web/modules/browse-map/apply-filters'
+import DealBanners from '@web/modules/browse-map/DealBanners.vue'
 import DealCardGrid from '@web/modules/browse-map/DealCardGrid.vue'
 import DealRowList from '@web/modules/browse-map/DealRowList.vue'
 import { activeFilterTokens } from '@web/modules/browse-map/filter-tokens'
@@ -63,6 +64,8 @@ const clearAll = () => {
     <p v-if="shell.locationMessage.value" class="browse-list__note" role="status" data-testid="location-status">
       {{ shell.locationMessage.value }}
     </p>
+
+    <DealBanners v-if="!showSkeleton && shell.status.value !== 'error'" />
 
     <fieldset v-if="hasNarrowing" class="browse-list__tokens">
       <legend class="visually-hidden">Active filters</legend>

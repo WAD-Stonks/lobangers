@@ -1,0 +1,287 @@
+{
+  "note": "Tidy-up of the 10 imported deals still running on 21 Oct 2026 (Telegram and MoneyDigest posts imported 20 Oct). Facts from the public source posts.",
+  "rewrites": [
+    {
+      "id": "d78e68e00396c0a0d51873fc",
+      "field": "title",
+      "from": "PastaMania: second pasta free during World Pasta Day promotion",
+      "to": "1-for-1 pasta"
+    },
+    {
+      "id": "d78e68e00396c0a0d51873fc",
+      "field": "description",
+      "from": "The publisher reports a two-for-one offer on any pasta selection during 19–23 October 2026.",
+      "to": "Buy any pasta and get a second one free for World Pasta Day."
+    },
+    {
+      "id": "d78e68e00396c0a0d51873fc",
+      "field": "terms",
+      "from": "Available from opening until 17:00 on the stated dates; the final order time is 16:45. Applies to any pasta selection. Other publisher-mentioned conditions are unspecified. No membership requirement or outlet scope is asserted.",
+      "to": "Valid till 23 Oct 2026. From opening till 5pm, last order 4:45pm."
+    },
+    {
+      "id": "d78e68e00396c0a0d51873fc",
+      "field": "category",
+      "from": "food",
+      "to": "FOOD"
+    },
+    {
+      "id": "d78e68e00396c0a0d51873fc",
+      "field": "cuisine",
+      "from": null,
+      "to": "WESTERN"
+    },
+    {
+      "id": "40022e7e13dfd6cb145951e4",
+      "field": "title",
+      "from": "KFC Has 1-for-1 Japanese Nanban Chicken Bites ,  12 Pieces For Just",
+      "to": "1-for-1 Nanban chicken bites"
+    },
+    {
+      "id": "40022e7e13dfd6cb145951e4",
+      "field": "description",
+      "from": "Potential food-offer information remains unapproved because validity or eligibility is unresolved.",
+      "to": "Get 2 sets of 6 Japanese Nanban Chicken Bites, 12 pieces in all, for S$6.95."
+    },
+    {
+      "id": "40022e7e13dfd6cb145951e4",
+      "field": "terms",
+      "from": "No outlet, membership, redemption or start date is inferred. Consult the publisher before relying on unapproved information.",
+      "to": "Wednesdays to Fridays from 14 Oct 2026, not on public holidays. Dine-in or takeaway, at the counter or a self-order kiosk. Not at Sentosa, Singapore Polytechnic or the Zoo. While stocks last."
+    },
+    {
+      "id": "40022e7e13dfd6cb145951e4",
+      "field": "category",
+      "from": "food",
+      "to": "FOOD"
+    },
+    {
+      "id": "995b19aaa8dbfaf97273bb22",
+      "field": "title",
+      "from": "POKÉMON TAKES OVER SUSHIRO! Collect Keychains, Card Cases, Food Picks & More",
+      "to": "Pokémon collectibles with sushi platters"
+    },
+    {
+      "id": "995b19aaa8dbfaf97273bb22",
+      "field": "description",
+      "from": "The article combines a September campaign wave that has ended with a second wave lasting 1–22 October 2026.",
+      "to": "Get a random Pokémon keychain, card case or other collectible with selected dishes from S$2.90++."
+    },
+    {
+      "id": "995b19aaa8dbfaf97273bb22",
+      "field": "terms",
+      "from": "Collectible designs and dishes differ between waves and are subject to stock. Certain towel purchases require a S$20 dine-in receipt, allow at most two towels per receipt and disallow bill splitting. Mandai Wildlife Reserve Digiro pricing can differ. This multi-offer article is not approved as a single uniform offer.",
+      "to": "Wave 2 runs 1 to 22 Oct 2026. Toro Platter 5 Ways (S$19.90++) comes with a card case and lanyard. Tuna and salmon roll platter (S$15.90++) comes with a keychain. Designs are random, while stocks last."
+    },
+    {
+      "id": "995b19aaa8dbfaf97273bb22",
+      "field": "category",
+      "from": "food",
+      "to": "FOOD"
+    },
+    {
+      "id": "995b19aaa8dbfaf97273bb22",
+      "field": "cuisine",
+      "from": null,
+      "to": "JAPANESE"
+    },
+    {
+      "id": "9d95f053bb719489927807af",
+      "field": "title",
+      "from": "🥢 TERRACE CHINESE KITCHEN🥢",
+      "to": "S$10++ snack and free-flow drinks"
+    },
+    {
+      "id": "9d95f053bb719489927807af",
+      "field": "description",
+      "from": "The public message reports reported promotion or announcement. Observed currency amounts: $10++. These may be prices, usual prices, surcharges or thresholds; no single selling price is asserted. Observed rates: 20%. Applicability is subject to source conditions.",
+      "to": "Students get 1 snack with free-flow soft drinks or juice, plus 20% off à la carte dishes."
+    },
+    {
+      "id": "9d95f053bb719489927807af",
+      "field": "terms",
+      "from": "Source condition signals (not an exhaustive redemption contract): studentEligibility, staffEligibility, identificationOrPostPresentation, outletRestriction, taxOrServiceCharge. Calendar/publication dates are not interchangeable. Unresolved terms require review.",
+      "to": "Valid student ID required. Show code THISCOUNTEDXTCK for a free mango sago. From Sep 2026 at #03-22, Changi Airport Terminal 1."
+    },
+    {
+      "id": "9d95f053bb719489927807af",
+      "field": "category",
+      "from": "food",
+      "to": "FOOD"
+    },
+    {
+      "id": "448a8fd41dcdfa0ad245dd9c",
+      "field": "title",
+      "from": "🍗TEXAS CHICKEN ONE PUNGGOL: @ThisCounted Student Exclusive Invite 🍗",
+      "to": "S$1 off orders over S$15"
+    },
+    {
+      "id": "448a8fd41dcdfa0ad245dd9c",
+      "field": "description",
+      "from": "An invitation for a free-food event on 15 September 2026 shares a message with a separate $1 order discount ending 31 January 2027.",
+      "to": "Students get S$1 off Grab or foodpanda orders of S$15 or more with code OPGTEXAS."
+    },
+    {
+      "id": "448a8fd41dcdfa0ad245dd9c",
+      "field": "terms",
+      "from": "Tasting: reservation, student/channel-subscriber eligibility, first 50 people. Separate order discount: One Punggol; minimum $15; code OPGTEXAS; Grab/FoodPanda delivery or pickup. No explicit start is given for the discount. Mixed windows prevent rejection of the whole candidate as expired.",
+      "to": "Delivery and pick-up from Texas Chicken One Punggol only. Valid till 31 Jan 2027."
+    },
+    {
+      "id": "448a8fd41dcdfa0ad245dd9c",
+      "field": "category",
+      "from": "food",
+      "to": "FOOD"
+    },
+    {
+      "id": "448a8fd41dcdfa0ad245dd9c",
+      "field": "cuisine",
+      "from": null,
+      "to": "WESTERN"
+    },
+    {
+      "id": "4e4f7094bb3b675aa09a14fa",
+      "field": "title",
+      "from": "☕ COFFEE BEAN & TEA LEAF ☕",
+      "to": "63% off Black Forest Mocha Ice Blended"
+    },
+    {
+      "id": "4e4f7094bb3b675aa09a14fa",
+      "field": "description",
+      "from": "The channel reports 63% off Black Forest Mocha Ice Blended, with a choice of original or chocolate-flavoured whipped cream.",
+      "to": "Get a Black Forest Mocha Ice Blended at 63% off, topped with original or chocolate whipped cream."
+    },
+    {
+      "id": "4e4f7094bb3b675aa09a14fa",
+      "field": "terms",
+      "from": "Free membership is mentioned. Additional terms are referenced but not reproduced. The source gives an end date of 21 October 2026, with no explicit start.",
+      "to": "For members, membership is free. Valid till 21 Oct 2026."
+    },
+    {
+      "id": "4e4f7094bb3b675aa09a14fa",
+      "field": "category",
+      "from": "food",
+      "to": "DRINKS"
+    },
+    {
+      "id": "3e1fd433bd0177b310794b5b",
+      "field": "title",
+      "from": "🍲 HAIDILAO 🍲",
+      "to": "31% off à la carte with an NYP pass"
+    },
+    {
+      "id": "3e1fd433bd0177b310794b5b",
+      "field": "description",
+      "from": "The channel reports a 31% reduction on à la carte orders for a dining group presenting an NYP student or staff pass.",
+      "to": "Get 31% off à la carte orders when someone at your table shows an NYP student or staff pass."
+    },
+    {
+      "id": "3e1fd433bd0177b310794b5b",
+      "field": "terms",
+      "from": "Northpoint City only; NYP student/staff identification must be shown; set meals excluded; no day/time restriction stated; cannot combine promotions. End date: 31 December 2026. Start not stated.",
+      "to": "Haidilao Northpoint City only. Not for set meals or with other promotions. Valid till 31 Dec 2026."
+    },
+    {
+      "id": "3e1fd433bd0177b310794b5b",
+      "field": "category",
+      "from": "food",
+      "to": "FOOD"
+    },
+    {
+      "id": "3e1fd433bd0177b310794b5b",
+      "field": "cuisine",
+      "from": null,
+      "to": "CHINESE"
+    },
+    {
+      "id": "29555e40172b335cac14c010",
+      "field": "title",
+      "from": "🍲 HAIDILAO ,  Have a friend from TP? 🍲",
+      "to": "Up to 20% off with a TP pass"
+    },
+    {
+      "id": "29555e40172b335cac14c010",
+      "field": "description",
+      "from": "The channel reports different discounts by day: 20% Monday–Thursday and 12% Friday–Sunday and public holidays, when a TP student or staff member orders.",
+      "to": "Get 20% off Monday to Thursday, or 12% off Friday to Sunday and public holidays, with a TP pass."
+    },
+    {
+      "id": "29555e40172b335cac14c010",
+      "field": "terms",
+      "from": "Century Square outlet in Tampines; present valid TP student/staff identification. Eligible dishes only; soup base, side dishes, alcohol and dipping sauce excluded; cannot stack promotions. End: 31 December 2026; no explicit start. The percentages must not be collapsed into one universal discount.",
+      "to": "Show a TP student or staff pass at Haidilao Tampines Century Square. Eligible dishes only, not soup base, sides, alcohol or dipping sauce. Not stackable with other promotions. Valid till 31 Dec 2026."
+    },
+    {
+      "id": "29555e40172b335cac14c010",
+      "field": "category",
+      "from": "food",
+      "to": "FOOD"
+    },
+    {
+      "id": "29555e40172b335cac14c010",
+      "field": "cuisine",
+      "from": null,
+      "to": "CHINESE"
+    },
+    {
+      "id": "2581c17f136ffeb30ec252d4",
+      "field": "title",
+      "from": "🔥HAIDILAO🔥",
+      "to": "Student hotpot set for 2 from S$29.90"
+    },
+    {
+      "id": "2581c17f136ffeb30ec252d4",
+      "field": "description",
+      "from": "The public message reports reported promotion or announcement. Observed currency amounts: S$29.90. These may be prices, usual prices, surcharges or thresholds; no single selling price is asserted.",
+      "to": "Share 2 quarter soup bases, 4 hotpot dishes, 1 meat, 1 snack and 2 staples between 2 students."
+    },
+    {
+      "id": "2581c17f136ffeb30ec252d4",
+      "field": "terms",
+      "from": "Source condition signals (not an exhaustive redemption contract): studentEligibility, identificationOrPostPresentation, timeOrWeekdayRestriction, holidayRestriction, outletRestriction, productOrSizeRestriction, taxOrServiceCharge. Calendar/publication dates are not interchangeable. Unresolved terms require review.",
+      "to": "Haidilao Northpoint City, Mon to Fri 11am to 6pm, not on public holidays. Show your student ID. Price excludes GST, service charge, condiments and drinks."
+    },
+    {
+      "id": "2581c17f136ffeb30ec252d4",
+      "field": "category",
+      "from": "food",
+      "to": "FOOD"
+    },
+    {
+      "id": "2581c17f136ffeb30ec252d4",
+      "field": "cuisine",
+      "from": null,
+      "to": "CHINESE"
+    },
+    {
+      "id": "e823710ee0c4a4a431413f77",
+      "field": "title",
+      "from": "🐔CHIX HOT CHICK’N🐔",
+      "to": "S$9.99 lunch burger meal"
+    },
+    {
+      "id": "e823710ee0c4a4a431413f77",
+      "field": "description",
+      "from": "The public message reports reported promotion or announcement. Observed currency amounts: $9.99, $11.99. These may be prices, usual prices, surcharges or thresholds; no single selling price is asserted.",
+      "to": "Get a burger, fries and soda for S$9.99 at lunch. Students also get 2 burgers for S$11.99."
+    },
+    {
+      "id": "e823710ee0c4a4a431413f77",
+      "field": "terms",
+      "from": "Source condition signals (not an exhaustive redemption contract): studentEligibility, identificationOrPostPresentation, timeOrWeekdayRestriction, holidayRestriction, outletRestriction. Calendar/publication dates are not interchangeable. Unresolved terms require review.",
+      "to": "Lunch deal Mon to Fri 11:30am to 3:30pm at 1 Jalan Pisang and 64 Prinsep Street. Student deal Mon to Fri 11:30am to 5:30pm at 64 Prinsep Street only. Student deal not on public holidays. Show the ThisCounted Telegram post to redeem."
+    },
+    {
+      "id": "e823710ee0c4a4a431413f77",
+      "field": "category",
+      "from": "food",
+      "to": "FOOD"
+    },
+    {
+      "id": "e823710ee0c4a4a431413f77",
+      "field": "cuisine",
+      "from": null,
+      "to": "WESTERN"
+    }
+  ]
+}

@@ -4,12 +4,13 @@ import { authClient } from '@web/lib/auth-client'
 import { walkMinutesFor } from '@web/modules/browse-map/apply-filters'
 import CategoryBubble from '@web/modules/browse-map/CategoryBubble.vue'
 import { categoryStyle } from '@web/modules/browse-map/category-style'
+import DealGallery from '@web/modules/browse-map/DealGallery.vue'
+import DealOutlets from '@web/modules/browse-map/DealOutlets.vue'
 import DealReviewSummary from '@web/modules/browse-map/DealReviewSummary.vue'
 import DealRowList from '@web/modules/browse-map/DealRowList.vue'
 import {
   dealFreshness,
   formatCategory,
-  formatOtherOutlets,
   formatValidity,
   priceText,
   termsList,
@@ -52,9 +53,17 @@ const cuisineLabel = computed(() => {
   const cuisine = selected.value?.deal.cuisine ?? ''
   return isDealCuisine(cuisine) ? DEAL_CUISINE_LABELS[cuisine] : null
 })
+const photosShown = ref(false)
 const freshness = computed(() => (selected.value ? dealFreshness(selected.value.deal) : null))
 const walkLabel = computed(() =>
   selected.value?.distanceMetres == null ? null : `${walkMinutesFor(selected.value.distanceMetres)} min walk`,
+)
+const heroTags = computed(() =>
+  selected.value
+    ? [formatCategory(selected.value.deal.category), cuisineLabel.value, walkLabel.value].filter(
+        (tag): tag is string => Boolean(tag),
+      )
+    : [],
 )
 const directionsUrl = computed(() =>
   selected.value ? `${DIRECTIONS_URL}${selected.value.venue.lat},${selected.value.venue.lng}` : '#',
@@ -64,9 +73,17 @@ const otherRows = computed<readonly DealRow[]>(() => {
   if (!current) return []
   return current.venue.deals
     .filter((deal) => deal.id !== current.deal.id)
-    .map((deal) => ({ key: `${deal.id}:${current.venue.id}`, deal, venue: current.venue, distanceMetres: current.distanceMetres }))
+    // The section is about this one outlet, so no row offers the deal's other outlets.
+    .map((deal) => ({
+      key: `${deal.id}:${current.venue.id}`,
+      deal,
+      venue: current.venue,
+      distanceMetres: current.distanceMetres,
+      outletCount: 1,
+    }))
 })
 const toRow = (row: DealRow) => dealLocation(route.query, row.deal.id, row.venue.id)
+const toOutlet = (outletId: string) => dealLocation(route.query, dealId.value, outletId)
 
 const buzz = () => {
   if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') navigator.vibrate(SAVE_VIBRATE_MS)
@@ -103,13 +120,29 @@ const toggleSave = async () => {
     :title="selected.deal.title"
     :back="backTo"
     back-label="Back to results"
-    :scroll-key="`${selected.deal.id}:${selected.venue.id}`"
+    :scroll-key="selected.deal.id"
   >
-    <div class="deal-panel__hero" :style="{ '--hero-tint': categoryStyle(selected.deal.category).tint }">
-      <CategoryBubble class="deal-panel__hero-icon" :category="selected.deal.category" size="lg" />
-      <span class="lb-tag lb-tag--paper">{{ formatCategory(selected.deal.category) }}</span>
-      <span v-if="cuisineLabel" class="lb-tag lb-tag--paper">{{ cuisineLabel }}</span>
-      <span v-if="walkLabel" class="lb-tag lb-tag--paper">{{ walkLabel }}</span>
+    <div class="deal-panel__media" :style="{ '--hero-tint': categoryStyle(selected.deal.category).tint }">
+      <DealGallery
+        :key="selected.deal.id"
+        :images="selected.deal.images"
+        :title="selected.deal.title"
+        @showing="photosShown = $event"
+      >
+        <template #fallback>
+          <div class="deal-panel__hero">
+            <CategoryBubble
+              class="deal-panel__hero-icon"
+              :category="selected.deal.category"
+              :title="selected.deal.title"
+              :venue="selected.venue.name"
+              size="lg"
+              animated
+            />
+            <span v-for="tag in heroTags" :key="tag" class="lb-tag lb-tag--paper">{{ tag }}</span>
+          </div>
+        </template>
+      </DealGallery>
     </div>
 
     <div class="deal-panel__headline">
@@ -120,6 +153,10 @@ const toggleSave = async () => {
     </div>
 
     <div class="deal-panel__tags">
+      <!-- With a photo in the hero, these move here so they never cover the poster's text. -->
+      <template v-if="photosShown">
+        <span v-for="tag in heroTags" :key="tag" class="lb-tag">{{ tag }}</span>
+      </template>
       <span v-if="freshness" class="lb-tag" :class="`lb-tag--${freshness.tone}`">{{ freshness.label }}</span>
       <span class="lb-tag lb-tag--new">{{ OFFER_TYPE_LABELS[selected.deal.offerType] }}</span>
     </div>
@@ -143,13 +180,17 @@ const toggleSave = async () => {
           </ul>
         </dd>
       </div>
-      <div v-if="formatOtherOutlets(selected.deal.venues.length)" class="deal-panel__fact-wide">
-        <dt class="lb-meta">Outlets</dt>
-        <dd>{{ formatOtherOutlets(selected.deal.venues.length) }}</dd>
-      </div>
     </dl>
 
     <DealReviewSummary :votes="selected.deal.votes" :comment-count="selected.deal.commentCount" />
+
+    <DealOutlets
+      :deal="selected.deal"
+      :current-venue-id="selected.venue.id"
+      :position="shell.position.value"
+      :to="toOutlet"
+      @hover="shell.setHovered"
+    />
 
     <section v-if="otherRows.length" aria-labelledby="deal-more-title">
       <h2 id="deal-more-title" class="deal-panel__label">More at {{ selected.venue.name }}</h2>
@@ -209,7 +250,13 @@ const toggleSave = async () => {
   border-radius: 22px;
 }
 
-/* No deal photos yet: the category icon, styled like its map pin, fills the hero. */
+.deal-panel__media {
+  display: flex;
+  flex-direction: column;
+  flex: none;
+}
+
+/* No deal photos: the category icon, styled like its map pin, fills the hero. */
 .deal-panel__hero-icon {
   position: absolute;
   inset: 50% auto auto 50%;

@@ -11,9 +11,11 @@ const props = withDefaults(
     heights?: readonly number[]
     snap?: number
     wide?: boolean
+    // Desktop only: slid off the right edge so the whole map shows.
+    collapsed?: boolean
     label?: string
   }>(),
-  { heights: () => [120, 400, 680], snap: 1, wide: false, label: 'Results' },
+  { heights: () => [120, 400, 680], snap: 1, wide: false, collapsed: false, label: 'Results' },
 )
 const emit = defineEmits<{ 'update:snap': [index: number] }>()
 
@@ -98,7 +100,7 @@ const handleLabel = computed(
 <template>
   <aside
     class="shell-panel lb-card"
-    :class="[`shell-panel--${mode}`, { 'is-wide': wide, 'is-dragging': dragging }]"
+    :class="[`shell-panel--${mode}`, { 'is-wide': wide, 'is-dragging': dragging, 'is-collapsed': collapsed }]"
     :style="sheetStyle"
     :aria-label="label"
     data-testid="shell-panel"
@@ -150,6 +152,16 @@ const handleLabel = computed(
   bottom: var(--space-4);
   width: var(--panel-w);
   transform: translateZ(0);
+  transition: transform var(--dur-sheet) var(--ease-drawer);
+}
+
+/* Off the right edge, clear of its own shadow; hidden once it has slid out. */
+.shell-panel--side.is-collapsed {
+  visibility: hidden;
+  transform: translateX(calc(100% + var(--space-4) + 32px));
+  transition:
+    transform var(--dur-sheet) var(--ease-drawer),
+    visibility 0s linear var(--dur-sheet);
 }
 
 .shell-panel--sheet {
@@ -159,11 +171,17 @@ const handleLabel = computed(
   border-bottom: 0;
   border-radius: var(--radius-sheet) var(--radius-sheet) 0 0;
   box-shadow: 0 -12px 32px rgba(27, 27, 31, 0.12);
-  transition: transform var(--dur-panel) var(--ease-out);
+  transition: transform var(--dur-sheet) var(--ease-drawer);
   touch-action: none;
 }
 
-.shell-panel--sheet.is-dragging {
+/* The sticky action bar rides the visible edge, so it moves with the sheet, not ahead of it. */
+.shell-panel--sheet :deep(.panel-frame__actions) {
+  transition: transform var(--dur-sheet) var(--ease-drawer);
+}
+
+.shell-panel--sheet.is-dragging,
+.shell-panel--sheet.is-dragging :deep(.panel-frame__actions) {
   transition: none;
 }
 
@@ -207,7 +225,10 @@ const handleLabel = computed(
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .shell-panel--sheet {
+  .shell-panel--side,
+  .shell-panel--side.is-collapsed,
+  .shell-panel--sheet,
+  .shell-panel--sheet :deep(.panel-frame__actions) {
     transition: none;
   }
 }

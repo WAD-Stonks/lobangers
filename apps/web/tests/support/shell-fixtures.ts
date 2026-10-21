@@ -34,6 +34,7 @@ export const makeDeal = (overrides: Partial<DealPin>): DealPin => ({
   rawValidityText: null,
   votes: { alive: 3, dead: 0 },
   commentCount: 0,
+  images: [],
   venues: [KOPI_VENUE],
   ...overrides,
 })

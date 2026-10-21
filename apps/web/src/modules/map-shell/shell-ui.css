@@ -159,6 +159,8 @@
   transition:
     transform var(--dur-press) var(--ease-out),
     background-color 150ms ease;
+  /* Quick repeated taps on zoom must not trigger the browser's double-tap zoom. */
+  touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
 }
 

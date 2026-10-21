@@ -14,12 +14,14 @@ export type VenuePin = {
   readonly deals: readonly DealPin[]
 }
 
-// One list row per deal and outlet, with the distance to that outlet when the visitor is located.
+// One list row per deal, shown at its nearest listed outlet (its first one when the visitor is
+// not located). `outletCount` is how many listed outlets run it, that one included.
 export type DealRow = {
   readonly key: string
   readonly deal: DealPin
   readonly venue: VenuePin
   readonly distanceMetres: number | null
+  readonly outletCount: number
 }
 
 // What the visitor has opened: an outlet, and optionally one of its deals.

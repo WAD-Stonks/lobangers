@@ -36,8 +36,9 @@ export const toVenuePins = (deals: readonly DealPin[]): readonly VenuePin[] => {
 
 const rowKey = (deal: DealPin, venue: VenuePin) => `${deal.id}:${venue.id}`
 
-// One row per deal and outlet. Nearest outlet first when the visitor's position is known,
-// otherwise query order without distances.
+// One row per deal, so a chain deal at 60 outlets is one card, not 60. Each deal sits at its
+// nearest listed outlet when the visitor's position is known, otherwise at its first one, and
+// rows follow that outlet's order. The map keeps every outlet as its own pin.
 export const toDealRows = (
   pins: readonly VenuePin[],
   position: Coordinates | null,
@@ -45,13 +46,25 @@ export const toDealRows = (
   const ordered = position
     ? sortByDistance(pins, position)
     : pins.map((pin) => ({ ...pin, distanceMetres: null }))
+  const outletCounts = new Map<string, number>()
+  for (const venue of pins) {
+    for (const deal of venue.deals) outletCounts.set(deal.id, (outletCounts.get(deal.id) ?? 0) + 1)
+  }
+  const seen = new Set<string>()
   return ordered.flatMap((venue) =>
-    venue.deals.map((deal) => ({
-      key: rowKey(deal, venue),
-      deal,
-      venue,
-      distanceMetres: venue.distanceMetres,
-    })),
+    venue.deals.flatMap((deal) => {
+      if (seen.has(deal.id)) return []
+      seen.add(deal.id)
+      return [
+        {
+          key: rowKey(deal, venue),
+          deal,
+          venue,
+          distanceMetres: venue.distanceMetres,
+          outletCount: outletCounts.get(deal.id) ?? 1,
+        },
+      ]
+    }),
   )
 }
 

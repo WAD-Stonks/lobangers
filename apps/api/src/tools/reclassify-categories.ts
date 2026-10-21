@@ -10,18 +10,21 @@ import { db } from '@broke-oclock/db'
 const APPLY_FLAG = '--apply'
 const TITLE_PREVIEW_CHARS = 60
 
+// Later imports stored the default in lower case ("food"), which no category code matches.
+const UNCLASSIFIED = [DEFAULT_DEAL_CATEGORY, DEFAULT_DEAL_CATEGORY.toLowerCase()]
+
 const planChanges = async () => {
   const deals = await db.deal.findMany({
     where: {
-      category: DEFAULT_DEAL_CATEGORY,
+      category: { in: UNCLASSIFIED },
       OR: [{ deletedAt: null }, { deletedAt: { isSet: false } }],
     },
-    select: { id: true, title: true, description: true },
+    select: { id: true, title: true, description: true, category: true },
     orderBy: { createdAt: 'asc' },
   })
   return deals.flatMap((deal) => {
     const category = classifyDealCategory(deal.title, deal.description)
-    return category === DEFAULT_DEAL_CATEGORY ? [] : [{ id: deal.id, title: deal.title, category }]
+    return category === deal.category ? [] : [{ id: deal.id, title: deal.title, category }]
   })
 }
 

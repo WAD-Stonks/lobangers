@@ -32,11 +32,11 @@ export const formatCategory = (category: string): string => {
   return words.charAt(0).toUpperCase() + words.slice(1)
 }
 
-// Null when the deal has only the outlet being viewed.
-export const formatOtherOutlets = (totalOutlets: number): string | null => {
+// The outlets a list row stands for beyond the one it shows; null for a single outlet.
+export const formatMoreOutlets = (totalOutlets: number): string | null => {
   const others = totalOutlets - 1
   if (others < 1) return null
-  return `Also at ${others} other ${others === 1 ? 'outlet' : 'outlets'}`
+  return `+${others} more ${others === 1 ? 'outlet' : 'outlets'}`
 }
 
 const endTimeFormat = new Intl.DateTimeFormat('en-SG', {

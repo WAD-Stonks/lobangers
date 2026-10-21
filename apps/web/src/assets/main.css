@@ -19,6 +19,9 @@
   --sunny-ring: rgba(246, 214, 75, 0.85);
   --sky: #4f7df3;
   --sky-soft: rgba(79, 125, 243, 0.16);
+  /* Deeper sky for filled surfaces with white text (5.9:1). */
+  --sky-strong: #2f5bd3;
+  --sky-strong-hover: #2850bd;
   --tint-drinks: #a9def4;
   --tint-food: #f9c7bb;
   --tint-dessert: #f6bfe6;
@@ -78,7 +81,9 @@
   --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1); /* things moving on screen */
   --dur-press: 140ms;
   --dur-small: 180ms; /* chips, menu, toggles */
-  --dur-panel: 260ms; /* panel slides, sheet snaps */
+  --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1); /* sheets and panels that resize */
+  --dur-panel: 260ms; /* panel slides */
+  --dur-sheet: 400ms; /* sheet snaps */
 
   /* Control sizes: a 44px touch target and the 52px header pills. Desktop tightens both below. */
   --hit: 44px;
@@ -99,11 +104,12 @@
   background: var(--paper);
 }
 
-/* Desktop with a mouse reads better a notch denser: rem-based type and spacing drop to 90%,
-   and controls to a 40px target (still well above WCAG's 24px minimum for a fine pointer).
-   Touch screens keep the full size. */
+/* Desktop with a mouse reads better a notch denser: the map shell's rem-based type and spacing
+   drop to 90%, and controls to a 40px target (still well above WCAG's 24px minimum for a fine
+   pointer). Touch screens keep the full size. The font scale is scoped to the map shell so the
+   admin and landing pages keep their 16px rem base. */
 @media (min-width: 992px) and (pointer: fine) {
-  html {
+  html.is-canvas {
     font-size: 90%;
   }
 

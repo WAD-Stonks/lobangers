@@ -82,7 +82,7 @@ describe('HotCard', () => {
   it('moves with the dots and stops with the pause button', async () => {
     const wrapper = mount(HotCard, { props: { deals } })
     expect(wrapper.get('[data-testid="hot-position"]').text()).toBe('1 of 2')
-    await wrapper.findAll('.hot-card__dot')[1]?.trigger('click')
+    await wrapper.findAll('.hot-hero__dot')[1]?.trigger('click')
     expect(wrapper.get('[data-testid="hot-position"]').text()).toBe('2 of 2')
 
     await wrapper.get('[data-testid="hot-pause"]').trigger('click')
@@ -91,6 +91,14 @@ describe('HotCard', () => {
     )
     await vi.advanceTimersByTimeAsync(10_000)
     expect(wrapper.get('[data-testid="hot-position"]').text()).toBe('2 of 2')
+  })
+
+  it("tints the hero with the shown deal's category and shows its 3D food", async () => {
+    const wrapper = mount(HotCard, { props: { deals } })
+    expect(wrapper.get('[data-testid="hot-card"]').attributes('style')).toContain('--tint-')
+    expect(wrapper.find('.hot-hero__food .food-sprite').exists()).toBe(true)
+    await wrapper.get('.hot-hero__food').trigger('click')
+    expect(wrapper.emitted('open')?.[0]?.[0]).toMatchObject({ deal: { id: NOODLES.id } })
   })
 
   it('opens the shown deal', async () => {
@@ -102,7 +110,7 @@ describe('HotCard', () => {
   it('drops the pause button and progress bar with reduced motion', () => {
     const wrapper = mount(HotCard, { props: { deals, reducedMotion: true } })
     expect(wrapper.find('[data-testid="hot-pause"]').exists()).toBe(false)
-    expect(wrapper.find('.hot-card__bar').exists()).toBe(false)
+    expect(wrapper.find('.hot-hero__bar').exists()).toBe(false)
   })
 })
 

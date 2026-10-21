@@ -1,10 +1,12 @@
 // Leaflet defaults for the public browse map. Tile providers live in basemap.ts.
 export const SINGAPORE_CENTER = { lat: 1.3521, lng: 103.8198 } as const
-// Zoom used when the map focuses the visitor's located position.
+// Zoom used when the map focuses a selected deal or venue.
 export const FOCUS_ZOOM = 15
+// "Near me" lands much closer in, at walking-street level around the visitor.
+export const LOCATE_ZOOM = 17
 // Zoom 11 keeps the whole island on screen; anything wider shows only sea and Johor.
 export const MIN_ZOOM = 11
-export const MAX_ZOOM = 17
+export const MAX_ZOOM = 19
 // Selecting a deal flies there; hopping to a deal this close (at street zoom) pans instead.
 export const FLY_DURATION_S = 0.65
 export const PAN_DURATION_S = 0.4
@@ -27,10 +29,9 @@ export const USER_ACCURACY_STYLE = {
 // anything wider would cover the whole view.
 export const MAX_ACCURACY_HALO_METRES = 500
 
-// Venue pins (tinted category bubble plus a black price badge) are built by venue-pin.ts;
-// the class is styled in DealMap.vue.
+// Venue pins (animated 3D food plus a black price badge) are built by venue-pin.ts; area and
+// "Near you" pills by cluster-icon.ts, chosen per zoom by map-tiers.ts. Styled in DealMap.vue.
 export const DEAL_PIN_CLASS = 'deal-map-pin'
 export const DEAL_PIN_BUBBLE_PX = 44
-export const CLUSTER_ICON_PX = 44
 // Longer labels are cut so a badge never grows into a banner across the map.
 export const DEAL_PIN_LABEL_MAX_CHARS = 14

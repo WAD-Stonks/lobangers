@@ -25,8 +25,13 @@ const FALLBACK_VIEWPORT = { width: 1280, height: 800 }
 
 type Options = {
   readonly breakpoint: Readonly<Ref<Breakpoint>>
+  /** The panel's settled shape: the map frames itself for this. */
   readonly wide: Readonly<Ref<boolean>>
+  /** The width the panel is drawn at, which trails `wide` while it animates. Defaults to `wide`. */
+  readonly panelWide?: Readonly<Ref<boolean>>
   readonly header: Readonly<Ref<HTMLElement | null>>
+  /** Desktop only: the panel is tucked off the right edge, so the whole map is visible. */
+  readonly collapsed?: Readonly<Ref<boolean>>
 }
 
 const viewportSize = () =>
@@ -50,7 +55,16 @@ export const sheetHeights = (
   return [SHEET_PEEK_PX, half, full]
 }
 
-export const useShellLayout = ({ breakpoint, wide, header }: Options) => {
+export const panelWidthFor = (viewportWidth: number, wide: boolean): number => {
+  const compact = viewportWidth <= COMPACT_DESKTOP_MAX_PX
+  if (!wide) return compact ? PANEL_WIDTH_COMPACT_PX : PANEL_WIDTH_PX
+  const [max, ratio] = compact
+    ? [WIDE_PANEL_COMPACT_MAX_PX, WIDE_PANEL_COMPACT_RATIO]
+    : [WIDE_PANEL_MAX_PX, WIDE_PANEL_RATIO]
+  return Math.min(max, Math.round(viewportWidth * ratio))
+}
+
+export const useShellLayout = ({ breakpoint, wide, panelWide = wide, header, collapsed = ref(false) }: Options) => {
   const viewport = ref(viewportSize())
   const headerBottom = ref(FALLBACK_HEADER_BOTTOM_PX)
   const snap = ref(1)
@@ -86,35 +100,32 @@ export const useShellLayout = ({ breakpoint, wide, header }: Options) => {
   const sheetVisible = computed(() =>
     mode.value === 'sheet' ? (heights.value[snap.value] ?? 0) : 0,
   )
-  const panelWidth = computed(() => {
-    const compact = viewport.value.width <= COMPACT_DESKTOP_MAX_PX
-    if (!wide.value) return compact ? PANEL_WIDTH_COMPACT_PX : PANEL_WIDTH_PX
-    const [max, ratio] = compact
-      ? [WIDE_PANEL_COMPACT_MAX_PX, WIDE_PANEL_COMPACT_RATIO]
-      : [WIDE_PANEL_MAX_PX, WIDE_PANEL_RATIO]
-    return Math.min(max, Math.round(viewport.value.width * ratio))
-  })
+  const widthFor = (isWide: boolean) => panelWidthFor(viewport.value.width, isWide)
+  const panelWidth = computed(() => widthFor(wide.value))
+
+  // How much of the map's right side the desktop panel covers; none while it is collapsed.
+  const sideCover = computed(() => (collapsed.value ? 0 : panelWidth.value + 2 * DESKTOP_GUTTER_PX))
 
   // How far the visible map centre sits from the map's real centre.
   const focusOffset = computed<MapOffset>(() =>
     mode.value === 'side'
       ? // The panel covers the right, so the visible centre sits left of the map's centre.
-        { x: -Math.round((panelWidth.value + 2 * DESKTOP_GUTTER_PX) / 2), y: 0 }
+        { x: 0 - Math.round(sideCover.value / 2), y: 0 }
       : { x: 0, y: -Math.round(sheetVisible.value / 2) },
   )
 
   // What covers the map: the panel on the right (desktop) or the header and sheet (below).
   const viewPadding = computed(() =>
     mode.value === 'side'
-      ? { top: 0, right: panelWidth.value + 2 * DESKTOP_GUTTER_PX, bottom: 0, left: 0 }
+      ? { top: 0, right: sideCover.value, bottom: 0, left: 0 }
       : { top: headerBottom.value, right: 0, bottom: sheetVisible.value, left: 0 },
   )
 
   const cssVars = computed(() => ({
     '--shell-header-bottom': `${headerBottom.value}px`,
     '--sheet-visible': `${sheetVisible.value}px`,
-    '--panel-w': `${panelWidth.value}px`,
+    '--panel-w': `${widthFor(panelWide.value)}px`,
   }))
 
-  return { mode, heights, snap, sheetVisible, focusOffset, viewPadding, cssVars, panelWidth }
+  return { mode, heights, snap, sheetVisible, focusOffset, viewPadding, cssVars, panelWidth, widthFor }
 }

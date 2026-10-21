@@ -189,6 +189,7 @@ describe('live bookmark integration', () => {
     rawValidityText: null,
     votes: { alive: 0, dead: 0 },
     commentCount: 0,
+    images: [],
     venues: [],
   }
   it('reads saved state across pages and reuses the existing unsave action', async () => {

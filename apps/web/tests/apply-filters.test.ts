@@ -33,6 +33,7 @@ const deal = (overrides: Partial<DealPin>): DealPin => ({
   rawValidityText: null,
   votes: { alive: 0, dead: 0 },
   commentCount: 0,
+  images: [],
   venues: [NEAR],
   ...overrides,
 })
@@ -135,7 +136,7 @@ describe('helpers', () => {
   it('sorts rows by end date or keeps API order for newest', () => {
     const rows = toDealRows(toVenuePins(ALL), null)
     const ending = sortRows(rows, 'ending')
-    expect(ending.map((row) => row.deal.id)).toEqual([LAKSA.id, SET.id, SET.id, KOPI.id])
+    expect(ending.map((row) => row.deal.id)).toEqual([LAKSA.id, SET.id, KOPI.id])
     expect(sortRows(rows, 'newest')).toEqual(rows)
     expect(rows.map((row) => row.deal.id)[0]).toBe(KOPI.id)
   })

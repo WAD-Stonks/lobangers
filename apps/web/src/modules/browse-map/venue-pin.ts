@@ -1,6 +1,7 @@
 import type { DealPin } from '@broke-oclock/contracts/deals'
 import { isEndingToday, isVerified } from '@web/modules/browse-map/apply-filters'
-import { categoryStyle, createCategoryIconElement } from '@web/modules/browse-map/category-style'
+import { foodKindFor } from '@web/modules/browse-map/food-kind'
+import { createFoodSprite } from '@web/modules/browse-map/food-sprite'
 import { DEAL_PIN_CLASS, DEAL_PIN_LABEL_MAX_CHARS } from '@web/modules/browse-map/map-config'
 import type { VenuePin } from '@web/modules/browse-map/types'
 import L from 'leaflet'
@@ -73,18 +74,33 @@ const stateClasses = (state: PinState) =>
     .filter(Boolean)
     .join(' ')
 
-// A tinted bubble with the first deal's category icon, and a black badge underneath. Built from
-// DOM nodes so deal text is never parsed as HTML.
+// The dish the outlet's first deal names, or its category's default model.
+export const pinFoodKind = (pin: Pick<VenuePin, 'deals'> & Partial<Pick<VenuePin, 'name'>>) => {
+  const first = pin.deals[0]
+  return foodKindFor({
+    category: first?.category ?? '',
+    title: first?.title ?? '',
+    venueNames: pin.name ? [pin.name] : [],
+  })
+}
+
+// Stable 0..1 from text, so a pin always starts its animation at the same point but neighbours
+// differ.
+const phaseOf = (text: string): number =>
+  ([...text].reduce((hash, ch) => (hash * 31 + ch.charCodeAt(0)) % 997, 7) % 100) / 100
+
+// The first deal's animated 3D food, and a black badge underneath. Built from DOM nodes so deal
+// text is never parsed as HTML.
 export const createVenuePinIcon = (
-  pin: Pick<VenuePin, 'deals'>,
+  pin: Pick<VenuePin, 'deals'> & Partial<Pick<VenuePin, 'name'>>,
   state: PinState = {},
   now: Date = new Date(),
 ): L.DivIcon => {
-  const style = categoryStyle(pin.deals[0]?.category ?? '')
+  const first = pin.deals[0]
+  const kind = pinFoodKind(pin)
   const bubble = document.createElement('span')
   bubble.className = `${DEAL_PIN_CLASS}__bubble`
-  bubble.style.setProperty('--pin-tint', style.tint)
-  bubble.append(createCategoryIconElement(style.icon))
+  bubble.append(createFoodSprite(kind, { animated: true, phase: phaseOf(first?.title ?? '') }))
   const flag = pinFlag(pin.deals, now)
   if (flag) bubble.append(createFlag(flag))
 

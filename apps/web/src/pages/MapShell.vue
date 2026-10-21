@@ -4,6 +4,7 @@ import '@web/modules/map-shell/motion.css'
 import { authClient } from '@web/lib/auth-client'
 import DealMap from '@web/modules/browse-map/DealMap.vue'
 import type { BrowseFilters } from '@web/modules/browse-map/filters'
+import { FOCUS_ZOOM, LOCATE_ZOOM } from '@web/modules/browse-map/map-config'
 import type { Coordinates, SelectedDeal } from '@web/modules/browse-map/types'
 import FilterSheet from '@web/modules/map-shell/FilterSheet.vue'
 import HotCard from '@web/modules/map-shell/HotCard.vue'
@@ -14,6 +15,7 @@ import ShellHeader from '@web/modules/map-shell/ShellHeader.vue'
 import ShellIcon from '@web/modules/map-shell/ShellIcon.vue'
 import ShellPanel from '@web/modules/map-shell/ShellPanel.vue'
 import ShellToast from '@web/modules/map-shell/ShellToast.vue'
+import { usePanelMorph } from '@web/modules/map-shell/use-panel-morph'
 import { dealLocation, panelSnapFor, venueLocation } from '@web/modules/map-shell/shell-routes'
 import { provideShellState } from '@web/modules/map-shell/shell-state'
 import { useBreakpoint, useFinePointer, usePrefersReducedMotion } from '@web/modules/map-shell/use-breakpoint'
@@ -43,11 +45,28 @@ const mapMoved = ref(false)
 const direction = ref<NavDirection>('none')
 const focusHeadingOnMount = ref(false)
 const locateFocus = shallowRef<Coordinates | null>(null)
+// Desktop only: the visitor tucked the panel away to see the whole map.
+const panelHidden = ref(false)
 provide(PANEL_FOCUS_KEY, focusHeadingOnMount)
 
 const isBrowse = computed(() => route.name === 'browse')
 const wide = computed(() => isBrowse.value && shell.view.value === 'list')
-const layout = useShellLayout({ breakpoint, wide, header })
+// The panel is drawn at `panelWide`, which trails `wide` while the desktop card shrinks back;
+// the map frames itself for `wide` at once, so a deal opened from the list lands centred.
+const panelWide = ref(wide.value)
+const collapsed = computed(() => panelHidden.value && breakpoint.value === 'desktop')
+const layout = useShellLayout({ breakpoint, wide, panelWide, header, collapsed })
+const panelRef = ref<InstanceType<typeof ShellPanel> | null>(null)
+const controlsRef = ref<HTMLElement | null>(null)
+const panelTabRef = ref<HTMLElement | null>(null)
+usePanelMorph({
+  wide,
+  panelWide,
+  enabled: () => layout.mode.value === 'side' && !reducedMotion.value,
+  widthFor: layout.widthFor,
+  panel: () => (panelRef.value?.$el as HTMLElement | undefined) ?? null,
+  rails: () => [controlsRef.value, panelTabRef.value],
+})
 
 // The outlet the panel is about: a deal's outlet or the venue being viewed.
 const selected = computed<SelectedDeal | null>(() =>
@@ -76,12 +95,14 @@ const selectedFocus = computed<Coordinates | null>((previousFocus) => {
     ? previousFocus
     : { lat: pin.lat, lng: pin.lng }
 })
-const mapFocus = computed<Coordinates | null>(() => selectedFocus.value ?? locateFocus.value)
+// "Near me" outranks the open deal until the next navigation clears it, so the latest ask wins.
+const mapFocus = computed<Coordinates | null>(() => locateFocus.value ?? selectedFocus.value)
+const mapFocusZoom = computed(() => (locateFocus.value ? LOCATE_ZOOM : FOCUS_ZOOM))
 
 const showHot = computed(
   () =>
     isBrowse.value &&
-    !wide.value &&
+    !panelWide.value &&
     shell.hotDeals.value.length > 0 &&
     // As on the Prototype board, the card only floats over the map on desktop.
     layout.mode.value === 'side',
@@ -91,6 +112,8 @@ const panelLabel = computed(() => (typeof route.meta.panelLabel === 'string' ? r
 
 // While the tablet or phone filter dialog is open, everything behind it is inert.
 const backgroundInert = computed(() => (sheetOpen.value && breakpoint.value !== 'desktop' ? true : undefined))
+const panelInert = computed(() => (collapsed.value ? true : backgroundInert.value))
+const panelTabLabel = computed(() => `${collapsed.value ? 'Show' : 'Hide'} ${panelLabel.value.toLowerCase()} panel`)
 
 const shellStyle = computed(() => layout.cssVars.value)
 
@@ -127,6 +150,14 @@ const nearMe = async () => {
   locateFocus.value = located
 }
 
+// The locate on arrival only moves the map when no deal or venue was linked to directly.
+const locateOnArrival = async () => {
+  const startedAt = route.path
+  const located = await shell.locate()
+  if (route.path !== startedAt || selectedVenueId.value) return
+  locateFocus.value = located
+}
+
 const searchArea = () => {
   shell.setArea(dealMap.value?.getArea() ?? null)
   mapMoved.value = false
@@ -144,11 +175,17 @@ watch(
     previous = next
     focusHeadingOnMount.value = true
     locateFocus.value = null
+    // Opening a pin, deal or any other panel brings a tucked-away panel back.
+    panelHidden.value = false
     // A filter change from a deal or venue lands on browse with the sheet still in use. Any
     // other navigation closes it, and the new panel's heading takes focus.
     if (route.name !== 'browse') sheetOpen.value = false
   },
 )
+// Switching to the list needs the panel, so it slides back in.
+watch(wide, (isWide) => {
+  if (isWide) panelHidden.value = false
+})
 // Each panel opens at a height that suits it; the visitor can drag from there.
 watch(
   () => [route.name, shell.view.value] as const,
@@ -160,13 +197,18 @@ watch(
 
 onMounted(() => {
   document.documentElement.classList.add('is-canvas')
-  void nearMe()
+  void locateOnArrival()
 })
 onBeforeUnmount(() => document.documentElement.classList.remove('is-canvas'))
 </script>
 
 <template>
-  <div class="map-shell" :class="`map-shell--${layout.mode.value}`" :style="shellStyle" data-testid="map-shell">
+  <div
+    class="map-shell"
+    :class="[`map-shell--${layout.mode.value}`, { 'map-shell--collapsed': collapsed }]"
+    :style="shellStyle"
+    data-testid="map-shell"
+  >
     <!-- Header first so keyboard users reach the menu and search before the map. -->
     <ShellHeader
       :inert="backgroundInert"
@@ -181,6 +223,7 @@ onBeforeUnmount(() => document.documentElement.classList.remove('is-canvas'))
         ref="dealMap"
         :pins="mapPins"
         :focus="mapFocus"
+        :focus-zoom="mapFocusZoom"
         :focus-offset="layout.focusOffset.value"
         :view-padding="layout.viewPadding.value"
         :user-position="shell.position.value"
@@ -208,27 +251,50 @@ onBeforeUnmount(() => document.documentElement.classList.remove('is-canvas'))
       </button>
     </Transition>
 
-    <div v-show="showControls" class="map-shell__controls" :inert="backgroundInert">
-      <MapControls
-        :view="shell.view.value"
-        :show-toggle="isBrowse"
-        :locating="shell.geoStatus.value === 'locating'"
-        :show-zoom="breakpoint !== 'phone'"
-        @toggle-view="shell.setView(wide ? 'map' : 'list')"
-        @near-me="nearMe"
-        @zoom-in="dealMap?.zoomIn()"
-        @zoom-out="dealMap?.zoomOut()"
-      />
-    </div>
+    <Transition name="shell-fade">
+      <div v-show="showControls" ref="controlsRef" class="map-shell__controls" :inert="backgroundInert">
+        <MapControls
+          :view="shell.view.value"
+          :show-toggle="isBrowse"
+          :locating="shell.geoStatus.value === 'locating'"
+          :show-zoom="breakpoint !== 'phone'"
+          @toggle-view="shell.setView(wide ? 'map' : 'list')"
+          @near-me="nearMe"
+          @zoom-in="dealMap?.zoomIn()"
+          @zoom-out="dealMap?.zoomOut()"
+        />
+      </div>
+    </Transition>
 
-    <HotCard v-if="showHot" :inert="backgroundInert" class="map-shell__hot" :deals="shell.hotDeals.value" :reduced-motion="reducedMotion" @open="openHot" />
+    <Transition name="shell-fade">
+      <HotCard v-if="showHot" :inert="backgroundInert" class="map-shell__hot" :deals="shell.hotDeals.value" :reduced-motion="reducedMotion" @open="openHot" />
+    </Transition>
+
+    <button
+      v-if="layout.mode.value === 'side'"
+      ref="panelTabRef"
+      type="button"
+      class="map-shell__panel-tab"
+      data-testid="panel-collapse"
+      :aria-label="panelTabLabel"
+      :title="panelTabLabel"
+      :aria-expanded="!collapsed"
+      aria-controls="shell-panel"
+      :inert="backgroundInert"
+      @click="panelHidden = !panelHidden"
+    >
+      <ShellIcon :name="collapsed ? 'chevronLeft' : 'chevronRight'" :size="16" />
+    </button>
 
     <ShellPanel
-      :inert="backgroundInert"
+      id="shell-panel"
+      ref="panelRef"
+      :inert="panelInert"
       v-model:snap="layout.snap.value"
       :mode="layout.mode.value"
       :heights="layout.heights.value"
-      :wide="wide"
+      :wide="panelWide"
+      :collapsed="collapsed"
       :label="panelLabel"
     >
       <RouterView v-slot="{ Component, route: child }">
@@ -293,6 +359,60 @@ onBeforeUnmount(() => document.documentElement.classList.remove('is-canvas'))
   z-index: 10;
 }
 
+/* With the panel tucked away, the controls follow it to the right edge. */
+.map-shell__controls > .map-controls {
+  transition: transform var(--dur-sheet) var(--ease-drawer);
+}
+
+.map-shell--collapsed {
+  --map-centre-x: 50%;
+}
+
+.map-shell--collapsed .map-shell__controls > .map-controls {
+  transform: translateX(calc(var(--panel-w) + var(--shell-gutter)));
+}
+
+/* A tab on the panel's left edge hides it; it stays on the screen edge to bring it back. Placed
+   with top, not a transform, because the list/map morph slides it with transform. */
+.map-shell__panel-tab {
+  position: absolute;
+  top: calc(50% - 28px);
+  right: calc(var(--panel-w) + var(--shell-gutter));
+  z-index: 21;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 56px;
+  padding: 0;
+  color: var(--ink-muted);
+  background: var(--paper-white);
+  border: 1px solid var(--hairline);
+  border-right: 0;
+  border-radius: 12px 0 0 12px;
+  box-shadow: var(--shadow-pill);
+  cursor: pointer;
+  transition:
+    transform var(--dur-sheet) var(--ease-drawer),
+    color 150ms ease,
+    background-color 150ms ease;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.map-shell__panel-tab:hover {
+  color: var(--ink);
+  background: var(--paper-hover);
+}
+
+.map-shell__panel-tab:focus-visible {
+  outline: 3px solid var(--sunny-ring);
+  outline-offset: 2px;
+}
+
+.map-shell--collapsed .map-shell__panel-tab {
+  transform: translateX(calc(var(--panel-w) + var(--shell-gutter)));
+}
+
 .map-shell__hot {
   position: absolute;
   bottom: var(--shell-gutter);
@@ -328,7 +448,7 @@ onBeforeUnmount(() => document.documentElement.classList.remove('is-canvas'))
   right: var(--space-4);
   bottom: var(--space-4);
   transform: translateY(calc(-1 * var(--sheet-visible)));
-  transition: transform var(--dur-panel) var(--ease-out);
+  transition: transform var(--dur-sheet) var(--ease-drawer);
 }
 
 .map-shell--sheet .map-shell__hot {
@@ -354,7 +474,9 @@ onBeforeUnmount(() => document.documentElement.classList.remove('is-canvas'))
 
 @media (prefers-reduced-motion: reduce) {
   .map-shell--sheet .map-shell__controls,
-  .map-shell--sheet .map-shell__hot {
+  .map-shell--sheet .map-shell__hot,
+  .map-shell__controls > .map-controls,
+  .map-shell__panel-tab {
     transition: none;
   }
 

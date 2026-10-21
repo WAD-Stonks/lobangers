@@ -2,7 +2,7 @@ import {
   dealFreshness,
   formatCategory,
   formatEnding,
-  formatOtherOutlets,
+  formatMoreOutlets,
   formatValidity,
   priceText,
   termsList,
@@ -31,11 +31,11 @@ describe('formatCategory', () => {
   })
 })
 
-describe('formatOtherOutlets', () => {
-  it('counts the outlets other than the one being viewed', () => {
-    expect(formatOtherOutlets(1)).toBeNull()
-    expect(formatOtherOutlets(2)).toBe('Also at 1 other outlet')
-    expect(formatOtherOutlets(4)).toBe('Also at 3 other outlets')
+describe('formatMoreOutlets', () => {
+  it('names the other outlets, or nothing for a single outlet', () => {
+    expect(formatMoreOutlets(1)).toBeNull()
+    expect(formatMoreOutlets(2)).toBe('+1 more outlet')
+    expect(formatMoreOutlets(60)).toBe('+59 more outlets')
   })
 })
 

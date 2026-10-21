@@ -9,6 +9,7 @@ import {
   SIGNED_IN,
   SIGNED_OUT,
 } from '@web-tests/support/shell-fixtures'
+import { FOCUS_ZOOM, LOCATE_ZOOM } from '@web/modules/browse-map/map-config'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ref } from 'vue'
 
@@ -156,6 +157,84 @@ describe('browse panel', () => {
     const hot = wrapper.findAll('[data-testid="nearby-list"] a.is-hot').map((row) => row.text())
     expect(hot).toHaveLength(2)
     expect(hot[0]).toContain('Synthetic noodle set')
+  })
+})
+
+describe('near me', () => {
+  const HERE = { lat: 1.3, lng: 103.85 }
+  const stubGeolocation = () =>
+    Object.defineProperty(navigator, 'geolocation', {
+      configurable: true,
+      value: {
+        getCurrentPosition: (ok: PositionCallback) =>
+          ok({ coords: { latitude: HERE.lat, longitude: HERE.lng, accuracy: 20 } } as GeolocationPosition),
+      },
+    })
+  afterEach(() => {
+    Reflect.deleteProperty(navigator, 'geolocation')
+  })
+
+  it('focuses the visitor much closer in than a selected deal', async () => {
+    stubGeolocation()
+    const { wrapper } = await mountAt('/browse')
+    await flushPromises()
+    await wrapper.get('[data-testid="near-me"]').trigger('click')
+    await flushPromises()
+    expect(map(wrapper).props('focus')).toEqual(HERE)
+    expect(map(wrapper).props('focusZoom')).toBe(LOCATE_ZOOM)
+    expect(LOCATE_ZOOM).toBeGreaterThan(FOCUS_ZOOM)
+  })
+
+  it('moves to the visitor when they ask while a deal is open', async () => {
+    stubGeolocation()
+    const { wrapper } = await mountAt(`/deals/${KOPI.id}?at=${KOPI_VENUE.id}`)
+    await flushPromises()
+    expect(map(wrapper).props('focus')).toEqual({ lat: KOPI_VENUE.lat, lng: KOPI_VENUE.lng })
+    await wrapper.get('[data-testid="near-me"]').trigger('click')
+    await flushPromises()
+    expect(map(wrapper).props('focus')).toEqual(HERE)
+    expect(map(wrapper).props('focusZoom')).toBe(LOCATE_ZOOM)
+  })
+})
+
+describe('collapsing the desktop panel', () => {
+  const panel = (wrapper: VueWrapper) => wrapper.get('[data-testid="shell-panel"]')
+  const tab = (wrapper: VueWrapper) => wrapper.get('[data-testid="panel-collapse"]')
+
+  it('tucks the panel away, frames the whole map, and brings it back', async () => {
+    const { wrapper } = await mountAt('/browse')
+    const openOffset = map(wrapper).props('focusOffset')
+    expect(openOffset.x).toBeLessThan(0)
+
+    await tab(wrapper).trigger('click')
+    expect(panel(wrapper).classes()).toContain('is-collapsed')
+    expect(panel(wrapper).attributes('inert')).toBeDefined()
+    expect(tab(wrapper).attributes('aria-expanded')).toBe('false')
+    expect(tab(wrapper).attributes('aria-label')).toBe('Show results panel')
+    expect(map(wrapper).props('focusOffset')).toEqual({ x: 0, y: 0 })
+    expect(map(wrapper).props('viewPadding').right).toBe(0)
+
+    await tab(wrapper).trigger('click')
+    expect(panel(wrapper).classes()).not.toContain('is-collapsed')
+    expect(panel(wrapper).attributes('inert')).toBeUndefined()
+    expect(map(wrapper).props('focusOffset')).toEqual(openOffset)
+  })
+
+  it('reopens when a pin is picked', async () => {
+    const { wrapper } = await mountAt('/browse')
+    await tab(wrapper).trigger('click')
+    map(wrapper).vm.$emit('select', KOPI_VENUE.id)
+    await flushPromises()
+    expect(panel(wrapper).classes()).not.toContain('is-collapsed')
+    expect(tab(wrapper).attributes('aria-expanded')).toBe('true')
+  })
+
+  it('reopens when switching to the list', async () => {
+    const { wrapper } = await mountAt('/browse')
+    await tab(wrapper).trigger('click')
+    await wrapper.get('[data-testid="panel-toggle"]').trigger('click')
+    await flushPromises()
+    expect(panel(wrapper).classes()).not.toContain('is-collapsed')
   })
 })
 
@@ -372,5 +451,49 @@ describe('review regressions', () => {
     } finally {
       vi.useRealTimers()
     }
+  })
+})
+
+describe('deal banners', () => {
+  const banner = (wrapper: VueWrapper, testId: string) => wrapper.find(`[data-testid="${testId}"]`)
+  const categoryTile = (wrapper: VueWrapper, label: string) =>
+    wrapper.findAll('[data-testid="banner-category"]').find((tile) => tile.text().includes(label))
+
+  it('shows a tile per category with deals, busiest first, with real counts', async () => {
+    const { wrapper } = await mountAt('/browse')
+    const tiles = wrapper.findAll('[data-testid="banner-category"]').map((tile) => tile.text())
+    expect(tiles).toHaveLength(2)
+    expect(tiles[0]).toContain('Food')
+    expect(tiles[0]).toContain('2 deals')
+    expect(tiles[1]).toContain('Drinks')
+    expect(tiles[1]).toContain('1 deal')
+  })
+
+  it('filters by category from a tile and clears it on a second tap', async () => {
+    const { wrapper, router } = await mountAt('/browse')
+    await categoryTile(wrapper, 'Drinks')?.trigger('click')
+    await vi.waitFor(() => expect(router.currentRoute.value.query.cat).toBe('drinks'))
+    expect(rowTitles(wrapper)).toEqual(['Synthetic iced kopi'])
+    expect(categoryTile(wrapper, 'Drinks')?.attributes('aria-pressed')).toBe('true')
+
+    await categoryTile(wrapper, 'Drinks')?.trigger('click')
+    await vi.waitFor(() => expect(router.currentRoute.value.query.cat).toBeUndefined())
+  })
+
+  it('turns on the ending-this-week filter from the Ending soon banner', async () => {
+    const { wrapper, router } = await mountAt('/browse')
+    await banner(wrapper, 'banner-ending').trigger('click')
+    await vi.waitFor(() => expect(router.currentRoute.value.query.when).toBe('week'))
+    expect(banner(wrapper, 'banner-ending').attributes('aria-pressed')).toBe('true')
+  })
+})
+
+describe('deal banner food', () => {
+  it('keeps the sizing class on each 3D food so it is visible', async () => {
+    const { wrapper } = await mountAt('/browse')
+    const food = wrapper.get('[data-testid="banner-near"] .banner__food')
+    expect(food.classes()).toContain('food-sprite')
+    const tileFood = wrapper.get('[data-testid="banner-category"] .tile__food')
+    expect(tileFood.classes()).toEqual(expect.arrayContaining(['tile__food', 'food-sprite']))
   })
 })

@@ -27,6 +27,12 @@ export const dealVoteSummarySchema = z.strictObject({
   dead: z.number().int().min(0),
 })
 
+// A deal photo already re-hosted on our storage; alt is null when the source gave none.
+export const dealImageSchema = z.strictObject({
+  url: z.string().url().startsWith('https://'),
+  alt: z.string().nullable(),
+})
+
 export const dealPinSchema = z.strictObject({
   id: objectIdSchema,
   title: z.string(),
@@ -44,6 +50,7 @@ export const dealPinSchema = z.strictObject({
   rawValidityText: z.string().nullable(),
   votes: dealVoteSummarySchema,
   commentCount: z.number().int().min(0),
+  images: z.array(dealImageSchema),
   venues: z.array(dealVenuePinSchema),
 })
 
@@ -55,5 +62,6 @@ export const dealsResponseSchema = z.strictObject({
 export type DealsQuery = z.infer<typeof dealsQuerySchema>
 export type DealVenuePin = z.infer<typeof dealVenuePinSchema>
 export type DealVoteSummary = z.infer<typeof dealVoteSummarySchema>
+export type DealImage = z.infer<typeof dealImageSchema>
 export type DealPin = z.infer<typeof dealPinSchema>
 export type DealsResponse = z.infer<typeof dealsResponseSchema>

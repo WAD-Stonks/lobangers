@@ -8,6 +8,8 @@ const ICONS = {
   bookmark: ['M6 4h12v17l-6-4-6 4z'],
   check: ['m5 12 5 5 9-10'],
   chevronDown: ['m6 9 6 6 6-6'],
+  chevronLeft: ['m15 6-6 6 6 6'],
+  chevronRight: ['m9 6 6 6-6 6'],
   close: ['M18 6 6 18', 'M6 6l12 12'],
   directions: ['M3 11 21 3l-8 18-2-8z'],
   filters: ['M4 6h10', 'M18 6h2', 'M4 12h4', 'M12 12h8', 'M4 18h12', 'M16 4v4', 'M10 10v4', 'M18 16v4'],

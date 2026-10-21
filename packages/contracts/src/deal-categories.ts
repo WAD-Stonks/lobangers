@@ -103,6 +103,30 @@ const CATEGORY_CUES: Record<DealCategory, readonly string[]> = {
     'chai',
     'hojicha',
     'yakult',
+    // Drink chains, since imported titles are often just the brand ("#TIGERSUGARSG").
+    'starbucks',
+    'heytea',
+    'chagee',
+    'playmade',
+    'koi',
+    'liho',
+    'gong cha',
+    'gongcha',
+    'tiger sugar',
+    'tigersugar',
+    'tigersugarsg',
+    'beutea',
+    'chicha',
+    'tealive',
+    'milksha',
+    'bober',
+    'bobertea',
+    'sharetea',
+    'tuk tuk cha',
+    'tuktukcha',
+    'luckin',
+    'mixue',
+    'each a cup',
   ],
   DESSERT: [
     'dessert',
@@ -212,6 +236,38 @@ const CATEGORY_PATTERNS = DEAL_CATEGORIES.map((category) => ({
 
 // A cue in the title says more about the deal than one buried in the body.
 const TITLE_WEIGHT = 3
+// Channel posts lead with emoji (🧋HEYTEA🧋), which say more than a bare brand name. Emoji have
+// no word boundaries, so they are counted as plain substrings.
+const CATEGORY_EMOJI: Record<DealCategory, readonly string[]> = {
+  FOOD: [
+    '🍔',
+    '🍟',
+    '🍗',
+    '🍖',
+    '🥩',
+    '🍜',
+    '🍝',
+    '🍕',
+    '🍣',
+    '🍱',
+    '🍲',
+    '🥘',
+    '🍛',
+    '🍚',
+    '🥟',
+    '🌭',
+    '🌮',
+    '🥗',
+  ],
+  DRINKS: ['🧋', '☕', '🥤', '🍵', '🧃', '🍹', '🍺', '🍷', '🥛'],
+  DESSERT: ['🍦', '🍨', '🍧', '🍰', '🎂', '🍮', '🧇'],
+  SNACKS: ['🍿', '🍫', '🍬', '🍭', '🥨'],
+  BAKERY: ['🥐', '🍞', '🥖', '🥯', '🧁', '🍩', '🥧'],
+}
+
+const countEmoji = (category: DealCategory, text: string) =>
+  CATEGORY_EMOJI[category].reduce((total, emoji) => total + text.split(emoji).length - 1, 0)
+
 const countCues = (pattern: RegExp, text: string) => [...text.matchAll(pattern)].length
 
 // Picks the category whose cues appear most across the title and body. Ties and a total blank
@@ -219,7 +275,10 @@ const countCues = (pattern: RegExp, text: string) => [...text.matchAll(pattern)]
 export const classifyDealCategory = (title: string, body = ''): DealCategory => {
   const scored = CATEGORY_PATTERNS.map(({ category, pattern }) => ({
     category,
-    score: countCues(pattern, title) * TITLE_WEIGHT + countCues(pattern, body),
+    score:
+      (countCues(pattern, title) + countEmoji(category, title)) * TITLE_WEIGHT +
+      countCues(pattern, body) +
+      countEmoji(category, body),
   }))
   return scored.reduce((best, entry) => (entry.score > best.score ? entry : best)).category
 }

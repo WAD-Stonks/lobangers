@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { walkMinutesFor } from '@web/modules/browse-map/apply-filters'
 import CategoryBubble from '@web/modules/browse-map/CategoryBubble.vue'
-import { dealFreshness, priceText } from '@web/modules/browse-map/deal-format'
+import { dealFreshness, formatMoreOutlets, priceText } from '@web/modules/browse-map/deal-format'
 import { OFFER_TYPE_LABELS } from '@web/modules/browse-map/filters'
 import type { DealRow } from '@web/modules/browse-map/types'
 import ShellIcon from '@web/modules/map-shell/ShellIcon.vue'
@@ -36,13 +36,21 @@ const emit = defineEmits<{ hover: [venueId: string | null] }>()
         @focus="emit('hover', row.venue.id)"
         @blur="emit('hover', null)"
       >
-        <CategoryBubble :category="row.deal.category" size="md" />
+        <CategoryBubble
+          :category="row.deal.category"
+          :title="row.deal.title"
+          :venue="row.venue.name"
+          size="md"
+        />
         <span class="deal-rows__text">
           <strong class="deal-rows__title" :title="row.deal.title">{{ row.deal.title }}</strong>
           <span class="deal-rows__where">
             <span class="deal-rows__venue">{{ row.venue.name }}</span>
             <span v-if="row.distanceMetres !== null" class="deal-rows__walk">
               <ShellIcon name="walk" :size="14" />{{ walkMinutesFor(row.distanceMetres) }} min
+            </span>
+            <span v-if="formatMoreOutlets(row.outletCount)" class="deal-rows__outlets" data-testid="more-outlets">
+              {{ formatMoreOutlets(row.outletCount) }}
             </span>
           </span>
           <span class="deal-rows__tags">
@@ -140,6 +148,12 @@ const emit = defineEmits<{ hover: [venueId: string | null] }>()
   display: inline-flex;
   align-items: center;
   gap: 4px;
+  white-space: nowrap;
+}
+
+.deal-rows__outlets {
+  font-weight: 600;
+  color: var(--ink);
   white-space: nowrap;
 }
 

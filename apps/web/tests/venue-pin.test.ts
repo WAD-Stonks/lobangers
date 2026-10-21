@@ -37,7 +37,7 @@ describe('pinBadgeText', () => {
 })
 
 describe('createVenuePinIcon', () => {
-  it('builds a tinted category bubble with an icon and a badge, never parsing HTML', () => {
+  it('builds an animated 3D food and a badge, never parsing HTML', () => {
     const icon = createVenuePinIcon({
       deals: [
         {
@@ -54,11 +54,31 @@ describe('createVenuePinIcon', () => {
     expect(icon.options.className).toBe(DEAL_PIN_CLASS)
     expect(icon.options.iconSize).toEqual([0, 0])
     const bubble = element.querySelector(`.${DEAL_PIN_CLASS}__bubble`) as HTMLElement
-    expect(bubble.style.getPropertyValue('--pin-tint')).toBe('var(--tint-drinks)')
-    expect(bubble.querySelector('svg path')).not.toBeNull()
+    const food = bubble.querySelector('.food-sprite') as HTMLElement
+    expect(food.style.backgroundImage).toContain('/food-anim/drinks-128.webp')
+    expect(food.classList.contains('food-sprite--still')).toBe(false)
     expect(element.querySelector(`.${DEAL_PIN_CLASS}__badge`)?.textContent).toBe('<b>$12</b>')
     expect(element.querySelector('b')).toBeNull()
     expect(element.querySelector('img')).toBeNull()
+  })
+})
+
+describe('pin food', () => {
+  it('shows the dish the deal names, not just its category', () => {
+    const icon = createVenuePinIcon({
+      name: 'PastaMania City Square',
+      deals: [
+        {
+          title: 'PastaMania: second main at half price',
+          label: '1-for-1',
+          category: 'FOOD',
+          validUntil: null,
+          votes: { alive: 0, dead: 0 },
+        },
+      ] as never,
+    })
+    const food = icon.createIcon().querySelector('.food-sprite') as HTMLElement
+    expect(food.style.backgroundImage).toContain('/food-anim/pasta-128.webp')
   })
 })
 

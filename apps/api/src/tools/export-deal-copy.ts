@@ -26,14 +26,22 @@ const plainText = (html: string) =>
     .replace(/\s+/g, ' ')
     .trim()
 
-const sourceText = (snapshot: string): string | null => {
+const snapshotHtml = (snapshot: string): string | null => {
   try {
     const post = JSON.parse(snapshot) as { content?: { rendered?: unknown } }
     const html = post.content?.rendered
-    return typeof html === 'string' ? plainText(html).slice(0, SOURCE_TEXT_CHARS) : null
+    return typeof html === 'string' ? html : null
   } catch {
     return null
   }
+}
+
+// Older imports pinned the WordPress post JSON in the snapshot. Newer ones pin a fact summary
+// there and keep the article HTML on the imported post instead. Telegram posts carry no text.
+const sourceText = (snapshot: string, rawContent: string | undefined): string | null => {
+  const html =
+    snapshotHtml(snapshot) ?? (rawContent?.trimStart().startsWith('<') ? rawContent : null)
+  return html ? plainText(html).slice(0, SOURCE_TEXT_CHARS) || null : null
 }
 
 const outPath = (args: readonly string[]) => {
@@ -64,7 +72,14 @@ const main = async (args: readonly string[]) => {
       validUntil: true,
       rawValidityText: true,
       merchant: { select: { name: true } },
-      sources: { select: { sourceUrl: true, sourceContentSnapshot: true }, take: 1 },
+      sources: {
+        select: {
+          sourceUrl: true,
+          sourceContentSnapshot: true,
+          importedPost: { select: { rawContent: true } },
+        },
+        take: 1,
+      },
     },
   })
   const pending = args.includes(ALL_FLAG) ? deals : deals.filter((deal) => !tidied.has(deal.id))
@@ -73,7 +88,13 @@ const main = async (args: readonly string[]) => {
     merchant: merchant?.name ?? null,
     validUntil: validUntil?.toISOString() ?? null,
     source: sources[0]
-      ? { url: sources[0].sourceUrl, untrustedText: sourceText(sources[0].sourceContentSnapshot) }
+      ? {
+          url: sources[0].sourceUrl,
+          untrustedText: sourceText(
+            sources[0].sourceContentSnapshot,
+            sources[0].importedPost?.rawContent,
+          ),
+        }
       : null,
   }))
   const path = outPath(args)

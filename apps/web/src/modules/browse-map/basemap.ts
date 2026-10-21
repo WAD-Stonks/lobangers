@@ -8,7 +8,14 @@ export type Basemap = {
   readonly provider: BasemapProvider
   readonly url: string
   readonly attribution: string
+  // Highest zoom the provider serves; Leaflet upscales these tiles beyond it instead of
+  // requesting tiles that fail and blank the map.
+  readonly maxNativeZoom: number
 }
+
+// The keyed CARTO plan answers 403 above zoom 18. OneMap serves up to 19.
+const CARTO_MAX_NATIVE_ZOOM = 18
+const ONEMAP_MAX_NATIVE_ZOOM = 19
 
 // Other CARTO raster styles: light_nolabels, dark_all, dark_nolabels, voyager, voyager_nolabels.
 export const CARTO_STYLE = 'light_all'
@@ -37,6 +44,7 @@ export const resolveBasemap = (cartoApiKey: string | undefined): Basemap => {
       provider: 'onemap',
       url: ONEMAP_TILE_URL,
       attribution: ONEMAP_ATTRIBUTION,
+      maxNativeZoom: ONEMAP_MAX_NATIVE_ZOOM,
     }
   }
   const key = encodeURIComponent(cartoApiKey.trim())
@@ -44,6 +52,7 @@ export const resolveBasemap = (cartoApiKey: string | undefined): Basemap => {
     provider: 'carto',
     url: `${CARTO_TILE_HOST}/${CARTO_STYLE}/{z}/{x}/{y}{r}.png?key=${key}`,
     attribution: CARTO_ATTRIBUTION,
+    maxNativeZoom: CARTO_MAX_NATIVE_ZOOM,
   }
 }
 
