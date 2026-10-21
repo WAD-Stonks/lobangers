@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { AppShell, BApp } from '@broke-oclock/ui'
 import SiteHeader from '@web/components/SiteHeader.vue'
+import SplashScreen from '@web/components/SplashScreen.vue'
 import { routeLayout } from '@web/router/layouts'
 import { computed } from 'vue'
 import { RouterView, useRoute } from 'vue-router'
@@ -12,18 +13,23 @@ const administration = computed(() => route.path === '/admin' || route.path.star
 
 <template>
   <BApp>
+    <!-- The map shell owns the whole viewport and brings its own header and landmarks. The splash
+         covers the map while it loads; other pages, the landing page included, open without it. -->
+    <template v-if="layout === 'canvas'">
+      <SplashScreen />
+      <RouterView />
+    </template>
+    <!-- The landing page brings its own navbar. -->
+    <main v-else-if="layout === 'landing'" class="landing-canvas">
+      <RouterView />
+    </main>
     <div
+      v-else
       class="min-vh-100 bg-light-subtle text-body site-layout"
-      :class="{ 'site-layout--shell': layout === 'shell' && !administration, 'site-layout--admin': administration }"
+      :class="{ 'site-layout--shell': !administration, 'site-layout--admin': administration }"
     >
-      <SiteHeader v-if="layout !== 'landing'" :embedded="administration" />
-      <main v-if="layout === 'landing'" class="landing-canvas">
-        <RouterView />
-      </main>
-      <main v-else-if="layout === 'canvas'" class="site-canvas">
-        <RouterView />
-      </main>
-      <AppShell v-else>
+      <SiteHeader :embedded="administration" />
+      <AppShell>
         <RouterView />
       </AppShell>
     </div>
@@ -33,16 +39,5 @@ const administration = computed(() => route.path === '/admin' || route.path.star
 <style scoped>
 .site-layout--shell {
   padding-top: var(--site-header-clearance);
-}
-
-/* Full-bleed canvas: the page owns the viewport and the fixed header floats over it. */
-.site-canvas {
-  height: 100vh;
-}
-
-@supports (height: 100dvh) {
-  .site-canvas {
-    height: 100dvh;
-  }
 }
 </style>

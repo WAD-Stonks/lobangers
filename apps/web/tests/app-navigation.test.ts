@@ -39,6 +39,24 @@ describe('starter navigation', () => {
     expect(wrapper.find('a[href="/browse"]').exists()).toBe(true)
   })
 
+  it('opens the full-bleed map shell at /browse', async () => {
+    const { wrapper } = await mountAt('/browse')
+
+    expect(wrapper.find('[data-testid="map-shell"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="primary-nav"]').exists()).toBe(false)
+    expect(wrapper.get('[data-testid="panel-toggle"]').attributes('aria-label')).toBe('Show list')
+  })
+
+  it('shows the splash screen only while the map loads, not on the landing page', async () => {
+    const landing = await mountAt('/')
+    expect(landing.wrapper.find('[data-testid="splash-screen"]').exists()).toBe(false)
+    landing.wrapper.unmount()
+
+    const map = await mountAt('/browse')
+    expect(map.wrapper.find('[data-testid="splash-screen"]').exists()).toBe(true)
+    map.wrapper.unmount()
+  })
+
   it('navigates to the developer setup page from the header', async () => {
     const { router, wrapper } = await mountAt('/browse')
 

@@ -23,6 +23,9 @@ import { dealsQuerySchema, dealsResponseSchema } from '@broke-oclock/contracts/d
 import {
   ingestionAccountsQuerySchema,
   ingestionAccountsResponseSchema,
+  ingestionCategoryParamsSchema,
+  ingestionCategoryRequestSchema,
+  ingestionCategoryResponseSchema,
   ingestionDashboardResponseSchema,
   ingestionDraftsQuerySchema,
   ingestionDraftsResponseSchema,
@@ -180,6 +183,17 @@ export const createApiClient = (baseURL = '/api') => {
         return request(
           http.patch(`/ingestion/drafts/${id}/outlet`, body),
           ingestionOutletAssociationResponseSchema,
+        )
+      },
+      setDraftCategory: (
+        dealId: string,
+        input: SchemaInput<typeof ingestionCategoryRequestSchema>,
+      ) => {
+        const { dealId: id } = validateInput(ingestionCategoryParamsSchema, { dealId })
+        const body = validateInput(ingestionCategoryRequestSchema, input)
+        return request(
+          http.patch(`/ingestion/drafts/${id}/category`, body),
+          ingestionCategoryResponseSchema,
         )
       },
       reviewDraft: (dealId: string, input: SchemaInput<typeof ingestionReviewRequestSchema>) => {

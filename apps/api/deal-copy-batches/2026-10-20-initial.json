@@ -1,0 +1,1193 @@
+{
+  "note": "First tidy-up of the 41 imported deals: short titles, plain descriptions, terms as at most four points, categories beyond FOOD, and cuisines.",
+  "rewrites": [
+    {
+      "id": "9beba83e8a148d6ff7d4aa7a",
+      "field": "title",
+      "from": "First 100 daily: free Tealive bubble tea at Changi Terminal 3 opening",
+      "to": "Free bubble tea for first 100"
+    },
+    {
+      "id": "edf44becd93f674fc35b9293",
+      "field": "title",
+      "from": "S$1 small acai bowl for the first 100 at The BerrySpot Great World opening",
+      "to": "S$1 small acai bowl"
+    },
+    {
+      "id": "0fed44ce7d0274bfb948ea91",
+      "field": "title",
+      "from": "20% off all menu items at The BerrySpot Great World opening",
+      "to": "20% off all menu items"
+    },
+    {
+      "id": "1a5948773ac890c379dca46b",
+      "field": "title",
+      "from": "Free Raspberry Ripple blend with S$100 retail spend at Clipper Tea Jewel",
+      "to": "Free tea blend with S$100 spend"
+    },
+    {
+      "id": "74206358254b384d1ccfc255",
+      "field": "title",
+      "from": "Free matcha after a complimentary Lenskart eye test",
+      "to": "Free matcha with eye test"
+    },
+    {
+      "id": "135c56607e88d69702f0e6b9",
+      "field": "title",
+      "from": "Free Orh Nee fluffy cardholder with three eligible KOI drinks",
+      "to": "Free cardholder with 3 drinks"
+    },
+    {
+      "id": "02bc0da74cddebb3a94c66e9",
+      "field": "title",
+      "from": "Two CHICHA San Chen Tea with Orange drinks for S$4.80",
+      "to": "2 Tea with Orange for S$4.80"
+    },
+    {
+      "id": "d50fa21fa7f18c17b5d4c65b",
+      "field": "title",
+      "from": "Free regular combo meal for the first 20 at Carl's Jr. anniversary event",
+      "to": "Free combo meal for first 20"
+    },
+    {
+      "id": "5882a2c0108c2824d837215f",
+      "field": "title",
+      "from": "Free Munchi pancake with an ALC Ricebowl at Bedok Mall",
+      "to": "Free pancake with any rice bowl"
+    },
+    {
+      "id": "310f69b51ddc346a00fd90d3",
+      "field": "title",
+      "from": "Hougang Mall Sushi Express plates at S$1.50++",
+      "to": "S$1.50++ sushi plates"
+    },
+    {
+      "id": "7d6e5ddb19891768eb90246f",
+      "field": "title",
+      "from": "Free Burger King Chicken Fries via the Bugis keychain giveaway",
+      "to": "Free Chicken Fries"
+    },
+    {
+      "id": "8ecede42e7fab7c355193af4",
+      "field": "title",
+      "from": "Free KFC Breakfast Loaded Burger Meal voucher via Instagram campaign",
+      "to": "Free breakfast burger meal"
+    },
+    {
+      "id": "61bc6d3cd4bbd28454fc6c72",
+      "field": "title",
+      "from": "Free Gelare single scoop with two single scoops purchased",
+      "to": "Buy 2 scoops, get 1 free"
+    },
+    {
+      "id": "accf2292de1d9100a56cab4a",
+      "field": "title",
+      "from": "Starbucks S$9.90 voucher pack with Tall drinks and a Venti one-for-one",
+      "to": "S$9.90 drink voucher pack"
+    },
+    {
+      "id": "abcf7bc7e3f440eebc44886e",
+      "field": "title",
+      "from": "Complimentary Peach Garden suckling pig with qualifying dinner spend",
+      "to": "Free suckling pig with dinner"
+    },
+    {
+      "id": "cb8c03c3445b8a50566130c7",
+      "field": "title",
+      "from": "Complimentary BHC side with a whole chicken purchase",
+      "to": "Free side with whole chicken"
+    },
+    {
+      "id": "78cb73ef2f5ae3f61f5fbc89",
+      "field": "title",
+      "from": "50% off six-inch Coffee Bean pistachio cake",
+      "to": "50% off pistachio cake"
+    },
+    {
+      "id": "f63ca840b19057d20c29a024",
+      "field": "title",
+      "from": "Complimentary Twyst student set with any pasta purchase",
+      "to": "Free student set with pasta"
+    },
+    {
+      "id": "c9126bd8cfcefa84c6f752a6",
+      "field": "title",
+      "from": "Student free Jumbo Cone with any iTEA drink purchase",
+      "to": "Student free cone with any drink"
+    },
+    {
+      "id": "7c153afd717e490a0bf38b91",
+      "field": "title",
+      "from": "Free Fanta portable fan with two Charcoal Series combo meals",
+      "to": "Free fan with 2 combo meals"
+    },
+    {
+      "id": "192f6329ff5791b2320bfc90",
+      "field": "title",
+      "from": "Two Tall Starbucks drinks for S$9.90 for Rewards members",
+      "to": "2 Tall drinks for S$9.90"
+    },
+    {
+      "id": "0ddf677a99e51937a87eb331",
+      "field": "title",
+      "from": "Four 4Fingers wingettes and drumettes for S$4",
+      "to": "4 wings for S$4"
+    },
+    {
+      "id": "bcd8c3a3938a2fb8c072131d",
+      "field": "title",
+      "from": "Two free plain prata at Springleaf Prata Place",
+      "to": "2 free plain prata"
+    },
+    {
+      "id": "50a55927ac615c899b5a77c3",
+      "field": "title",
+      "from": "KFC Chicken Tuesday: five pieces for S$10.95",
+      "to": "5-pc chicken for S$10.95"
+    },
+    {
+      "id": "483ed4be69416f100f51016e",
+      "field": "title",
+      "from": "Six free Original Glazed doughnuts with a dozen doughnuts",
+      "to": "6 free doughnuts with a dozen"
+    },
+    {
+      "id": "e065041cc14839904ff36252",
+      "field": "title",
+      "from": "Bugis Junction Beard Papa's Custard Pie cream puffs, one-for-one",
+      "to": "1-for-1 cream puffs"
+    },
+    {
+      "id": "8f356696dd749025d20c4c9e",
+      "field": "title",
+      "from": "Two Oishi Lao Gan Ma snack packs for S$4.95",
+      "to": "2 Lao Gan Ma snacks for S$4.95"
+    },
+    {
+      "id": "962c2ecfd2150be85b57a991",
+      "field": "title",
+      "from": "Mystery photocard with a Spicy Bulgogi Chicken Burger meal",
+      "to": "Free photocard with burger meal"
+    },
+    {
+      "id": "ee5c7b0a67b7a945d00bfd69",
+      "field": "title",
+      "from": "Sushi Express Big Eater Challenge: tiered discounts for teams of two",
+      "to": "Big Eater Challenge"
+    },
+    {
+      "id": "47aa3e69003fce5abe4d6644",
+      "field": "title",
+      "from": "Sushi Plus 313@somerset Big Eater Challenge",
+      "to": "Big Eater Challenge"
+    },
+    {
+      "id": "cc0d9c3a92ec1c1c1a3635e7",
+      "field": "title",
+      "from": "Sumikkogurashi cooler bag with eligible F&N juice purchases",
+      "to": "Free cooler bag with F&N juice"
+    },
+    {
+      "id": "f4d67ab7598e5ae2f0ab0b0c",
+      "field": "title",
+      "from": "Sumikkogurashi cooler bag with S$6 of eligible F&N products on RedMart",
+      "to": "Free cooler bag with S$6 spend"
+    },
+    {
+      "id": "37580e89ff7a7aa3e338d26b",
+      "field": "title",
+      "from": "50% off Japanese Roasted Black Sesame Yuzu whole cake",
+      "to": "50% off black sesame yuzu cake"
+    },
+    {
+      "id": "c5ed32f2c3495d687a017008",
+      "field": "title",
+      "from": "Three Ben & Jerry's ice-cream tubs for S$25 at FairPrice Xtra",
+      "to": "3 Ben & Jerry's tubs for S$25"
+    },
+    {
+      "id": "7dbe0067ae3a47477dbbde14",
+      "field": "title",
+      "from": "Popeyes Chicken Mania: five Signature Chicken pieces for S$10.90",
+      "to": "5-pc chicken for S$10.90"
+    },
+    {
+      "id": "5a9c80ad9b30a049f30e33e6",
+      "field": "title",
+      "from": "Free kaya condensed milk bun with a main dish for JUMBO Rewards members",
+      "to": "Free kaya bun with a main"
+    },
+    {
+      "id": "103a75fbc8d762ea767fa5a7",
+      "field": "title",
+      "from": "Medium Taiwan Milk Tea for S$0.90 via the PlayMade app",
+      "to": "S$0.90 Taiwan milk tea"
+    },
+    {
+      "id": "97c4aefaaf7d07866c3ffeea",
+      "field": "title",
+      "from": "McDonald's app: one-for-one Oreo McFlurry",
+      "to": "1-for-1 Oreo McFlurry"
+    },
+    {
+      "id": "12ca5d539403c7fd5861b8fa",
+      "field": "title",
+      "from": "One-for-one Venti drinks at Starbucks Singapore",
+      "to": "1-for-1 Venti drinks"
+    },
+    {
+      "id": "ddfa46add3e25921b2dc6019",
+      "field": "title",
+      "from": "Molly Tea Hillion Mall: one-for-one on six signature drinks",
+      "to": "1-for-1 signature drinks"
+    },
+    {
+      "id": "34e039fc2bd19a47bcf5d7b0",
+      "field": "title",
+      "from": "Molly Tea Hillion Mall: flower with a drink and social post",
+      "to": "Free flower with any drink"
+    },
+    {
+      "id": "9beba83e8a148d6ff7d4aa7a",
+      "field": "description",
+      "from": "The opening giveaway offered a Signature Bang Bang Bubble Tea to the first 100 customers each day.",
+      "to": "A free Signature Bang Bang Bubble Tea for the first 100 customers each day."
+    },
+    {
+      "id": "edf44becd93f674fc35b9293",
+      "field": "description",
+      "from": "The first 100 customers at the Great World opening could buy a small acai bowl for S$1.",
+      "to": "A small acai bowl for S$1, for the first 100 customers on opening day."
+    },
+    {
+      "id": "0fed44ce7d0274bfb948ea91",
+      "field": "description",
+      "from": "The opening-day promotion advertised 20% off all menu items throughout the grand opening day.",
+      "to": "20% off everything on the menu, all day on opening day."
+    },
+    {
+      "id": "1a5948773ac890c379dca46b",
+      "field": "description",
+      "from": "The Jewel store opening article advertised a complimentary Raspberry Ripple blend with at least S$100 spent on retail products.",
+      "to": "Spend S$100 on retail products and get a free Raspberry Ripple tea blend."
+    },
+    {
+      "id": "74206358254b384d1ccfc255",
+      "field": "description",
+      "from": "The source advertised a matcha giveaway after completing a free eye test at listed pop-ups.",
+      "to": "Do a free eye test at a Lenskart pop-up and get a free matcha."
+    },
+    {
+      "id": "135c56607e88d69702f0e6b9",
+      "field": "description",
+      "from": "Buying three Orh Nee drinks qualified for the advertised cardholder while stock remained.",
+      "to": "Buy three Orh Nee drinks and get a fluffy cardholder, while stocks last."
+    },
+    {
+      "id": "02bc0da74cddebb3a94c66e9",
+      "field": "description",
+      "from": "Two eligible Tea with Orange drinks were offered for S$4.80 before the series left the menu.",
+      "to": "Two Tea with Orange drinks for S$4.80, on your choice of tea base."
+    },
+    {
+      "id": "d50fa21fa7f18c17b5d4c65b",
+      "field": "description",
+      "from": "The anniversary offer advertised free regular combo meals for the first 20 customers daily at selected outlets.",
+      "to": "A free regular combo meal for the first 20 customers each day at selected outlets."
+    },
+    {
+      "id": "5882a2c0108c2824d837215f",
+      "field": "description",
+      "from": "An ALC Ricebowl purchase at Bedok Mall qualified for one complimentary Min Jiang Kueh per rice bowl.",
+      "to": "Get a free Min Jiang Kueh pancake with every rice bowl at Bedok Mall."
+    },
+    {
+      "id": "310f69b51ddc346a00fd90d3",
+      "field": "description",
+      "from": "Eligible sushi plates at the Hougang Mall outlet cost S$1.50++ each during the stated three-day promotion.",
+      "to": "Sushi plates at S$1.50++ each at Hougang Mall, for three days only."
+    },
+    {
+      "id": "7d6e5ddb19891768eb90246f",
+      "field": "description",
+      "from": "The Bugis MRT giveaway supplied keychains that could be used to redeem a free Chicken Fries serving at Burger King.",
+      "to": "Collect a keychain at Bugis MRT and redeem it for free Chicken Fries."
+    },
+    {
+      "id": "8ecede42e7fab7c355193af4",
+      "field": "description",
+      "from": "The campaign advertised a meal voucher for sharing the requested calendar screenshot in a public Instagram story.",
+      "to": "Share a calendar screenshot on your Instagram Story to get a free Breakfast Loaded Burger Meal voucher."
+    },
+    {
+      "id": "61bc6d3cd4bbd28454fc6c72",
+      "field": "description",
+      "from": "A purchase of two single scoops qualified for one complimentary single scoop during the June campaign.",
+      "to": "Buy two single scoops and get a third scoop free."
+    },
+    {
+      "id": "accf2292de1d9100a56cab4a",
+      "field": "description",
+      "from": "The online voucher pack included two Tall drink vouchers and a one-for-one Venti drink voucher.",
+      "to": "An S$9.90 online pack with two Tall drink vouchers and a 1-for-1 Venti voucher."
+    },
+    {
+      "id": "abcf7bc7e3f440eebc44886e",
+      "field": "description",
+      "from": "The source advertised a whole suckling pig for qualifying dine-in dinners with a guest aged 50 or above.",
+      "to": "A free whole suckling pig with a qualifying dinner when someone at the table is 50 or older."
+    },
+    {
+      "id": "cb8c03c3445b8a50566130c7",
+      "field": "description",
+      "from": "Participating BHC Singapore restaurants offered a complimentary eligible side with a whole chicken purchase.",
+      "to": "Get a free side when you order a whole chicken on weekdays."
+    },
+    {
+      "id": "78cb73ef2f5ae3f61f5fbc89",
+      "field": "description",
+      "from": "The flash sale offered the six-inch pistachio cake at S$35 instead of S$70 during the stated ordering period.",
+      "to": "A six-inch pistachio cake for S$35, down from S$70."
+    },
+    {
+      "id": "f63ca840b19057d20c29a024",
+      "field": "description",
+      "from": "Students purchasing a pasta could redeem the advertised drink-and-side set for free during the June school-holiday campaign.",
+      "to": "Students get a free drink and side set with any pasta."
+    },
+    {
+      "id": "c9126bd8cfcefa84c6f752a6",
+      "field": "description",
+      "from": "Uniformed students could redeem a Jumbo Cone with a drink purchase at the listed participating iTEA outlets.",
+      "to": "Students in uniform get a free Jumbo Cone with any drink."
+    },
+    {
+      "id": "7c153afd717e490a0bf38b91",
+      "field": "description",
+      "from": "A Fanta portable fan is offered with the purchase of two eligible Charcoal Series combo meals and participating Coca-Cola beverages.",
+      "to": "Buy two Charcoal Series combo meals and get a free Fanta portable fan."
+    },
+    {
+      "id": "192f6329ff5791b2320bfc90",
+      "field": "description",
+      "from": "Starbucks Rewards members could purchase two eligible Tall drinks for S$9.90 during the advertised October promotion.",
+      "to": "Starbucks Rewards members get two Tall drinks for S$9.90."
+    },
+    {
+      "id": "0ddf677a99e51937a87eb331",
+      "field": "description",
+      "from": "The one-day 4Fingers Day promotion offered four wingettes and drumettes for S$4.",
+      "to": "Four wingettes and drumettes for S$4, on 4Fingers Day only."
+    },
+    {
+      "id": "bcd8c3a3938a2fb8c072131d",
+      "field": "description",
+      "from": "Dine-in customers could redeem two plain prata by showing that they had joined the brand's Telegram channel.",
+      "to": "Join the Telegram channel and get two free plain prata when you dine in."
+    },
+    {
+      "id": "50a55927ac615c899b5a77c3",
+      "field": "description",
+      "from": "Five pieces of Original Recipe or Hot & Crispy chicken are offered for S$10.95 on Tuesdays within the published promotion period.",
+      "to": "Five pieces of Original Recipe or Hot & Crispy chicken for S$10.95, every Tuesday."
+    },
+    {
+      "id": "483ed4be69416f100f51016e",
+      "field": "description",
+      "from": "A single-transaction purchase of one dozen doughnuts qualified for six complimentary Original Glazed doughnuts.",
+      "to": "Buy a dozen doughnuts and get six Original Glazed doughnuts free."
+    },
+    {
+      "id": "e065041cc14839904ff36252",
+      "field": "description",
+      "from": "The Bugis Junction opening promotion offered a second Custard Pie cream puff free with one purchased.",
+      "to": "Buy a Custard Pie cream puff and get a second one free at Bugis Junction."
+    },
+    {
+      "id": "8f356696dd749025d20c4c9e",
+      "field": "description",
+      "from": "The source reported an any-two-for-S$4.95 offer on eligible Oishi Lao Gan Ma snack packs, observed at FairPrice Finest Bedok Mall.",
+      "to": "Any two Oishi Lao Gan Ma snack packs for S$4.95."
+    },
+    {
+      "id": "962c2ecfd2150be85b57a991",
+      "field": "description",
+      "from": "An eligible Spicy Bulgogi Chicken Burger meal comes with one mystery photocard from the McDonald's and G-DRAGON collaboration.",
+      "to": "Get a mystery G-DRAGON photocard with a Spicy Bulgogi Chicken Burger meal."
+    },
+    {
+      "id": "ee5c7b0a67b7a945d00bfd69",
+      "field": "description",
+      "from": "Teams of two can receive 20%, 40%, 60% or a fully discounted meal at the advertised plate-count milestones during a 50-minute challenge.",
+      "to": "Teams of two get 20%, 40% or 60% off, or a free meal, by clearing enough plates in 50 minutes."
+    },
+    {
+      "id": "47aa3e69003fce5abe4d6644",
+      "field": "description",
+      "from": "The 313@somerset Sushi Plus outlet participates in the published team eating challenge with tiered discounts up to a free meal.",
+      "to": "Teams of two get tiered discounts, up to a free meal, by clearing enough plates at 313@somerset."
+    },
+    {
+      "id": "cc0d9c3a92ec1c1c1a3635e7",
+      "field": "description",
+      "from": "Eligible F&N FRUIT TREE FRESH supermarket purchases qualify for a Sumikkogurashi cooler bag while stock remains.",
+      "to": "Buy eligible F&N Fruit Tree Fresh juices at the supermarket and get a Sumikkogurashi cooler bag."
+    },
+    {
+      "id": "f4d67ab7598e5ae2f0ab0b0c",
+      "field": "description",
+      "from": "A RedMart purchase of at least S$6 in participating F&N FRUIT TREE FRESH products qualifies for the advertised cooler bag.",
+      "to": "Spend S$6 on F&N Fruit Tree Fresh products on RedMart and get a Sumikkogurashi cooler bag."
+    },
+    {
+      "id": "37580e89ff7a7aa3e338d26b",
+      "field": "description",
+      "from": "The six-inch cake was offered for S$30 instead of S$60 during the published online ordering period.",
+      "to": "A six-inch Black Sesame Yuzu cake for S$30, down from S$60, when you order online."
+    },
+    {
+      "id": "c5ed32f2c3495d687a017008",
+      "field": "description",
+      "from": "FairPrice Xtra offered three eligible Ben & Jerry's tubs for S$25 during the stated September promotion.",
+      "to": "Three Ben & Jerry's ice-cream tubs for S$25 at FairPrice Xtra."
+    },
+    {
+      "id": "7dbe0067ae3a47477dbbde14",
+      "field": "description",
+      "from": "The five-piece Chicken Mania bucket was offered for S$10.90 during the published promotion period.",
+      "to": "A five-piece Signature Chicken bucket for S$10.90, Classic or Spicy."
+    },
+    {
+      "id": "5a9c80ad9b30a049f30e33e6",
+      "field": "description",
+      "from": "JUMBO Rewards members could receive a complimentary kaya condensed milk bun when ordering a main dish at listed Tsui Wah locations.",
+      "to": "JUMBO Rewards members get a free kaya condensed milk bun with any main dish."
+    },
+    {
+      "id": "103a75fbc8d762ea767fa5a7",
+      "field": "description",
+      "from": "One-day app price for a medium Taiwan Milk Tea.",
+      "to": "A medium Taiwan Milk Tea for S$0.90 when you order on the PlayMade app, for one day only."
+    },
+    {
+      "id": "97c4aefaaf7d07866c3ffeea",
+      "field": "description",
+      "from": "An app coupon for an additional Oreo McFlurry.",
+      "to": "Buy an Oreo McFlurry and get a second one free with the McDonald's app."
+    },
+    {
+      "id": "12ca5d539403c7fd5861b8fa",
+      "field": "description",
+      "from": "A second eligible Venti beverage is free during the afternoon campaign.",
+      "to": "Buy a Venti drink and get a second one free, from 2pm to 8pm."
+    },
+    {
+      "id": "ddfa46add3e25921b2dc6019",
+      "field": "description",
+      "from": "The opening campaign covered six specified drinks.",
+      "to": "1-for-1 on six signature drinks at the new Hillion Mall outlet."
+    },
+    {
+      "id": "34e039fc2bd19a47bcf5d7b0",
+      "field": "description",
+      "from": "A separate flower promotion has a later end date.",
+      "to": "Buy a drink and share a flower-wall photo to get a free flower at Hillion Mall."
+    },
+    {
+      "id": "9beba83e8a148d6ff7d4aa7a",
+      "field": "terms",
+      "from": "Wear or carry something purple. First 100 customers per day, at the Changi Airport Terminal 3 outlet.",
+      "to": "First 100 customers daily. Wear or carry something purple. Changi Airport Terminal 3 outlet only."
+    },
+    {
+      "id": "edf44becd93f674fc35b9293",
+      "field": "terms",
+      "from": "From 11am on opening day. Follow the brand on Instagram, share the opening post and show it at the counter. First 100 customers only.",
+      "to": "Opening day, from 11am. First 100 customers only. Share the brand's opening post and show it at the counter."
+    },
+    {
+      "id": "0fed44ce7d0274bfb948ea91",
+      "field": "terms",
+      "from": "Opening day only. Follow the brand on Instagram, share the opening post and show it at the counter.",
+      "to": "Opening day only. Share the brand's opening post and show it at the counter."
+    },
+    {
+      "id": "1a5948773ac890c379dca46b",
+      "field": "terms",
+      "from": "Minimum retail spend S$100. This is a gift-with-purchase threshold, not a fixed-price product. No precise gift-with-purchase end date is stated in the fetched article.",
+      "to": "Minimum retail spend of S$100.",
+      "previously": ["Minimum retail spend of S$100."]
+    },
+    {
+      "id": "74206358254b384d1ccfc255",
+      "field": "terms",
+      "from": "Pop-up hours 12pm–8pm. Jewel: 21–22 June, 28–29 June and 19–20 July; Jurong Point atrium: 7–13 July; The Clementi Mall: 26–27 July. Daily quantities limited; while stocks last. The year is not explicit in these listed dates.",
+      "to": "Jewel: 21–22 June, 28–29 June and 19–20 July. Jurong Point: 7–13 July. The Clementi Mall: 26–27 July. Pop-ups open 12pm–8pm, while stocks last.",
+      "previously": [
+        "Pop-up hours 12pm–8pm. Jewel: 21–22 June, 28–29 June and 19–20 July; Jurong Point atrium: 7–13 July; The Clementi Mall: 26–27 July. Daily quantities are limited, while stocks last."
+      ]
+    },
+    {
+      "id": "135c56607e88d69702f0e6b9",
+      "field": "terms",
+      "from": "In-store only; no delivery. Orh Nee drinks excluded Raffles City, Northpoint City and Jewel Basement. Cardholders while stocks last. Exact end date not stated.",
+      "to": "In-store only, no delivery. No Orh Nee drinks at Raffles City, Northpoint City or Jewel Basement. While stocks last.",
+      "previously": [
+        "In-store only; no delivery. Orh Nee drinks are not available at Raffles City, Northpoint City or Jewel Basement. Cardholders while stocks last."
+      ]
+    },
+    {
+      "id": "02bc0da74cddebb3a94c66e9",
+      "field": "terms",
+      "from": "Choose the stated Green Tea, Osmanthus Oolong or High Mountain Pouchong bases. Toppings cost extra; terms and conditions apply.",
+      "to": "Green Tea, Osmanthus Oolong or High Mountain Pouchong base. Toppings cost extra.",
+      "previously": [
+        "Choose from Green Tea, Osmanthus Oolong or High Mountain Pouchong bases. Toppings cost extra. Other terms apply."
+      ]
+    },
+    {
+      "id": "d50fa21fa7f18c17b5d4c65b",
+      "field": "terms",
+      "from": "First 20 customers daily, selected outlets. The fetched text does not enumerate the participating outlets; no outlet is invented.",
+      "to": "First 20 customers daily. Selected outlets only.",
+      "previously": ["First 20 customers daily at selected outlets."]
+    },
+    {
+      "id": "5882a2c0108c2824d837215f",
+      "field": "terms",
+      "from": "Bedok Mall outlet only. One free pancake per rice bowl; no stated redemption cap. Source says one month only but does not state exact start or end dates.",
+      "to": "Bedok Mall outlet only. One pancake per rice bowl. Runs for one month.",
+      "previously": ["Bedok Mall outlet only. One free pancake per rice bowl. Runs for one month."]
+    },
+    {
+      "id": "310f69b51ddc346a00fd90d3",
+      "field": "terms",
+      "from": "Hougang Mall outlet only. Green plates excluded; 40-minute dining limit. Additional charges apply to the advertised ++ price. Items subject to availability.",
+      "to": "Hougang Mall outlet only. Green plates excluded. 40-minute dining limit. Prices before service charge and GST.",
+      "previously": [
+        "Hougang Mall outlet only. Green plates excluded; 40-minute dining limit. Prices are before service charge and GST (++). Items subject to availability."
+      ]
+    },
+    {
+      "id": "7d6e5ddb19891768eb90246f",
+      "field": "terms",
+      "from": "Keychain collection at Bugis MRT, 13–15 June 2025; restocks noon and 6pm, up to 800 per day, first come first served. Redemption begins after 11am daily at Burger King outlets. A separate voucher redemption end date is not stated.",
+      "to": "Collect a keychain at Bugis MRT, 13–15 June 2025. Up to 800 a day, restocked at noon and 6pm. Redeem at Burger King from 11am.",
+      "previously": [
+        "Collect a keychain at Bugis MRT, 13–15 June 2025; restocked at noon and 6pm, up to 800 per day, first come first served. Redeem from 11am daily at Burger King outlets."
+      ]
+    },
+    {
+      "id": "8ecede42e7fab7c355193af4",
+      "field": "terms",
+      "from": "Label a calendar slot KFC Breakfast Loaded Burger Time; share a screenshot in a public Instagram Story with #KFCBreakfastLoadedBurger. Limited to 80, first come first served, KFC Singapore only. The campaign dates are not a separately stated voucher-redemption expiry.",
+      "to": "Share your calendar screenshot on Instagram Stories with #KFCBreakfastLoadedBurger. First 80 people only.",
+      "previously": [
+        "Label a calendar slot \"KFC Breakfast Loaded Burger Time\" and share a screenshot in a public Instagram Story with #KFCBreakfastLoadedBurger. Limited to the first 80 people."
+      ]
+    },
+    {
+      "id": "61bc6d3cd4bbd28454fc6c72",
+      "field": "terms",
+      "from": "Excludes Tuesdays. Flash the source post in-store; dine-in or takeaway. One redemption per bill; no other promotions or vouchers. Listed locations: Northpoint, Cineleisure, Bugis, Causeway Point, White Sands and NTU.",
+      "to": "Not valid on Tuesdays. Show the promo post in-store. One per bill, no other promotions. Northpoint, Cineleisure, Bugis, Causeway Point, White Sands and NTU.",
+      "previously": [
+        "Not valid on Tuesdays. Show the promo post in-store; dine-in or takeaway. One redemption per bill; cannot be combined with other promotions or vouchers. Available at Northpoint, Cineleisure, Bugis, Causeway Point, White Sands and NTU."
+      ]
+    },
+    {
+      "id": "accf2292de1d9100a56cab4a",
+      "field": "terms",
+      "from": "Starbucks Online Store purchase; one pack per checkout, while stocks last. Credits within 24 hours. Tall vouchers valid 10 days and Venti voucher 14 days after purchase; lower-priced Venti drink free. Redemption excludes Changi Airport and cannot combine with other promotions. Stored end date is the pack-sale end, not each buyer's voucher expiry.",
+      "to": "Starbucks Online Store only, one pack per checkout. Tall vouchers last 10 days, the Venti voucher 14 days. Not valid at Changi Airport.",
+      "previously": [
+        "Buy on the Starbucks Online Store; one pack per checkout, while stocks last. Vouchers are credited within 24 hours. Tall vouchers are valid for 10 days and the Venti voucher for 14 days after purchase; the lower-priced Venti drink is free. Not valid at Changi Airport or with other promotions."
+      ]
+    },
+    {
+      "id": "abcf7bc7e3f440eebc44886e",
+      "field": "terms",
+      "from": "At least one diner aged 50 or above. Dinner only at OCBC Centre, Changi Terminal 2, The Heeren or Thomson Plaza. Minimum regular-priced a la carte spend S$250, or S$500 on 14–15 June 2025. Ten pigs per outlet per day; blackout dates, taxes and service charge apply; no offer stacking. The article gives conflicting 21 September and 25 September end dates, so no exact end is assigned.",
+      "to": "One diner must be 50 or older. Dinner only, minimum spend S$250. OCBC Centre, Changi Terminal 2, The Heeren and Thomson Plaza. Ten pigs per outlet a day.",
+      "previously": [
+        "At least one diner must be 50 or older. Dinner only at OCBC Centre, Changi Terminal 2, The Heeren or Thomson Plaza. Minimum à la carte spend of S$250 at regular prices, or S$500 on 14–15 June 2025. Ten pigs per outlet per day. Blackout dates, taxes and service charge apply; cannot be combined with other offers."
+      ]
+    },
+    {
+      "id": "cb8c03c3445b8a50566130c7",
+      "field": "terms",
+      "from": "Weekdays Monday–Friday, excluding public holidays and their eves. Dine-in only; while stocks last. BBuring fries, curly fries, seoteok or cheese sticks; no other promotions or vouchers. Service charge and GST apply. Exact calendar end not stated.",
+      "to": "Weekdays only, not on public holidays. Dine-in only, while stocks last. BBuring fries, curly fries, seoteok or cheese sticks.",
+      "previously": [
+        "Weekdays only, excluding public holidays and their eves. Dine-in only, while stocks last. Choose from BBuring fries, curly fries, seoteok or cheese sticks. Cannot be combined with other promotions or vouchers. Service charge and GST apply."
+      ]
+    },
+    {
+      "id": "78cb73ef2f5ae3f61f5fbc89",
+      "field": "terms",
+      "from": "Order at least four working days before collection/delivery. Order online or in-store during 23 May–8 June 2025; collection/delivery 4–30 June 2025. Optional qualifying party packs cost S$10 with cake purchase. Stored end date is the order deadline, not collection deadline.",
+      "to": "Order by 8 June 2025, at least four working days ahead. Collect or get it delivered 4–30 June 2025.",
+      "previously": [
+        "Order at least four working days before collection or delivery. Order online or in-store from 23 May to 8 June 2025; collect or get it delivered from 4 to 30 June 2025. Add a party pack for S$10 with the cake."
+      ]
+    },
+    {
+      "id": "f63ca840b19057d20c29a024",
+      "field": "terms",
+      "from": "Show a student card. Set includes a Pokka Fuji Apple or Green Tea drink plus Soup of the Day or two-piece wings. Dine-in or takeaway at all Twyst outlets; no other promotions, coupons or vouchers.",
+      "to": "Show your student card. Set: Pokka drink plus soup or two-piece wings. All Twyst outlets."
+    },
+    {
+      "id": "c9126bd8cfcefa84c6f752a6",
+      "field": "terms",
+      "from": "School uniform and valid student pass required. One redemption per student; while stocks last. Listed outlets: Junction Nine #02-13, 12 Haig Road #01-333, Paya Lebar Square #01-50, V Hotel Lavender #01-18, Eastpoint Mall #01-K1, 205 Bedok North #01-367, GR.iD #01-04, 495 Jurong West #01-104, Boon Lay MRT #01-30 and 258 Bukit Panjang #01-52.",
+      "to": "School uniform and student pass required. One per student, while stocks last."
+    },
+    {
+      "id": "7c153afd717e490a0bf38b91",
+      "field": "terms",
+      "from": "Purchase any two Charcoal Series combo meals with participating Coca-Cola beverages. One redemption per customer, while stocks last. Meal prices vary by selection and channel.",
+      "to": "Two Charcoal Series combo meals with Coca-Cola drinks. One per customer, while stocks last.",
+      "previously": [
+        "Buy any two Charcoal Series combo meals with participating Coca-Cola drinks. One redemption per customer, while stocks last."
+      ]
+    },
+    {
+      "id": "192f6329ff5791b2320bfc90",
+      "field": "terms",
+      "from": "In-store only, 2pm–8pm daily. Rewards membership required; up to three vouchers per member. Starbucks Reserve and Weave exclusive beverages excluded.",
+      "to": "In-store, 2pm–8pm daily. Rewards members only, up to three vouchers. Excludes Reserve and Weave drinks."
+    },
+    {
+      "id": "0ddf677a99e51937a87eb331",
+      "field": "terms",
+      "from": "Offer applies to the stated four-piece wingettes and drumettes portion. Participating outlet details are not enumerated in the fetched article.",
+      "to": "Four-piece wingettes and drumettes set only.",
+      "previously": ["Valid for the four-piece wingettes and drumettes set only."]
+    },
+    {
+      "id": "bcd8c3a3938a2fb8c072131d",
+      "field": "terms",
+      "from": "Join the brand's Telegram channel and show joined status when ordering. Dine-in only; no takeaway. All outlets except Tang Plaza. Terms and conditions apply.",
+      "to": "Show that you've joined the Telegram channel. Dine-in only. All outlets except Tang Plaza."
+    },
+    {
+      "id": "50a55927ac615c899b5a77c3",
+      "field": "terms",
+      "from": "Tuesdays only, while stocks last. Maximum two sets per transaction; no chicken-part selection. Dine-in or takeaway, ordered over the counter or at a self-ordering kiosk. Excludes Punggol Oasis Terrace, Jurong Spring Express, Sentosa, Singapore Polytechnic and Zoo outlets.",
+      "to": "Tuesdays only, while stocks last. Up to two sets per order. No choosing chicken parts. Not at Punggol Oasis Terrace, Jurong Spring, Sentosa, Singapore Polytechnic or the Zoo."
+    },
+    {
+      "id": "483ed4be69416f100f51016e",
+      "field": "terms",
+      "from": "Purchase one dozen doughnuts in one transaction. Available all day at all Krispy Kreme outlets, subject to availability and daily set limits, while stocks last.",
+      "to": "One dozen in a single transaction. All outlets, while daily stocks last."
+    },
+    {
+      "id": "e065041cc14839904ff36252",
+      "field": "terms",
+      "from": "Bugis Junction outlet only, while stocks last. Terms and conditions apply.",
+      "to": "Bugis Junction outlet only, while stocks last."
+    },
+    {
+      "id": "8f356696dd749025d20c4c9e",
+      "field": "terms",
+      "from": "Eligible snack packs normally S$2.90 each. Selection and availability vary by store. The article does not state an exact promotion end date.",
+      "to": "Usually S$2.90 each. Availability varies by store.",
+      "previously": [
+        "Eligible snack packs are usually S$2.90 each. Selection and availability vary by store."
+      ]
+    },
+    {
+      "id": "962c2ecfd2150be85b57a991",
+      "field": "terms",
+      "from": "Participating restaurants and Drive-Thrus, McDelivery, GrabFood and foodpanda; non-breakfast hours from 11am. Three photocard designs; while stocks last. Meal prices depend on the selected variant and channel.",
+      "to": "From 11am, outside breakfast hours. In-store, Drive-Thru, McDelivery, GrabFood and foodpanda. Three designs, while stocks last.",
+      "previously": [
+        "At participating restaurants, Drive-Thrus, McDelivery, GrabFood and foodpanda from 11am, outside breakfast hours. Three photocard designs, while stocks last."
+      ]
+    },
+    {
+      "id": "ee5c7b0a67b7a945d00bfd69",
+      "field": "terms",
+      "from": "40/80/120/200 plates correspond to 20%/40%/60%/free meal. Both participants must be at least 18; each may participate once. Conveyor-belt plates only; all food and garnishes must be finished. Sessions 2:30pm and 4pm on 7, 13, 21, 28 October and 4 November 2026. Arrive 20 minutes early. Registration opens one week before each date; limited places; fees, if paid, non-refundable.",
+      "to": "Teams of two, both 18 or older. 40 plates for 20% off, 80 for 40%, 120 for 60%, 200 for free. 2:30pm or 4pm on 7, 13, 21, 28 Oct and 4 Nov 2026. Register a week ahead, places are limited.",
+      "previously": [
+        "Clear 40 plates for 20% off, 80 for 40% off, 120 for 60% off, or 200 for a free meal. Both players must be 18 or older; one go per person. Conveyor-belt plates only; all food and garnishes must be finished. Sessions at 2:30pm and 4pm on 7, 13, 21, 28 October and 4 November 2026; arrive 20 minutes early. Registration opens one week before each date; limited places; fees, if paid, are non-refundable."
+      ]
+    },
+    {
+      "id": "47aa3e69003fce5abe4d6644",
+      "field": "terms",
+      "from": "Teams of two, aged at least 18, with one participation per person. 50-minute limit; conveyor-belt plates only; all food and garnishes must be finished. 40/80/120/200 plates correspond to 20%/40%/60%/free meal. Sessions 2:30pm and 4pm on 7, 13, 21, 28 October and 4 November 2026; arrive 20 minutes early. Limited places; advance registration required and fees, if paid, non-refundable.",
+      "to": "Teams of two, both 18 or older. 40 plates for 20% off, 80 for 40%, 120 for 60%, 200 for free. 2:30pm or 4pm on 7, 13, 21, 28 Oct and 4 Nov 2026. Register in advance, places are limited.",
+      "previously": [
+        "Teams of two, both 18 or older; one go per person. 50-minute limit; conveyor-belt plates only; all food and garnishes must be finished. Clear 40 plates for 20% off, 80 for 40% off, 120 for 60% off, or 200 for a free meal. Sessions at 2:30pm and 4pm on 7, 13, 21, 28 October and 4 November 2026; arrive 20 minutes early. Limited places; register in advance; fees, if paid, are non-refundable."
+      ]
+    },
+    {
+      "id": "cc0d9c3a92ec1c1c1a3635e7",
+      "field": "terms",
+      "from": "Participating major supermarkets include FairPrice, Cold Storage, Giant and Sheng Siong. Buy three 946ml juices, two 946ml limited-edition Muscat Grape drinks, or two 1.89L Apple and Aloe Vera drinks. Gift designs and availability depend on stock.",
+      "to": "Buy three 946ml juices, or two Muscat Grape or 1.89L Apple Aloe Vera drinks. At FairPrice, Cold Storage, Giant and Sheng Siong. While stocks last.",
+      "previously": [
+        "At FairPrice, Cold Storage, Giant, Sheng Siong and other participating supermarkets. Buy three 946ml juices, two 946ml limited-edition Muscat Grape drinks, or two 1.89L Apple and Aloe Vera drinks. Gift designs subject to stock."
+      ]
+    },
+    {
+      "id": "f4d67ab7598e5ae2f0ab0b0c",
+      "field": "terms",
+      "from": "Minimum spend S$6 on participating products; while gift stocks last. The threshold is not the price of a fixed-price bundle.",
+      "to": "Minimum spend of S$6 on participating products. While stocks last.",
+      "previously": ["Minimum spend of S$6 on participating products, while gift stocks last."]
+    },
+    {
+      "id": "37580e89ff7a7aa3e338d26b",
+      "field": "terms",
+      "from": "Online orders at least four working days ahead. Order window 21 September–4 October 2026; collection/delivery 15 October–8 November 2026. Optional nine mini blueberry muffins for S$10 with cake purchase. While stocks last.",
+      "to": "Order online by 4 October 2026, four working days ahead. Collect or get it delivered 15 October–8 November 2026."
+    },
+    {
+      "id": "c5ed32f2c3495d687a017008",
+      "field": "terms",
+      "from": "FairPrice Xtra stores; assorted flavours subject to availability. The three-tub promotional price is S$25, not the single-tub price.",
+      "to": "FairPrice Xtra only. Flavours subject to availability.",
+      "previously": ["At FairPrice Xtra stores only. Flavours subject to availability."]
+    },
+    {
+      "id": "7dbe0067ae3a47477dbbde14",
+      "field": "terms",
+      "from": "Choose Classic or Spicy for the whole bucket; no flavour mixing or chicken-part selection. Dine-in or takeaway at participating Singapore outlets except Changi Airport Terminal 1. No stacking with other offers; while stocks last.",
+      "to": "All Classic or all Spicy, no mixing. Not at Changi Airport Terminal 1. Can't be combined with other offers."
+    },
+    {
+      "id": "5a9c80ad9b30a049f30e33e6",
+      "field": "terms",
+      "from": "JUMBO Rewards membership required. Dine-in only and while stocks last. Listed locations: The Cathay, Clarke Quay Central, COURTS NOJIMA The Heeren, Jewel Changi Airport and Jem.",
+      "to": "JUMBO Rewards members only. Dine-in only, while stocks last."
+    },
+    {
+      "id": "103a75fbc8d762ea767fa5a7",
+      "field": "terms",
+      "from": "App required. Toppings cost extra. Walk-in price was S$1.90. All PlayMade outlets; other terms apply.",
+      "to": "Order on the PlayMade app. Toppings cost extra. Walk-in price is S$1.90.",
+      "previously": [
+        "Order on the PlayMade app. Toppings cost extra. Walk-in price is S$1.90. Valid at all PlayMade outlets; other terms apply."
+      ]
+    },
+    {
+      "id": "97c4aefaaf7d07866c3ffeea",
+      "field": "terms",
+      "from": "App login required. One redemption per customer, subject to stock. Daily window: 11am to 11:55pm. Participating outlets are not explicitly listed.",
+      "to": "Log in to the McDonald's app. One per customer. 11am to 11:55pm daily.",
+      "previously": [
+        "Log in to the McDonald's app. One redemption per customer, while stocks last. Available daily from 11am to 11:55pm."
+      ]
+    },
+    {
+      "id": "12ca5d539403c7fd5861b8fa",
+      "field": "terms",
+      "from": "Daily 2pm to 8pm. The cheaper drink is free, including customisations. Kaya Toast, Reserve and Weave exclusive drinks are excluded. Cannot combine with other offers or rewards. All Singapore stores.",
+      "to": "2pm to 8pm daily. The cheaper drink is free. Excludes Reserve and Weave drinks. Can't be combined with other offers.",
+      "previously": [
+        "Daily, 2pm to 8pm. The cheaper drink is free, including customisations. Excludes Kaya Toast, and Reserve and Weave exclusive drinks. Cannot be combined with other offers or rewards. All Singapore stores."
+      ]
+    },
+    {
+      "id": "ddfa46add3e25921b2dc6019",
+      "field": "terms",
+      "from": "Eligible: Premium Jasmine Milk Tea; Premium Jasmine Grape Milk Tea; Pistachio Jasmine Coconut; Velvety White Champaca; Snowy Jasmine; Tongmu Lapsang Milk Tea. Hillion Mall outlet only.",
+      "to": "Six signature drinks, including Premium Jasmine Milk Tea. Hillion Mall outlet only.",
+      "previously": [
+        "Valid on Premium Jasmine Milk Tea, Premium Jasmine Grape Milk Tea, Pistachio Jasmine Coconut, Velvety White Champaca, Snowy Jasmine and Tongmu Lapsang Milk Tea. Hillion Mall outlet only."
+      ]
+    },
+    {
+      "id": "34e039fc2bd19a47bcf5d7b0",
+      "field": "terms",
+      "from": "Buy a drink, show the receipt and share a flower-wall photo on social media. Limited to 200 flowers daily at Hillion Mall.",
+      "to": "Show your receipt and share a flower-wall photo. 200 flowers a day."
+    },
+    {
+      "id": "9beba83e8a148d6ff7d4aa7a",
+      "field": "category",
+      "from": "FOOD",
+      "to": "DRINKS"
+    },
+    {
+      "id": "edf44becd93f674fc35b9293",
+      "field": "category",
+      "from": "FOOD",
+      "to": "DESSERT"
+    },
+    {
+      "id": "0fed44ce7d0274bfb948ea91",
+      "field": "category",
+      "from": "FOOD",
+      "to": "DESSERT"
+    },
+    {
+      "id": "1a5948773ac890c379dca46b",
+      "field": "category",
+      "from": "FOOD",
+      "to": "DRINKS"
+    },
+    {
+      "id": "74206358254b384d1ccfc255",
+      "field": "category",
+      "from": "FOOD",
+      "to": "DRINKS"
+    },
+    {
+      "id": "135c56607e88d69702f0e6b9",
+      "field": "category",
+      "from": "FOOD",
+      "to": "DRINKS"
+    },
+    {
+      "id": "02bc0da74cddebb3a94c66e9",
+      "field": "category",
+      "from": "FOOD",
+      "to": "DRINKS"
+    },
+    {
+      "id": "61bc6d3cd4bbd28454fc6c72",
+      "field": "category",
+      "from": "FOOD",
+      "to": "DESSERT"
+    },
+    {
+      "id": "accf2292de1d9100a56cab4a",
+      "field": "category",
+      "from": "FOOD",
+      "to": "DRINKS"
+    },
+    {
+      "id": "78cb73ef2f5ae3f61f5fbc89",
+      "field": "category",
+      "from": "FOOD",
+      "to": "BAKERY"
+    },
+    {
+      "id": "c9126bd8cfcefa84c6f752a6",
+      "field": "category",
+      "from": "FOOD",
+      "to": "DESSERT"
+    },
+    {
+      "id": "192f6329ff5791b2320bfc90",
+      "field": "category",
+      "from": "FOOD",
+      "to": "DRINKS"
+    },
+    {
+      "id": "483ed4be69416f100f51016e",
+      "field": "category",
+      "from": "FOOD",
+      "to": "BAKERY"
+    },
+    {
+      "id": "e065041cc14839904ff36252",
+      "field": "category",
+      "from": "FOOD",
+      "to": "SNACKS",
+      "previously": ["BAKERY"]
+    },
+    {
+      "id": "8f356696dd749025d20c4c9e",
+      "field": "category",
+      "from": "FOOD",
+      "to": "SNACKS"
+    },
+    {
+      "id": "cc0d9c3a92ec1c1c1a3635e7",
+      "field": "category",
+      "from": "FOOD",
+      "to": "DRINKS"
+    },
+    {
+      "id": "f4d67ab7598e5ae2f0ab0b0c",
+      "field": "category",
+      "from": "FOOD",
+      "to": "DRINKS"
+    },
+    {
+      "id": "37580e89ff7a7aa3e338d26b",
+      "field": "category",
+      "from": "FOOD",
+      "to": "BAKERY"
+    },
+    {
+      "id": "c5ed32f2c3495d687a017008",
+      "field": "category",
+      "from": "FOOD",
+      "to": "DESSERT"
+    },
+    {
+      "id": "5a9c80ad9b30a049f30e33e6",
+      "field": "category",
+      "from": "FOOD",
+      "to": "BAKERY"
+    },
+    {
+      "id": "103a75fbc8d762ea767fa5a7",
+      "field": "category",
+      "from": "FOOD",
+      "to": "DRINKS"
+    },
+    {
+      "id": "97c4aefaaf7d07866c3ffeea",
+      "field": "category",
+      "from": "FOOD",
+      "to": "DESSERT"
+    },
+    {
+      "id": "12ca5d539403c7fd5861b8fa",
+      "field": "category",
+      "from": "FOOD",
+      "to": "DRINKS"
+    },
+    {
+      "id": "ddfa46add3e25921b2dc6019",
+      "field": "category",
+      "from": "FOOD",
+      "to": "DRINKS"
+    },
+    {
+      "id": "34e039fc2bd19a47bcf5d7b0",
+      "field": "category",
+      "from": "FOOD",
+      "to": "DRINKS"
+    },
+    {
+      "id": "9beba83e8a148d6ff7d4aa7a",
+      "field": "cuisine",
+      "from": null,
+      "to": null,
+      "previously": ["TAIWANESE"]
+    },
+    {
+      "id": "edf44becd93f674fc35b9293",
+      "field": "cuisine",
+      "from": null,
+      "to": null,
+      "previously": ["CAFE"]
+    },
+    {
+      "id": "0fed44ce7d0274bfb948ea91",
+      "field": "cuisine",
+      "from": null,
+      "to": null,
+      "previously": ["CAFE"]
+    },
+    {
+      "id": "1a5948773ac890c379dca46b",
+      "field": "cuisine",
+      "from": null,
+      "to": null,
+      "previously": ["CAFE"]
+    },
+    {
+      "id": "135c56607e88d69702f0e6b9",
+      "field": "cuisine",
+      "from": null,
+      "to": null,
+      "previously": ["TAIWANESE"]
+    },
+    {
+      "id": "02bc0da74cddebb3a94c66e9",
+      "field": "cuisine",
+      "from": null,
+      "to": null,
+      "previously": ["TAIWANESE"]
+    },
+    {
+      "id": "d50fa21fa7f18c17b5d4c65b",
+      "field": "cuisine",
+      "from": null,
+      "to": "WESTERN"
+    },
+    {
+      "id": "310f69b51ddc346a00fd90d3",
+      "field": "cuisine",
+      "from": null,
+      "to": "JAPANESE"
+    },
+    {
+      "id": "7d6e5ddb19891768eb90246f",
+      "field": "cuisine",
+      "from": null,
+      "to": "WESTERN"
+    },
+    {
+      "id": "8ecede42e7fab7c355193af4",
+      "field": "cuisine",
+      "from": null,
+      "to": "WESTERN"
+    },
+    {
+      "id": "61bc6d3cd4bbd28454fc6c72",
+      "field": "cuisine",
+      "from": null,
+      "to": null,
+      "previously": ["CAFE"]
+    },
+    {
+      "id": "accf2292de1d9100a56cab4a",
+      "field": "cuisine",
+      "from": null,
+      "to": null,
+      "previously": ["CAFE"]
+    },
+    {
+      "id": "abcf7bc7e3f440eebc44886e",
+      "field": "cuisine",
+      "from": null,
+      "to": "CHINESE"
+    },
+    {
+      "id": "cb8c03c3445b8a50566130c7",
+      "field": "cuisine",
+      "from": null,
+      "to": "KOREAN"
+    },
+    {
+      "id": "78cb73ef2f5ae3f61f5fbc89",
+      "field": "cuisine",
+      "from": null,
+      "to": null,
+      "previously": ["CAFE"]
+    },
+    {
+      "id": "f63ca840b19057d20c29a024",
+      "field": "cuisine",
+      "from": null,
+      "to": "WESTERN"
+    },
+    {
+      "id": "c9126bd8cfcefa84c6f752a6",
+      "field": "cuisine",
+      "from": null,
+      "to": null,
+      "previously": ["TAIWANESE"]
+    },
+    {
+      "id": "7c153afd717e490a0bf38b91",
+      "field": "cuisine",
+      "from": null,
+      "to": "WESTERN"
+    },
+    {
+      "id": "192f6329ff5791b2320bfc90",
+      "field": "cuisine",
+      "from": null,
+      "to": null,
+      "previously": ["CAFE"]
+    },
+    {
+      "id": "0ddf677a99e51937a87eb331",
+      "field": "cuisine",
+      "from": null,
+      "to": "KOREAN"
+    },
+    {
+      "id": "bcd8c3a3938a2fb8c072131d",
+      "field": "cuisine",
+      "from": null,
+      "to": "INDIAN"
+    },
+    {
+      "id": "50a55927ac615c899b5a77c3",
+      "field": "cuisine",
+      "from": null,
+      "to": "WESTERN"
+    },
+    {
+      "id": "483ed4be69416f100f51016e",
+      "field": "cuisine",
+      "from": null,
+      "to": null,
+      "previously": ["CAFE"]
+    },
+    {
+      "id": "e065041cc14839904ff36252",
+      "field": "cuisine",
+      "from": null,
+      "to": null,
+      "previously": ["JAPANESE"]
+    },
+    {
+      "id": "962c2ecfd2150be85b57a991",
+      "field": "cuisine",
+      "from": null,
+      "to": "WESTERN"
+    },
+    {
+      "id": "ee5c7b0a67b7a945d00bfd69",
+      "field": "cuisine",
+      "from": null,
+      "to": "JAPANESE"
+    },
+    {
+      "id": "47aa3e69003fce5abe4d6644",
+      "field": "cuisine",
+      "from": null,
+      "to": "JAPANESE"
+    },
+    {
+      "id": "37580e89ff7a7aa3e338d26b",
+      "field": "cuisine",
+      "from": null,
+      "to": null,
+      "previously": ["CAFE"]
+    },
+    {
+      "id": "7dbe0067ae3a47477dbbde14",
+      "field": "cuisine",
+      "from": null,
+      "to": "WESTERN"
+    },
+    {
+      "id": "5a9c80ad9b30a049f30e33e6",
+      "field": "cuisine",
+      "from": null,
+      "to": null,
+      "previously": ["CHINESE"]
+    },
+    {
+      "id": "103a75fbc8d762ea767fa5a7",
+      "field": "cuisine",
+      "from": null,
+      "to": null,
+      "previously": ["TAIWANESE"]
+    },
+    {
+      "id": "97c4aefaaf7d07866c3ffeea",
+      "field": "cuisine",
+      "from": null,
+      "to": null,
+      "previously": ["WESTERN"]
+    },
+    {
+      "id": "12ca5d539403c7fd5861b8fa",
+      "field": "cuisine",
+      "from": null,
+      "to": null,
+      "previously": ["CAFE"]
+    },
+    {
+      "id": "ddfa46add3e25921b2dc6019",
+      "field": "cuisine",
+      "from": null,
+      "to": null,
+      "previously": ["CHINESE"]
+    },
+    {
+      "id": "34e039fc2bd19a47bcf5d7b0",
+      "field": "cuisine",
+      "from": null,
+      "to": null,
+      "previously": ["CHINESE"]
+    }
+  ]
+}

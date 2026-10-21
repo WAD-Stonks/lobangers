@@ -16,6 +16,7 @@ const rest = vi.hoisted(() => ({
   run: vi.fn(),
   queue: vi.fn(),
   review: vi.fn(),
+  category: vi.fn(),
   locations: vi.fn(),
   accounts: vi.fn(),
 }))
@@ -37,6 +38,7 @@ vi.mock('@web/lib/api-client', () => ({
       run: rest.run,
       drafts: rest.queue,
       reviewDraft: rest.review,
+      setDraftCategory: rest.category,
       searchLocations: rest.locations,
       accounts: rest.accounts,
     },
@@ -230,6 +232,46 @@ const draft: IngestionDraft = {
   reviewNote: null,
   reviewReady: true,
 }
+
+it('saves a corrected category at the current version and locks the stale draft until reload', async () => {
+  rest.queue.mockResolvedValue({ items: [draft], nextCursor: null })
+  rest.category.mockResolvedValue({
+    id: draft.id,
+    contentVersion: 8,
+    reviewStatus: 'PENDING',
+    category: 'DRINKS',
+  })
+  const wrapper = mount(IngestionAdminPage)
+  await flushPromises()
+  await wrapper.get('[data-testid="view-draft-1"]').trigger('click')
+  const select = wrapper.get<HTMLSelectElement>('#draft-category')
+  expect(select.element.value).toBe('FOOD')
+  expect(wrapper.get('[data-testid="save-category"]').attributes('disabled')).toBeDefined()
+  await select.setValue('DRINKS')
+  expect(wrapper.get('[data-testid="save-category"]').attributes('disabled')).toBeUndefined()
+  await wrapper.get('[data-testid="category-form"]').trigger('submit')
+  await flushPromises()
+  expect(rest.category).toHaveBeenCalledWith('draft-1', {
+    expectedContentVersion: 7,
+    category: 'DRINKS',
+  })
+  expect(wrapper.text()).toContain('Category updated')
+  expect(wrapper.get('[data-testid="approve-draft"]').attributes('disabled')).toBeDefined()
+  expect(wrapper.find('[data-testid="reload-draft"]').exists()).toBe(true)
+})
+
+it('reports a failed category update without leaving the draft reviewable', async () => {
+  rest.queue.mockResolvedValue({ items: [draft], nextCursor: null })
+  rest.category.mockRejectedValue(new ApiClientError('CONFLICT', 409, 'Draft changed'))
+  const wrapper = mount(IngestionAdminPage)
+  await flushPromises()
+  await wrapper.get('[data-testid="view-draft-1"]').trigger('click')
+  await wrapper.get('#draft-category').setValue('BAKERY')
+  await wrapper.get('[data-testid="category-form"]').trigger('submit')
+  await flushPromises()
+  expect(wrapper.text()).toContain('Unable to update the category')
+  expect(wrapper.get('[data-testid="approve-draft"]').attributes('disabled')).toBeDefined()
+})
 
 it('renders escaped attributed draft details and rejects with a required note and current version', async () => {
   rest.queue.mockResolvedValueOnce({ items: [draft], nextCursor: null })

@@ -81,9 +81,13 @@ export const getVenue = (dependencies: RestDependencies) =>
       },
     })
 
-    // past deals that have exclusive validUntil over
+    // past deals that have exclusive validUntil over. On Mongo, Prisma orders a null date
+    // before every real one, so an open-ended deal (validUntil null) needs excluding outright.
     const past = context.db.deal.findMany({
-      where: { ...publicAtVenue, validUntil: { lte: now }, AND: activeAtVenue },
+      where: {
+        ...publicAtVenue,
+        AND: [...activeAtVenue, { validUntil: { lte: now } }, { NOT: { validUntil: null } }],
+      },
       orderBy: { validUntil: 'desc' },
       take: maxPastDeals,
       select: {

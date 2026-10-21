@@ -12,3 +12,10 @@ export const SITE_NAV_LINKS: readonly SiteNavLink[] = Object.freeze([
   { label: 'Platform admin', to: '/admin/accounts', roles: ['ADMIN'] },
   { label: 'Ingestion admin', to: '/admin/ingestion', roles: ['ADMIN'] },
 ])
+
+// Extra rows for a signed-in visitor, shown in the map shell's brand menu.
+export const ACCOUNT_NAV_LINKS: readonly SiteNavLink[] = Object.freeze([
+  { label: 'Saved deals', to: '/saved' },
+  { label: 'My submissions', to: '/me/submissions' },
+  { label: 'For merchants', to: '/me/merchant-access' },
+])

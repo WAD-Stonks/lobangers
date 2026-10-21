@@ -1,3 +1,4 @@
+import { imagesFor } from '@api/modules/deals/deal-images'
 import type { DealPin, DealsQuery, DealVoteSummary } from '@broke-oclock/contracts/deals'
 import type { db } from '@broke-oclock/db'
 
@@ -60,6 +61,7 @@ export const findPublicDeals = (database: Database, query: DealsQuery, now: Date
       id: true,
       title: true,
       category: true,
+      cuisine: true,
       offerType: true,
       priceMinor: true,
       discountPercent: true,
@@ -79,6 +81,21 @@ export const findPublicDeals = (database: Database, query: DealsQuery, now: Date
       },
       merchant: {
         select: { venues: { where: activeVenueWhere, select: venueSelect } },
+      },
+      sources: {
+        orderBy: { createdAt: 'asc' },
+        select: {
+          // Article HTML gives the page order of its images, which picks the hero.
+          importedPost: { select: { rawContent: true } },
+          images: {
+            orderBy: { id: 'asc' },
+            select: {
+              sourceUrl: true,
+              altText: true,
+              image: { select: { status: true, hostedUrl: true } },
+            },
+          },
+        },
       },
     },
   })
@@ -129,6 +146,7 @@ export const toDealPin = (deal: PublicDealRow): DealPin => ({
   id: deal.id,
   title: deal.title,
   category: deal.category,
+  cuisine: deal.cuisine,
   label: pinLabelFor(deal),
   description: deal.description,
   offerType: deal.offerType,
@@ -139,6 +157,7 @@ export const toDealPin = (deal: PublicDealRow): DealPin => ({
   rawValidityText: deal.rawValidityText,
   votes: countVotes(deal.votes),
   commentCount: deal._count.comments,
+  images: imagesFor(deal),
   venues: venuesFor(deal).map((venue) => ({
     id: venue.id,
     name: venue.name,

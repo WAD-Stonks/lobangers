@@ -240,6 +240,44 @@ it('returns the venue with only publicly visible ongoing and past deals that app
   ])
 })
 
+it('treats a deal with no end date (null or missing) as ongoing, not past', async () => {
+  const merchant = await db.merchant.create({ data: { name: 'Synthetic Hot Pot' } })
+  const venue = await db.venue.create({
+    data: {
+      merchantId: merchant.id,
+      name: 'Synthetic Hot Pot Bugis',
+      address: '3 Example Street',
+      latitude: 1.3,
+      longitude: 103.85,
+    },
+  })
+  // The importer stores an explicit null; Prisma's Mongo `lte` orders null before every date,
+  // so a bare `validUntil <= now` would count an open-ended deal as already over.
+  const explicitNull = await createVisibleDeal('Null end outlets deal', {
+    applicability: 'ALL_MERCHANT_OUTLETS',
+    merchantId: merchant.id,
+    validFrom: null,
+    validUntil: null,
+  })
+  const missing = await createVisibleDeal('Missing end outlets deal', {
+    applicability: 'ALL_MERCHANT_OUTLETS',
+    merchantId: merchant.id,
+    publishedAt: new Date(Date.now() - 2 * day),
+  })
+  await db.$runCommandRaw({
+    update: 'Deal',
+    updates: [{ q: { _id: { $oid: missing.id } }, u: { $unset: { validUntil: '' } } }],
+  })
+
+  const response = await http().get(`/api/venues/${venue.id}`)
+  expect(response.status).toBe(200)
+  expect(response.data.deals.map((deal: { id: string }) => deal.id)).toEqual([
+    explicitNull.id,
+    missing.id,
+  ])
+  expect(response.data.pastDeals).toEqual([])
+})
+
 it('rejects missing, deleted and malformed venues and non-GET methods', async () => {
   const merchant = await db.merchant.create({ data: { name: 'Synthetic Closed' } })
   const deleted = await db.venue.create({

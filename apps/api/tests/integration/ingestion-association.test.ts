@@ -597,3 +597,47 @@ describe('existing outlet association real native HTTP and disposable Mongo', ()
     expect((await review(f, 2)).status).toBe(200)
   })
 })
+
+const setCategory = (f: Awaited<ReturnType<typeof fixture>>, version = 1, category = 'DRINKS') =>
+  http().patch(`/api/ingestion/drafts/${f.deal.id}/category`, {
+    expectedContentVersion: version,
+    category,
+  })
+
+describe('draft category correction', () => {
+  it('moves the draft to a new pending version and refuses stale, unchanged or unknown input', async () => {
+    const f = await fixture()
+    expect((await setCategory(f, 1, 'MYSTERY')).status).toBe(400)
+    expect((await setCategory(f, 1, 'FOOD')).status).toBe(412)
+    expect(
+      (
+        await http(member.cookie).patch(`/api/ingestion/drafts/${f.deal.id}/category`, {
+          expectedContentVersion: 1,
+          category: 'DRINKS',
+        })
+      ).status,
+    ).toBe(403)
+    const before = await stored(f.deal.id)
+    const response = await setCategory(f)
+    expect(response.status).toBe(200)
+    expect(response.data).toEqual({
+      id: f.deal.id,
+      contentVersion: 2,
+      reviewStatus: 'PENDING',
+      category: 'DRINKS',
+    })
+    const after = await stored(f.deal.id)
+    expect(after.sources).toEqual(before.sources)
+    expect(after).toMatchObject({
+      category: 'DRINKS',
+      contentVersion: 2,
+      reviewedVersion: null,
+      reviewNote: null,
+      publishedAt: null,
+    })
+    expect((await setCategory(f, 1, 'BAKERY')).status).toBe(409)
+    expect((await review(f, 1)).status).toBe(409)
+    expect((await review(f, 2)).status).toBe(200)
+    expect((await setCategory(f, 2, 'BAKERY')).status).toBe(409)
+  })
+})

@@ -8,6 +8,7 @@ import { getIngestionRuns } from '@api/rest/routers/ingestion/handlers/get-runs'
 import { postIngestionDraftReview } from '@api/rest/routers/ingestion/handlers/review-draft'
 import { postIngestionRun } from '@api/rest/routers/ingestion/handlers/run-ingestion'
 import { searchIngestionLocations } from '@api/rest/routers/ingestion/handlers/search-locations'
+import { patchIngestionDraftCategory } from '@api/rest/routers/ingestion/handlers/set-category'
 import { Router } from 'express'
 
 export const createIngestionRouter = (dependencies: RestDependencies): Router => {
@@ -17,6 +18,8 @@ export const createIngestionRouter = (dependencies: RestDependencies): Router =>
   router.get('/drafts', getIngestionDrafts(dependencies))
   router.patch('/drafts/:dealId/outlet', patchIngestionDraftOutlet(dependencies))
   router.all('/drafts/:dealId/outlet', methodNotAllowed('PATCH'))
+  router.patch('/drafts/:dealId/category', patchIngestionDraftCategory(dependencies))
+  router.all('/drafts/:dealId/category', methodNotAllowed('PATCH'))
   router.post('/drafts/:dealId/review', postIngestionDraftReview(dependencies))
   router.get('/runs', getIngestionRuns(dependencies))
   router.post('/runs', postIngestionRun(dependencies))

@@ -198,6 +198,8 @@ model Deal {
   title           String
   description     String
   category        String
+  // One of DEAL_CUISINES in contracts; null when a cuisine does not apply (a supermarket deal).
+  cuisine         String?
   offerType       OfferType
   terms           String?
   priceMinor      Int?
@@ -417,9 +419,41 @@ model DealSource {
   sourceContentSnapshot String
   sourceUrl             String
   createdAt             DateTime     @default(now())
+  images                DealSourceImage[]
 
   @@unique([dealId, importedPostId])
   @@index([importedPostId])
+}
+
+// A source image re-hosted on UploadThing by the importer. The id is the image's SHA-256,
+// so the same poster seen in two posts is stored once.
+model ImportedImage {
+  id         String            @id @map("_id")
+  mimeType   String
+  sizeBytes  Int
+  // HOSTED once the UploadThing upload has finished; only hosted images are shown.
+  status     String
+  storageKey String?
+  hostedUrl  String?
+  createdAt  DateTime          @default(now())
+  updatedAt  DateTime          @updatedAt
+  sources    DealSourceImage[]
+}
+
+// Links a deal's source post to the images it carried, keeping the original URL as provenance.
+model DealSourceImage {
+  id           String        @id @default(auto()) @map("_id") @db.ObjectId
+  dealSourceId String        @db.ObjectId
+  dealSource   DealSource    @relation(fields: [dealSourceId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  imageId      String
+  image        ImportedImage @relation(fields: [imageId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  sourceUrl    String
+  finalUrl     String?
+  altText      String?
+  createdAt    DateTime      @default(now())
+
+  @@unique([dealSourceId, imageId])
+  @@index([imageId])
 }
 
 model IngestionRun {

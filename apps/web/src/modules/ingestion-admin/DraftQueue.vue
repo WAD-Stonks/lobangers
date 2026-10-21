@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { DEAL_CATEGORIES, type DealCategory, dealCategorySchema } from '@broke-oclock/contracts/deal-categories'
 import type { IngestionDraft, IngestionDraftsQuery, IngestionReviewRequest } from '@broke-oclock/contracts/ingestion'
 import type { PlatformVenue } from '@broke-oclock/contracts/platform-admin'
 import { BButton } from '@broke-oclock/ui'
@@ -29,7 +30,10 @@ const venueCursor = ref<string | null>(null)
 const venuePending = ref(false)
 const associationPending = ref(false)
 const outletError = ref('')
-const busy = computed(() => reviewPending.value || associationPending.value)
+const category = ref('')
+const categoryPending = ref(false)
+const categoryError = ref('')
+const busy = computed(() => reviewPending.value || associationPending.value || categoryPending.value)
 // Identity guards survive selection, filter and pagination changes.
 const locks = ref(new Map<string, { version: number; after: number }>())
 const highest = new Map<string, Draft>()
@@ -53,8 +57,8 @@ const clearOutlets = () => {
 const close = () => {
   closed = true; ++generation; ++request; clearOutlets()
   items.value = null; selectedId.value = null; note.value = ''; nextCursor.value = null
-  pending.value = false; reviewPending.value = false; associationPending.value = false
-  error.value = ''; reviewError.value = ''; success.value = ''
+  pending.value = false; reviewPending.value = false; associationPending.value = false; categoryPending.value = false
+  error.value = ''; reviewError.value = ''; success.value = ''; categoryError.value = ''; category.value = ''
   locks.value.clear(); highest.clear(); activeWrites.clear()
 }
 const denied = (failure: unknown) => {
@@ -72,6 +76,8 @@ const sourceLink = computed(() => {
 })
 const approvalReason = computed(() => approvalBlockReason(selected.value))
 const canReview = computed(() => !closed && selected.value?.reviewStatus === 'PENDING' && note.value.trim().length > 0 && note.value.trim().length <= 1000 && !busy.value && !venuePending.value && !pending.value && !error.value && !conflict.value)
+const categoryAllowed = computed(() => selected.value?.reviewStatus === 'PENDING')
+const canSetCategory = computed(() => !closed && categoryAllowed.value && dealCategorySchema.safeParse(category.value).success && category.value !== selected.value?.category && !busy.value && !pending.value && !venuePending.value && !error.value && !conflict.value)
 const associationAllowed = computed(() => selected.value?.reviewStatus === 'PENDING' && ['NO_FIXED_LOCATION', 'SELECTED_OUTLETS'].includes(selected.value.applicability))
 const chosenVenue = computed(() => venues.value?.find(item => item.id === venueId.value))
 const canAssociate = computed(() => !closed && associationAllowed.value && chosenVenue.value && chosenVenue.value.id !== selected.value?.outlet?.id && confirmed.value && !busy.value && !pending.value && !venuePending.value && !error.value && !conflict.value)
@@ -112,6 +118,7 @@ const load = async (cursor?: string) => {
 const select = (draft: Draft) => {
   if (closed || busy.value || pending.value || error.value || (conflict.value && selectedId.value === draft.id)) return
   clearOutlets(); selectedId.value = draft.id; note.value = ''
+  category.value = draft.category; categoryError.value = ''
   reviewError.value = conflict.value ? conflictMessage : ''; success.value = ''
 }
 const searchOutlets = async (cursor?: string) => {
@@ -163,6 +170,36 @@ const associate = async () => {
   } finally {
     activeWrites.delete(id)
     if (live(epoch)) associationPending.value = false
+  }
+}
+const setCategory = async () => {
+  if (!canSetCategory.value || !selected.value) return
+  const id = selected.value.id
+  const expectedContentVersion = selected.value.contentVersion
+  const chosen = category.value as DealCategory
+  const epoch = generation
+  activeWrites.add(id); lock(id, expectedContentVersion)
+  categoryPending.value = true; categoryError.value = ''; success.value = ''
+  try {
+    const result = await api.ingestion.setDraftCategory(id, { expectedContentVersion, category: chosen })
+    if (closed) return
+    lock(id, Math.max(expectedContentVersion + 1, result.contentVersion))
+    if (!live(epoch) || selectedId.value !== id) return
+    note.value = ''; clearOutlets(); reviewError.value = conflictMessage
+    success.value = 'Category updated. The draft remains pending. Reload and review the new version.'
+    emit('changed')
+  } catch (failure) {
+    if (closed) return
+    lock(id, expectedContentVersion)
+    if (!live(epoch)) return
+    if (denied(failure)) return
+    if (selectedId.value === id) {
+      note.value = ''; clearOutlets(); reviewError.value = conflictMessage
+      categoryError.value = 'Unable to update the category. Reload fresh draft evidence before retrying.'
+    }
+  } finally {
+    activeWrites.delete(id)
+    if (live(epoch)) categoryPending.value = false
   }
 }
 const review = async (decision: IngestionReviewRequest['decision']) => {
@@ -253,6 +290,18 @@ watch([() => props.revision, status], (_value, previous) => {
           <BButton data-testid="reject-draft" type="button" variant="outline-danger" :disabled="!canReview" @click="review('REJECT')">{{ reviewPending ? 'Submitting…' : 'Reject draft' }}</BButton>
         </div>
       </form>
+      <section v-if="categoryAllowed" aria-labelledby="category-title" class="mb-4">
+        <h4 id="category-title" class="h6">Correct the category</h4>
+        <p id="category-help">The importer guesses the category from the post text. Fix it here when the guess is wrong. This does not approve or publish the draft.</p>
+        <form data-testid="category-form" @submit.prevent="setCategory" :aria-busy="categoryPending">
+          <label for="draft-category" class="form-label">Category</label>
+          <select id="draft-category" v-model="category" class="form-select mb-2" :disabled="busy || pending || venuePending || conflict" aria-describedby="category-help">
+            <option v-for="option in DEAL_CATEGORIES" :key="option" :value="option">{{ option }}</option>
+          </select>
+          <p v-if="categoryError" role="alert">{{ categoryError }}</p>
+          <BButton data-testid="save-category" type="submit" :disabled="!canSetCategory">{{ categoryPending ? 'Saving…' : 'Save category' }}</BButton>
+        </form>
+      </section>
       <section v-if="associationAllowed" aria-labelledby="outlet-title" class="admin-outlet-association mb-4">
         <h4 id="outlet-title" class="h6">Associate an existing outlet</h4>
         <p id="outlet-help">Choose only an existing active outlet supported by the named source evidence. This does not approve or publish the draft. OneMap candidates are not outlet records.</p>

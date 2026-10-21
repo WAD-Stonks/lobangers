@@ -24,16 +24,9 @@ const { isOpen, close, toggle } = useSiteMenu({ root, toggle: toggleButton, pane
         <img :src="logoUrl" alt="Lobangers" class="site-logo" />
       </RouterLink>
 
-      <button
-        ref="toggleButton"
-        type="button"
-        class="site-toggle"
-        data-testid="nav-toggle"
-        :aria-controls="SITE_MENU_ID"
-        :aria-expanded="isOpen"
-        :aria-label="isOpen ? 'Close menu' : 'Open menu'"
-        @click="toggle"
-      >
+      <button ref="toggleButton" type="button" class="site-toggle" data-testid="nav-toggle"
+        :aria-controls="SITE_MENU_ID" :aria-expanded="isOpen" :aria-label="isOpen ? 'Close menu' : 'Open menu'"
+        @click="toggle">
         <span class="site-toggle__bar" aria-hidden="true" />
         <span class="site-toggle__bar" aria-hidden="true" />
         <span class="site-toggle__bar" aria-hidden="true" />
@@ -305,6 +298,7 @@ const { isOpen, close, toggle } = useSiteMenu({ root, toggle: toggleButton, pane
   aspect-ratio: 5.6;
   object-fit: cover;
   object-position: center 48%;
+  margin-top: -8px;
 }
 
 /* Administration uses ordinary page chrome; the browse canvas keeps its floating card. */

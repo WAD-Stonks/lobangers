@@ -18,7 +18,9 @@ export default defineConfig({
     strictPort: true,
     proxy: {
       '/api': {
-        target: 'http://localhost:3000',
+        // 127.0.0.1, not localhost: the API binds IPv4 only (apps/api/src/server.ts), and
+        // localhost can resolve to ::1, where another app on port 3000 would answer instead.
+        target: 'http://127.0.0.1:3000',
         changeOrigin: true,
       },
     },

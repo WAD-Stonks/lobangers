@@ -54,8 +54,8 @@ async function mountAt(path: string) {
 }
 
 describe('site header pill', () => {
-  it('shows the Lobangers logo linking home and keeps the menu collapsed', async () => {
-    const { wrapper } = await mountAt('/browse')
+  it('shows the Lobangers logo linking home on pages outside the map', async () => {
+    const { wrapper } = await mountAt('/getting-started')
 
     const brand = wrapper.get(`${NAV} a[href="/"]`)
     expect(brand.get('img').attributes('alt')).toBe('Lobangers')
@@ -78,15 +78,17 @@ describe('site header pill', () => {
     expect(toggle.attributes('aria-label')).toBe('Close menu')
     const menu = wrapper.get(MENU)
     expect(menu.attributes('id')).toBe('site-menu')
+    expect(menu.attributes('aria-label')).toBe('Site')
     const hrefs = menu.findAll('a').map((link) => link.attributes('href'))
     expect(hrefs).toEqual([
+      '/login?redirect=/browse',
+      '/register?redirect=/browse',
+      '/add',
       '/',
       '/browse',
       '/deals',
       '/submit-deal',
       '/getting-started',
-      '/login',
-      '/register',
     ])
     expect(menu.get('a[href="/browse"]').attributes('aria-current')).toBe('page')
     wrapper.unmount()

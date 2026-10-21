@@ -1,3 +1,4 @@
+import { dealCategorySchema } from '@contracts/deal-categories'
 import { boundedQueryInteger } from '@contracts/query'
 import { z } from 'zod'
 
@@ -88,6 +89,21 @@ export type IngestionOutletAssociationRequest = z.infer<
 export type IngestionOutletAssociationResponse = z.infer<
   typeof ingestionOutletAssociationResponseSchema
 >
+
+// Reviewers correct the importer's guessed category on a pending draft at a known version.
+export const ingestionCategoryParamsSchema = z.strictObject({ dealId: objectIdSchema })
+export const ingestionCategoryRequestSchema = z.strictObject({
+  expectedContentVersion: z.number().int().min(1).max(2_147_483_646),
+  category: dealCategorySchema,
+})
+export const ingestionCategoryResponseSchema = z.strictObject({
+  id: objectIdSchema,
+  contentVersion: z.number().int().min(1).max(2_147_483_647),
+  reviewStatus: z.literal('PENDING'),
+  category: dealCategorySchema,
+})
+export type IngestionCategoryRequest = z.infer<typeof ingestionCategoryRequestSchema>
+export type IngestionCategoryResponse = z.infer<typeof ingestionCategoryResponseSchema>
 
 export const ingestionDraftSchema = z
   .object({

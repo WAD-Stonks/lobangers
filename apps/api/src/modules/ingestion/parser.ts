@@ -1,3 +1,4 @@
+import { classifyDealCategory } from '@broke-oclock/contracts/deal-categories'
 import { z } from 'zod'
 
 export const moneyDigestPostSchema = z.object({
@@ -655,7 +656,7 @@ export const parseMoneyDigestPost = (input: unknown) => {
     draft: {
       title,
       description: text.slice(0, 2000),
-      category: 'FOOD',
+      category: classifyDealCategory(fullTitle, text),
       offerType,
       priceMinor: offerType === 'FIXED_PRICE' ? priceMinor : null,
       discountPercent: offerType === 'PERCENT_OFF' ? discountPercent : null,

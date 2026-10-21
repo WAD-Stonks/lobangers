@@ -9,6 +9,9 @@
     "test:unit": "vitest run --config vitest.config.ts tests/unit",
     "test:integration": "vitest run --config vitest.config.ts --no-file-parallelism tests/integration",
     "build": "node --import tsx ../../scripts/build-api.ts",
+    "reclassify:categories": "tsx src/tools/reclassify-categories.ts",
+    "rewrite:copy": "tsx src/tools/rewrite-deal-copy.ts",
+    "export:copy": "tsx src/tools/export-deal-copy.ts",
     "start": "node dist/server.js"
   },
   "dependencies": {

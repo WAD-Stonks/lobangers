@@ -3,6 +3,7 @@
     "paths": {
       "@api/*": ["./apps/api/src/*"],
       "@web/*": ["./apps/web/src/*"],
+      "@web-tests/*": ["./apps/web/tests/*"],
       "@db/*": ["./packages/db/src/*"],
       "@storage/*": ["./packages/storage/src/*"],
       "@scripts/*": ["./scripts/*"],

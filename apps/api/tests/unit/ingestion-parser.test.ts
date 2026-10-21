@@ -1295,6 +1295,21 @@ describe('MoneyDigest conservative parser', () => {
       ).draft?.discountPercent,
     ).toBe(50)
   })
+  it('classifies the draft category from the title and body, defaulting to food', () => {
+    expect(parseMoneyDigestPost(post()).draft?.category).toBe('FOOD')
+    expect(
+      parseMoneyDigestPost({
+        ...post('Singapore bubble tea 1-for-1 promotion. Valid until 31 December 2026.'),
+        title: { rendered: 'Synthetic Milk Tea' },
+      }).draft?.category,
+    ).toBe('DRINKS')
+    expect(
+      parseMoneyDigestPost({
+        ...post('Croissant and sourdough 50% off. Valid until 31 December 2026.'),
+        title: { rendered: 'Synthetic Bakery' },
+      }).draft?.category,
+    ).toBe('BAKERY')
+  })
   it('rejects oversized content, malformed identity and off-host URLs', () => {
     for (const input of [
       { ...post(), id: 0 },

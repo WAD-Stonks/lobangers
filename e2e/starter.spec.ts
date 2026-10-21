@@ -1,13 +1,13 @@
 import { expect, test } from '@playwright/test'
 
-const BROWSE_CANVAS = '[data-testid="browse-canvas"]'
+const BROWSE_CANVAS = '[data-testid="map-shell"]'
 
 test('the landing page opens the preserved browse map and navigation works', async ({ page }) => {
   await page.goto('/')
   await expect(page.getByRole('heading', { name: 'Bang for your buck.' })).toBeVisible()
   await page.getByRole('link', { name: 'Explore food deals' }).first().click()
   await expect(page.locator(BROWSE_CANVAS)).toBeVisible()
-  await expect(page.getByTestId('panel-toggle')).toHaveText('Show list')
+  await expect(page.getByTestId('panel-toggle')).toHaveAttribute('aria-label', 'Show list')
   await page.getByTestId('nav-toggle').click()
   await page.locator('a[href="/getting-started"]').first().click()
   await expect(page).toHaveURL(/getting-started$/)

@@ -134,7 +134,9 @@ export const apiErrorBody = (error: unknown): { status: number; body: ApiError }
   }
 }
 
-export const apiErrorMiddleware: ErrorRequestHandler = (error, _request, response, _next) => {
+export const apiErrorMiddleware: ErrorRequestHandler = (error, request, response, _next) => {
   const mapped = apiErrorBody(error)
+  // The client only ever sees a generic 500, so keep the real cause in the server log.
+  if (mapped.status >= 500) console.error(`[api] ${request.method} ${request.path} failed`, error)
   response.status(mapped.status).json(mapped.body)
 }
