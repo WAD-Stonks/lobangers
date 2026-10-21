@@ -1,8 +1,8 @@
 import { declutter } from '@web/modules/browse-map/declutter'
 import type { PinGroup } from '@web/modules/browse-map/map-tiers'
 import type { Coordinates } from '@web/modules/browse-map/types'
+import { makeDeal } from '@web-tests/support/shell-fixtures'
 import { describe, expect, it } from 'vitest'
-import { makeDeal } from './support/shell-fixtures'
 
 // One unit of lat or lng is one pixel, so positions in the tests read as screen positions.
 const project = (point: Coordinates) => ({ x: point.lng, y: -point.lat })

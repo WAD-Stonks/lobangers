@@ -14,7 +14,11 @@ const OUTLETS = Array.from({ length: 7 }, (_, index) => ({
 const CHAIN: DealPin = { ...KOPI, venues: OUTLETS }
 const HERE = { lat: 1.3, lng: 103.8 }
 
-const mountOutlets = (props: { deal?: DealPin; currentVenueId?: string; position?: typeof HERE | null }) =>
+const mountOutlets = (props: {
+  deal?: DealPin
+  currentVenueId?: string
+  position?: typeof HERE | null
+}) =>
   mount(DealOutlets, {
     props: {
       deal: props.deal ?? CHAIN,
@@ -49,7 +53,7 @@ describe('DealOutlets', () => {
 
   it('keeps the API order without a position and hides for a single outlet', () => {
     expect(names(mountOutlets({ position: null }))[0]).toBe('Outlet 6')
-    const single = mountOutlets({ deal: { ...KOPI, venues: [OUTLETS[0]!] } })
+    const single = mountOutlets({ deal: { ...KOPI, venues: OUTLETS.slice(0, 1) } })
     expect(single.find('[data-testid="deal-outlets"]').exists()).toBe(false)
   })
 })

@@ -21,6 +21,7 @@ const DEALS = [
     rawValidityText: null,
     votes: { alive: 4, dead: 0 },
     commentCount: 2,
+    images: [],
     venues: [VENUE],
   },
 ]

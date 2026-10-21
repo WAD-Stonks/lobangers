@@ -3,54 +3,36 @@
     "frames": 24,
     "alternate": false,
     "seconds": 2.4,
-    "sizes": [
-      128,
-      256
-    ]
+    "sizes": [128, 256]
   },
   "food": {
     "frames": 24,
     "alternate": false,
     "seconds": 2.4,
-    "sizes": [
-      128,
-      256
-    ]
+    "sizes": [128, 256]
   },
   "other": {
     "frames": 36,
     "alternate": false,
     "seconds": 3.6,
-    "sizes": [
-      128,
-      256
-    ]
+    "sizes": [128, 256]
   },
   "dessert": {
     "frames": 12,
     "alternate": true,
     "seconds": 1.2,
-    "sizes": [
-      128,
-      256
-    ]
+    "sizes": [128, 256]
   },
   "snacks": {
     "frames": 12,
     "alternate": true,
     "seconds": 1.1,
-    "sizes": [
-      128,
-      256
-    ]
+    "sizes": [128, 256]
   },
   "bakery": {
     "frames": 10,
     "alternate": true,
     "seconds": 0.8,
-    "sizes": [
-      128,
-      256
-    ]
+    "sizes": [128, 256]
   }
 }

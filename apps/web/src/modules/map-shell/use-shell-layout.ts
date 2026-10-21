@@ -64,7 +64,13 @@ export const panelWidthFor = (viewportWidth: number, wide: boolean): number => {
   return Math.min(max, Math.round(viewportWidth * ratio))
 }
 
-export const useShellLayout = ({ breakpoint, wide, panelWide = wide, header, collapsed = ref(false) }: Options) => {
+export const useShellLayout = ({
+  breakpoint,
+  wide,
+  panelWide = wide,
+  header,
+  collapsed = ref(false),
+}: Options) => {
   const viewport = ref(viewportSize())
   const headerBottom = ref(FALLBACK_HEADER_BOTTOM_PX)
   const snap = ref(1)
@@ -127,5 +133,15 @@ export const useShellLayout = ({ breakpoint, wide, panelWide = wide, header, col
     '--panel-w': `${widthFor(panelWide.value)}px`,
   }))
 
-  return { mode, heights, snap, sheetVisible, focusOffset, viewPadding, cssVars, panelWidth, widthFor }
+  return {
+    mode,
+    heights,
+    snap,
+    sheetVisible,
+    focusOffset,
+    viewPadding,
+    cssVars,
+    panelWidth,
+    widthFor,
+  }
 }

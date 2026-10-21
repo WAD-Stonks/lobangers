@@ -1,7 +1,7 @@
 import { NEAR_YOU_LABEL, planMapLayers, tierFor } from '@web/modules/browse-map/map-tiers'
 import type { VenuePin } from '@web/modules/browse-map/types'
+import { makeDeal } from '@web-tests/support/shell-fixtures'
 import { describe, expect, it } from 'vitest'
-import { makeDeal } from './support/shell-fixtures'
 
 const venue = (id: string, lat: number, lng: number, deals = 1): VenuePin => ({
   id,

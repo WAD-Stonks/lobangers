@@ -46,7 +46,7 @@ export const usePanelMorph = ({ wide, panelWide, enabled, widthFor, panel, rails
   let token = 0
 
   const stop = () => {
-    running.forEach((animation) => animation.cancel())
+    for (const animation of running) animation.cancel()
     running = []
   }
 
@@ -54,12 +54,20 @@ export const usePanelMorph = ({ wide, panelWide, enabled, widthFor, panel, rails
     const radius = getComputedStyle(card).borderTopLeftRadius || '0px'
     const timing: KeyframeAnimationOptions = { duration, easing: MORPH_EASE, fill: 'forwards' }
     const shape = card.animate(
-      [{ clipPath: `inset(0px 0px 0px ${from}px round ${radius})` }, { clipPath: `inset(0px 0px 0px ${to}px round ${radius})` }],
+      [
+        { clipPath: `inset(0px 0px 0px ${from}px round ${radius})` },
+        { clipPath: `inset(0px 0px 0px ${to}px round ${radius})` },
+      ],
       timing,
     )
     const ride = rails()
       .filter(canAnimate)
-      .map((rail) => rail.animate([{ transform: `translateX(${from}px)` }, { transform: `translateX(${to}px)` }], timing))
+      .map((rail) =>
+        rail.animate(
+          [{ transform: `translateX(${from}px)` }, { transform: `translateX(${to}px)` }],
+          timing,
+        ),
+      )
     return [shape, ...ride]
   }
 
@@ -78,7 +86,9 @@ export const usePanelMorph = ({ wide, panelWide, enabled, widthFor, panel, rails
 
   // The content has already switched (cards or rows); hide it until the shape has moved.
   const hide = (content: Element | null) =>
-    content instanceof HTMLElement ? [content.animate([{ opacity: 0 }, { opacity: 0 }], { fill: 'forwards' })] : []
+    content instanceof HTMLElement
+      ? [content.animate([{ opacity: 0 }, { opacity: 0 }], { fill: 'forwards' })]
+      : []
 
   const grow = async (card: HTMLElement, id: number) => {
     const travel = widthFor(true) - widthFor(false)
@@ -88,7 +98,10 @@ export const usePanelMorph = ({ wide, panelWide, enabled, widthFor, panel, rails
     await nextTick()
     if (id !== token) return
     const content = card.querySelector('.shell-panel__content')
-    running = [...sweep(card, start, 0, MORPH_GROW_MS), ...fadeIn(content, CONTENT_DRIFT_PX, CONTENT_DELAY_MS)]
+    running = [
+      ...sweep(card, start, 0, MORPH_GROW_MS),
+      ...fadeIn(content, CONTENT_DRIFT_PX, CONTENT_DELAY_MS),
+    ]
     const shape = running[0]
     if (shape && (await settled(shape)) && id === token) stop()
   }

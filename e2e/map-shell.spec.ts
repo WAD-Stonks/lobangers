@@ -23,6 +23,7 @@ const deal = (id: string, title: string, overrides: Record<string, unknown>) => 
   rawValidityText: null,
   votes: { alive: 2, dead: 0 },
   commentCount: 0,
+  images: [],
   venues: [VENUES.north],
   ...overrides,
 })
@@ -81,6 +82,11 @@ const mockApi = async (page: Page) => {
   )
 }
 
+// At island zoom the map sums deals up per region; tapping a group zooms one tier in.
+const groups = (page: Page) => page.locator('.deal-map-cluster')
+const openGroup = (page: Page, name: string) =>
+  page.getByLabel(name, { exact: true }).dispatchEvent('click')
+
 const panelHeading = (page: Page) => page.getByTestId('shell-panel').locator('[data-panel-heading]')
 const rows = (page: Page) => page.getByTestId('nearby-list').locator('li')
 
@@ -96,12 +102,12 @@ for (const width of [390, 1280]) {
     }) => {
       await page.goto('/browse')
       await expect(rows(page)).toHaveCount(3)
-      await expect(page.locator('.deal-map-pin')).toHaveCount(3)
+      await expect(groups(page)).toHaveCount(3)
 
       await page.getByRole('button', { name: 'Under $5' }).click()
       await expect(page).toHaveURL(/max=5/)
       await expect(rows(page)).toHaveCount(2)
-      await expect(page.locator('.deal-map-pin')).toHaveCount(2)
+      await expect(groups(page)).toHaveCount(2)
 
       await rows(page).first().getByRole('link').click()
       await expect(page).toHaveURL(/\/deals\//)
@@ -113,8 +119,23 @@ for (const width of [390, 1280]) {
     })
 
     test('pin to deal: each pin opens its deal with the panel at the top', async ({ page }) => {
+      // Both outlets a short walk apart in Jurong East: tapping West fits them both at street zoom.
+      const nextDoor = {
+        ...VENUES.west,
+        id: 'd'.repeat(24),
+        name: 'Synthetic Jurong Bakery',
+        lat: 1.3345,
+        lng: 103.7445,
+      }
+      const items = DEALS.map((item) =>
+        item.title === 'Synthetic kaya toast' ? { ...item, venues: [nextDoor] } : item,
+      )
+      await page.route('**/api/deals*', (route) =>
+        route.fulfill({ json: { items, categories: ['BAKERY', 'DRINKS', 'FOOD'] } }),
+      )
       await page.goto('/browse')
-      await expect(page.locator('.deal-map-pin')).toHaveCount(3)
+      await openGroup(page, '2 deals in West')
+      await expect(page.locator('.deal-map-pin')).toHaveCount(2)
       await page.locator('.deal-map-pin[title^="Synthetic fishball"]').dispatchEvent('click')
       await expect(panelHeading(page)).toHaveText('Synthetic fishball noodles')
       const body = page.getByTestId('panel-body')

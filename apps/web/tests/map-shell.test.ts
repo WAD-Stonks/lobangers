@@ -1,4 +1,5 @@
 import { flushPromises, type VueWrapper } from '@vue/test-utils'
+import { FOCUS_ZOOM, LOCATE_ZOOM } from '@web/modules/browse-map/map-config'
 import {
   DEALS_RESPONSE,
   HAWKER_VENUE,
@@ -9,7 +10,6 @@ import {
   SIGNED_IN,
   SIGNED_OUT,
 } from '@web-tests/support/shell-fixtures'
-import { FOCUS_ZOOM, LOCATE_ZOOM } from '@web/modules/browse-map/map-config'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ref } from 'vue'
 
@@ -167,7 +167,9 @@ describe('near me', () => {
       configurable: true,
       value: {
         getCurrentPosition: (ok: PositionCallback) =>
-          ok({ coords: { latitude: HERE.lat, longitude: HERE.lng, accuracy: 20 } } as GeolocationPosition),
+          ok({
+            coords: { latitude: HERE.lat, longitude: HERE.lng, accuracy: 20 },
+          } as GeolocationPosition),
       },
     })
   afterEach(() => {

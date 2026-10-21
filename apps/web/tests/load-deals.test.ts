@@ -51,7 +51,10 @@ describe('toVenuePins', () => {
 describe('toDealRows', () => {
   it('lists each deal once, at its first outlet, without distances when unlocated', () => {
     const rows = toDealRows(toVenuePins([KOPI, TOAST]), null)
-    expect(rows.map((row) => row.key)).toEqual([`${KOPI.id}:${BEDOK.id}`, `${TOAST.id}:${BEDOK.id}`])
+    expect(rows.map((row) => row.key)).toEqual([
+      `${KOPI.id}:${BEDOK.id}`,
+      `${TOAST.id}:${BEDOK.id}`,
+    ])
     expect(rows.every((row) => row.distanceMetres === null)).toBe(true)
   })
 

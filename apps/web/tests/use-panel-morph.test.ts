@@ -14,7 +14,12 @@ const fakeAnimations = () => {
     finishers.push(finish)
     return { finished, cancel: vi.fn() } as unknown as Animation
   })
-  return { animate, finishAll: () => finishers.forEach((finish) => finish()) }
+  return {
+    animate,
+    finishAll: () => {
+      for (const finish of finishers) finish()
+    },
+  }
 }
 
 const setup = (enabled: boolean) => {
