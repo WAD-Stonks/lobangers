@@ -23,6 +23,7 @@ export const offerTypeSchema = z.enum(['FIXED_PRICE', 'PERCENT_OFF', 'BUY_ONE_GE
 
 // Read-only community evidence for the drawer; voting itself is a separate community contract.
 export const dealVoteSummarySchema = z.strictObject({
+  status: z.enum(['NO_RECENT_REPORTS', 'UNCERTAIN', 'LIKELY_STILL_ON', 'EXPIRED']).optional(),
   alive: z.number().int().min(0),
   dead: z.number().int().min(0),
 })

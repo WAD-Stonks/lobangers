@@ -35,7 +35,14 @@ export const pinFlag = (
   now: Date,
 ): 'ending' | 'verified' | null => {
   if (deals.some((deal) => isEndingToday(deal, now))) return 'ending'
-  if (deals.some((deal) => isVerified(deal.votes))) return 'verified'
+  if (
+    deals.some(
+      (deal) =>
+        (!deal.validUntil || new Date(deal.validUntil).getTime() > now.getTime()) &&
+        isVerified(deal.votes),
+    )
+  )
+    return 'verified'
   return null
 }
 

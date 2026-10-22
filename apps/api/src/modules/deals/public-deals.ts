@@ -1,4 +1,9 @@
 import { imagesFor } from '@api/modules/deals/deal-images'
+import {
+  type CommunityPolicy,
+  communityStatus,
+  DEFAULT_COMMUNITY_POLICY,
+} from '@broke-oclock/contracts/community-policy'
 import type { DealPin, DealsQuery, DealVoteSummary } from '@broke-oclock/contracts/deals'
 import type { db } from '@broke-oclock/db'
 
@@ -33,7 +38,12 @@ const venueSelect = {
 } as const
 
 // Eligible deals narrowed by the visitor's filters, with the outlets needed to draw pins.
-export const findPublicDeals = (database: Database, query: DealsQuery, now: Date) =>
+export const findPublicDeals = (
+  database: Database,
+  query: DealsQuery,
+  now: Date,
+  policy: CommunityPolicy = DEFAULT_COMMUNITY_POLICY,
+) =>
   database.deal.findMany({
     where: {
       ...eligibleDealWhere,
@@ -67,12 +77,19 @@ export const findPublicDeals = (database: Database, query: DealsQuery, now: Date
       discountPercent: true,
       contentVersion: true,
       reviewedVersion: true,
+      reviewedAt: true,
+      publishedAt: true,
       applicability: true,
       description: true,
       terms: true,
       validUntil: true,
       rawValidityText: true,
-      votes: { select: { value: true } },
+      votes: {
+        where: {
+          updatedAt: { gt: new Date(now.getTime() - policy.windowHours * 3600000), lte: now },
+        },
+        select: { value: true, updatedAt: true },
+      },
       // Only comments that are neither deleted by their author nor hidden by moderation.
       _count: { select: { comments: { where: visibleCommentWhere } } },
       venues: {
@@ -142,7 +159,16 @@ export const countVotes = (votes: readonly { value: 'ALIVE' | 'DEAD' }[]): DealV
   dead: votes.filter((vote) => vote.value === 'DEAD').length,
 })
 
-export const toDealPin = (deal: PublicDealRow): DealPin => ({
+const currentVotes = (deal: PublicDealRow) => {
+  const publication = deal.reviewedAt ?? deal.publishedAt ?? new Date(0)
+  return countVotes(deal.votes.filter((vote) => vote.updatedAt >= publication))
+}
+
+export const toDealPin = (
+  deal: PublicDealRow,
+  policy: CommunityPolicy = DEFAULT_COMMUNITY_POLICY,
+  now = new Date(),
+): DealPin => ({
   id: deal.id,
   title: deal.title,
   category: deal.category,
@@ -155,7 +181,15 @@ export const toDealPin = (deal: PublicDealRow): DealPin => ({
   terms: deal.terms,
   validUntil: deal.validUntil?.toISOString() ?? null,
   rawValidityText: deal.rawValidityText,
-  votes: countVotes(deal.votes),
+  votes: {
+    ...currentVotes(deal),
+    status: communityStatus(
+      currentVotes(deal),
+      deal.validUntil?.toISOString() ?? null,
+      now,
+      policy,
+    ),
+  },
   commentCount: deal._count.comments,
   images: imagesFor(deal),
   venues: venuesFor(deal).map((venue) => ({

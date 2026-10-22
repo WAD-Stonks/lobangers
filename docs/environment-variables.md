@@ -67,15 +67,17 @@ The fixed-host MoneyDigest transport needs no WordPress username/password. Impor
 
 No cron job or handler is configured. The existing manual-run API does not create scheduling. A future schedule requires separately reviewed deployment configuration and an authenticated trigger. Keep CRON_SECRET unset until that consumer exists.
 
-## Reserved trust/moderation settings — Community
+## Community verification settings
 
-All are GitHub **variables** initially set to `UNCONFIGURED`:
+The approved policy uses three positive voters, at least 80% positive evidence, within 24 hours. The API validates these optional server-only values:
 
-- DEAL_CONFIRM_THRESHOLD — confirmation count required for the agreed evidence scope.
-- DEAL_DEAD_REPORT_THRESHOLD — dead-report count required to flag that scope.
-- CONTENT_REPORT_THRESHOLD — inappropriate-content review/hiding threshold, after the team chooses that policy.
+- `DEAL_CONFIRM_THRESHOLD`: default 3, integer 1–100.
+- `DEAL_POSITIVE_PERCENT`: default 80, integer 1–100.
+- `DEAL_VOTE_WINDOW_HOURS`: default 24, integer 1–168.
 
-The team plan specifies configurable N/M values but does not choose them. No numeric defaults were invented. The feature implementation must decide scope, storage (env-backed defaults vs database-managed config), concurrency and strict validation before using these reserved names. No existing business logic reads them.
+Missing, blank or `UNCONFIGURED` values use the approved defaults. They are runtime API inputs, not VITE settings. Public community summaries expose the active policy. Restart the API after changing its environment. See [community behavior and tests](community.md).
+
+`DEAL_DEAD_REPORT_THRESHOLD` and `CONTENT_REPORT_THRESHOLD` remain reserved and unused. No automatic ended/hiding threshold has been implemented; a report does not change content visibility.
 
 ## Photo storage — UploadThing adapter and client helper
 

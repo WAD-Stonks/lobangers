@@ -144,7 +144,7 @@ describe('GET /api/deals', () => {
     expect(kopi?.priceMinor).toBe(100)
     expect(kopi?.terms).toBeNull()
     expect(kopi?.validUntil).toBeNull()
-    expect(kopi?.votes).toEqual({ alive: 1, dead: 0 })
+    expect(kopi?.votes).toEqual({ alive: 1, dead: 0, status: 'UNCERTAIN' })
     expect(kopi?.commentCount).toBe(1)
   })
 
