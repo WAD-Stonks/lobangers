@@ -22,6 +22,7 @@ export const useDealCommunity = (
   const receipt = ref('')
   let generation = 0
   let readVersion = 0
+  let publicEvidence: string | undefined
   let timer: ReturnType<typeof setInterval> | undefined
   const message = (failure: unknown) => {
     switch (errorCode(failure)) {
@@ -39,6 +40,15 @@ export const useDealCommunity = (
         return 'Could not update community information. Please try again.'
     }
   }
+  // Keep this separate from optimistic counts and private visitor state. The shared shell
+  // needs a reload only when its public counts/status/comment count may have changed.
+  const acceptSummary = (next: CommunitySummary) => {
+    const evidence = JSON.stringify([next.alive, next.dead, next.status, next.commentCount])
+    const differs = evidence !== publicEvidence
+    publicEvidence = evidence
+    summary.value = next
+    return differs
+  }
   const refresh = async () => {
     const current = generation
     const request = ++readVersion
@@ -49,12 +59,15 @@ export const useDealCommunity = (
         api.community.summary(dealId.value),
         api.community.comments(dealId.value, { limit: allComments.value ? 5 : 3 }),
       ])
-      if (current !== generation || request !== readVersion) return
-      summary.value = nextSummary
+      if (current !== generation || request !== readVersion) return false
+      const differs = acceptSummary(nextSummary)
       comments.value = page.items
       cursor.value = page.nextCursor
+      if (differs) changed()
+      return differs
     } catch (failure) {
       if (current === generation && request === readVersion) error.value = message(failure)
+      return false
     } finally {
       if (current === generation) {
         loading.value = false
@@ -103,7 +116,7 @@ export const useDealCommunity = (
         ? await api.community.removeVote(dealId.value)
         : await api.community.vote(dealId.value, value)
       if (current !== generation) return
-      summary.value = result
+      acceptSummary(result)
       receipt.value = remove ? 'Vote removed.' : 'Vote updated. Thanks for sharing what you found.'
       changed()
     } catch (failure) {
@@ -126,9 +139,9 @@ export const useDealCommunity = (
       await work()
       if (current !== generation) return false
       receipt.value = success
-      await refresh()
+      const notified = await refresh()
       if (current !== generation) return false
-      changed()
+      if (!notified) changed()
       return true
     } catch (failure) {
       if (current === generation) error.value = message(failure)
@@ -147,6 +160,7 @@ export const useDealCommunity = (
     [dealId, () => session.value.data?.user.id],
     () => {
       generation++
+      publicEvidence = undefined
       summary.value = null
       comments.value = []
       cursor.value = null
@@ -165,12 +179,13 @@ export const useDealCommunity = (
   })
   onMounted(() => {
     timer = setInterval(async () => {
-      if (document.hidden || busy.value || loading.value || loadingMore.value) return
+      if (document.hidden || busy.value || loading.value || loadingMore.value || refreshing.value)
+        return
       const current = generation
       const request = ++readVersion
       try {
         const result = await api.community.summary(dealId.value)
-        if (current === generation && request === readVersion) summary.value = result
+        if (current === generation && request === readVersion && acceptSummary(result)) changed()
       } catch {
         /* Keep the last successful read; explicit refresh exposes recoverable errors. */
       }

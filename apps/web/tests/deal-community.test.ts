@@ -63,9 +63,40 @@ afterEach(() => {
   wrappers.splice(0).forEach((wrapper) => {
     wrapper.unmount()
   })
+  vi.useRealTimers()
+  vi.restoreAllMocks()
 })
 
 describe('community deal panel (synthetic API fixtures)', () => {
+  it.each(['manual refresh', 'minute poll'])(
+    'publishes changed shared evidence after %s',
+    async (mode) => {
+      vi.useFakeTimers()
+      vi.spyOn(document, 'hidden', 'get').mockReturnValue(false)
+      mocks.summary.mockResolvedValue({ ...summary, alive: 3, status: 'LIKELY_STILL_ON' })
+      const wrapper = await render()
+      const notifications = wrapper.emitted('updated')?.length ?? 0
+      mocks.summary.mockResolvedValue({ ...summary, commentCount: 2 })
+      if (mode === 'manual refresh')
+        await wrapper.get('.deal-community-header button').trigger('click')
+      else await vi.advanceTimersByTimeAsync(60_000)
+      await flushPromises()
+      expect(wrapper.get('.deal-community-status').text()).toBe('No recent reports')
+      expect(wrapper.emitted('updated') ?? []).toHaveLength(notifications + 1)
+    },
+  )
+  it('does not reload shared deals for unchanged public evidence', async () => {
+    vi.useFakeTimers()
+    vi.spyOn(document, 'hidden', 'get').mockReturnValue(false)
+    const wrapper = await render()
+    expect(wrapper.emitted('updated')).toHaveLength(1)
+    mocks.summary.mockResolvedValue({ ...summary, asOf: '2026-10-22T00:01:00.000Z' })
+    await vi.advanceTimersByTimeAsync(60000)
+    await flushPromises()
+    await wrapper.get('.deal-community-header button').trigger('click')
+    await flushPromises()
+    expect(wrapper.emitted('updated')).toHaveLength(1)
+  })
   it('allows anonymous reading and explains the approved policy and deal-wide scope', async () => {
     const wrapper = await render()
     expect(wrapper.text()).toContain('3 positive voters and at least 80%')
@@ -90,7 +121,7 @@ describe('community deal panel (synthetic API fixtures)', () => {
     await flushPromises()
     expect(wrapper.get('[data-testid="vote-alive"]').text()).toContain('0')
     expect(wrapper.get('[role="alert"]').text()).toContain('Please try again')
-    expect(wrapper.emitted('updated')).toBeUndefined()
+    expect(wrapper.emitted('updated')).toHaveLength(1)
   })
   it('lets an existing voter remove a vote and does not allow votes on expired deals', async () => {
     session.value = { data: { user: { id: 'synthetic-user' } } }
@@ -100,7 +131,7 @@ describe('community deal panel (synthetic API fixtures)', () => {
     await wrapper.get('[data-testid="vote-alive"]').trigger('click')
     await flushPromises()
     expect(mocks.removeVote).toHaveBeenCalledWith(dealId)
-    expect(wrapper.emitted('updated')).toHaveLength(1)
+    expect(wrapper.emitted('updated')).toHaveLength(2)
     mocks.summary.mockResolvedValue({ ...summary, status: 'EXPIRED' })
     await wrapper.get('.deal-community-header button').trigger('click')
     await flushPromises()
@@ -205,6 +236,7 @@ describe('community deal panel (synthetic API fixtures)', () => {
     await flushPromises()
     expect(wrapper.get('.deal-community-status').text()).toBe('Likely still on')
     expect(wrapper.get('.deal-community-meta').text()).toContain('7 still on')
+    expect(wrapper.emitted('updated')).toHaveLength(1)
   })
   it('ignores an older refresh failure after a successful vote', async () => {
     session.value = { data: { user: { id: 'synthetic-user' } } }

@@ -211,3 +211,91 @@ for (const width of [320, 390, 1280]) {
     expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)).toBe(false)
   })
 }
+
+for (const mode of ['manual refresh', 'minute poll']) {
+  test(`${mode} expires shared verification in the header, map and browse rows`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1280, height: 900 })
+    if (mode === 'minute poll') await page.clock.install()
+    let agedOut = false
+    let dealReads = 0
+    const evidence = () => ({
+      alive: agedOut ? 0 : 3,
+      dead: 0,
+      status: agedOut ? 'NO_RECENT_REPORTS' : 'LIKELY_STILL_ON',
+    })
+    await page.route(/basemaps\.cartocdn\.com|onemap\.gov\.sg/, (route) => route.abort())
+    await page.route('**/api/**', (route) => {
+      const path = new URL(route.request().url()).pathname
+      if (path === '/api/auth/get-session') return route.fulfill({ json: null })
+      if (path === '/api/deals') {
+        dealReads++
+        return route.fulfill({
+          json: {
+            items: [
+              {
+                id,
+                title: 'Synthetic refreshed meal',
+                category: 'FOOD',
+                cuisine: 'Western',
+                label: '$5',
+                description: 'Synthetic refresh regression',
+                offerType: 'FIXED_PRICE',
+                priceMinor: 500,
+                discountPercent: null,
+                terms: null,
+                validUntil: null,
+                rawValidityText: null,
+                votes: evidence(),
+                commentCount: 0,
+                images: [],
+                venues: [venue],
+              },
+            ],
+            categories: ['FOOD'],
+          },
+        })
+      }
+      if (path === `/api/deals/${id}/community`)
+        return route.fulfill({
+          json: {
+            ...evidence(),
+            myVote: null,
+            myVoteIsRecent: false,
+            lastReportedAt: agedOut ? null : new Date().toISOString(),
+            asOf: new Date().toISOString(),
+            commentCount: 0,
+            policy: { minAlive: 3, positivePercent: 80, windowHours: 24 },
+          },
+        })
+      if (path === `/api/deals/${id}/comments`)
+        return route.fulfill({ json: { items: [], nextCursor: null } })
+      return route.fulfill({
+        status: 404,
+        json: { error: { code: 'NOT_FOUND', message: 'Synthetic unsupported endpoint' } },
+      })
+    })
+    await page.goto(`/deals/${id}`)
+    const community = page.getByTestId('deal-community')
+    await expect(community.locator('.deal-community-status')).toHaveText('Likely still on')
+    await expect(page.locator('.deal-panel__tags')).toContainText('Likely still on')
+    await expect(page.locator('.deal-map-pin__flag--verified')).toHaveCount(1)
+    const before = dealReads
+    agedOut = true
+    if (mode === 'manual refresh')
+      await community.getByRole('button', { name: 'Refresh', exact: true }).click()
+    else await page.clock.fastForward(60_000)
+    await expect(community.locator('.deal-community-status')).toHaveText('No recent reports')
+    await expect(page.locator('.deal-panel__tags')).toContainText('Unverified')
+    await expect(page.locator('.deal-map-pin__flag--verified')).toHaveCount(0)
+    expect(dealReads).toBeGreaterThan(before)
+    await page.getByRole('link', { name: 'Back to results', exact: true }).click()
+    await expect(
+      page.getByRole('complementary', { name: 'Results' }).getByRole('list'),
+    ).toContainText('Unverified')
+    await expect(
+      page.getByRole('complementary', { name: 'Results' }).getByRole('list'),
+    ).not.toContainText('Likely still on')
+  })
+}
