@@ -3,8 +3,9 @@ import type { DealPin } from '@broke-oclock/contracts/deals'
 import BookmarkButton from '@web/components/BookmarkButton.vue'
 import { api } from '@web/lib/api-client'
 import { authClient } from '@web/lib/auth-client'
+import { nearestArea } from '@web/modules/browse-map/cluster-area'
 import { regions } from '@web/modules/landing/deals'
-import { promotionDates, venuesInRegion } from '@web/modules/landing/live-deals'
+import { isLikelyStillOn, landingDealLink, promotionDates, venuesInRegion } from '@web/modules/landing/live-deals'
 import type { LandingDealsStatus } from '@web/modules/landing/use-landing-deals'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { RouterLink } from 'vue-router'
@@ -32,6 +33,8 @@ let alive = true
 const selectedRegion = computed(() => regions[Number(area.value)]?.name)
 const cardVenue = (deal: DealPin) =>
   area.value === 'all' ? deal.venues[0] : selectedRegion.value ? venuesInRegion(deal, selectedRegion.value)[0] : undefined
+const cardArea = (deal: DealPin) => { const venue = cardVenue(deal); return venue ? nearestArea(venue) : '' }
+const dealLink = (deal: DealPin) => { const venue = cardVenue(deal); return venue ? landingDealLink(deal, venue.id) : '/browse' }
 const filtered = computed(() =>
   props.live.filter(
     (deal) =>
@@ -142,16 +145,18 @@ onBeforeUnmount(() => {
           <div class="landing-food-content">
             <small>{{ deal.cuisine ?? 'Others' }}</small>
             <div class="landing-card-heading">
-            <h3 :id="`landing-restaurant-${deal.id}`" class="landing-restaurant-name" :title="cardVenue(deal)?.name">{{ cardVenue(deal)?.name ?? 'Restaurant details unavailable' }}</h3>
+            <h3 :id="`landing-restaurant-${deal.id}`" class="landing-restaurant-name" :title="cardVenue(deal)?.name"><RouterLink v-if="cardVenue(deal)" class="landing-venue-link" :to="`/venues/${cardVenue(deal)?.id}`">{{ cardVenue(deal)?.name }}</RouterLink><template v-else>Restaurant details unavailable</template></h3>
             <p :id="`landing-offer-${deal.id}`" class="landing-deal-title" :title="deal.title">{{ deal.title }}</p>
             </div>
             <p class="landing-promotion-dates" :title="promotionDates(deal)"><span>Promotion period</span>{{ promotionDates(deal) }}</p>
             <div class="landing-outlet-summary">
+              <p v-if="cardVenue(deal)" class="landing-card-location">⌖ Near {{ cardArea(deal) }}</p>
+              <span v-if="isLikelyStillOn(deal)" class="landing-verification-badge">✓ Likely still on</span>
               <button v-if="deal.venues.length > 1" type="button" class="landing-outlet-button" :aria-label="`View all ${deal.venues.length} outlets for ${deal.title}`" @click="openOutlets(deal)">+{{ deal.venues.length - 1 }} more outlets</button>
-              <span v-else class="landing-outlet-count">{{ deal.venues.length === 1 ? '1 participating outlet' : 'No outlets listed' }}</span>
+              <span v-else-if="!deal.venues.length" class="landing-outlet-count">{{ deal.venues.length === 0 ? 'No outlets listed' : '' }}</span>
             </div>
             <div class="landing-card-actions">
-              <RouterLink class="landing-card-primary" v-if="cardVenue(deal)" :aria-label="`View ${deal.title} at ${cardVenue(deal)?.name}`" :to="`/venues/${cardVenue(deal)?.id}`">View deal <span aria-hidden="true">→</span></RouterLink>
+              <RouterLink class="landing-card-primary" v-if="cardVenue(deal)" :aria-label="`View ${deal.title} at ${cardVenue(deal)?.name}`" :to="dealLink(deal)">View deal <span aria-hidden="true">→</span></RouterLink>
               <BookmarkButton v-if="session.data && bookmarksReady" :deal-id="deal.id" :saved="saved.has(deal.id)" @change="updateSaved(deal.id, $event)" />
               <RouterLink class="landing-card-secondary" v-else-if="session.data" to="/saved">Manage saved deals</RouterLink>
               <RouterLink class="landing-card-secondary" v-else to="/login">Log in to save</RouterLink>
@@ -161,10 +166,10 @@ onBeforeUnmount(() => {
       </div>
       <nav v-if="filtered.length" class="landing-carousel-controls" aria-label="Deal carousel">
         <button type="button" aria-label="Previous deals" aria-controls="landing-deal-carousel" :disabled="page === 0" @click="page--"><span aria-hidden="true">←</span></button>
+        <p class="landing-carousel-status" role="status" aria-live="polite">Showing {{ page * pageSize + 1 }}–{{ Math.min((page + 1) * pageSize, filtered.length) }} of {{ filtered.length }} deals</p>
         <button type="button" aria-label="Next deals" aria-controls="landing-deal-carousel" :disabled="page + 1 >= pageCount" @click="page++"><span aria-hidden="true">→</span></button>
       </nav>
       </div>
-      <p v-if="filtered.length" class="landing-carousel-status" role="status" aria-live="polite">Showing {{ page * pageSize + 1 }}–{{ Math.min((page + 1) * pageSize, filtered.length) }} of {{ filtered.length }} deals</p>
       <div v-if="!filtered.length" class="cuisine-empty" role="status">
         <span aria-hidden="true">🍽️</span>
         <h3>{{ live.length ? 'No deals match this craving yet.' : 'No current food deals yet.' }}</h3>
@@ -181,7 +186,7 @@ onBeforeUnmount(() => {
       <input id="landing-outlet-search" v-model="outletSearch" type="search" placeholder="Search by outlet name" />
       <p role="status">{{ visibleOutlets.length }} of {{ outletDeal?.venues.length ?? 0 }} outlets</p>
       <ul class="landing-outlet-list">
-        <li v-for="venue in visibleOutlets" :key="venue.id"><RouterLink :to="`/venues/${venue.id}`" @click="outletDialog?.close()">{{ venue.name }} <span aria-hidden="true">↗</span></RouterLink></li>
+        <li v-for="venue in visibleOutlets" :key="venue.id"><RouterLink :to="outletDeal ? landingDealLink(outletDeal, venue.id) : '/browse'" @click="outletDialog?.close()">{{ venue.name }} <span aria-hidden="true">↗</span></RouterLink></li>
       </ul>
       <p v-if="!visibleOutlets.length">No outlets match your search.</p>
     </dialog>

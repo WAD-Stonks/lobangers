@@ -13,8 +13,10 @@
   --landing-paper: #fffdf6;
   --landing-ink: #20231e;
   --landing-muted: #72756b;
-  --landing-coral: #e76d4e;
-  --landing-yellow: #ffda53;
+  --landing-coral: var(--coral, #d8603f);
+  --landing-coral-ink: var(--coral-deep, #bf4f30);
+  --landing-control-radius: 12px;
+  --landing-yellow: var(--sunny, #ffda53);
   background: var(--landing-paper);
   color: var(--landing-ink);
   font-family: var(--font-sans);

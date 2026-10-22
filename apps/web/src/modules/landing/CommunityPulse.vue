@@ -16,6 +16,5 @@ const evidence = computed(() => deriveCommunityStatus(sampleReports.slice(0, arr
     </div>
     <strong>{{ evidence.status }}</strong>
     <p>{{ complete ? '3 recent · 2 older reports excluded' : `${arrived} of 5 sample observations` }}</p>
-    <small>Illustrative status · not verification</small>
   </div>
 </template>

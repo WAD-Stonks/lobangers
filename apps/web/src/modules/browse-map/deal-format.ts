@@ -70,9 +70,11 @@ export const dealFreshness = (
   deal: Pick<DealPin, 'validUntil' | 'votes'>,
   now: Date = new Date(),
 ): { readonly label: string; readonly tone: FreshnessTone } => {
+  if (deal.validUntil && new Date(deal.validUntil).getTime() <= now.getTime())
+    return { label: 'Expired', tone: 'end' }
   if (isEndingToday(deal, now)) return { label: 'Ends today', tone: 'end' }
-  if (isVerified(deal.votes)) return { label: `${deal.votes.alive} confirmed`, tone: 'ok' }
-  if (deal.votes.dead > deal.votes.alive) return { label: 'Reported ended', tone: 'end' }
+  if (isVerified(deal.votes)) return { label: 'Likely still on', tone: 'ok' }
+  if (deal.votes.dead > deal.votes.alive) return { label: 'Availability uncertain', tone: 'end' }
   return { label: 'Unverified', tone: 'new' }
 }
 

@@ -11,6 +11,7 @@ import '@web/modules/landing/hero-layout.css'
 import '@web/modules/landing/landing-usability.css'
 import '@web/modules/landing/community-freshness.css'
 import '@web/modules/landing/landing-backgrounds.css'
+import '@web/modules/landing/landing-refinements.css'
 import { useLandingDeals } from '@web/modules/landing/use-landing-deals'
 import { useLandingMotion } from '@web/modules/landing/use-landing-motion'
 import { ref } from 'vue'
@@ -34,7 +35,7 @@ const { deals, status } = useLandingDeals()
       </p>
       <span class="intro-scribble" aria-hidden="true">↓</span>
     </div>
-    <ScrollStory :live-deals="deals" />
+    <ScrollStory />
     <CuisineDiscovery :live="deals" :live-state="status" />
     <section class="landing-final" aria-labelledby="final-heading">
       <span class="final-food food-one" aria-hidden="true">🍜</span>
@@ -45,7 +46,7 @@ const { deals, status } = useLandingDeals()
       <h2 id="final-heading" data-reveal>Less searching.<br />More munching.</h2>
       <p data-reveal>Your next great food deal is waiting.<br />Discover delicious lobangs around Singapore.</p>
       <div data-reveal>
-        <RouterLink to="/browse" class="landing-button dark">Explore Food Deals ↗</RouterLink>
+        <RouterLink to="/browse" class="landing-button dark">Explore food deals ↗</RouterLink>
         <a href="#story" class="landing-button replay">↺ Replay the Story</a>
       </div>
       <span class="final-spark" aria-hidden="true">✳</span>

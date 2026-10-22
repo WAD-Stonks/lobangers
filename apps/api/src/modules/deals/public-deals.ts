@@ -1,4 +1,5 @@
 import { imagesFor } from '@api/modules/deals/deal-images'
+import { COMMUNITY_POLICY, communityStatus } from '@broke-oclock/contracts/community-policy'
 import type { DealPin, DealsQuery, DealVoteSummary } from '@broke-oclock/contracts/deals'
 import type { db } from '@broke-oclock/db'
 
@@ -67,12 +68,22 @@ export const findPublicDeals = (database: Database, query: DealsQuery, now: Date
       discountPercent: true,
       contentVersion: true,
       reviewedVersion: true,
+      reviewedAt: true,
+      publishedAt: true,
       applicability: true,
       description: true,
       terms: true,
       validUntil: true,
       rawValidityText: true,
-      votes: { select: { value: true } },
+      votes: {
+        where: {
+          updatedAt: {
+            gt: new Date(now.getTime() - COMMUNITY_POLICY.windowHours * 3600000),
+            lte: now,
+          },
+        },
+        select: { value: true, updatedAt: true },
+      },
       // Only comments that are neither deleted by their author nor hidden by moderation.
       _count: { select: { comments: { where: visibleCommentWhere } } },
       venues: {
@@ -142,6 +153,13 @@ export const countVotes = (votes: readonly { value: 'ALIVE' | 'DEAD' }[]): DealV
   dead: votes.filter((vote) => vote.value === 'DEAD').length,
 })
 
+const recentVotes = (deal: PublicDealRow) =>
+  countVotes(
+    deal.votes.filter(
+      (vote) => vote.updatedAt >= (deal.reviewedAt ?? deal.publishedAt ?? new Date(0)),
+    ),
+  )
+
 export const toDealPin = (deal: PublicDealRow): DealPin => ({
   id: deal.id,
   title: deal.title,
@@ -155,7 +173,10 @@ export const toDealPin = (deal: PublicDealRow): DealPin => ({
   terms: deal.terms,
   validUntil: deal.validUntil?.toISOString() ?? null,
   rawValidityText: deal.rawValidityText,
-  votes: countVotes(deal.votes),
+  votes: {
+    ...recentVotes(deal),
+    status: communityStatus(recentVotes(deal), deal.validUntil?.toISOString() ?? null),
+  },
   commentCount: deal._count.comments,
   images: imagesFor(deal),
   venues: venuesFor(deal).map((venue) => ({

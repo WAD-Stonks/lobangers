@@ -6,14 +6,14 @@ withDefaults(
   defineProps<{
     interactive?: boolean
     heroPins?: boolean
-    artSrc?: string
+    artSrc: string
     active?: number
     showPins?: boolean
     pinProgress?: number
     inactiveOpacity?: number
     activeOpacity?: number
   }>(),
-  { interactive: true, heroPins: false, artSrc: '/landing/singapore-map-soft-sea.png', active: 0, showPins: true, pinProgress: 1, inactiveOpacity: 1, activeOpacity: 1 },
+  { interactive: true, heroPins: false, active: 0, showPins: true, pinProgress: 1, inactiveOpacity: 1, activeOpacity: 1 },
 )
 defineEmits<{ select: [index: number] }>()
 

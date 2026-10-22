@@ -96,25 +96,28 @@ const liveDealAt = (index: number): DealPin => {
 const heroProps = { live: liveDeals, liveState: 'ready' as const }
 
 describe('landing hero', () => {
-  it('opens the real venue from the featured regional deal', async () => {
+  it('opens the specific regional deal with its outlet selected', async () => {
     const r = router()
     const wrapper = keep(mount(HeroSection, { props: heroProps, global: { plugins: [r] } }))
     await wrapper.get('.island-marker:nth-child(4)').trigger('click')
     await flushPromises()
-    const card = wrapper.get('a.hero-deal')
-    expect(card.attributes('href')).toBe(`/venues/${liveDealAt(3).venues[0]?.id}`)
+    const card = wrapper.get('.hero-live-card')
+    expect(card.get('.hero-deal-action').attributes('href')).toBe(
+      `/deals/${liveDealAt(3).id}?at=${liveDealAt(3).venues[0]?.id}`,
+    )
     expect(card.attributes('aria-label')).toContain('East lunch at Tampines')
     expect(card.text()).toContain('View deal')
-    await card.trigger('click')
+    await card.get('.hero-deal-action').trigger('click')
     await flushPromises()
-    expect(r.currentRoute.value.path).toBe(`/venues/${liveDealAt(3).venues[0]?.id}`)
+    expect(r.currentRoute.value.path).toBe(`/deals/${liveDealAt(3).id}`)
+    expect(r.currentRoute.value.query.at).toBe(liveDealAt(3).venues[0]?.id)
   })
   it('uses the card hierarchy with the restaurant, offer, dates and outlet location', () => {
     const wrapper = keep(mount(HeroSection, { props: heroProps, global: { plugins: [router()] } }))
     const card = wrapper.get('.hero-live-card')
     expect(card.get('.hero-restaurant-name').text()).toBe('Woodlands')
     expect(card.get('.hero-promotion-title').text()).toBe('North lunch')
-    expect(card.get('.hero-promotion-period').text()).toContain('No end date listed')
+    expect(card.get('.hero-promotion-period').text()).toContain('End date not provided')
     expect(card.get('.hero-outlet-location').text()).toBe('Near Woodlands')
     expect(card.find('.hero-deal-badge, b').exists()).toBe(false)
     expect(card.get('.hero-deal-action').text()).toContain('View deal')
@@ -227,8 +230,8 @@ describe('live cuisine discovery', () => {
     expect(wrapper.findAll('.landing-food-card')).toHaveLength(1)
     await wrapper.get('#deal-area').setValue('3')
     expect(wrapper.get('.landing-food-card').text()).toContain('East lunch')
-    expect(wrapper.get('.landing-food-card a').attributes('href')).toBe(
-      `/venues/${liveDealAt(3).venues[0]?.id}`,
+    expect(wrapper.get('.landing-card-primary').attributes('href')).toBe(
+      `/deals/${liveDealAt(3).id}?at=${liveDealAt(3).venues[0]?.id}`,
     )
     expect(wrapper.find('#deal-budget').exists()).toBe(false)
     expect(wrapper.get('.landing-restaurant-name').text()).toBe('Tampines')
@@ -259,7 +262,7 @@ describe('live cuisine discovery', () => {
     const dates = wrapper.findAll('.landing-promotion-dates')
     expect(dates[0]?.text()).toContain('1 Oct – 30 Nov 2026, weekdays only')
     expect(dates[1]?.text()).toContain('Until 1 Nov 2026')
-    expect(dates[2]?.text()).toContain('No end date listed')
+    expect(dates[2]?.text()).toContain('End date not provided')
   })
   it('pages through sets of four and resets to the first set after filtering', async () => {
     const wrapper = keep(
@@ -353,7 +356,7 @@ describe('live cuisine discovery', () => {
     await wrapper.get('#landing-outlet-search').setValue('tampines')
     expect(wrapper.findAll('.landing-outlet-list li')).toHaveLength(1)
     expect(wrapper.get('.landing-outlet-list a').attributes('href')).toBe(
-      `/venues/${liveDealAt(3).venues[0]?.id}`,
+      `/deals/${liveDealAt(0).id}?at=${liveDealAt(3).venues[0]?.id}`,
     )
     await wrapper.get('#landing-outlet-search').setValue('no such outlet')
     expect(wrapper.text()).toContain('No outlets match your search')
@@ -459,7 +462,6 @@ describe('neighbourhood story', () => {
   const story = () =>
     keep(
       mount(ScrollStory, {
-        props: { liveDeals: [] },
         global: { plugins: [router()], stubs: { FloatingSocialPost: true } },
       }),
     )
@@ -558,7 +560,6 @@ describe('prototype motion choreography', () => {
   it('keeps one consistently styled toggle throughout playback and pause', async () => {
     const wrapper = keep(
       mount(ScrollStory, {
-        props: { liveDeals: [] },
         global: { plugins: [router()], stubs: { FloatingSocialPost: true } },
       }),
     )
@@ -592,7 +593,6 @@ describe('prototype motion choreography', () => {
   it('lets a visitor interrupt explicitly started story playback', async () => {
     const wrapper = keep(
       mount(ScrollStory, {
-        props: { liveDeals: [] },
         global: { plugins: [router()], stubs: { FloatingSocialPost: true } },
       }),
     )

@@ -25,6 +25,7 @@ export const offerTypeSchema = z.enum(['FIXED_PRICE', 'PERCENT_OFF', 'BUY_ONE_GE
 export const dealVoteSummarySchema = z.strictObject({
   alive: z.number().int().min(0),
   dead: z.number().int().min(0),
+  status: z.enum(['NO_RECENT_REPORTS', 'UNCERTAIN', 'LIKELY_STILL_ON', 'EXPIRED']).optional(),
 })
 
 // A deal photo already re-hosted on our storage; alt is null when the source gave none.

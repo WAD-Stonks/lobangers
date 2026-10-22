@@ -36,9 +36,9 @@ const statusStyle = computed(() => props.reduced ? {} : ({
   transform: `translate(-50%, -50%) perspective(700px) rotateX(${motion.value.flip * 180}deg)`,
 }))
 const chapters = [
-  { label: 'THE STALL COMES ALIVE', title: 'Your own', accent: 'hawker stall.', copy: 'Your discovered offer becomes a little corner of Singapore.' },
-  { label: 'THE COMMUNITY ORBIT', title: 'The word', accent: 'on the street.', copy: 'Recent observations circle the stall. Each report adds context to the deal.' },
-  { label: 'STATUS REVEAL', title: 'Keep deals', accent: 'in the loop.', copy: 'Recent reports add context. Check the latest dates and terms.' },
+  { label: 'THE STALL COMES ALIVE', title: 'Your own', accent: 'hawker stall.', copy: 'See how a discovered deal becomes a local find.' },
+  { label: 'THE COMMUNITY ORBIT', title: 'The word', accent: 'on the street.', copy: 'Recent visits add context to each deal.' },
+  { label: 'STATUS REVEAL', title: 'Keep deals', accent: 'in the loop.', copy: 'Check recent votes, dates and terms.' },
 ] as const
 const chapterIndex = computed(() => props.reduced ? 2 : progress.value < .35 ? 0 : progress.value < .7 ? 1 : 2)
 const chapter = computed(() => chapters[chapterIndex.value])
@@ -103,10 +103,9 @@ const statusVisible = computed(() => props.reduced || motion.value.flip >= .5)
   <div :aria-hidden="!reduced && offer < .1" class="community-freshness" :class="{ 'model-ready': modelReady, 'is-static': reduced, 'has-community': progress > .1, 'has-cta': motion.cta > .9 }" :data-community-progress="progress" :data-deal-id="deal.id">
     <div class="hawker-environment" :style="{ opacity: motion.handoff }" aria-hidden="true"><span class="hawker-floor" /><span class="hawker-sun" /></div>
     <header class="community-intro" :style="introStyle" :aria-hidden="!reduced && (progress < .12 || ((layout.mobile || viewport.height <= 850) && motion.cta > .9))">
-      <span class="community-eyebrow">0{{ chapterIndex + 1 }} / {{ chapter.label }}</span>
+      <span class="community-eyebrow">Example walkthrough · sample data</span>
       <h2>{{ chapter.title }}{{ reduced ? ' ' : '' }}<br /><em>{{ chapter.accent }}</em></h2>
       <p>{{ chapter.copy }}</p>
-      <small>Fictional reports · a demonstration, not verification.</small>
       <div class="community-chapter-dots" aria-hidden="true"><span v-for="(_, index) in chapters" :key="index" :class="{ active: index === chapterIndex }" /></div>
     </header>
     <div class="compact-stall-summary" :style="{opacity: motion.food}" :aria-hidden="!reduced && motion.food < .9"><strong>{{ deal.restaurant }} · {{ money(deal.price) }}</strong><span>{{ area }} · Illustrative offer</span></div>
@@ -136,6 +135,5 @@ const statusVisible = computed(() => props.reduced || motion.value.flip >= .5)
     <div class="community-join-position" :style="{ opacity: motion.cta }">
       <JoinCommunityCTA :progress="motion.cta" :reduced="reduced" />
     </div>
-    <p class="community-disclaimer" :style="{ opacity: segment(progress, .65, .75) }">Sample observations within 24 hours inform this example. Older reports are excluded. Always check dates and terms.</p>
   </div>
 </template>

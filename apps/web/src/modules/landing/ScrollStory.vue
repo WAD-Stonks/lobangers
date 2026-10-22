@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import type { DealPin } from '@broke-oclock/contracts/deals'
 import CommunityFreshnessScene from '@web/modules/landing/CommunityFreshnessScene.vue'
 import { regions, samples } from '@web/modules/landing/deals'
 import FloatingSocialPost from '@web/modules/landing/FloatingSocialPost.vue'
@@ -10,7 +9,6 @@ import { useStoryPlayback } from '@web/modules/landing/use-story-playback'
 import { segment, useStoryProgress } from '@web/modules/landing/use-story-progress'
 import { computed, ref } from 'vue'
 
-defineProps<{ liveDeals: DealPin[] }>()
 const root = ref<HTMLElement | null>(null)
 const { progress, reduced: systemReduced, viewport } = useStoryProgress(root)
 const compactStill = computed(() => viewport.value.height < 700 || viewport.value.width < 360 || (viewport.value.width <= 1100 && viewport.value.height < 820))
@@ -261,7 +259,7 @@ const chapters = [0, 0.1, 0.25, 0.34, 0.45, 0.54, 0.66, 0.81, 0.92, 1]
             <b :style="{ width: `${segment(progress, chapters[index] ?? 0, chapters[index + 1] ?? 1) * 100}%` }" />
           </i>
         </div>
-        <span class="story-sample-note">Illustrative story · sample offers & votes</span>
+        <span class="story-sample-note">Example walkthrough · sample data</span>
       </div>
     </div>
   </section>

@@ -5,7 +5,7 @@ import { nearestArea } from '@web/modules/browse-map/cluster-area'
 import { regions } from '@web/modules/landing/deals'
 import HeroWaterfront from '@web/modules/landing/HeroWaterfront.vue'
 import IllustratedMap from '@web/modules/landing/IllustratedMap.vue'
-import { promotionDates, randomRegionalDeal } from '@web/modules/landing/live-deals'
+import { isLikelyStillOn, landingDealLink, promotionDates, randomRegionalDeal } from '@web/modules/landing/live-deals'
 import type { LandingDealsStatus } from '@web/modules/landing/use-landing-deals'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { RouterLink } from 'vue-router'
@@ -82,7 +82,7 @@ onBeforeUnmount(() => {
         <IllustratedMap hero-pins art-src="/landing/singapore-map-hero-water-extended-1536.webp" :active="selected" @select="discover" />
         <HeroWaterfront :paused="reduced" />
       </div>
-        <RouterLink v-if="featured" :to="`/venues/${featured.venue.id}`" :key="discoveryKey" class="hero-deal hero-live-card" :aria-label="`View ${featured.deal.title} at ${featured.venue.name}`">
+        <article v-if="featured" :key="discoveryKey" class="hero-deal hero-live-card" :aria-label="`View ${featured.deal.title} at ${featured.venue.name}`">
           <div class="hero-card-topline"><span class="hero-card-region"><i aria-hidden="true" />{{ regions[selected]?.name }}</span><span>FEATURED FIND</span></div>
           <div class="hero-card-main">
             <div class="hero-card-photo">
@@ -93,18 +93,19 @@ onBeforeUnmount(() => {
               <small>{{ featured.deal.cuisine ?? 'Others' }}</small>
               <Transition name="deal-swap" mode="out-in">
                 <div :key="featured.deal.id">
-                  <strong class="hero-restaurant-name" :title="featured.venue.name">{{ featured.venue.name }}</strong>
+                  <RouterLink :to="`/venues/${featured.venue.id}`" class="hero-restaurant-link"><strong class="hero-restaurant-name" :title="featured.venue.name">{{ featured.venue.name }}</strong></RouterLink>
                   <span class="hero-promotion-title" :title="featured.deal.title">{{ featured.deal.title }}</span>
                 </div>
               </Transition>
+          <span v-if="isLikelyStillOn(featured.deal)" class="landing-verification-badge">✓ Likely still on</span>
           <p class="hero-promotion-period" :title="promotionDates(featured.deal)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="3" /><path d="M7 3v4m10-4v4M3 11h18" /></svg><span>{{ promotionDates(featured.deal) }}</span></p>
             </div>
           </div>
           <div class="hero-card-footer">
             <p class="hero-outlet-location" :title="outletLocation"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M20 10c0 6-8 11-8 11S4 16 4 10a8 8 0 1 1 16 0Z" /><circle cx="12" cy="10" r="2.5" /></svg><span>{{ outletLocation }}</span></p>
-            <span class="hero-deal-action">View deal <span aria-hidden="true">→</span></span>
+            <RouterLink :to="landingDealLink(featured.deal, featured.venue.id)" class="hero-deal-action">View deal <span aria-hidden="true">→</span></RouterLink>
           </div>
-        </RouterLink>
+        </article>
         <div v-else class="hero-deal" role="status">
           <div class="hero-deal-copy">
             <small>{{ regions[selected]?.name }}</small>

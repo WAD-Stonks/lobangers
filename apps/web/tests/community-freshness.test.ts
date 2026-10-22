@@ -15,27 +15,41 @@ import { createMemoryHistory, createRouter } from 'vue-router'
 describe('illustrative community evidence', () => {
   it('uses recent observations rather than the lifetime positive percentage', () => {
     expect(deriveCommunityStatus(sampleReports)).toMatchObject({
-      status: 'Likely Still On',
+      status: 'Likely still on',
       recent: 3,
       older: 2,
     })
     const conflict = sampleReports
       .slice(0, 3)
       .concat({ ...sampleReports[3], observedAt: SAMPLE_REPORT_TIME - 60_000 })
-    expect(deriveCommunityStatus(conflict).status).toBe('Uncertain')
+    expect(deriveCommunityStatus(conflict).status).toBe('Availability uncertain')
   })
-  it('requires multiple consistent recent observations for either directional status', () => {
-    expect(deriveCommunityStatus(sampleReports.slice(0, 1)).status).toBe('Uncertain')
+  it('requires three positive users and never auto-ends a promotion from negative votes', () => {
+    expect(deriveCommunityStatus(sampleReports.slice(0, 1)).status).toBe('Availability uncertain')
+    expect(deriveCommunityStatus(sampleReports.slice(0, 2)).status).toBe('Availability uncertain')
     const ended = sampleReports.slice(0, 2).map((r) => ({ ...r, kind: 'ended' as const }))
-    expect(deriveCommunityStatus(ended).status).toBe('Reported Ended')
+    expect(deriveCommunityStatus(ended).status).toBe('Availability uncertain')
+  })
+  it('enforces distinct voters and the inclusive 80% boundary', () => {
+    const positive = sampleReports.slice(0, 3)
+    expect(deriveCommunityStatus([positive[0], positive[0], positive[0]]).status).toBe(
+      'Availability uncertain',
+    )
+    const negative = { ...sampleReports[3], observedAt: SAMPLE_REPORT_TIME - 60000 }
+    expect(deriveCommunityStatus([...positive, negative]).status).toBe('Availability uncertain')
+    const fourth = { ...positive[0], id: 'fourth', userId: 'sample-fourth' }
+    expect(deriveCommunityStatus([...positive, fourth, negative]).status).toBe('Likely still on')
+    expect(
+      deriveCommunityStatus([{ ...positive[0], observedAt: SAMPLE_REPORT_TIME - 86400000 }]).recent,
+    ).toBe(0)
   })
   it('does not use old or future-dated observations as recent evidence', () => {
-    expect(deriveCommunityStatus(sampleReports.slice(3)).status).toBe('No Recent Reports')
+    expect(deriveCommunityStatus(sampleReports.slice(3)).status).toBe('No recent reports')
     expect(
       deriveCommunityStatus([{ ...sampleReports[0], observedAt: SAMPLE_REPORT_TIME + 60_000 }])
         .recent,
     ).toBe(0)
-    expect(deriveCommunityStatus([]).status).toBe('No Recent Reports')
+    expect(deriveCommunityStatus([]).status).toBe('No recent reports')
   })
 })
 
