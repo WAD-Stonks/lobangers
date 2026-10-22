@@ -1,4 +1,4 @@
-import { MONEYDIGEST_SOURCE } from '@api/modules/ingestion/source'
+import { operationalSourceScope } from '@api/modules/ingestion/operational-policy'
 import { createRestHandler, type RestDependencies, requireAdmin } from '@api/rest/context'
 import { parseRestInput } from '@api/rest/validation'
 import {
@@ -12,12 +12,7 @@ export const getIngestionRuns = (dependencies: RestDependencies): RequestHandler
     await requireAdmin(context)
     const input = parseRestInput(ingestionRunsQuerySchema, request.query)
     const rows = await context.db.ingestionRun.findMany({
-      where: {
-        source: {
-          provider: MONEYDIGEST_SOURCE.provider,
-          externalId: MONEYDIGEST_SOURCE.externalId,
-        },
-      },
+      where: { source: operationalSourceScope },
       orderBy: [{ startedAt: 'desc' }, { id: 'desc' }],
       take: input.limit,
       select: {

@@ -14,5 +14,17 @@ if (process.env.NODE_ENV !== 'production') {
   globalForDb.__brokeOclockDb = db
 }
 
-export type { Account, Session, User, Verification } from '@db/generated/prisma/index'
+export type {
+  Account,
+  DealApplicability,
+  OutletEvidenceProvider,
+  OutletGeographyPrecision,
+  OutletScopeBasis,
+  OutletScopeConfirmation,
+  OutletVerificationEvidence,
+  OutletVerificationState,
+  Session,
+  User,
+  Verification,
+} from '@db/generated/prisma/index'
 export { PrismaClient } from '@db/generated/prisma/index'

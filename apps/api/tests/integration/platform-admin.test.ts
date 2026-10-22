@@ -3,6 +3,10 @@ import { randomBytes, randomUUID } from 'node:crypto'
 import { createServer, type Server } from 'node:http'
 import { fileURLToPath } from 'node:url'
 import { promisify } from 'node:util'
+import {
+  registerSyntheticOutletFixtureDatabase,
+  seedSyntheticOccupancy,
+} from '@api/../tests/fixtures/outlet-proof'
 import { parseConfig } from '@api/config'
 import { createApiClient } from '@broke-oclock/api-client'
 import type { IngestionAccountsResponse } from '@broke-oclock/contracts/ingestion'
@@ -143,6 +147,7 @@ beforeAll(async () => {
   })
   const database = await import('@broke-oclock/db')
   db = database.db
+  registerSyntheticOutletFixtureDatabase(db, databaseUrl)
   // A separate pool, explicitly pinned to this disposable replica, for out-of-band writes.
   concurrentDb = new database.PrismaClient({ datasources: { db: { url: databaseUrl } } })
   const { createApp } = await import('@api/app')
@@ -190,7 +195,7 @@ const syntheticUser = (role: 'USER' | 'MERCHANT' | 'MODERATOR' | 'ADMIN' = 'USER
 
 const syntheticVenue = async (name = 'Synthetic stall') => {
   const merchant = await db.merchant.create({ data: { name: 'Synthetic merchant' } })
-  return db.venue.create({
+  const venue = await db.venue.create({
     data: {
       merchantId: merchant.id,
       name,
@@ -199,6 +204,9 @@ const syntheticVenue = async (name = 'Synthetic stall') => {
       longitude: 103.8,
     },
   })
+  // Existing claim/grant positives need current official occupancy, not just coordinates.
+  // This is scoped to the named synthetic selectable fixture, never a DB insertion hook.
+  return seedSyntheticOccupancy(db, venue.id)
 }
 
 // Timing-only instrumentation: every delegate still performs its real Mongo read.
@@ -574,6 +582,7 @@ describe('platform administration: real HTTP/cookies/disposable replica', () => 
         longitude: 103.81,
       },
     })
+    await seedSyntheticOccupancy(db, secondVenue.id)
     const c = clientFor(admin.cookie).platformAdmin
     const firstGrant = await c.grantStall({
       userId: target.id,
@@ -1257,6 +1266,59 @@ describe('platform administration: real HTTP/cookies/disposable replica', () => 
     await c.revokeStall({ grantId: grant.id, expectedVersion: 1, note: 'Legacy revoke' })
     expect((await c.account({ userId: target.id })).grants).toEqual([])
   })
+  it.each(['missing', 'null'] as const)(
+    'retains unverified historical grant capability without admitting new claims or grants: %s proof',
+    async (mode) => {
+      const { requireMerchantStall } = await import('@api/modules/platform-admin/capability')
+      const { submitMerchantAccessRequest } = await import('@api/modules/platform-admin/requests')
+      const holder = await syntheticUser('MERCHANT')
+      const applicant = await syntheticUser()
+      const newGrantee = await syntheticUser('MERCHANT')
+      const merchant = await db.merchant.create({ data: { name: 'Synthetic historical merchant' } })
+      const venue = await db.venue.create({
+        data: {
+          merchantId: merchant.id,
+          name: `Synthetic historical unverified ${randomUUID()}`,
+          address: 'Historical synthetic address',
+          latitude: 1.3,
+          longitude: 103.8,
+        },
+      })
+      if (mode === 'null')
+        await db.venue.update({ where: { id: venue.id }, data: { occupancyEvidence: null } })
+      const historical = await db.stallGrant.create({
+        data: { userId: holder.id, venueId: venue.id },
+      })
+      const c = clientFor(admin.cookie).platformAdmin
+      const before = await db.stallGrant.findUniqueOrThrow({ where: { id: historical.id } })
+      expect((await c.venues({ search: venue.name })).items).toEqual([])
+      expect((await c.account({ userId: holder.id })).grants).toMatchObject([
+        { id: historical.id, venueId: venue.id },
+      ])
+      await expect(
+        db.$transaction((tx) => requireMerchantStall(tx, holder.id, venue.id)),
+      ).resolves.toMatchObject({ grantId: historical.id })
+      await expect(
+        submitMerchantAccessRequest(db, applicant.id, {
+          venueId: venue.id,
+          message: 'Unknown occupancy',
+        }),
+      ).rejects.toMatchObject({ code: 'PRECONDITION_FAILED' })
+      await expect(
+        c.grantStall({
+          userId: newGrantee.id,
+          venueId: venue.id,
+          expectedUserVersion: 0,
+          note: 'No fresh proof',
+        }),
+      ).rejects.toMatchObject({ data: { code: 'PRECONDITION_FAILED' } })
+      expect(await db.stallGrant.count({ where: { userId: newGrantee.id } })).toBe(0)
+      expect(await db.stallGrant.findUniqueOrThrow({ where: { id: historical.id } })).toEqual(
+        before,
+      )
+      expect(await db.merchantAccessRequest.count({ where: { userId: applicant.id } })).toBe(0)
+    },
+  )
   it('rejects forged internal submission fields and never exposes an unrelated public submission endpoint', async () => {
     const { submitMerchantAccessRequest } = await import('@api/modules/platform-admin/requests')
     const target = await syntheticUser()

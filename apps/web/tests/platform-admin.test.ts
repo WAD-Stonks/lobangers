@@ -268,6 +268,72 @@ it('grants the picked second stall and revokes only the selected active grant ve
   })
 })
 
+it.each([true, false])(
+  'distinguishes empty continued stall pages from a completed search (later match: %s)',
+  async (laterMatch) => {
+    const merchant = { ...account, role: 'MERCHANT' as const }
+    rest.accounts.mockResolvedValue({ items: [merchant], nextCursor: null })
+    rest.account.mockResolvedValue(merchant)
+    let release = () => {}
+    const continuation = new Promise<Page<PlatformVenue>>((resolve) => {
+      release = () =>
+        resolve({
+          items: laterMatch
+            ? [
+                {
+                  id: 'verified-stall',
+                  name: 'Verified stall',
+                  merchantName: 'Merchant',
+                  address: 'Fixture road',
+                },
+              ]
+            : [],
+          nextCursor: null,
+        })
+    })
+    rest.venues
+      .mockResolvedValueOnce({ items: [], nextCursor: 'scan-next' })
+      .mockReturnValueOnce(continuation)
+    const w = await open()
+    try {
+      await w.get('[data-testid="account-user-a"]').trigger('click')
+      await flushPromises()
+      await w.get('#account-action').setValue('grant')
+      await w.get('#venue-search').setValue('Fixture')
+      await w.get('#venue-search-form').trigger('submit')
+      await flushPromises()
+      expect(w.text()).not.toContain('No existing stalls match this search.')
+      expect(w.text()).toContain(
+        'No verified stalls on this page. Load more stalls to continue searching.',
+      )
+      expect(w.find('[data-testid="more-venues"]').exists()).toBe(true)
+      await w.get('[data-testid="more-venues"]').trigger('click')
+      expect(rest.venues).toHaveBeenLastCalledWith({
+        search: 'Fixture',
+        limit: 20,
+        cursor: 'scan-next',
+      })
+      expect(w.text()).toContain('Loading stalls…')
+      expect(w.text()).not.toContain('No existing stalls match this search.')
+      release()
+      await flushPromises()
+      expect(w.find('[data-testid="more-venues"]').exists()).toBe(false)
+      expect(w.text()).not.toContain('No verified stalls on this page.')
+      if (laterMatch) {
+        expect(w.get('#venue-choice').text()).toContain('Verified stall')
+        expect(w.text()).not.toContain('No existing stalls match this search.')
+      } else {
+        expect(w.text()).toContain('No existing stalls match this search.')
+      }
+      expect(rest.grantStall).not.toHaveBeenCalled()
+    } finally {
+      release()
+      await flushPromises()
+      w.unmount()
+    }
+  },
+)
+
 it('searches and paginates accounts and filters immutable audit transitions from server data', async () => {
   rest.accounts
     .mockResolvedValueOnce({ items: [account], nextCursor: 'page-a' })

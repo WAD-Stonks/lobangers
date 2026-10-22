@@ -5,7 +5,11 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
-    "./client": "./src/client.ts"
+    "./client": "./src/client.ts",
+    "./constructor": {
+      "browser": null,
+      "default": "./src/constructor.ts"
+    }
   },
   "scripts": {
     "generate": "prisma generate",

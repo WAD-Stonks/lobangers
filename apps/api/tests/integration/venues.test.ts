@@ -3,6 +3,11 @@ import { randomBytes, randomUUID } from 'node:crypto'
 import { createServer, type Server } from 'node:http'
 import { fileURLToPath } from 'node:url'
 import { promisify } from 'node:util'
+import {
+  registerSyntheticOutletFixtureDatabase,
+  seedSyntheticOutletProof,
+  seedSyntheticScope,
+} from '@api/../tests/fixtures/outlet-proof'
 import { parseConfig } from '@api/config'
 import { ApiClientError, createApiClient } from '@broke-oclock/api-client'
 import axios from 'axios'
@@ -27,12 +32,13 @@ beforeAll(async () => {
   const databaseUrl = mongo.getUri(`venues_${randomUUID().replaceAll('-', '')}`)
   vi.stubEnv('DATABASE_URL', databaseUrl)
   vi.stubEnv('NODE_ENV', 'test')
-  await promisify(execFile)('pnpm', ['--dir', 'packages/db', 'run', 'push'], {
+  await promisify(execFile)('pnpm', ['--dir', 'packages/db', 'run', 'push', '--skip-generate'], {
     cwd: root,
     env: { ...process.env, DATABASE_URL: databaseUrl },
     timeout: 60000,
   })
   db = (await import('@broke-oclock/db')).db
+  registerSyntheticOutletFixtureDatabase(db, databaseUrl)
   const { createApp } = await import('@api/app')
   server = createServer()
   await new Promise<void>((resolve) => server?.listen(0, '127.0.0.1', resolve))
@@ -112,8 +118,11 @@ it('returns the venue with only publicly visible ongoing and past deals that app
     },
   })
   const link = (venueId: string) => ({ venues: { create: [{ venueId }] } })
+  await seedSyntheticOutletProof(db, venue.id)
+  await seedSyntheticOutletProof(db, sibling.id)
 
   const selected = await createVisibleDeal('Selected outlet deal', {
+    merchantId: merchant.id,
     validFrom: new Date(now - day),
     validUntil: new Date(now + day),
     ...link(venue.id),
@@ -137,10 +146,23 @@ it('returns the venue with only publicly visible ongoing and past deals that app
     rawValidityText: 'While stocks last',
     publishedAt: new Date(now - 2 * day),
   })
-  await createVisibleDeal('Pending deal', { reviewStatus: 'PENDING', ...link(venue.id) })
-  await createVisibleDeal('Edited after review', { contentVersion: 2, ...link(venue.id) })
-  await createVisibleDeal('Unpublished deal', { publishedAt: null, ...link(venue.id) })
+  const pending = await createVisibleDeal('Pending deal', {
+    merchantId: merchant.id,
+    reviewStatus: 'PENDING',
+    ...link(venue.id),
+  })
+  const staleReview = await createVisibleDeal('Edited after review', {
+    merchantId: merchant.id,
+    contentVersion: 2,
+    ...link(venue.id),
+  })
+  const unpublished = await createVisibleDeal('Unpublished deal', {
+    merchantId: merchant.id,
+    publishedAt: null,
+    ...link(venue.id),
+  })
   const expired = await createVisibleDeal('Expired deal', {
+    merchantId: merchant.id,
     validUntil: new Date(now - 1),
     ...link(venue.id),
   })
@@ -151,28 +173,65 @@ it('returns the venue with only publicly visible ongoing and past deals that app
     priceMinor: null,
     validUntil: new Date(now - 3 * day),
   })
-  await createVisibleDeal('Expired pending deal', {
+  // Pin reviewed positives only, after all final edges; never refresh reviewedVersion.
+  await seedSyntheticScope(db, selected.id, 'SOURCE_SELECTED')
+  await seedSyntheticScope(db, allOutlets.id, 'SOURCE_ALL')
+  await seedSyntheticScope(db, expired.id, 'SOURCE_SELECTED')
+  await seedSyntheticScope(db, olderExpired.id, 'SOURCE_ALL')
+  const expiredPending = await createVisibleDeal('Expired pending deal', {
+    merchantId: merchant.id,
     reviewStatus: 'PENDING',
     validUntil: new Date(now - day),
     ...link(venue.id),
   })
-  await createVisibleDeal('Expired deleted deal', {
+  const expiredDeleted = await createVisibleDeal('Expired deleted deal', {
+    merchantId: merchant.id,
     deletedAt: new Date(),
     validUntil: new Date(now - day),
     ...link(venue.id),
   })
-  await createVisibleDeal('Expired sibling deal', {
+  const expiredSibling = await createVisibleDeal('Expired sibling deal', {
+    merchantId: merchant.id,
     validUntil: new Date(now - day),
     ...link(sibling.id),
   })
-  await createVisibleDeal('Future deal', { validFrom: new Date(now + day), ...link(venue.id) })
-  await createVisibleDeal('Deleted deal', { deletedAt: new Date(), ...link(venue.id) })
-  await createVisibleDeal('Sibling outlet deal', link(sibling.id))
-  await createVisibleDeal('Online deal', { applicability: 'ONLINE', merchantId: merchant.id })
-  await createVisibleDeal('Other merchant deal', {
+  const future = await createVisibleDeal('Future deal', {
+    merchantId: merchant.id,
+    validFrom: new Date(now + day),
+    ...link(venue.id),
+  })
+  const deleted = await createVisibleDeal('Deleted deal', {
+    merchantId: merchant.id,
+    deletedAt: new Date(),
+    ...link(venue.id),
+  })
+  const siblingDeal = await createVisibleDeal('Sibling outlet deal', {
+    merchantId: merchant.id,
+    ...link(sibling.id),
+  })
+  const online = await createVisibleDeal('Online deal', {
+    applicability: 'ONLINE',
+    merchantId: merchant.id,
+  })
+  const otherMerchantDeal = await createVisibleDeal('Other merchant deal', {
     applicability: 'ALL_MERCHANT_OUTLETS',
     merchantId: otherMerchant.id,
   })
+  // Positive scope prerequisites isolate each original moderation/time/selection negative.
+  // The helper never touches reviewedVersion, reviewStatus, publication, deletion or edges.
+  await seedSyntheticScope(db, pending.id, 'SOURCE_SELECTED')
+  await seedSyntheticScope(db, staleReview.id, 'SOURCE_SELECTED')
+  await seedSyntheticScope(db, unpublished.id, 'SOURCE_SELECTED')
+  await seedSyntheticScope(db, expiredPending.id, 'SOURCE_SELECTED')
+  await seedSyntheticScope(db, expiredDeleted.id, 'SOURCE_SELECTED')
+  await seedSyntheticScope(db, expiredSibling.id, 'SOURCE_SELECTED')
+  await seedSyntheticScope(db, future.id, 'SOURCE_SELECTED')
+  await seedSyntheticScope(db, deleted.id, 'SOURCE_SELECTED')
+  await seedSyntheticScope(db, siblingDeal.id, 'SOURCE_SELECTED')
+  await seedSyntheticScope(db, online.id, 'SOURCE_NONSPATIAL')
+  await seedSyntheticScope(db, otherMerchantDeal.id, 'SOURCE_ALL')
+  // Preserve the old missing-merchant/unknown-scope shape as an explicit negative.
+  await createVisibleDeal('Unconfirmed missing merchant deal', link(venue.id))
 
   const response = await http().get(`/api/venues/${venue.id}`)
   expect(response.status).toBe(200)
@@ -253,6 +312,7 @@ it('treats a deal with no end date (null or missing) as ongoing, not past', asyn
   })
   // The importer stores an explicit null; Prisma's Mongo `lte` orders null before every date,
   // so a bare `validUntil <= now` would count an open-ended deal as already over.
+  await seedSyntheticOutletProof(db, venue.id)
   const explicitNull = await createVisibleDeal('Null end outlets deal', {
     applicability: 'ALL_MERCHANT_OUTLETS',
     merchantId: merchant.id,
@@ -268,6 +328,10 @@ it('treats a deal with no end date (null or missing) as ongoing, not past', asyn
     update: 'Deal',
     updates: [{ q: { _id: { $oid: missing.id } }, u: { $unset: { validUntil: '' } } }],
   })
+  // Explicit SYNTHETIC geography, occupancy and final-edge scope prerequisites, independent
+  // of the null/unset date assertion. These receipts never change dates or moderation.
+  await seedSyntheticScope(db, explicitNull.id, 'SOURCE_ALL')
+  await seedSyntheticScope(db, missing.id, 'SOURCE_ALL')
 
   const response = await http().get(`/api/venues/${venue.id}`)
   expect(response.status).toBe(200)

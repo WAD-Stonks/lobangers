@@ -21,6 +21,7 @@ export const venueDealSummarySchema = z.object({
   validUntil: z.string().datetime().nullable(),
   rawValidityText: z.string().nullable(),
   imageUrl: z.string().url().nullable(),
+  imageAltText: z.string().nullable().optional(),
 })
 
 export const venuePastDealSummarySchema = z.object({

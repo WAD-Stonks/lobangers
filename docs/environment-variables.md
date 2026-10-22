@@ -53,19 +53,20 @@ These retained names are not required for manual Vercel runtime environment entr
 
 The server-side adapter acquires, caches and renews expiring access tokens using the [official authentication API](https://www.onemap.gov.sg/apidocs/authentication). API config validates the optional credential pair; missing or placeholder credentials leave lookup unavailable without breaking auth or health checks. Do not maintain a short-lived ONEMAP_TOKEN as a permanent production secret or copy credentials into frontend variables. The ingestion admin lookup is wired to this transport; Add Deal remains a separate consumer integration. Authenticated live-provider acceptance and production credential entry remain pending. See [ingestion setup](ingestion.md).
 
-## MoneyDigest ingestion: default-off manual administration
+## Multi-source ingestion: default-off manual and scheduled administration
 
 | Name | Vercel API placement | Purpose |
 | --- | --- | --- |
-| INGESTION_ENABLED | Variable | `false` by default; API opt-in for bounded manual imports |
+| INGESTION_ENABLED | Variable | `false` by default; API opt-in for bounded manual and scheduled imports |
 | MONEYDIGEST_REUSE_APPROVED | Variable | `false` until publisher reuse has been confirmed |
+| SCOOBIFY_REUSE_APPROVED | Variable | `false` until Scoobify publisher reuse has been confirmed |
 | SCOOBIFY_POSTS_URL | Legacy reference | Historical WordPress source; not consumed by the importer |
-| TELEGRAM_PREVIEW_URL | Legacy reference | Historical preview source; no Telegram scraper is implemented |
-| CRON_SECRET | Reserved secret | Future authenticated scheduled-job endpoint; no current consumer |
+| TELEGRAM_PREVIEW_URL | Legacy reference | Not consumed; administrator-managed preview URLs are stored in ImportSource |
+| CRON_SECRET | API Production secret | Server-only Vercel Cron bearer token, 32-256 ASCII letters, digits, underscores or hyphens. Vercel supplies the Authorization header automatically. |
 
-The fixed-host MoneyDigest transport needs no WordPress username/password. Import requests require both opt-in flags, an enabled matching ImportSource record and a current ADMIN role. Account/source provisioning is a separate approved operation. A public API does not establish publisher reuse permission. The source audit found Scoobify's newest returned post dated 3 July 2025; it is not the promised live feed. Automated checks use synthetic publisher responses and disposable databases, not live publication copies.
+The fixed-host publisher transports need no WordPress username/password. Manual requests require a current ADMIN role; scheduled requests require the separate bearer credential. Both use the same service, global opt-in, provider reuse gates and enabled database-backed source registry. Telegram source URLs and their reuse decisions belong to administrator-managed ImportSource configuration, not an environment URL. Account/source provisioning and publisher reuse permission remain separately approved operations. Source availability is not a freshness guarantee. Automated checks use controlled publisher responses and disposable databases, not live publication copies.
 
-No cron job or handler is configured. The existing manual-run API does not create scheduling. A future schedule requires separately reviewed deployment configuration and an authenticated trigger. Keep CRON_SECRET unset until that consumer exists.
+`GET /api/ingestion/scheduled-runs` is the machine-only Vercel Cron entry point. `apps/api/vercel.json` declares one daily `0 0 * * *` job and the API build carries it into `.vercel/output/config.json`. Vercel invokes the API project's production domain directly, not the web proxy or GitHub Actions. The cron is nominally 08:00 Singapore time; Hobby may invoke it anywhere in the 08:00-08:59 window. The single API function emits a 300-second maximum duration to accommodate the existing 90-second soft ingestion budget and bounded in-flight work. Verify a compatible plan/Fluid compute setting before activation. Deployment, `CRON_SECRET`, source configuration and reuse approval remain separate gates. Missing or malformed credentials reject the request; ingestion remains default-off. The rejected GitHub scheduler settings `INGESTION_CRON_SECRET` and `INGESTION_API_URL` are not used. Do not populate secrets, deploy, enable sources or trigger a live run merely to verify this configuration. See [multi-source ingestion](multisource-ingestion.md), [source administration](ingestion-sources.md) and the official [Vercel Cron guide](https://vercel.com/docs/cron-jobs/manage-cron-jobs).
 
 ## Reserved trust/moderation settings — Community
 
@@ -95,7 +96,7 @@ The API config loader consumes these settings. A missing/placeholder token disab
 
 ## Completeness and safety checks
 
-The inventory in `.env.example` includes current runtime, planned deployment and reserved feature keys. GitHub production contains those names except local-only PORT. Empty/UNSET secret examples and UNCONFIGURED decision markers are intentionally invalid, not working defaults. Do not enable planned features until their consumers validate real configuration.
+The inventory in `.env.example` includes current runtime, planned deployment and reserved feature keys. The optional scheduler names are documented inputs, not a claim that remote secrets have been provisioned. Empty/UNSET secret examples and UNCONFIGURED decision markers are intentionally invalid, not working defaults. Do not enable planned features until their consumers validate real configuration.
 
 The frontend requires **no VITE_* variable**; the only optional one is the publishable `VITE_CARTO_API_KEY` above. It uses same-origin `/api/auth`, `/api/uploadthing` and JSON REST clients under `/api`. Vercel's ordinary Git integration cannot read GitHub Actions secrets automatically. Enter current server credentials directly in the Vercel API project's Production environment; do not copy deployment credentials into either application. GitHub-to-Vercel synchronization is not a remaining setup step.
 The frontend currently requires **no VITE_* variable** and uses same-origin `/api/auth`, `/api/uploadthing` and JSON REST clients under `/api`. Vercel's ordinary Git integration cannot read GitHub Actions secrets automatically. Enter current server credentials directly in the Vercel API project's Production environment; do not copy deployment credentials into either application. GitHub-to-Vercel synchronization is not a remaining setup step.

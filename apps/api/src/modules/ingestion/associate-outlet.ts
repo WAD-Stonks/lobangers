@@ -1,3 +1,4 @@
+import { isSelectableCatalogueVenue } from '@api/modules/deals/outlet-eligibility'
 import { DomainError } from '@api/modules/domain-error'
 import { fenceDraftEvidence } from '@api/modules/ingestion/draft-evidence'
 import { importedDealScope } from '@api/modules/ingestion/review-policy'
@@ -48,6 +49,8 @@ export const associateDraftOutlet = async (
         throw new DomainError('PRECONDITION_FAILED', 'Outlet selection is unchanged')
     }
     const { venue, merchant } = await activeVenue(tx, input.venueId)
+    if (!isSelectableCatalogueVenue(venue))
+      throw new DomainError('PRECONDITION_FAILED', 'Verified current outlet occupancy required')
     await fenceDraftEvidence(tx, deal.sources, now, true)
     const changed = await tx.deal.updateMany({
       where: {
@@ -61,6 +64,7 @@ export const associateDraftOutlet = async (
         merchantId: merchant.id,
         applicability: 'SELECTED_OUTLETS',
         contentVersion: { increment: 1 },
+        scopeConfirmation: { unset: true },
         reviewedVersion: null,
         reviewedById: null,
         reviewedAt: null,

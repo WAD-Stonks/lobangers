@@ -1,5 +1,5 @@
 import { ApiErrorException } from '@api/errors'
-import { isPubliclyVisible } from '@api/modules/account/visibility'
+import { isPubliclyVisible, publicDealVisibilitySelect } from '@api/modules/account/visibility'
 import { createRestHandler, type RestDependencies, requireSession } from '@api/rest/context'
 import { requireTrustedOrigin } from '@api/rest/policy'
 import { parseRestInput } from '@api/rest/validation'
@@ -18,7 +18,10 @@ export const saveBookmark = (dependencies: RestDependencies) =>
     const { dealId } = parseRestInput(bookmarkParamsSchema, request.params)
 
     // 4. The deal must exist and be public. Hidden deals get the same "not found" as missing ones.
-    const deal = await context.db.deal.findUnique({ where: { id: dealId } })
+    const deal = await context.db.deal.findUnique({
+      where: { id: dealId },
+      select: publicDealVisibilitySelect,
+    })
     if (!deal || !isPubliclyVisible(deal)) {
       throw new ApiErrorException('NOT_FOUND')
     }

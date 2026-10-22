@@ -675,6 +675,57 @@ test('synthetic-boundary stale denial cannot overwrite newer search and current 
   await expect(page.getByTestId(`account-${userB}`)).toBeVisible()
 })
 
+test('synthetic-boundary empty stall scan keeps continuation honest before a verified match', async ({
+  page,
+}) => {
+  const state = await syntheticBoundary(page)
+  const cursors: (string | null)[] = []
+  const errors: string[] = []
+  page.on('pageerror', (error) => errors.push(error.message))
+  page.on('console', (message) => {
+    if (message.type() === 'error') errors.push(message.text())
+  })
+  await page.route('**/api/admin/venues*', async (route) => {
+    const cursor = new URL(route.request().url()).searchParams.get('cursor')
+    cursors.push(cursor)
+    await route.fulfill({
+      contentType: 'application/json',
+      body: JSON.stringify({
+        items: cursor ? [state.venues[1]] : [],
+        nextCursor: cursor ? null : stallA,
+      }),
+    })
+  })
+  await page.goto('/admin/accounts')
+  await page.getByTestId(`account-${userA}`).click()
+  await page.getByLabel('Account action', { exact: true }).selectOption('grant')
+  await page.getByLabel('Search existing stalls', { exact: true }).fill('Fixture')
+  await page.getByRole('button', { name: 'Search stalls', exact: true }).click()
+  await expect(
+    page.getByText('No verified stalls on this page. Load more stalls to continue searching.', {
+      exact: true,
+    }),
+  ).toBeVisible()
+  await expect(
+    page.getByText('No existing stalls match this search.', { exact: true }),
+  ).toHaveCount(0)
+  await page.screenshot({ path: test.info().outputPath('continued-empty.png') })
+  await page.getByTestId('more-venues').click()
+  await expect(
+    page.getByLabel('Stall to grant').locator('option').filter({ hasText: 'Stall B' }),
+  ).toHaveCount(1)
+  await expect(page.getByTestId('more-venues')).toHaveCount(0)
+  await expect(page.getByText('No verified stalls on this page.', { exact: false })).toHaveCount(0)
+  await expect(
+    page.getByText('No existing stalls match this search.', { exact: true }),
+  ).toHaveCount(0)
+  await page.getByLabel('Stall to grant').selectOption(stallB)
+  await expect(page.getByLabel('Stall to grant')).toHaveValue(stallB)
+  expect(cursors).toEqual([null, stallA])
+  expect(calls(state, 'grantStall')).toHaveLength(0)
+  expect(errors).toEqual([])
+})
+
 test('synthetic sign-in rechecks platform API access rather than trusting a client role', async ({
   page,
 }) => {

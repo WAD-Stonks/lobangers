@@ -54,6 +54,14 @@ const cuisineLabel = computed(() => {
   return isDealCuisine(cuisine) ? DEAL_CUISINE_LABELS[cuisine] : null
 })
 const photosShown = ref(false)
+// Transitional public readers may still provide only the legacy thumbnail fields.
+const photos = computed(() => {
+  const deal = selected.value?.deal
+  if (!deal) return []
+  return deal.images.length ? deal.images : deal.imageUrl
+    ? [{ url: deal.imageUrl, alt: deal.imageAltText ?? null }]
+    : []
+})
 const freshness = computed(() => (selected.value ? dealFreshness(selected.value.deal) : null))
 const walkLabel = computed(() =>
   selected.value?.distanceMetres == null ? null : `${walkMinutesFor(selected.value.distanceMetres)} min walk`,
@@ -125,7 +133,7 @@ const toggleSave = async () => {
     <div class="deal-panel__media" :style="{ '--hero-tint': categoryStyle(selected.deal.category).tint }">
       <DealGallery
         :key="selected.deal.id"
-        :images="selected.deal.images"
+        :images="photos"
         :title="selected.deal.title"
         @showing="photosShown = $event"
       >

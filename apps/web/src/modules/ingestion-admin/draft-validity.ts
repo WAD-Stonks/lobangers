@@ -14,5 +14,7 @@ export const approvalBlockReason = (draft: Draft | undefined, now = Date.now()):
   if ('reviewReady' in draft && draft.reviewReady === false) {
     return 'The server requires source or offer clarification. Approval is disabled.'
   }
+  if (draft.approvalReady === false)
+    return 'Content may be reviewable, but physical approval requires current source-confirmed scope and verified outlets.'
   return ''
 }

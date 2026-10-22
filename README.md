@@ -47,7 +47,8 @@ See [platform-admin contracts and teammate handoffs](docs/platform-admin.md) and
 ### Implemented
 
 - pnpm monorepo, Vue/Express setup, Better Auth email/password sessions, Prisma/MongoDB integration and automated quality checks.
-- **Ingestion administration at `/admin/ingestion`:** bounded manual MoneyDigest imports, conservative parsing, source attribution, deduplication, run/failure monitoring and version-safe draft review. Imports are **disabled by default** pending permitted reuse and source configuration.
+- **Ingestion administration at `/admin/ingestion`:** bounded MoneyDigest, Scoobify and registered public Telegram adapters, shared manual/scheduled processing, source administration, conservative parsing, immutable citations and version-safe draft review. Imports are **disabled by default** pending permitted reuse and source configuration. See [multi-source ingestion](docs/multisource-ingestion.md).
+- **Imported promotion images:** UploadThing-hosted files with content-addressed MongoDB metadata and per-citation provenance. Admin review, public browse/detail and venue cards render usable hosted images without exposing private storage metadata. This is separate from user-upload ownership and the community submission form.
 - **Platform administration at `/admin/accounts`:** account search/details, role changes, merchant-request approval/rejection, stall grants/revocation and atomic action history. Mutations use current server-side permissions, expected versions and transaction safeguards.
 - Server-side OneMap authentication/search adapter, UploadThing integration infrastructure and an opt-in Resend transport package.
 
@@ -55,16 +56,16 @@ See [platform-admin contracts and teammate handoffs](docs/platform-admin.md) and
 
 - Public map/feed, shared cuisine/price discovery queries, community deal submission and merchant promotion management.
 - Voting/comments/reports, profiles, bookmarks, own-submission pages and user-facing merchant request/status screens.
-- Verification/password-reset email flows, live provider acceptance, scheduled ingestion and confirmed imported-deal outlet association.
+- Verification/password-reset live-provider acceptance, production scheduler activation and confirmed imported-deal outlet association.
 - Account deletion after the retention/anonymisation decision, connected end-to-end demo journeys and separately approved deployment.
 
 Schema models and shared packages do not make these remaining workflows complete. The home and getting-started routes are development pages, not a finished public discovery experience.
 
 ### Data-source alignment
 
-The proposal still names Scoobify/WordPress.com and `@ThisCounted`, while its Week 8 plan calls for **one permitted public deal API**. The current importer uses **MoneyDigest's WordPress endpoint**, not a Telegram scraper or an active Scoobify feed. No periodic scheduler is configured. The team must reconcile the final source choice and reuse permission before activation; this README does not silently treat those proposal candidates as working integrations.
+The proposal names Scoobify/WordPress.com and `@ThisCounted`, while its Week 8 plan calls for **one permitted public deal API**. Implemented adapters now cover MoneyDigest, Scoobify and administrator-registered public Telegram previews. Manual administrator POST and authenticated Vercel Cron GET requests use the same database-backed source registry. The API configuration declares one daily Vercel Cron job at 00:00 UTC (the 08:00-08:59 Singapore window on Hobby), with no GitHub ingestion workflow. Local code, image attachment or credentials alone do not activate it. Publisher availability, reuse approval, an approved production deployment and the API's `CRON_SECRET` remain separate activation gates.
 
-OneMap currently supports server-side search; connecting Isaac's location picker and verifying live authenticated access remain separate tasks. UploadThing infrastructure does not yet constitute the deal-photo attachment flow, and the Resend package does not automatically send verification/reset emails. See [ingestion](docs/ingestion.md), [photo storage](docs/photo-storage.md) and [environment readiness](docs/environment-variables.md).
+Imported media is stored separately from user-owned uploads: image bytes stay on UploadThing, while MongoDB stores verified receipt metadata and immutable source-image links. Source omissions and changed-evidence references remain explicit rather than receiving fabricated images. OneMap's live acceptance and student-owned location/photo form integration remain separate. See [multi-source ingestion](docs/multisource-ingestion.md), [source administration](docs/ingestion-sources.md), [photo storage](docs/photo-storage.md) and [environment readiness](docs/environment-variables.md).
 
 ## Technology and data
 
