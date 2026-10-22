@@ -129,7 +129,7 @@ beforeAll(async () => {
     BETTER_AUTH_SECRET: randomBytes(32).toString('hex'),
     BETTER_AUTH_URL: baseURL,
     WEB_ORIGIN: origin,
-    INGESTION_CRON_SECRET: cronSecret,
+    CRON_SECRET: cronSecret,
   })
   server.on('request', createApp(config, { ingestion: runtime }))
   const signup = await fetch(`${baseURL}/api/auth/sign-up/email`, {
@@ -193,7 +193,7 @@ it.each(cases)(
       const response = await request(
         scheduled ? '/api/ingestion/scheduled-runs' : '/api/ingestion/runs',
         {
-          method: 'POST',
+          method: scheduled ? 'GET' : 'POST',
           ...(scheduled ? { headers: { Authorization: `Bearer ${cronSecret}` } } : {}),
         },
       )
@@ -287,7 +287,7 @@ it.each(cases)(
       new Response('SYNTHETIC publisher unavailable', { status: 503 }),
     )
     const response = await request('/api/ingestion/scheduled-runs', {
-      method: 'POST',
+      method: 'GET',
       headers: { Authorization: `Bearer ${cronSecret}` },
     })
     expect(response.status).toBe(200)
@@ -486,7 +486,7 @@ it('retains HTTP bounds, read method policy and fresh admin role checks without 
   expect(
     (
       await request('/api/ingestion/scheduled-runs', {
-        method: 'POST',
+        method: 'GET',
         headers: { Authorization: `Bearer ${cronSecret}`, Origin: origin },
       })
     ).status,
@@ -494,7 +494,7 @@ it('retains HTTP bounds, read method policy and fresh admin role checks without 
   expect(
     (
       await request('/api/ingestion/scheduled-runs', {
-        method: 'GET',
+        method: 'POST',
         headers: { Authorization: `Bearer ${cronSecret}` },
       })
     ).status,

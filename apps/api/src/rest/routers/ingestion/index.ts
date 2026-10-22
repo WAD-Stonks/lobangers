@@ -9,7 +9,7 @@ import { getIngestionRuns } from '@api/rest/routers/ingestion/handlers/get-runs'
 import { getIngestionSources } from '@api/rest/routers/ingestion/handlers/get-sources'
 import { postIngestionDraftReview } from '@api/rest/routers/ingestion/handlers/review-draft'
 import { postIngestionRun } from '@api/rest/routers/ingestion/handlers/run-ingestion'
-import { postScheduledIngestionRun } from '@api/rest/routers/ingestion/handlers/run-scheduled-ingestion'
+import { getScheduledIngestionRun } from '@api/rest/routers/ingestion/handlers/run-scheduled-ingestion'
 import { searchIngestionLocations } from '@api/rest/routers/ingestion/handlers/search-locations'
 import { patchIngestionDraftCategory } from '@api/rest/routers/ingestion/handlers/set-category'
 import { patchIngestionSource } from '@api/rest/routers/ingestion/handlers/update-source'
@@ -22,8 +22,14 @@ export const createIngestionRouter = (dependencies: RestDependencies): Router =>
   router.all('/sources', methodNotAllowed('GET', 'POST'))
   router.patch('/sources/:sourceId', patchIngestionSource(dependencies))
   router.all('/sources/:sourceId', methodNotAllowed('PATCH'))
-  router.post('/scheduled-runs', postScheduledIngestionRun(dependencies))
-  router.all('/scheduled-runs', methodNotAllowed('POST'))
+  router.all('/scheduled-runs', (_request, response, next) => {
+    response.setHeader('Cache-Control', 'no-store')
+    next()
+  })
+  // Express implicitly dispatches HEAD to GET unless HEAD is registered first.
+  router.head('/scheduled-runs', methodNotAllowed('GET'))
+  router.get('/scheduled-runs', getScheduledIngestionRun(dependencies))
+  router.all('/scheduled-runs', methodNotAllowed('GET'))
   router.get('/dashboard', getIngestionDashboard(dependencies))
   router.get('/accounts', getIngestionAccounts(dependencies))
   router.get('/drafts', getIngestionDrafts(dependencies))

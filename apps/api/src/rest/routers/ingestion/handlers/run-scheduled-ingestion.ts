@@ -10,7 +10,7 @@ import { z } from 'zod'
 
 // Deliberately separate machine authentication: no cookie/session or role bypass
 // is added to the browser route, and unauthorized requests never create context.
-export const postScheduledIngestionRun =
+export const getScheduledIngestionRun =
   (dependencies: RestDependencies): RequestHandler =>
   async (request, response, next) => {
     try {
@@ -30,6 +30,7 @@ export const postScheduledIngestionRun =
         request.headers['sec-fetch-site'] !== undefined
       )
         throw new ApiErrorException('FORBIDDEN', 'Machine requests only')
+      parseRestInput(z.object({}).strict(), request.query)
       parseRestInput(z.undefined(), request.body)
       if (!dependencies.ingestion)
         throw new ApiErrorException('PRECONDITION_FAILED', 'Ingestion is disabled')

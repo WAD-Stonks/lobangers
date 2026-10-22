@@ -45,7 +45,7 @@ The schema remains additive and compatible with absent legacy fields. Some appro
 
 Prisma client generation and disposable schema tests do not apply the schema or backfill to the live database. Optional MongoDB field additions require an explicit reviewed data operation; only the new nonunique catalogue-key index is in scope for narrow index application. Do not run a whole-database schema push or destructive flags for this migration.
 
-Old deployed readers ignore evidence. Catalogue expansion must wait until guarded readers are deployed under separate authorization. This decision does not authorize deployment, source activation, hourly ingestion, a preview/Tailscale restart, blanket approval or a new public confirmation endpoint. See [database schema](../database-schema.md#outlet-evidence-foundation-21-october-2026) for stored fields and policy details.
+Old deployed readers ignore evidence. Catalogue expansion must wait until guarded readers are deployed under separate authorization. This decision does not authorize deployment, source activation, scheduled ingestion, a preview/Tailscale restart, blanket approval or a new public confirmation endpoint. See [database schema](../database-schema.md#outlet-evidence-foundation-21-october-2026) for stored fields and policy details.
 
 ## Rollout status, 22 October 2026
 

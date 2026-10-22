@@ -1,10 +1,14 @@
 import { execFile } from 'node:child_process'
 import { randomBytes, randomUUID } from 'node:crypto'
+import { copyFile, mkdtemp } from 'node:fs/promises'
 import { createServer, type Server } from 'node:http'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { promisify } from 'node:util'
 import { parseConfig } from '@api/config'
 import type { IngestionRuntime } from '@api/modules/ingestion/runtime'
+import axios from 'axios'
 import { MongoMemoryReplSet } from 'mongodb-memory-server'
 import { afterAll, beforeAll, beforeEach, expect, it, vi } from 'vitest'
 
@@ -63,6 +67,18 @@ let db: typeof import('@broke-oclock/db').db
 let server: Server
 let baseURL = ''
 let cookie = ''
+let sessionReads = () => 0
+const snapshotIngestion = () =>
+  Promise.all([
+    db.importSource.findMany({ orderBy: { id: 'asc' } }),
+    db.ingestionRun.findMany({ orderBy: { id: 'asc' } }),
+    db.importedPost.findMany({ orderBy: { id: 'asc' } }),
+    db.deal.findMany({ orderBy: { id: 'asc' } }),
+    db.dealSource.findMany({ orderBy: { id: 'asc' } }),
+    db.importedImage.findMany({ orderBy: { id: 'asc' } }),
+    db.dealSourceImage.findMany({ orderBy: { id: 'asc' } }),
+    db.promotionIdentity.findMany({ orderBy: { id: 'asc' } }),
+  ])
 const request = (path = '/api/ingestion/runs', options: RequestInit = {}) =>
   fetch(`${baseURL}${path}`, {
     method: 'POST',
@@ -73,15 +89,33 @@ beforeAll(async () => {
   mongo = await MongoMemoryReplSet.create({
     replSet: { count: 1, storageEngine: 'wiredTiger', ip: '127.0.0.1' },
   })
-  const databaseUrl = mongo.getUri(`multisource_${randomUUID().replaceAll('-', '')}`)
+  const databaseUrl = mongo.getUri(`ingestion_multisource_${randomUUID().replaceAll('-', '')}`)
+  expect(new URL(databaseUrl).hostname).toBe('127.0.0.1')
   vi.stubEnv('DATABASE_URL', databaseUrl)
   vi.stubEnv('NODE_ENV', 'test')
-  await promisify(execFile)('pnpm', ['--dir', 'packages/db', 'run', 'push'], {
-    cwd: root,
-    env: { ...process.env, DATABASE_URL: databaseUrl },
-    timeout: 60_000,
-  })
+  // Keep Prisma dotenv discovery and generated output away from the worktree.
+  const schemaRoot = await mkdtemp(join(tmpdir(), 'ingestion_multisource_'))
+  const schemaPath = join(schemaRoot, 'schema.prisma')
+  await copyFile(join(root, 'packages/db/prisma/schema.prisma'), schemaPath)
+  await promisify(execFile)(
+    process.execPath,
+    [
+      join(root, 'packages/db/node_modules/prisma/build/index.js'),
+      'db',
+      'push',
+      '--skip-generate',
+      '--schema',
+      schemaPath,
+    ],
+    {
+      cwd: schemaRoot,
+      env: { ...process.env, DATABASE_URL: databaseUrl },
+      timeout: 60_000,
+    },
+  )
   db = (await import('@broke-oclock/db')).db
+  const authModule = await import('@api/auth')
+  const authFactory = vi.spyOn(authModule, 'createAuth')
   const { createApp } = await import('@api/app')
   server = createServer()
   await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve))
@@ -96,11 +130,16 @@ beforeAll(async () => {
         BETTER_AUTH_SECRET: randomBytes(32).toString('hex'),
         BETTER_AUTH_URL: baseURL,
         WEB_ORIGIN: origin,
-        INGESTION_CRON_SECRET: 's'.repeat(48),
+        CRON_SECRET: 's'.repeat(48),
       }),
       { ingestion: runtime },
     ),
   )
+  const nativeAuth = authFactory.mock.results[0]?.value
+  if (!nativeAuth) throw new Error('Missing native auth instance')
+  const getSession = vi.spyOn(nativeAuth.api, 'getSession')
+  sessionReads = () => getSession.mock.calls.length
+  authFactory.mockRestore()
   const signup = await fetch(`${baseURL}/api/auth/sign-up/email`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Origin: origin },
@@ -117,6 +156,8 @@ beforeAll(async () => {
     .join('; ')
   const user = (await signup.json()).user
   await db.user.update({ where: { id: user.id }, data: { role: 'ADMIN' } })
+  expect((await request('/api/ingestion/runs', { method: 'GET' })).status).toBe(200)
+  expect(sessionReads()).toBeGreaterThan(0)
 }, 180_000)
 beforeEach(async () => {
   clock = new Date(clock.getTime() + 31_000)
@@ -142,6 +183,9 @@ afterAll(async () => {
   if (server) await new Promise<void>((resolve) => server.close(() => resolve()))
   await db?.$disconnect()
   await mongo?.stop()
+  expect(server?.listening ?? false).toBe(false)
+  expect(mongo?.state).toBe('stopped')
+  vi.restoreAllMocks()
   vi.unstubAllEnvs()
 })
 it('does not create a second canonical deal when an identical promotion was already rejected', async () => {
@@ -325,7 +369,7 @@ it('loads an admin-registered Telegram channel from the database on every invoca
     delete runtime.sourceRuntime
   }
 })
-it('downloads real source bytes and stores one hosted blob for repeated content hashes', async () => {
+it('downloads source bytes through scheduled GET and stores one hosted blob for repeated hashes', async () => {
   const bytes = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 1, 2, 3, 4])
   const { createHash } = await import('node:crypto')
   const sha256 = createHash('sha256').update(bytes).digest('hex')
@@ -360,8 +404,13 @@ it('downloads real source bytes and stores one hosted blob for repeated content 
       ],
       nextCursor: null,
     })
+  const invoke = () =>
+    request('/api/ingestion/scheduled-runs', {
+      method: 'GET',
+      headers: { Authorization: `Bearer ${'s'.repeat(48)}` },
+    })
   try {
-    const response = await request()
+    const response = await invoke()
     expect(response.status).toBe(200)
     expect(fetchImage).toHaveBeenCalledTimes(3)
     expect(upload).toHaveBeenCalledTimes(1)
@@ -386,45 +435,171 @@ it('downloads real source bytes and stores one hosted blob for repeated content 
       }),
     ])
     clock = new Date(clock.getTime() + 31_000)
-    expect((await request()).status).toBe(200)
+    expect((await invoke()).status).toBe(200)
     expect(upload).toHaveBeenCalledTimes(1)
   } finally {
     delete runtime.fetchImage
     delete runtime.imageStorage
   }
 })
-it('runs scheduled POST with dedicated bearer auth through the same persistent service', async () => {
-  const response = await request('/api/ingestion/scheduled-runs', {
-    headers: { Authorization: `Bearer ${'s'.repeat(48)}` },
-  })
+it('runs scheduled GET with native Vercel bearer auth and deduplicates repeat delivery', async () => {
+  const invoke = () =>
+    request('/api/ingestion/scheduled-runs', {
+      method: 'GET',
+      headers: { Authorization: `Bearer ${'s'.repeat(48)}` },
+    })
+  const response = await invoke()
   expect(response.status).toBe(200)
   expect(await response.json()).toMatchObject({ fetchedCount: 3, createdCount: 3 })
   expect(await db.deal.count()).toBe(3)
-  const before = lists.map((list) => list.mock.calls.length)
-  const invalidHeaders: Record<string, string>[] = [
-    {},
-    { Authorization: 'Bearer wrong' },
-    { Authorization: `Bearer ${'s'.repeat(48)}`, Cookie: cookie },
-    { Authorization: `Bearer ${'s'.repeat(48)}`, Origin: origin },
-  ]
-  for (const headers of invalidHeaders) {
-    const rejected = await request('/api/ingestion/scheduled-runs', { headers })
-    expect([401, 403]).toContain(rejected.status)
-  }
-  for (const method of ['GET', 'HEAD', 'PUT']) {
-    const rejected = await request('/api/ingestion/scheduled-runs', {
+  expect(await db.importedPost.count()).toBe(3)
+  expect(await db.dealSource.count()).toBe(3)
+  expect(await db.ingestionRun.count({ where: { status: 'SUCCEEDED' } })).toBe(3)
+  for (const list of lists) expect(list).toHaveBeenCalledTimes(1)
+  clock = new Date(clock.getTime() + 31_000)
+  const repeated = await invoke()
+  expect(repeated.status).toBe(200)
+  expect(await repeated.json()).toMatchObject({ fetchedCount: 3, createdCount: 0 })
+  expect(await db.deal.count()).toBe(3)
+  expect(await db.importedPost.count()).toBe(3)
+  expect(await db.dealSource.count()).toBe(3)
+  expect(await db.ingestionRun.count({ where: { status: 'SUCCEEDED' } })).toBe(6)
+  const history = await request('/api/ingestion/runs', { method: 'GET' })
+  expect(history.status).toBe(200)
+  expect((await history.json()).items).toHaveLength(6)
+  for (const list of lists) expect(list).toHaveBeenCalledTimes(2)
+})
+it.each(['HEAD', 'POST', 'PUT', 'PATCH', 'DELETE'])(
+  'rejects scheduled %s before any provider or persistent state changes',
+  async (method) => {
+    const before = await snapshotIngestion()
+    const reads = sessionReads()
+    const response = await request('/api/ingestion/scheduled-runs', {
       method,
       headers: { Authorization: `Bearer ${'s'.repeat(48)}` },
     })
-    expect(rejected.status).toBe(405)
-    expect(rejected.headers.get('Allow')).toBe('POST')
+    expect(response.status).toBe(405)
+    expect(response.headers.get('Allow')).toBe('GET')
+    for (const list of lists) expect(list).not.toHaveBeenCalled()
+    expect(await snapshotIngestion()).toEqual(before)
+    expect(sessionReads()).toBe(reads)
+    expect(await db.ingestionRun.count()).toBe(0)
+    expect(await db.importedPost.count()).toBe(0)
+    expect(await db.deal.count()).toBe(0)
+    expect(await db.dealSource.count()).toBe(0)
+    expect(await db.importedImage.count()).toBe(0)
+  },
+)
+it.each(['?unexpected=1', '?secret=synthetic', '?CRON_SECRET=synthetic', '?nested[key]=1'])(
+  'rejects scheduled GET query extras before any ingestion writes: %s',
+  async (query) => {
+    const before = await snapshotIngestion()
+    const reads = sessionReads()
+    const response = await request(`/api/ingestion/scheduled-runs${query}`, {
+      method: 'GET',
+      headers: { Authorization: `Bearer ${'s'.repeat(48)}` },
+    })
+    expect(response.status).toBe(400)
+    for (const list of lists) expect(list).not.toHaveBeenCalled()
+    expect(await snapshotIngestion()).toEqual(before)
+    expect(sessionReads()).toBe(reads)
+    expect(await db.ingestionRun.count()).toBe(0)
+    expect(await db.importedPost.count()).toBe(0)
+    expect(await db.deal.count()).toBe(0)
+  },
+)
+it.each<{ status: number; headers: Record<string, string> }>([
+  { status: 401, headers: {} },
+  { status: 403, headers: { Authorization: `Bearer ${'s'.repeat(48)}`, Origin: origin } },
+  { status: 200, headers: { Authorization: `Bearer ${'s'.repeat(48)}` } },
+])(
+  'never caches scheduled GET responses, including pre-auth rejection: $status',
+  async (fixture) => {
+    const response = await request('/api/ingestion/scheduled-runs', {
+      method: 'GET',
+      headers: fixture.headers,
+    })
+    expect(response.status).toBe(fixture.status)
+    expect(response.headers.get('Cache-Control')).toBe('no-store')
+  },
+)
+it('keeps scheduled GET disabled without enabling ingestion or touching context', async () => {
+  const before = await snapshotIngestion()
+  const reads = sessionReads()
+  runtime.enabled = false
+  try {
+    const response = await request('/api/ingestion/scheduled-runs', {
+      method: 'GET',
+      headers: { Authorization: `Bearer ${'s'.repeat(48)}` },
+    })
+    expect(response.status).toBe(412)
+    expect(response.headers.get('Cache-Control')).toBe('no-store')
+    for (const list of lists) expect(list).not.toHaveBeenCalled()
+    expect(await snapshotIngestion()).toEqual(before)
+    expect(sessionReads()).toBe(reads)
+  } finally {
+    runtime.enabled = true
   }
-  const malformed = await request('/api/ingestion/scheduled-runs', {
-    headers: { Authorization: `Bearer ${'s'.repeat(48)}`, 'Content-Type': 'application/json' },
-    body: '{}',
+})
+it('rejects scheduled GET browser/session fallbacks and malformed bearer authorization', async () => {
+  const before = await snapshotIngestion()
+  const reads = sessionReads()
+  const invalid: { headers: Record<string, string>; status: number }[] = [
+    { headers: {}, status: 401 },
+    { headers: { Authorization: 'Bearer wrong' }, status: 401 },
+    { headers: { Authorization: `Bearer ${'x'.repeat(48)}` }, status: 401 },
+    { headers: { Authorization: `bearer ${'s'.repeat(48)}` }, status: 401 },
+    { headers: { Authorization: 's'.repeat(48) }, status: 401 },
+    { headers: { Cookie: cookie, Origin: origin }, status: 401 },
+    { headers: { Authorization: `Bearer ${'s'.repeat(48)}`, Cookie: cookie }, status: 403 },
+    { headers: { Authorization: `Bearer ${'s'.repeat(48)}`, Origin: origin }, status: 403 },
+    {
+      headers: { Authorization: `Bearer ${'s'.repeat(48)}`, 'Sec-Fetch-Site': 'same-origin' },
+      status: 403,
+    },
+  ]
+  for (const { headers, status } of invalid) {
+    const rejected = await request('/api/ingestion/scheduled-runs', { method: 'GET', headers })
+    expect(rejected.status).toBe(status)
+    expect(rejected.headers.get('Cache-Control')).toBe('no-store')
+    expect(await snapshotIngestion()).toEqual(before)
+    expect(sessionReads()).toBe(reads)
+  }
+  const querySecret = await request(`/api/ingestion/scheduled-runs?secret=${'s'.repeat(48)}`, {
+    method: 'GET',
+    headers: {},
   })
-  expect(malformed.status).toBe(400)
-  expect(lists.map((list) => list.mock.calls.length)).toEqual(before)
+  expect(querySecret.status).toBe(401)
+  for (const list of lists) expect(list).not.toHaveBeenCalled()
+  expect(await snapshotIngestion()).toEqual(before)
+  expect(sessionReads()).toBe(reads)
+})
+it.each([
+  { body: '{}', contentType: 'application/json', status: 400 },
+  { body: '[]', contentType: 'application/json', status: 400 },
+  { body: 'null', contentType: 'application/json', status: 400 },
+  { body: '{', contentType: 'application/json', status: 400 },
+  { body: 'synthetic', contentType: 'text/plain', status: 415 },
+])('rejects actual HTTP GET bodies without state changes: $body', async (fixture) => {
+  const before = await snapshotIngestion()
+  const reads = sessionReads()
+  // Node HTTP transport really sends GET bodies; fetch rejects before transport.
+  const response = await axios.request({
+    url: `${baseURL}/api/ingestion/scheduled-runs`,
+    method: 'GET',
+    headers: {
+      Authorization: `Bearer ${'s'.repeat(48)}`,
+      'Content-Type': fixture.contentType,
+    },
+    data: fixture.body,
+    maxRedirects: 0,
+    proxy: false,
+    validateStatus: () => true,
+  })
+  expect(response.status).toBe(fixture.status)
+  for (const list of lists) expect(list).not.toHaveBeenCalled()
+  expect(await snapshotIngestion()).toEqual(before)
+  expect(sessionReads()).toBe(reads)
 })
 it('creates an unapproved source revision without rewriting an approved deal or citation', async () => {
   lists[1]?.mockResolvedValue({ posts: [], nextCursor: null })

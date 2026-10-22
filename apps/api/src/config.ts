@@ -83,8 +83,8 @@ const parseIngestion = (env: Environment): AppConfig['ingestion'] => {
     enabled: parseFlag(env, 'INGESTION_ENABLED'),
     reuseApproved: parseFlag(env, 'MONEYDIGEST_REUSE_APPROVED'),
     scoobifyReuseApproved: parseFlag(env, 'SCOOBIFY_REUSE_APPROVED'),
-    ...(/^[A-Za-z0-9_-]{32,256}$/u.test(env.INGESTION_CRON_SECRET ?? '')
-      ? { cronSecret: env.INGESTION_CRON_SECRET }
+    ...(/^[A-Za-z0-9_-]{32,256}$/u.test(env.CRON_SECRET ?? '')
+      ? { cronSecret: env.CRON_SECRET }
       : {}),
     ...(configured ? { oneMap: { email, password } } : {}),
   }
