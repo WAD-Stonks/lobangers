@@ -1,4 +1,4 @@
-import { isPubliclyVisible } from '@api/modules/account/visibility'
+import { isPubliclyVisible, publicDealVisibilitySelect } from '@api/modules/account/visibility'
 import { createRestHandler, type RestDependencies, requireSession } from '@api/rest/context'
 import { page } from '@api/rest/routers/platform-admin/validation'
 import { parseRestInput } from '@api/rest/validation'
@@ -29,6 +29,7 @@ export const listBookmarks = (dependencies: RestDependencies) =>
         createdAt: true,
         deal: {
           select: {
+            ...publicDealVisibilitySelect,
             title: true,
             category: true,
             description: true,

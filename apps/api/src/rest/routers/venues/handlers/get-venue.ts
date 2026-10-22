@@ -1,4 +1,12 @@
 import { ApiErrorException } from '@api/errors'
+import { hasVerifiedGeography, hasVerifiedOccupancy } from '@api/modules/deals/outlet-eligibility'
+import {
+  publicCurrentWindowWhere,
+  publicOutletScopeSelect,
+  publicOutletVenueSelect,
+  publicVenuesFor,
+} from '@api/modules/deals/public-deals'
+import { publicImportedImage, publicImportedImageSelect } from '@api/modules/deals/public-images'
 import { activeRecord } from '@api/modules/platform-admin/venues'
 import type { RestDependencies } from '@api/rest/context'
 import { createRestHandler } from '@api/rest/context'
@@ -14,6 +22,7 @@ export const getVenue = (dependencies: RestDependencies) =>
     const venue = await context.db.venue.findFirst({
       where: { id: venueId, ...activeRecord, merchant: { is: activeRecord } },
       select: {
+        ...publicOutletVenueSelect,
         id: true,
         name: true,
         address: true,
@@ -42,27 +51,26 @@ export const getVenue = (dependencies: RestDependencies) =>
       },
     ]
 
+    if (!hasVerifiedGeography(venue) || !hasVerifiedOccupancy(venue)) {
+      // Exact legacy campaign retention can preserve its outlet page. A legacy
+      // point alone never publishes a catalogue candidate or a new campaign.
+      const retained = await context.db.deal.findMany({
+        where: { ...publicAtVenue, AND: activeAtVenue },
+        select: publicOutletScopeSelect,
+      })
+      if (!retained.some((deal) => publicVenuesFor(deal).some((item) => item.id === venue.id)))
+        throw new ApiErrorException('NOT_FOUND', 'Venue not found')
+    }
+
     // ongoing deals have started and have not yet reached validUntil
     const ongoing = context.db.deal.findMany({
       where: {
         ...publicAtVenue,
-        AND: [
-          ...activeAtVenue,
-          {
-            OR: [{ validFrom: null }, { validFrom: { isSet: false } }, { validFrom: { lte: now } }],
-          },
-          {
-            OR: [
-              { validUntil: null },
-              { validUntil: { isSet: false } },
-              { validUntil: { gt: now } },
-            ],
-          },
-        ],
+        AND: [...activeAtVenue, publicCurrentWindowWhere(now)],
       },
       orderBy: { publishedAt: 'desc' },
-      take: maxDeals,
       select: {
+        ...publicOutletScopeSelect,
         id: true,
         title: true,
         category: true,
@@ -72,6 +80,7 @@ export const getVenue = (dependencies: RestDependencies) =>
         discountPercent: true,
         validUntil: true,
         rawValidityText: true,
+        sources: publicImportedImageSelect,
         images: {
           where: activeRecord,
           orderBy: { createdAt: 'asc' },
@@ -84,13 +93,10 @@ export const getVenue = (dependencies: RestDependencies) =>
     // past deals that have exclusive validUntil over. On Mongo, Prisma orders a null date
     // before every real one, so an open-ended deal (validUntil null) needs excluding outright.
     const past = context.db.deal.findMany({
-      where: {
-        ...publicAtVenue,
-        AND: [...activeAtVenue, { validUntil: { lte: now } }, { NOT: { validUntil: null } }],
-      },
+      where: { ...publicAtVenue, validUntil: { not: null, lte: now }, AND: activeAtVenue },
       orderBy: { validUntil: 'desc' },
-      take: maxPastDeals,
       select: {
+        ...publicOutletScopeSelect,
         id: true,
         title: true,
         offerType: true,
@@ -101,7 +107,12 @@ export const getVenue = (dependencies: RestDependencies) =>
       },
     })
 
-    const [deals, pastDeals] = await Promise.all([ongoing, past])
+    const [ongoingRows, pastRows] = await Promise.all([ongoing, past])
+    const atVenue = (deal: Parameters<typeof publicVenuesFor>[0]) =>
+      publicVenuesFor(deal).some((candidate) => candidate.id === venue.id)
+    // Apply limits after proof filtering so held rows cannot crowd out eligible campaigns.
+    const deals = ongoingRows.filter(atVenue).slice(0, maxDeals)
+    const pastDeals = pastRows.filter(atVenue).slice(0, maxPastDeals)
 
     response.json(
       venueDetailResponseSchema.parse({
@@ -123,7 +134,7 @@ export const getVenue = (dependencies: RestDependencies) =>
           discountPercent: deal.discountPercent ?? null,
           validUntil: deal.validUntil?.toISOString() ?? null,
           rawValidityText: deal.rawValidityText ?? null,
-          imageUrl: deal.images[0]?.url ?? null,
+          ...(deal.images[0] ? { imageUrl: deal.images[0].url } : publicImportedImage(deal)),
         })),
         pastDeals: pastDeals.map((deal) => ({
           id: deal.id,

@@ -45,7 +45,29 @@ Existing app-local callers can also use the thin `apps/web/src/lib/photo-upload.
 
 ## Verification scope
 
-Unit tests cover configuration; real local HTTP tests use actual Better Auth/Prisma/MongoDB and the real SDK with explicitly synthetic UploadThing network responses. Chromium exercises the actual browser helper against a stubbed unavailable-storage response. These tests can validate wiring and security boundaries, but are **not proof of a successful hosted upload**. A live upload/readback/delete check still needs a real account token and reachable deployment.
+Unit tests cover configuration; real local HTTP tests use actual Better Auth/Prisma/MongoDB and the real SDK with explicitly synthetic UploadThing network responses. Chromium exercises the actual browser helper against a stubbed unavailable-storage response. These checks prove their tested wiring, not hosted delivery. Server-side archive uploads require separate actual provider receipts and remote-byte readback; a successful archive does not establish the browser-initiated user-upload/callback/ownership/deletion journey.
+
+## Imported promotion media
+
+Imported images use a separate server-owned path from `photoUploader` and `UploadedFile`:
+
+- File bytes stay on UploadThing. MongoDB stores the actual hosted URL/native file key, byte SHA-256, MIME type, size and upload state in `ImportedImage`, never binary/base64 image content.
+- `DealSourceImage` links those verified bytes to immutable source citations, retaining the original attribution URL, actual final fetch URL and optional original alt text. The same bytes can support several citations without inventing a user owner or uploading another copy.
+- Browser-initiated user uploads retain their existing authentication, policy and ownership requirements. Imported-image attachment does not grant a user permission to attach or delete arbitrary files.
+- Bounded recurring downloads use the provider adapter's format, size, DNS, redirect and deadline limits. Read-side metadata is separate: already verified hosted JPEG/PNG/WebP/GIF archives retain their real MIME and byte size, even when larger than the recurring downloader's limit.
+- Admin draft review shows available images with source/hash/status evidence. Public browse/detail and venue projections expose only usable hosted image URLs and alt text for otherwise visible deals; they do not expose private citation bodies, hashes or storage keys. Venue cards retain user-upload precedence.
+- Missing, unhosted or failed media has an explicit fallback. Source URLs never become automatic image fallbacks. A late error from a replaced image node must not hide its successful replacement.
+- An archive attachment operation binds frozen upload and per-post maps to existing source identities/citation evidence, revalidates complete reviewed image receipts in each link transaction, and reads back exact metadata and links. Preserve mismatched or changed-evidence references as explicit omissions rather than rewriting reviewed citations.
+- Media-only activation may add the two media collections and their reviewed indexes. It is not permission for a blanket schema push, new source enablement, scheduler activation, cloud deletion or deployment.
+
+## Current gallery and legacy compatibility
+
+- Public map DTOs retain `cuisine` and the bounded `images` gallery alongside legacy `imageUrl`/`imageAltText`. The legacy thumbnail is the first safe gallery image, including upstream article-hero ordering; the internal selector reads at most five sources and five image links per source and emits at most six distinct gallery images. Source HTML and attribution are used internally only, never returned publicly.
+- Both shapes reject non-hosted media, non-raster MIME types, malformed/non-HTTPS URLs and credential-bearing URLs. Existing hosted GIF metadata remains readable independently of downloader size/format limits. Current map photos, row thumbnails and venue cards use no-referrer requests and fail to placeholders/category art instead of fetching original sources.
+- `DealSourceImage.finalUrl` remains nullable for historical links that predate redirect capture. A missing final URL does not manufacture a fetch receipt: new captures still require their actual final URL, and archive attachment still validates its own complete receipt. Original HTTP attribution stays literal; public reads do not rewrite provenance or data.
+- Optional native `Deal.cuisine`, upload reservation/token/expiry/error fields, UNKNOWN reconciliation, user-upload ownership, outlet proof composites and campaign-scope confirmation remain separate contracts. Schema/client generation is not permission for data rewrites, schema application or deployment.
+
+See [multi-source ingestion](multisource-ingestion.md) for the shared manual/scheduled service, upload reservations and uncertain-outcome policy.
 
 ## References
 

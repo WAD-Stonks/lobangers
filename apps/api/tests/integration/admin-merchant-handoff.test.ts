@@ -3,6 +3,10 @@ import { randomBytes, randomUUID } from 'node:crypto'
 import { createServer, type Server } from 'node:http'
 import { fileURLToPath } from 'node:url'
 import { promisify } from 'node:util'
+import {
+  registerSyntheticOutletFixtureDatabase,
+  seedSyntheticOccupancy,
+} from '@api/../tests/fixtures/outlet-proof'
 import { parseConfig } from '@api/config'
 import { requireMerchantStall } from '@api/modules/platform-admin/capability'
 import { revokeStall } from '@api/modules/platform-admin/grants'
@@ -105,6 +109,7 @@ const deniedWitness = async (cookie: string, venueId: string, code: string, stat
 const approvedFixture = async (name: string) => {
   await db.user.update({ where: { id: user.id }, data: { role: 'USER' } })
   const fixture = await venueFixture(name)
+  await seedSyntheticOccupancy(db, fixture.venue.id)
   const identity = await freshIdentity(user.cookie)
   const request = await submitMerchantAccessRequest(db, identity.id, {
     venueId: fixture.venue.id,
@@ -136,6 +141,7 @@ beforeAll(async () => {
   })
   const database = await import('@broke-oclock/db')
   db = database.db
+  registerSyntheticOutletFixtureDatabase(db, databaseUrl)
   competingDb = new database.PrismaClient({ datasourceUrl: databaseUrl })
   const { createApp } = await import('@api/app')
   server = createServer()
@@ -172,6 +178,8 @@ describe('connected native identity -> internal request -> actual admin Axios HT
   it('approves only outlet A, records exact review/version/audit state and revokes through actual HTTP', async () => {
     const a = await venueFixture('A')
     const b = await venueFixture('B')
+    await seedSyntheticOccupancy(db, a.venue.id)
+    await seedSyntheticOccupancy(db, b.venue.id)
     const identity = await freshIdentity(user.cookie)
     const independent = await freshIdentity(admin.cookie)
     expect(identity).toMatchObject({ id: user.id, role: 'USER' })
@@ -288,6 +296,7 @@ describe('connected native identity -> internal request -> actual admin Axios HT
 
   it('does not turn a rejected request into capability', async () => {
     const { venue } = await venueFixture('rejected')
+    await seedSyntheticOccupancy(db, venue.id)
     const identity = await freshIdentity(otherUser.cookie)
     const request = await submitMerchantAccessRequest(db, identity.id, {
       venueId: venue.id,

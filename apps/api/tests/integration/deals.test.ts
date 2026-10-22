@@ -3,6 +3,11 @@ import { randomUUID } from 'node:crypto'
 import { createServer, type Server } from 'node:http'
 import { fileURLToPath } from 'node:url'
 import { promisify } from 'node:util'
+import {
+  registerSyntheticOutletFixtureDatabase,
+  seedSyntheticOutletProof,
+  seedSyntheticScope,
+} from '@api/../tests/fixtures/outlet-proof'
 import { parseConfig } from '@api/config'
 import type { DealsResponse } from '@broke-oclock/contracts/deals'
 import axios from 'axios'
@@ -30,6 +35,7 @@ beforeAll(async () => {
     timeout: 60_000,
   })
   db = (await import('@broke-oclock/db')).db
+  registerSyntheticOutletFixtureDatabase(db, databaseUrl)
   const { createApp } = await import('@api/app')
   server = createServer()
   await new Promise<void>((resolve) => server?.listen(0, '127.0.0.1', resolve))
@@ -92,6 +98,10 @@ beforeAll(async () => {
   await db.dealVenue.create({
     data: { dealId: expired.id, venueId: venue.id },
   })
+  // Explicit reviewed physical positives; preserve genuine user open-ended validity.
+  await seedSyntheticOutletProof(db, venue.id)
+  await seedSyntheticScope(db, visible.id, 'SOURCE_ALL')
+  await seedSyntheticScope(db, expired.id, 'SOURCE_SELECTED')
   await db.deal.create({
     data: {
       title: 'Pending teh',

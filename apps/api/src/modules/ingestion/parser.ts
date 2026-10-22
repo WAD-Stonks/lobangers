@@ -559,6 +559,15 @@ const secondItemQualification = (tokens: Token[]) => {
 
 export const parseMoneyDigestPost = (input: unknown) => {
   const post = moneyDigestPostSchema.parse(input)
+  return { ...parsePostContent(post), post }
+}
+
+// Provider identities are validated separately; the exact same conservative offer
+// grammar consumes every provider's bounded title/body/excerpt, without fake URLs.
+export const parsePostContent = (input: unknown) => {
+  const post = moneyDigestPostSchema
+    .pick({ title: true, content: true, excerpt: true })
+    .parse(input)
   const fullTitle = plainText(post.title.rendered)
   const title = fullTitle.slice(0, 200)
   const text = plainText(post.content.rendered)

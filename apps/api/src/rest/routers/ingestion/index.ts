@@ -1,18 +1,29 @@
 import type { RestDependencies } from '@api/rest/context'
 import { methodNotAllowed } from '@api/rest/policy'
+import { postIngestionSource } from '@api/rest/routers/ingestion/handlers/add-source'
 import { patchIngestionDraftOutlet } from '@api/rest/routers/ingestion/handlers/associate-outlet'
 import { getIngestionAccounts } from '@api/rest/routers/ingestion/handlers/get-accounts'
 import { getIngestionDashboard } from '@api/rest/routers/ingestion/handlers/get-dashboard'
 import { getIngestionDrafts } from '@api/rest/routers/ingestion/handlers/get-drafts'
 import { getIngestionRuns } from '@api/rest/routers/ingestion/handlers/get-runs'
+import { getIngestionSources } from '@api/rest/routers/ingestion/handlers/get-sources'
 import { postIngestionDraftReview } from '@api/rest/routers/ingestion/handlers/review-draft'
 import { postIngestionRun } from '@api/rest/routers/ingestion/handlers/run-ingestion'
+import { postScheduledIngestionRun } from '@api/rest/routers/ingestion/handlers/run-scheduled-ingestion'
 import { searchIngestionLocations } from '@api/rest/routers/ingestion/handlers/search-locations'
 import { patchIngestionDraftCategory } from '@api/rest/routers/ingestion/handlers/set-category'
+import { patchIngestionSource } from '@api/rest/routers/ingestion/handlers/update-source'
 import { Router } from 'express'
 
 export const createIngestionRouter = (dependencies: RestDependencies): Router => {
   const router = Router()
+  router.get('/sources', getIngestionSources(dependencies))
+  router.post('/sources', postIngestionSource(dependencies))
+  router.all('/sources', methodNotAllowed('GET', 'POST'))
+  router.patch('/sources/:sourceId', patchIngestionSource(dependencies))
+  router.all('/sources/:sourceId', methodNotAllowed('PATCH'))
+  router.post('/scheduled-runs', postScheduledIngestionRun(dependencies))
+  router.all('/scheduled-runs', methodNotAllowed('POST'))
   router.get('/dashboard', getIngestionDashboard(dependencies))
   router.get('/accounts', getIngestionAccounts(dependencies))
   router.get('/drafts', getIngestionDrafts(dependencies))

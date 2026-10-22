@@ -41,6 +41,14 @@ import {
   ingestionRunsResponseSchema,
 } from '@broke-oclock/contracts/ingestion'
 import {
+  ingestionAddSourceRequestSchema,
+  ingestionSetSourceEnabledRequestSchema,
+  ingestionSourceParamsSchema,
+  ingestionSourceSchema,
+  ingestionSourcesQuerySchema,
+  ingestionSourcesResponseSchema,
+} from '@broke-oclock/contracts/ingestion-sources'
+import {
   adminOverviewResponseSchema,
   changePlatformRoleBodySchema,
   grantParamsSchema,
@@ -161,6 +169,25 @@ export const createApiClient = (baseURL = '/api') => {
       me: () => request(http.get('/me'), currentUserResponseSchema),
     },
     ingestion: {
+      sources: (input: QueryInput<typeof ingestionSourcesQuerySchema> = {}) => {
+        const query = validateInput(ingestionSourcesQuerySchema, input)
+        return request(
+          http.get('/ingestion/sources', { params: query }),
+          ingestionSourcesResponseSchema,
+        )
+      },
+      addSource: (input: SchemaInput<typeof ingestionAddSourceRequestSchema>) => {
+        const body = validateInput(ingestionAddSourceRequestSchema, input)
+        return request(http.post('/ingestion/sources', body), ingestionSourceSchema)
+      },
+      setSourceEnabled: (
+        sourceId: string,
+        input: SchemaInput<typeof ingestionSetSourceEnabledRequestSchema>,
+      ) => {
+        const { sourceId: id } = validateInput(ingestionSourceParamsSchema, { sourceId })
+        const body = validateInput(ingestionSetSourceEnabledRequestSchema, input)
+        return request(http.patch(`/ingestion/sources/${id}`, body), ingestionSourceSchema)
+      },
       dashboard: () => request(http.get('/ingestion/dashboard'), ingestionDashboardResponseSchema),
       runs: (input: QueryInput<typeof ingestionRunsQuerySchema> = {}) => {
         const query = validateInput(ingestionRunsQuerySchema, input)

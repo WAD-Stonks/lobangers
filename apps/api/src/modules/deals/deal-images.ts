@@ -2,6 +2,8 @@ import type { DealImage } from '@broke-oclock/contracts/deals'
 
 // A deal's gallery; some roundup posts carry 70+ images, which the panel has no use for.
 export const MAX_DEAL_IMAGES = 6
+export const MAX_IMAGE_SOURCES = 5
+export const MAX_SOURCE_IMAGES = 5
 const HOSTED_IMAGE_STATUS = 'HOSTED'
 // The channel's own "join us on Telegram" banner, and screenshots of tables or comments,
 // are never the photo a deal should lead with.
@@ -10,13 +12,13 @@ const IMG_SRC = /<img\b[^>]*?\bsrc="([^"]+)"/gi
 // WordPress serves resized copies (photo-1024x768.jpg) and big-image copies (photo-scaled.jpg).
 const WORDPRESS_VARIANT = /-(?:\d+x\d+|scaled)(?=\.[a-z0-9]+$)/
 
-type SourceImageRow = {
+export type SourceImageRow = {
   sourceUrl: string
   altText: string | null
-  image: { status: string; hostedUrl: string | null } | null
+  image: { status: string; hostedUrl: string | null; mimeType: string } | null
 }
 
-type ImageSource = {
+export type ImageSource = {
   importedPost: { rawContent: string } | null
   images: readonly SourceImageRow[]
 }
@@ -36,9 +38,23 @@ const imageKey = (url: string): string => {
   return name.toLowerCase().replace(WORDPRESS_VARIANT, '')
 }
 
+// Archive reads accept already hosted raster formats independently of downloader limits.
 const toImage = (row: SourceImageRow): DealImage[] => {
-  const url = row.image?.status === HOSTED_IMAGE_STATUS ? row.image.hostedUrl : null
-  return url?.startsWith('https://') ? [{ url, alt: row.altText }] : []
+  const image = row.image
+  if (
+    !image ||
+    image.status !== HOSTED_IMAGE_STATUS ||
+    !image.hostedUrl ||
+    !['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/avif'].includes(image.mimeType)
+  )
+    return []
+  try {
+    const url = new URL(image.hostedUrl)
+    if (url.protocol !== 'https:' || url.username || url.password) return []
+    return [{ url: image.hostedUrl, alt: row.altText?.trim() || null }]
+  } catch {
+    return []
+  }
 }
 
 // Article sources (HTML) carry every inline image: tables, reader photos, banners. Only the
@@ -61,7 +77,12 @@ const pickFromSource = (source: ImageSource): readonly SourceImageRow[] => {
 // Hosted images worth showing for a deal, deduplicated and capped. Anything not yet hosted,
 // or not served over https, is left out rather than shown broken.
 export const imagesFor = (deal: { sources: readonly ImageSource[] }): DealImage[] => {
-  const usable = deal.sources.flatMap(pickFromSource).flatMap(toImage)
+  const usable = deal.sources
+    .slice(0, MAX_IMAGE_SOURCES)
+    .flatMap((source) =>
+      pickFromSource({ ...source, images: source.images.slice(0, MAX_SOURCE_IMAGES) }),
+    )
+    .flatMap(toImage)
   const unique = [...new Map(usable.map((image) => [image.url, image])).values()]
   return unique.slice(0, MAX_DEAL_IMAGES)
 }

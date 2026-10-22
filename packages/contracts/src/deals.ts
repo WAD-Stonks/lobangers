@@ -45,6 +45,8 @@ export const dealPinSchema = z.strictObject({
   priceMinor: z.number().int().min(0).nullable(),
   discountPercent: z.number().int().min(0).max(100).nullable(),
   terms: z.string().nullable(),
+  imageUrl: z.string().url().nullable().optional(),
+  imageAltText: z.string().nullable().optional(),
   // ISO timestamp of the exclusive end, or null when the deal has no known end date.
   validUntil: z.string().datetime().nullable(),
   rawValidityText: z.string().nullable(),

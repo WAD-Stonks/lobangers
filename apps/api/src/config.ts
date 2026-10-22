@@ -7,6 +7,8 @@ export type AppConfig = {
   ingestion?: {
     enabled: boolean
     reuseApproved: boolean
+    cronSecret?: string
+    scoobifyReuseApproved?: boolean
     oneMap?: { email: string; password: string }
   }
   photoStorage?: { token: string; isDev: boolean }
@@ -80,6 +82,10 @@ const parseIngestion = (env: Environment): AppConfig['ingestion'] => {
   return {
     enabled: parseFlag(env, 'INGESTION_ENABLED'),
     reuseApproved: parseFlag(env, 'MONEYDIGEST_REUSE_APPROVED'),
+    scoobifyReuseApproved: parseFlag(env, 'SCOOBIFY_REUSE_APPROVED'),
+    ...(/^[A-Za-z0-9_-]{32,256}$/u.test(env.INGESTION_CRON_SECRET ?? '')
+      ? { cronSecret: env.INGESTION_CRON_SECRET }
+      : {}),
     ...(configured ? { oneMap: { email, password } } : {}),
   }
 }

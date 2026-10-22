@@ -1,3 +1,4 @@
+import { isSelectableCatalogueVenue } from '@api/modules/deals/outlet-eligibility'
 import { DomainError } from '@api/modules/domain-error'
 import { invalidatePendingRequests } from '@api/modules/platform-admin/invalidation'
 import {
@@ -77,7 +78,9 @@ export const grantStall = (
     checkVersion(target.platformVersion, input.expectedUserVersion)
     if (target.role !== 'MERCHANT')
       throw new DomainError('PRECONDITION_FAILED', 'A merchant account is required')
-    await activeVenue(tx, input.venueId)
+    const { venue } = await activeVenue(tx, input.venueId)
+    if (!isSelectableCatalogueVenue(venue))
+      throw new DomainError('PRECONDITION_FAILED', 'Verified current outlet occupancy required')
     const grant = await activateGrant(tx, target.id, input.venueId)
     await tx.user.update({
       where: { id: target.id },

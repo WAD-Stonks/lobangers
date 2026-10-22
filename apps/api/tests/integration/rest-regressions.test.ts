@@ -22,6 +22,16 @@ const mocks = vi.hoisted(() => {
       user: { findUnique: vi.fn(async () => user), findMany: vi.fn(async () => [user]) },
       importSource: {
         findUnique: vi.fn(async () => ({ id: 'bbbbbbbbbbbbbbbbbbbbbbbb', enabled: true })),
+        findMany: vi.fn(async () => [
+          {
+            id: 'bbbbbbbbbbbbbbbbbbbbbbbb',
+            provider: 'WORDPRESS',
+            externalId: 'moneydigest.sg',
+            name: 'MoneyDigest',
+            url: 'https://www.moneydigest.sg/',
+            enabled: true,
+          },
+        ]),
       },
       deal: { count: vi.fn(async () => 0) },
       importedPost: { count: vi.fn(async () => 0) },
@@ -190,10 +200,17 @@ describe('REST regression slices (real HTTP, synthetic transport dependencies)',
     expect(response.status).toBe(400)
     expect(response.data.error.code).toBe('BAD_REQUEST')
     expect(mocks.db.importSource.findUnique).not.toHaveBeenCalled()
+    expect(mocks.db.importSource.findMany).not.toHaveBeenCalled()
     expect(mocks.db.deal.count).not.toHaveBeenCalled()
     expect(mocks.db.importedPost.count).not.toHaveBeenCalled()
     expect((await http('/api/ingestion/dashboard')).status).toBe(200)
-    expect(mocks.db.importSource.findUnique).toHaveBeenCalledTimes(1)
+    expect(mocks.db.importSource.findUnique).not.toHaveBeenCalled()
+    expect(mocks.db.importSource.findMany).toHaveBeenCalledTimes(1)
+    expect(mocks.db.importSource.findMany).toHaveBeenCalledWith({
+      where: { enabled: true },
+      orderBy: [{ updatedAt: 'asc' }, { id: 'asc' }],
+      take: 50,
+    })
   })
 
   it.each([
