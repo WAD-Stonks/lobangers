@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import logo from '@web/assets/logo.png'
 import CuisineDiscovery from '@web/modules/landing/CuisineDiscovery.vue'
 import HeroSection from '@web/modules/landing/HeroSection.vue'
 import LandingNavbar from '@web/modules/landing/LandingNavbar.vue'
@@ -25,7 +26,7 @@ const { deals, status } = useLandingDeals()
     <div class="landing-reading-progress" :style="{ transform: `scaleX(${pageProgress})` }" aria-hidden="true" />
     <a class="landing-skip" href="#hero-heading">Skip to content</a>
     <LandingNavbar />
-    <HeroSection />
+    <HeroSection :live="deals" :live-state="status" />
     <div class="story-intro" data-reveal data-scroll-reveal>
       <span class="landing-eyebrow">LESS HUNTING. MORE MAKAN.</span>
       <p class="story-intro-copy">A great meal shouldn't take<br />
@@ -50,8 +51,7 @@ const { deals, status } = useLandingDeals()
       <span class="final-spark" aria-hidden="true">✳</span>
     </section>
     <footer class="landing-footer">
-      <RouterLink to="/" class="footer-wordmark">LOBANGERS<span>✳</span>
-      </RouterLink>
+      <RouterLink to="/" class="footer-wordmark" aria-label="Lobangers home"><img :src="logo" alt="LOBANGERS" width="200" height="44" /></RouterLink>
       <p>Good food. Better prices. Little red dot.</p>
       <div>
         <RouterLink to="/browse">Find a lobang ↗</RouterLink>

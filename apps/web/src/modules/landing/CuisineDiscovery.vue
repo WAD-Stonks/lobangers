@@ -3,27 +3,73 @@ import type { DealPin } from '@broke-oclock/contracts/deals'
 import BookmarkButton from '@web/components/BookmarkButton.vue'
 import { api } from '@web/lib/api-client'
 import { authClient } from '@web/lib/auth-client'
-import { cuisines, money, regions, samples } from '@web/modules/landing/deals'
+import { regions } from '@web/modules/landing/deals'
+import { promotionDates, venuesInRegion } from '@web/modules/landing/live-deals'
 import type { LandingDealsStatus } from '@web/modules/landing/use-landing-deals'
-import { computed, onBeforeUnmount, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { RouterLink } from 'vue-router'
 
 const cuisine = ref('All Cuisines')
 const area = ref('all')
-const budget = ref('all')
-defineProps<{ live: DealPin[]; liveState: LandingDealsStatus }>()
+const props = defineProps<{ live: DealPin[]; liveState: LandingDealsStatus }>()
+const cuisines = computed(() => ['All Cuisines', ...new Set(props.live.map((deal) => deal.cuisine ?? 'Others'))])
+const outletDialog = ref<HTMLDialogElement | null>(null)
+const outletDeal = ref<DealPin | null>(null)
+const outletSearch = ref('')
+const visibleOutlets = computed(() => {
+  const query = outletSearch.value.trim().toLocaleLowerCase()
+  return outletDeal.value?.venues.filter(venue => venue.name.toLocaleLowerCase().includes(query)) ?? []
+})
+const openOutlets = (deal: DealPin) => {
+  outletDeal.value = deal
+  outletSearch.value = ''
+  outletDialog.value?.showModal()
+}
 const saved = ref<Set<string>>(new Set())
 const bookmarksReady = ref(false)
 const session = authClient.useSession()
 let alive = true
+const selectedRegion = computed(() => regions[Number(area.value)]?.name)
+const cardVenue = (deal: DealPin) =>
+  area.value === 'all' ? deal.venues[0] : selectedRegion.value ? venuesInRegion(deal, selectedRegion.value)[0] : undefined
 const filtered = computed(() =>
-  samples.filter(
+  props.live.filter(
     (deal) =>
-      (cuisine.value === 'All Cuisines' || deal.cuisine === cuisine.value) &&
-      (area.value === 'all' || deal.region === Number(area.value)) &&
-      (budget.value === 'all' || deal.price <= Number(budget.value)),
+      (cuisine.value === 'All Cuisines' || (deal.cuisine ?? 'Others') === cuisine.value) &&
+      (area.value === 'all' || (selectedRegion.value && venuesInRegion(deal, selectedRegion.value).length > 0)),
   ),
 )
+const page = ref(0)
+const pageSize = ref(4)
+const updatePageSize = () => {
+  pageSize.value = window.innerWidth <= 600 ? 1 : window.innerWidth <= 1100 ? 2 : 4
+}
+onMounted(() => {
+  updatePageSize()
+  window.addEventListener('resize', updatePageSize)
+})
+let touchStart: { x: number; y: number } | null = null
+const startSwipe = (event: TouchEvent) => {
+  const touch = event.touches[0]
+  touchStart = touch ? { x: touch.clientX, y: touch.clientY } : null
+}
+const endSwipe = (event: TouchEvent) => {
+  const start = touchStart
+  touchStart = null
+  const touch = event.changedTouches[0]
+  if (!start || !touch) return
+  const dx = start.x - touch.clientX
+  const dy = start.y - touch.clientY
+  if (Math.abs(dx) < 50 || Math.abs(dx) < Math.abs(dy) * 1.5) return
+  const next = Math.max(0, Math.min(pageCount.value - 1, page.value + (dx > 0 ? 1 : -1)))
+  if (next === page.value) return
+  if (event.cancelable) event.preventDefault()
+  page.value = next
+}
+const pageCount = computed(() => Math.ceil(filtered.value.length / pageSize.value))
+const visibleDeals = computed(() => filtered.value.slice(page.value * pageSize.value, (page.value + 1) * pageSize.value))
+watch(pageSize, () => { page.value = 0 })
+watch(filtered, () => { page.value = 0 }, { flush: 'sync' })
 const updateSaved = (id: string, value: boolean) => {
   const next = new Set(saved.value)
   if (value) next.add(id)
@@ -58,88 +104,86 @@ watch(
 )
 onBeforeUnmount(() => {
   alive = false
+  window.removeEventListener('resize', updatePageSize)
 })
 </script>
 
 <template>
   <section id="cuisines" class="cuisine-discovery" aria-labelledby="cuisine-heading">
     <header class="cuisine-intro" data-reveal>
-      <span class="landing-eyebrow">✳ FOLLOW YOUR APPETITE</span>
-      <h2 id="cuisine-heading">Craving something?<br />We've got the <span>lobang.</span>
-      </h2>
-      <p>From local hawker favourites to international cuisines, discover delicious deals that match your cravings.</p>
+      <h2 id="cuisine-heading"><span class="cuisine-heading-question">Craving something?</span><span class="cuisine-heading-offer">We've got some lobangs for you.</span></h2>
     </header>
-    <p class="sample-disclosure"><strong>Explore a sample of Lobangers.</strong> These are illustrative offers and food photographs, not current promotions. Cuisine filters preview sample content; live deals currently use food categories.</p>
-    <fieldset class="cuisine-filters" data-reveal>
-      <legend class="visually-hidden">Filter sample deals by cuisine</legend>
-      <button v-for="item in cuisines" :key="item" type="button" :class="{ selected: cuisine === item }" :aria-pressed="cuisine === item" @click="cuisine = item">{{ item }}</button>
-    </fieldset>
     <div class="deal-grid-toolbar">
       <p role="status">
-        <strong>{{ filtered.length }}</strong> illustrative {{ filtered.length === 1 ? 'deal' : 'deals' }} <span>· A taste of what's possible</span>
+        <strong>{{ filtered.length }}</strong> current {{ filtered.length === 1 ? 'deal' : 'deals' }} <span>· Fresh finds from the food map</span>
       </p>
       <div>
-        <label for="sample-area" class="visually-hidden">Filter samples by neighbourhood</label>
-        <select id="sample-area" v-model="area">
-          <option value="all">All neighbourhoods</option>
-          <option v-for="(item, index) in regions" :key="item.name" :value="String(index)">{{ item.area }}</option>
+        <label for="deal-area" class="visually-hidden">Filter deals by region</label>
+        <select id="deal-area" v-model="area">
+          <option value="all">All regions</option>
+          <option v-for="(item, index) in regions" :key="item.name" :value="String(index)">{{ item.name }}</option>
         </select>
-        <label for="sample-budget" class="visually-hidden">Maximum sample price</label>
-        <select id="sample-budget" v-model="budget">
-          <option value="all">Any price</option>
-          <option value="5">S$5 & under</option>
-          <option value="3">S$3 & under</option>
+        <label for="deal-cuisine" class="visually-hidden">Filter deals by cuisine</label>
+        <select id="deal-cuisine" v-model="cuisine">
+          <option v-for="item in cuisines" :key="item" :value="item">{{ item }}</option>
         </select>
       </div>
     </div>
-    <TransitionGroup name="cuisine-grid" tag="div" class="landing-deal-grid">
-      <article v-for="deal in filtered" :key="deal.id" class="landing-food-card">
-        <div class="landing-food-photo">
-          <img :src="deal.image" :alt="`${deal.icon} Illustrative food photograph for ${deal.restaurant}`" loading="lazy" width="640" height="480" />
-          <span class="food-offer">{{ deal.badge }}</span>
-          <span class="food-sample">SAMPLE</span>
-        </div>
-        <div class="landing-food-content">
-          <small>{{ deal.cuisine }} <span>· {{ regions[deal.region]?.area }}</span>
-          </small>
-          <h3>{{ deal.restaurant }}</h3>
-          <p>{{ deal.title }}</p>
-          <div>
-            <b>{{ money(deal.price) }}</b>
-            <del>{{ money(deal.original) }}</del>
-            <RouterLink to="/browse" :aria-label="`Explore live deals after viewing the ${deal.restaurant} sample`">Explore live deals <span aria-hidden="true">↗</span></RouterLink>
+    <p v-if="liveState === 'loading'" role="status">Loading current food deals…</p>
+    <p v-else-if="liveState === 'error'" role="status">Deals couldn't load right now. <RouterLink to="/browse">Try the deal map</RouterLink>.</p>
+    <template v-else>
+      <div class="landing-carousel">
+      <div id="landing-deal-carousel" class="landing-deal-grid" :style="{ gridTemplateColumns: `repeat(${pageSize}, minmax(0, 1fr))` }" @touchstart.passive="startSwipe" @touchend="endSwipe" @touchcancel="touchStart = null">
+        <article v-for="deal in visibleDeals" :key="deal.id" class="landing-food-card" :aria-labelledby="`landing-restaurant-${deal.id} landing-offer-${deal.id}`">
+          <div class="landing-food-photo">
+            <img v-if="deal.images[0]" :src="deal.images[0].url" :alt="deal.images[0].alt ?? deal.title" loading="lazy" width="640" height="480" />
+            <div v-else class="landing-food-placeholder"><span aria-hidden="true">🍽️</span><span>No photo yet</span></div>
           </div>
-        </div>
-      </article>
-    </TransitionGroup>
-    <div v-if="!filtered.length" class="cuisine-empty" role="status">
-      <span aria-hidden="true">🍽️</span>
-      <h3>No sample deals for this craving yet.</h3>
-      <p>Try another cuisine or explore the live food map.</p>
-      <button type="button" class="landing-button secondary" @click="cuisine = 'All Cuisines'; area = 'all'; budget = 'all'">Reset sample filters</button>
-    </div>
-    <div class="live-deal-preview">
-      <div class="live-deal-heading">
-        <div>
-          <span class="landing-eyebrow">FROM THE LIVE FOOD MAP</span>
-          <h3>Ready for a real lobang?</h3>
-        </div>
-        <RouterLink class="landing-button secondary" to="/browse">Explore live deals ↗</RouterLink>
-      </div>
-      <p v-if="liveState === 'loading'" role="status">Loading current food deals…</p>
-      <p v-else-if="liveState === 'error'" role="status">Live deals couldn't load right now. You can retry in the deal map.</p>
-      <p v-else-if="!live.length">No current food deals to show here yet. Check the deal map for new promotions.</p>
-      <div v-else class="live-deal-list">
-        <article v-for="item in live.slice(0, 4)" :key="item.id">
-          <small>{{ item.category }}</small>
-          <h4>{{ item.title }}</h4>
-          <p>{{ item.label }}</p>
-          <RouterLink v-if="item.venues[0]" :to="`/venues/${item.venues[0].id}`">{{ item.venues[0].name }} ↗</RouterLink>
-          <BookmarkButton v-if="session.data && bookmarksReady" :deal-id="item.id" :saved="saved.has(item.id)" @change="updateSaved(item.id, $event)" />
-          <RouterLink v-else-if="session.data" to="/saved">Manage saved deals</RouterLink>
-          <RouterLink v-else to="/login">Log in to save</RouterLink>
+          <div class="landing-food-content">
+            <small>{{ deal.cuisine ?? 'Others' }}</small>
+            <div class="landing-card-heading">
+            <h3 :id="`landing-restaurant-${deal.id}`" class="landing-restaurant-name" :title="cardVenue(deal)?.name">{{ cardVenue(deal)?.name ?? 'Restaurant details unavailable' }}</h3>
+            <p :id="`landing-offer-${deal.id}`" class="landing-deal-title" :title="deal.title">{{ deal.title }}</p>
+            </div>
+            <p class="landing-promotion-dates" :title="promotionDates(deal)"><span>Promotion period</span>{{ promotionDates(deal) }}</p>
+            <div class="landing-outlet-summary">
+              <button v-if="deal.venues.length > 1" type="button" class="landing-outlet-button" :aria-label="`View all ${deal.venues.length} outlets for ${deal.title}`" @click="openOutlets(deal)">+{{ deal.venues.length - 1 }} more outlets</button>
+              <span v-else class="landing-outlet-count">{{ deal.venues.length === 1 ? '1 participating outlet' : 'No outlets listed' }}</span>
+            </div>
+            <div class="landing-card-actions">
+              <RouterLink class="landing-card-primary" v-if="cardVenue(deal)" :aria-label="`View ${deal.title} at ${cardVenue(deal)?.name}`" :to="`/venues/${cardVenue(deal)?.id}`">View deal <span aria-hidden="true">→</span></RouterLink>
+              <BookmarkButton v-if="session.data && bookmarksReady" :deal-id="deal.id" :saved="saved.has(deal.id)" @change="updateSaved(deal.id, $event)" />
+              <RouterLink class="landing-card-secondary" v-else-if="session.data" to="/saved">Manage saved deals</RouterLink>
+              <RouterLink class="landing-card-secondary" v-else to="/login">Log in to save</RouterLink>
+            </div>
+          </div>
         </article>
       </div>
-    </div>
+      <nav v-if="filtered.length" class="landing-carousel-controls" aria-label="Deal carousel">
+        <button type="button" aria-label="Previous deals" aria-controls="landing-deal-carousel" :disabled="page === 0" @click="page--"><span aria-hidden="true">←</span></button>
+        <button type="button" aria-label="Next deals" aria-controls="landing-deal-carousel" :disabled="page + 1 >= pageCount" @click="page++"><span aria-hidden="true">→</span></button>
+      </nav>
+      </div>
+      <p v-if="filtered.length" class="landing-carousel-status" role="status" aria-live="polite">Showing {{ page * pageSize + 1 }}–{{ Math.min((page + 1) * pageSize, filtered.length) }} of {{ filtered.length }} deals</p>
+      <div v-if="!filtered.length" class="cuisine-empty" role="status">
+        <span aria-hidden="true">🍽️</span>
+        <h3>{{ live.length ? 'No deals match this craving yet.' : 'No current food deals yet.' }}</h3>
+        <p>Try another cuisine or explore the food map.</p>
+        <button type="button" class="landing-button secondary" @click="cuisine = 'All Cuisines'; area = 'all'">Reset filters</button>
+      </div>
+    </template>
+    <dialog ref="outletDialog" class="landing-outlet-dialog" aria-labelledby="landing-outlet-title">
+      <div class="landing-outlet-dialog-header">
+        <div><span class="landing-eyebrow">PARTICIPATING OUTLETS</span><h3 id="landing-outlet-title">{{ outletDeal?.title }}</h3></div>
+        <button type="button" aria-label="Close outlets" @click="outletDialog?.close()">✕</button>
+      </div>
+      <label for="landing-outlet-search">Find an outlet</label>
+      <input id="landing-outlet-search" v-model="outletSearch" type="search" placeholder="Search by outlet name" />
+      <p role="status">{{ visibleOutlets.length }} of {{ outletDeal?.venues.length ?? 0 }} outlets</p>
+      <ul class="landing-outlet-list">
+        <li v-for="venue in visibleOutlets" :key="venue.id"><RouterLink :to="`/venues/${venue.id}`" @click="outletDialog?.close()">{{ venue.name }} <span aria-hidden="true">↗</span></RouterLink></li>
+      </ul>
+      <p v-if="!visibleOutlets.length">No outlets match your search.</p>
+    </dialog>
   </section>
 </template>

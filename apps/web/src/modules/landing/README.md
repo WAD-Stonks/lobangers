@@ -4,11 +4,11 @@
 
 ## Current components
 
-- `HeroSection.vue`, `IllustratedMap.vue`, `FoodMapPin.vue` and `HeroWaterfront.vue` provide the featured sample offer, selectable regional pins and animated landmarks. Landmark animations continue during map hover. Reduced motion stops decorative movement.
-- `ScrollStory.vue` owns the scroll narrative. `story-timeline.ts`, `use-story-progress.ts` and `use-story-playback.ts` handle reversible progress, optional playback and the still view.
+- `HeroSection.vue`, `IllustratedMap.vue`, `FoodMapPin.vue` and `HeroWaterfront.vue` provide the random current deal per region (using the browse map’s nearest-area lookup), manually selectable regional pins and animated landmarks. The first deal appears without a staged delay, and deals never auto-rotate. Landmark animations continue during map hover. Reduced motion stops decorative movement.
+- `ScrollStory.vue` owns the scroll narrative. `story-timeline.ts`, `use-story-progress.ts` and `use-story-playback.ts` handle reversible progress, optional playback and the still view. The neighbourhood illustration always uses Central and never reads geolocation or location permissions.
 - `FloatingSocialPost.vue` presents illustrative sources. `NeighbourhoodDetail.vue` supplies the illustrated neighbourhood close-up and the portal marker uses a bowl SVG.
 - `CommunityFreshnessScene.vue` explains recent community reports using the animated hawker stall. See [COMMUNITY_SCENE.md](./COMMUNITY_SCENE.md) for renderer lifecycle, fallback behavior and sample-status logic.
-- `CuisineDiscovery.vue` filters illustrative offers and separately renders live API results. Sample content is explicitly labelled; sample links lead to the live browser.
+- `CuisineDiscovery.vue` filters current API deals by cuisine and region dropdowns, using stored photos and venue links. Deals appear one at a time on mobile, two on tablet, and four on desktop, with previous/next controls and horizontal touch swipes. Filtering or changing the viewport layout resets to the first set. Bookmark actions remain on each card. The hero and cuisine grid share the page’s public deals request; loading, unavailable and empty states never substitute sample offers. The separate scroll story retains its illustrative content.
 - `use-landing-motion.ts` enhances content with scroll reveals. The introduction stays hidden at the top of the page and fades after scrolling. Reduced motion or missing observation support leaves content readable.
 
 ## Active assets

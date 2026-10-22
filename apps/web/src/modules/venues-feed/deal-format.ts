@@ -23,7 +23,9 @@ export const offerLabel = (deal: DealOffer): string | null => {
 const lastValidDate = (validUntil: string) =>
   dateFormat.format(new Date(new Date(validUntil).getTime() - 1))
 
-export const validityLabel = (deal: VenueDealSummary): string => {
+export const validityLabel = (
+  deal: Pick<VenueDealSummary, 'validUntil' | 'rawValidityText'>,
+): string => {
   if (deal.validUntil) return `Until ${lastValidDate(deal.validUntil)}`
   return deal.rawValidityText ?? 'No end date listed'
 }

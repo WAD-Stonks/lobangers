@@ -1,8 +1,5 @@
 <script setup lang="ts">
 import type { DealPin } from '@broke-oclock/contracts/deals'
-import { distanceMetres } from '@web/modules/browse-map/distance'
-import { isWithinSingapore } from '@web/modules/browse-map/singapore-bounds'
-import { useGeolocation } from '@web/modules/browse-map/use-geolocation'
 import CommunityFreshnessScene from '@web/modules/landing/CommunityFreshnessScene.vue'
 import { regions, samples } from '@web/modules/landing/deals'
 import FloatingSocialPost from '@web/modules/landing/FloatingSocialPost.vue'
@@ -11,29 +8,18 @@ import NeighbourhoodDetail from '@web/modules/landing/NeighbourhoodDetail.vue'
 import { storyChapter, storyTimeline } from '@web/modules/landing/story-timeline'
 import { useStoryPlayback } from '@web/modules/landing/use-story-playback'
 import { segment, useStoryProgress } from '@web/modules/landing/use-story-progress'
-import { computed, nextTick, ref } from 'vue'
-import { RouterLink } from 'vue-router'
+import { computed, ref } from 'vue'
 
-const props = defineProps<{ liveDeals: DealPin[] }>()
+defineProps<{ liveDeals: DealPin[] }>()
 const root = ref<HTMLElement | null>(null)
 const { progress, reduced: systemReduced, viewport } = useStoryProgress(root)
-const manualStill = ref(false)
 const compactStill = computed(() => viewport.value.height < 700 || viewport.value.width < 360 || (viewport.value.width <= 1100 && viewport.value.height < 820))
-const reduced = computed(() => systemReduced.value || manualStill.value || compactStill.value)
+const reduced = computed(() => systemReduced.value || compactStill.value)
 const playbackToggle = ref<HTMLButtonElement | null>(null)
-const { playing, play, stop } = useStoryPlayback(root, reduced, playbackToggle)
-const toggleStill = async () => {
-  stop()
-  manualStill.value = !manualStill.value
-  await nextTick()
-  root.value?.scrollIntoView?.({ block: 'start', behavior: 'instant' })
-}
-const selected = ref(4)
-const shuffled = ref(0)
-const { status, position, locate } = useGeolocation()
-const locationMessage = ref('Choose a neighbourhood to explore an illustrative food deal.')
-const deal = computed(() => samples[selected.value] ?? samples[0])
-const region = computed(() => regions[selected.value] ?? regions[0])
+const { playing, play } = useStoryPlayback(root, reduced, playbackToggle)
+const selected = 4 // Central is the fixed setting for the illustrative neighbourhood story.
+const deal = computed(() => samples[selected] ?? samples[0])
+const region = computed(() => regions[selected] ?? regions[0])
 const motion = computed(() => storyTimeline(progress.value, reduced.value))
 const chapter = computed(() => (reduced.value ? 3 : storyChapter(progress.value)))
 const scenes = [
@@ -62,26 +48,26 @@ const scenes = [
     label: '04 / THE NEIGHBOURHOOD',
     title: 'Dive into your neighbourhood.',
     description: 'Discover the best food deals closer to home.',
-    hint: 'Pick your neighbourhood. Make it your map. ↓',
+    hint: 'Explore Central, then follow a nearby find. ↓',
   },
   {
     label: '05 / THE SEARCH',
     title: 'Scanning for fresh lobangs.',
     description:
-      'Looking around your chosen neighbourhood. This illustrative search locates a sample pin; it does not verify the offer.',
+      'Looking around Central. This illustrative search locates a sample pin; it does not verify the offer.',
     hint: 'Watch the searchlight find your neighbourhood. ↓',
   },
   {
     label: '06 / THE DIVE',
     title: 'Follow the lobang.',
     description:
-      'Zoom from the whole island into one nearby find. The location and sample offer follow your selection.',
+      'Zoom from the whole island into one nearby find. The sample story follows Central.',
     hint: 'One nearby pin. One delicious possibility. ↓',
   },
   {
     label: '07 / THE FIND',
     title: 'Close to home. Lobang found.',
-    description: 'A tasty little find in your chosen neighbourhood.',
+    description: 'A tasty little find in Central.',
     hint: 'Found the deal? Next, check whether it is still on. ↓',
   },
   {
@@ -100,27 +86,6 @@ const scenes = [
   },
 ] as const
 const scene = computed(() => scenes[chapter.value] ?? scenes[0])
-const controlsUsable = computed(
-  () => reduced.value || (progress.value >= 0.425 && progress.value < 0.54),
-)
-const controlsVisible = computed(
-  () => reduced.value || (progress.value >= 0.34 && progress.value < 0.54),
-)
-const nearbyLive = computed(() => {
-  if (!position.value || !isWithinSingapore(position.value)) return null
-  const origin = position.value
-  return (
-    props.liveDeals
-      .flatMap((item) =>
-        item.venues.map((venue) => ({
-          deal: item,
-          venue,
-          distance: distanceMetres(origin, venue),
-        })),
-      )
-      .sort((a, b) => a.distance - b.distance)[0] ?? null
-  )
-})
 const geometry = computed(() => {
   const { width: w, height: h } = viewport.value
   const mobile = w <= 800
@@ -210,33 +175,6 @@ const routePath = computed(
     `M190 340 Q${(190 + region.value.x * 10) / 2} ${Math.min(240, region.value.y * 6.667 - 75)} ${region.value.x * 10} ${region.value.y * 6.667}`,
 )
 const chapters = [0, 0.1, 0.25, 0.34, 0.45, 0.54, 0.66, 0.81, 0.92, 1]
-const select = (index: number) => {
-  stop()
-  selected.value = index
-  locationMessage.value = `Showing an illustrative deal in ${region.value.area}.`
-}
-const nearMe = async () => {
-  stop()
-  const location = await locate()
-  if (!location) {
-    locationMessage.value = 'Location unavailable. You can still choose a neighbourhood below.'
-    return
-  }
-  if (!isWithinSingapore(location)) {
-    locationMessage.value =
-      'You appear to be outside Singapore. Choose a Singapore neighbourhood to preview.'
-    return
-  }
-  selected.value =
-    regions
-      .map((area, index) => ({ index, distance: distanceMetres(location, area) }))
-      .sort((a, b) => a.distance - b.distance)[0]?.index ?? 4
-  locationMessage.value = `Nearest sample neighbourhood: ${region.value.area}. Location stays in your browser.`
-}
-const shuffle = () => {
-  stop()
-  shuffled.value += 1
-}
 </script>
 
 <template>
@@ -245,10 +183,8 @@ const shuffle = () => {
     <div class="story-sticky">
       <div class="story-scrapbook-background" :style="{ opacity: reduced ? 0 : 1 - segment(progress, .14, .23) }" aria-hidden="true" />
       <div class="story-topline">
-        <span>A GOOD LOBANG IS WORTH FINDING.</span>
         <div class="story-top-actions">
-          <button v-if="!systemReduced && !compactStill" type="button" class="story-still-toggle" :aria-pressed="manualStill" @click="toggleStill">{{ manualStill ? 'Play story motion' : 'Show still version' }}</button>
-          <span v-else>{{ systemReduced ? 'Reduced motion' : 'Compact still view' }}</span>
+          <button v-if="!reduced" ref="playbackToggle" type="button" class="story-playback-toggle" :aria-pressed="playing" @click="play">{{ playing ? 'Ⅱ Pause story' : '▶ Auto-play story' }}</button>
           <a href="#cuisines">Skip to food deals ↘</a>
         </div>
       </div>
@@ -259,14 +195,14 @@ const shuffle = () => {
           <circle cx="500" cy="333" r="280" />
         </svg>
         <div class="story-camera" :style="cameraStyle" :inert="!reduced && (progress < .26 || progress > .61)">
-          <IllustratedMap art-src="/landing/singapore-map-hero-complete-1536.webp" :active="selected" :show-pins="progress > .205 || reduced" :pin-progress="reduced ? 1 : segment(progress, .205, .27)" :inactive-opacity="1 - motion.zoom" :active-opacity="reduced ? 1 : 1 - segment(progress, .60, .635)" @select="select" />
+          <IllustratedMap art-src="/landing/singapore-map-hero-complete-1536.webp" :active="selected" :show-pins="progress > .205 || reduced" :pin-progress="reduced ? 1 : segment(progress, .205, .27)" :inactive-opacity="1 - motion.zoom" :active-opacity="reduced ? 1 : 1 - segment(progress, .60, .635)" :interactive="false" />
           <NeighbourhoodDetail :x="region.x * 10" :y="region.y * 6.667" :style="{ opacity: reduced ? 0 : segment(progress, .58, .635) }" />
           <svg class="neighbourhood-route" viewBox="0 0 1000 666.667" :style="{ opacity: motion.route }" aria-hidden="true">
             <path class="route-shadow" :d="routePath" />
             <path :d="routePath" pathLength="1" :style="{ strokeDashoffset: 1 - motion.route }" />
           </svg>
         </div>
-        <FloatingSocialPost v-for="(_, index) in regions" v-show="!reduced && progress < .25" :key="index" :index="index" :progress="progress" :reduced="reduced" :shuffle="shuffled" />
+        <FloatingSocialPost v-for="(_, index) in regions" v-show="!reduced && progress < .25" :key="index" :index="index" :progress="progress" :reduced="reduced" />
       </div>
       <div class="story-vignette" :style="{ opacity: motion.handoff * (1 - motion.portal) }" aria-hidden="true" />
       <div class="story-handoff-caption" :style="{ opacity: segment(progress, .285, .31) * (1 - segment(progress, .345, .375)) }">ONE MAP → YOUR NEIGHBOURHOOD ↓</div>
@@ -278,22 +214,6 @@ const shuffle = () => {
             <p :style="entrance(.365, .40)">{{ scene.description }}</p>
           </div>
         </Transition>
-        <div class="neighbourhood-controls" :class="{ 'controls-visible': controlsVisible }" :inert="!controlsUsable" :style="entrance(.38, .425, 24)">
-          <button type="button" class="landing-button primary" :disabled="status === 'locating'" @click="nearMe">⌖ {{ status === 'locating' ? 'Finding you…' : 'Find Near Me' }}</button>
-          <label for="story-area" class="visually-hidden">Choose your neighbourhood</label>
-          <select id="story-area" :value="selected" @change="select(Number(($event.target as HTMLSelectElement).value))">
-            <option v-for="(area, index) in regions" :key="area.name" :value="index">{{ area.area }}</option>
-          </select>
-          <p class="location-message" role="status" :style="entrance(.395, .435, 16)">{{ locationMessage }}</p>
-          <RouterLink v-if="nearbyLive" :to="`/venues/${nearbyLive.venue.id}`" class="nearby-live-deal">Nearest listed deal: {{ nearbyLive.deal.title }} · {{ nearbyLive.venue.name }} ↗</RouterLink>
-          <RouterLink to="/browse" class="story-live-link">Open the live deal map ↗</RouterLink>
-        </div>
-        <p class="story-hint">{{ scene.hint }}</p>
-        <div v-if="chapter < 2 && !reduced" class="story-play-controls">
-          <button type="button" @click="shuffle">↝ Shuffle deals</button>
-          <button ref="playbackToggle" type="button" :aria-pressed="playing" @click="play">{{ playing ? 'Ⅱ Pause story' : '▶ Auto-play story' }}</button>
-        </div>
-        <button v-if="playing && chapter >= 2" type="button" class="story-pause" @click="stop">Ⅱ Pause story</button>
         
       </div>
       <div v-if="reduced" class="reduced-story-summary">
@@ -334,7 +254,6 @@ const shuffle = () => {
         </div>
       </div>
       <CommunityFreshnessScene :deal="deal" :area="region.area" :story-progress="progress" :offer="motion.offer" :reduced="reduced" :viewport="viewport" />
-      <button v-if="playing && chapter >= 2" type="button" class="story-playback-stop" @click="stop">Ⅱ Pause story</button>
       <div class="story-bottom">
         <span>{{ chapter < 2 ? 'FIVE FEEDS. TOO MANY TABS.' : chapter < 7 ? 'ONE MAP → YOUR NEIGHBOURHOOD → A NEARBY FIND' : 'STILL ON? GONE? KEEP YOUR NEIGHBOURS IN THE KNOW.' }}</span>
         <div class="story-rail">
