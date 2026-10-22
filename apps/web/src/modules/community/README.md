@@ -1,5 +1,5 @@
-# community
+# Community
 
-Ownership: community interactions around deals, including discussion, votes, reports, or moderation surfaces as defined by the team plan.
+`DealCommunity.vue` and `use-deal-community.ts` implement the live deal panel's voting, comments and report forms using the shared typed Axios client and native auth session. They handle rollback, ownership, duplicate-submit prevention, draft recovery, pagination and stale-response isolation. The illustrative landing hawker scene is separate.
 
-Current state: folder marker only; no community data or interaction is implemented.
+See [the community contract](../../../../../docs/community.md). API/DB persistence tests are real and disposable; component/browser fixtures are explicitly synthetic.

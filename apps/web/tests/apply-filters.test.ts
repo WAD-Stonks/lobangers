@@ -116,9 +116,12 @@ describe('helpers', () => {
     expect(walkMinutesFor(81)).toBe(2)
   })
 
-  it('treats a deal as verified when more people say it is on than gone', () => {
+  it('requires the approved positive-voter count and ratio', () => {
     expect(isVerified({ alive: 0, dead: 0 })).toBe(false)
-    expect(isVerified({ alive: 2, dead: 1 })).toBe(true)
+    expect(isVerified({ alive: 2, dead: 1 })).toBe(false)
+    expect(isVerified({ alive: 3, dead: 0 })).toBe(true)
+    expect(isVerified({ alive: 3, dead: 1 })).toBe(false)
+    expect(isVerified({ alive: 4, dead: 1 })).toBe(true)
     expect(isVerified({ alive: 1, dead: 1 })).toBe(false)
   })
 

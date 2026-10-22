@@ -15,6 +15,25 @@ describe('configuration boundary', () => {
       databaseUrl: environment.DATABASE_URL,
     })
   })
+  it('loads the approved configurable community policy', () => {
+    expect(parseConfig(environment).community).toEqual({
+      minAlive: 3,
+      positivePercent: 80,
+      windowHours: 24,
+    })
+    expect(
+      parseConfig({
+        ...environment,
+        DEAL_CONFIRM_THRESHOLD: '5',
+        DEAL_POSITIVE_PERCENT: '90',
+        DEAL_VOTE_WINDOW_HOURS: '12',
+      }).community,
+    ).toEqual({ minAlive: 5, positivePercent: 90, windowHours: 12 })
+    for (const raw of ['0', '-1', '2.5', 'NaN', '101'])
+      expect(() => parseConfig({ ...environment, DEAL_CONFIRM_THRESHOLD: raw })).toThrow(
+        'DEAL_CONFIRM_THRESHOLD',
+      )
+  })
   it('requires an explicit database instead of silently using a different one', () => {
     expect(() => parseConfig({ BETTER_AUTH_SECRET: environment.BETTER_AUTH_SECRET })).toThrow(
       'DATABASE_URL',

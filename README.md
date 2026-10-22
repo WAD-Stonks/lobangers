@@ -48,13 +48,14 @@ See [platform-admin contracts and teammate handoffs](docs/platform-admin.md) and
 
 - pnpm monorepo, Vue/Express setup, Better Auth email/password sessions, Prisma/MongoDB integration and automated quality checks.
 - **Ingestion administration at `/admin/ingestion`:** bounded manual MoneyDigest imports, conservative parsing, source attribution, deduplication, run/failure monitoring and version-safe draft review. Imports are **disabled by default** pending permitted reuse and source configuration.
+- **Community verification and comments:** authenticated deal-wide votes, a configurable 3-positive/80%/24-hour evidence policy, comments, own-comment deletion and abuse reports in deal details. See [the community contract](docs/community.md).
 - **Platform administration at `/admin/accounts`:** account search/details, role changes, merchant-request approval/rejection, stall grants/revocation and atomic action history. Mutations use current server-side permissions, expected versions and transaction safeguards.
 - Server-side OneMap authentication/search adapter, UploadThing integration infrastructure and an opt-in Resend transport package.
 
 ### Still to connect or complete
 
 - Public map/feed, shared cuisine/price discovery queries, community deal submission and merchant promotion management.
-- Voting/comments/reports, profiles, bookmarks, own-submission pages and user-facing merchant request/status screens.
+- Moderator report review/resolution UI, profiles, bookmarks, own-submission pages and user-facing merchant request/status screens.
 - Verification/password-reset email flows, live provider acceptance, scheduled ingestion and confirmed imported-deal outlet association.
 - Account deletion after the retention/anonymisation decision, connected end-to-end demo journeys and separately approved deployment.
 
