@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { DealPin } from '@broke-oclock/contracts/deals'
+import { areaFor } from '@web/modules/browse-map/cluster-area'
 import { regions } from '@web/modules/landing/deals'
 import HeroWaterfront from '@web/modules/landing/HeroWaterfront.vue'
 import IllustratedMap from '@web/modules/landing/IllustratedMap.vue'
@@ -10,26 +11,44 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { RouterLink } from 'vue-router'
 
 const emit = defineEmits<{ retry: [] }>()
-let selectedManually = false
 const props = defineProps<{ live: DealPin[]; liveState: LandingDealsStatus }>()
-const regionalPicks = computed(() => regions.map((region) => randomRegionalDeal(props.live, region.name)))
+// Include every deal once, including multiple deals in the same region.
+const picks = computed(() => props.live.flatMap(deal => {
+  const venue = deal.venues[0]
+  return venue ? [{ deal, venue }] : []
+}))
+const featured = ref<ReturnType<typeof randomRegionalDeal>>(null)
 const imageFailed = ref(false)
 const selected = ref(0)
 const discoveryKey = ref(0)
-function discover(index: number) {
-  selectedManually = true
-  if (selected.value === index) discoveryKey.value++
-  else selected.value = index
-}
-watch(selected, () => { discoveryKey.value++ })
 const reduced = ref(false)
-const featured = computed(() => regionalPicks.value[selected.value])
-watch(featured, () => { imageFailed.value = false })
-watch(regionalPicks, picks => {
-  if (selectedManually || picks[selected.value]) return
-  const firstAvailable = picks.findIndex(pick => pick !== null)
-  if (firstAvailable >= 0) selected.value = firstAvailable
+function discover(index: number) {
+  const region = regions[index]
+  if (!region) return
+  selected.value = index
+  const pick = randomRegionalDeal(props.live, region.name)
+  if (featured.value?.deal.id === pick?.deal.id) discoveryKey.value++
+  featured.value = pick
+  restartRotation()
+}
+watch(picks, available => {
+  featured.value = available.find(pick => pick.deal.id === featured.value?.deal.id && pick.venue.id === featured.value?.venue.id) ?? available[0] ?? null
 }, { immediate: true })
+watch(featured, pick => {
+  imageFailed.value = false
+  discoveryKey.value++
+  if (pick) selected.value = regions.findIndex(region => region.name === areaFor(pick.venue).region)
+}, { immediate: true })
+let rotation: ReturnType<typeof setInterval> | undefined
+function restartRotation() {
+  clearInterval(rotation)
+  if (props.liveState !== 'ready' || picks.value.length < 2) return
+  rotation = setInterval(() => {
+    const index = picks.value.findIndex(pick => pick.deal.id === featured.value?.deal.id)
+    featured.value = picks.value[(index + 1) % picks.value.length] ?? null
+  }, 5000)
+}
+watch([picks, () => props.liveState], restartRotation)
 const { locationFor } = useOutletAddresses(computed(() => featured.value ? [featured.value.venue] : []))
 const outletLocation = computed(() => locationFor(featured.value?.venue))
 let query: MediaQueryList | undefined
@@ -37,12 +56,14 @@ const syncMotion = () => {
   reduced.value = query?.matches ?? false
 }
 onMounted(() => {
+  restartRotation()
   query = window.matchMedia?.('(prefers-reduced-motion: reduce)')
   syncMotion()
   query?.addEventListener('change', syncMotion)
 
 })
 onBeforeUnmount(() => {
+  clearInterval(rotation)
   query?.removeEventListener('change', syncMotion)
 })
 </script>

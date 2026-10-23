@@ -151,17 +151,46 @@ describe('landing hero', () => {
     await wrapper.get('.island-marker:nth-child(4)').trigger('click')
     expect(wrapper.find('.hero-discovered-food').exists()).toBe(true)
   })
-  it('shows a featured deal immediately and changes region only when selected', async () => {
+  it('cycles through every deal at five-second intervals and wraps around', async () => {
     const wrapper = keep(mount(HeroSection, { props: heroProps, global: { plugins: [router()] } }))
     expect(wrapper.findAll('.island-marker')).toHaveLength(5)
     expect(wrapper.findAll('.food-map-pin')).toHaveLength(5)
     expect(wrapper.get('.hero-deal').text()).toContain('Woodlands')
     expect(wrapper.find('.hero-deal-initial').exists()).toBe(false)
-    await vi.advanceTimersByTimeAsync(20000)
-    expect(wrapper.get('.hero-deal').text()).toContain('Woodlands')
+    await vi.advanceTimersByTimeAsync(4999)
+    expect(wrapper.get('.hero-promotion-title').text()).toBe(liveDealAt(0).title)
+    await vi.advanceTimersByTimeAsync(1)
+    expect(wrapper.get('.hero-promotion-title').text()).toBe(liveDealAt(1).title)
+    for (let index = 2; index <= liveDeals.length; index++) {
+      await vi.advanceTimersByTimeAsync(5000)
+      expect(wrapper.get('.hero-promotion-title').text()).toBe(
+        liveDealAt(index % liveDeals.length).title,
+      )
+    }
     await wrapper.findAll('.island-marker')[3]?.trigger('click')
     expect(wrapper.get('.hero-deal').text()).toContain('East')
     expect(wrapper.findAll('.island-marker.active')).toHaveLength(1)
+  })
+
+  it('includes multiple deals from one region and handles replacement lists', async () => {
+    const second = { ...liveDealAt(0), id: '000000000000000000000099', title: 'Another North deal' }
+    const wrapper = keep(
+      mount(HeroSection, {
+        props: { live: [liveDealAt(0), second, liveDealAt(3)], liveState: 'ready' },
+        global: { plugins: [router()] },
+      }),
+    )
+    await vi.advanceTimersByTimeAsync(5000)
+    expect(wrapper.get('.hero-promotion-title').text()).toBe(second.title)
+    expect(wrapper.get('.hero-card-region').text()).toBe('North')
+    await vi.advanceTimersByTimeAsync(5000)
+    expect(wrapper.get('.hero-promotion-title').text()).toBe(liveDealAt(3).title)
+    await wrapper.setProps({ live: [second] })
+    await vi.advanceTimersByTimeAsync(10000)
+    expect(wrapper.get('.hero-promotion-title').text()).toBe(second.title)
+    await wrapper.setProps({ live: [] })
+    await vi.advanceTimersByTimeAsync(5000)
+    expect(wrapper.find('.hero-live-card').exists()).toBe(false)
   })
 
   it('replays the selected deal pop without rendering a route overlay', async () => {
@@ -196,13 +225,16 @@ describe('landing hero', () => {
     expect(wrapper.get('.hero-deal').text()).toContain('Woodlands')
   })
 
-  it('keeps a selected preview after focus leaves the map', async () => {
+  it('gives a manual selection five seconds before resuming rotation', async () => {
     const wrapper = keep(mount(HeroSection, { props: heroProps, global: { plugins: [router()] } }))
+    await vi.advanceTimersByTimeAsync(4000)
     await wrapper.findAll('.island-marker')[3]?.trigger('click')
     await wrapper.get('.hero-map-area').trigger('focusin')
     await wrapper.get('.hero-map-area').trigger('focusout')
-    await vi.advanceTimersByTimeAsync(15600)
+    await vi.advanceTimersByTimeAsync(4999)
     expect(wrapper.get('.hero-deal').text()).toContain('East')
+    await vi.advanceTimersByTimeAsync(1)
+    expect(wrapper.get('.hero-promotion-title').text()).toBe(liveDealAt(4).title)
   })
 
   it('keeps decorative motion independent of manual deal selection', async () => {
@@ -211,19 +243,19 @@ describe('landing hero', () => {
     expect(wrapper.classes()).not.toContain('hero-ambient-paused')
     expect(wrapper.get('.hero-waterfront').classes()).not.toContain('waterfront-paused')
     await vi.advanceTimersByTimeAsync(10400)
-    expect(wrapper.get('.hero-deal').text()).toContain('Woodlands')
+    expect(wrapper.get('.hero-promotion-title').text()).toBe(liveDealAt(2).title)
     await wrapper.get('.hero-map-area').trigger('mouseleave')
     await vi.advanceTimersByTimeAsync(5200)
-    expect(wrapper.get('.hero-deal').text()).toContain('Woodlands')
+    expect(wrapper.get('.hero-promotion-title').text()).toBe(liveDealAt(3).title)
   })
 
-  it('keeps the hero still when reduced motion is requested', async () => {
+  it('keeps decorative motion still while rotating deals when reduced motion is requested', async () => {
     reduced = true
     const wrapper = keep(mount(HeroSection, { props: heroProps, global: { plugins: [router()] } }))
     await flushPromises()
     expect(wrapper.get('.hero-waterfront').classes()).toContain('waterfront-paused')
     await vi.advanceTimersByTimeAsync(15600)
-    expect(wrapper.find('.hero-deal').text()).toContain('Woodlands')
+    expect(wrapper.get('.hero-promotion-title').text()).toBe(liveDealAt(3).title)
   })
 })
 
