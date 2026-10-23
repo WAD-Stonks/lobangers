@@ -1,21 +1,23 @@
 <script setup lang="ts">
 import type { DealPin } from '@broke-oclock/contracts/deals'
-import { api } from '@web/lib/api-client'
-import { nearestArea } from '@web/modules/browse-map/cluster-area'
 import { regions } from '@web/modules/landing/deals'
 import HeroWaterfront from '@web/modules/landing/HeroWaterfront.vue'
 import IllustratedMap from '@web/modules/landing/IllustratedMap.vue'
 import { isLikelyStillOn, landingDealLink, promotionDates, randomRegionalDeal } from '@web/modules/landing/live-deals'
 import type { LandingDealsStatus } from '@web/modules/landing/use-landing-deals'
+import { useOutletAddresses } from '@web/modules/landing/use-outlet-addresses'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { RouterLink } from 'vue-router'
 
+const emit = defineEmits<{ retry: [] }>()
+let selectedManually = false
 const props = defineProps<{ live: DealPin[]; liveState: LandingDealsStatus }>()
 const regionalPicks = computed(() => regions.map((region) => randomRegionalDeal(props.live, region.name)))
 const imageFailed = ref(false)
 const selected = ref(0)
 const discoveryKey = ref(0)
 function discover(index: number) {
+  selectedManually = true
   if (selected.value === index) discoveryKey.value++
   else selected.value = index
 }
@@ -23,23 +25,13 @@ watch(selected, () => { discoveryKey.value++ })
 const reduced = ref(false)
 const featured = computed(() => regionalPicks.value[selected.value])
 watch(featured, () => { imageFailed.value = false })
-const outletAddress = ref('')
-const addressCache = new Map<string, string>()
-const outletLocation = computed(() => outletAddress.value || (featured.value ? `Near ${nearestArea(featured.value.venue)}` : ''))
-watch(() => featured.value?.venue.id, async (venueId, _previous, onCleanup) => {
-  let active = true
-  onCleanup(() => { active = false })
-  outletAddress.value = venueId ? addressCache.get(venueId) ?? '' : ''
-  if (!venueId || addressCache.has(venueId)) return
-  try {
-    const result = await api.venues.get(venueId)
-    const address = result.venue.address.trim() || result.venue.area?.trim() || ''
-    addressCache.set(venueId, address)
-    if (active) outletAddress.value = address
-  } catch {
-    // The outlet coordinates still provide a neighbourhood if its details are unavailable.
-  }
+watch(regionalPicks, picks => {
+  if (selectedManually || picks[selected.value]) return
+  const firstAvailable = picks.findIndex(pick => pick !== null)
+  if (firstAvailable >= 0) selected.value = firstAvailable
 }, { immediate: true })
+const { locationFor } = useOutletAddresses(computed(() => featured.value ? [featured.value.venue] : []))
+const outletLocation = computed(() => locationFor(featured.value?.venue))
 let query: MediaQueryList | undefined
 const syncMotion = () => {
   reduced.value = query?.matches ?? false
@@ -82,7 +74,11 @@ onBeforeUnmount(() => {
         <IllustratedMap hero-pins art-src="/landing/singapore-map-hero-water-extended-1536.webp" :active="selected" @select="discover" />
         <HeroWaterfront :paused="reduced" />
       </div>
-        <article v-if="featured" :key="discoveryKey" class="hero-deal hero-live-card" :aria-label="`View ${featured.deal.title} at ${featured.venue.name}`">
+        <div v-if="liveState === 'loading'" class="hero-deal hero-live-card hero-loading-card" role="status" aria-busy="true">
+          <span class="visually-hidden">Loading current deals…</span>
+          <div class="hero-loading-content" aria-hidden="true"><span class="landing-skeleton" /><span class="landing-skeleton" /><span class="landing-skeleton" /></div>
+        </div>
+        <article v-else-if="featured" :key="discoveryKey" class="hero-deal hero-live-card" :aria-label="`View ${featured.deal.title} at ${featured.venue.name}`">
           <div class="hero-card-topline"><span class="hero-card-region"><i aria-hidden="true" />{{ regions[selected]?.name }}</span><span>FEATURED FIND</span></div>
           <div class="hero-card-main">
             <div class="hero-card-photo">
@@ -109,7 +105,8 @@ onBeforeUnmount(() => {
         <div v-else class="hero-deal" role="status">
           <div class="hero-deal-copy">
             <small>{{ regions[selected]?.name }}</small>
-            <strong>{{ liveState === 'loading' ? 'Loading current deals…' : liveState === 'error' ? 'Deals could not load right now.' : 'No current deals in this region yet.' }}</strong>
+            <strong>{{ liveState === 'error' ? 'Deals could not load right now.' : 'No current deals in this region yet.' }}</strong>
+            <button v-if="liveState === 'error'" type="button" class="landing-button secondary" @click="emit('retry')">Retry loading deals</button>
             <RouterLink to="/browse">Explore food deals →</RouterLink>
           </div>
         </div>

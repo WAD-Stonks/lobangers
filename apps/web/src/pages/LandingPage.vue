@@ -19,7 +19,7 @@ import { RouterLink } from 'vue-router'
 
 const root = ref<HTMLElement | null>(null)
 const { pageProgress } = useLandingMotion(root)
-const { deals, status } = useLandingDeals()
+const { deals, status, retry } = useLandingDeals()
 </script>
 
 <template>
@@ -27,7 +27,7 @@ const { deals, status } = useLandingDeals()
     <div class="landing-reading-progress" :style="{ transform: `scaleX(${pageProgress})` }" aria-hidden="true" />
     <a class="landing-skip" href="#hero-heading">Skip to content</a>
     <LandingNavbar />
-    <HeroSection :live="deals" :live-state="status" />
+    <HeroSection :live="deals" :live-state="status" @retry="retry" />
     <div class="story-intro" data-reveal data-scroll-reveal>
       <span class="landing-eyebrow">LESS HUNTING. MORE MAKAN.</span>
       <p class="story-intro-copy">A great meal shouldn't take<br />
@@ -36,7 +36,7 @@ const { deals, status } = useLandingDeals()
       <span class="intro-scribble" aria-hidden="true">↓</span>
     </div>
     <ScrollStory />
-    <CuisineDiscovery :live="deals" :live-state="status" />
+    <CuisineDiscovery :live="deals" :live-state="status" @retry="retry" />
     <section class="landing-final" aria-labelledby="final-heading">
       <span class="final-food food-one" aria-hidden="true">🍜</span>
       <span class="final-food food-two" aria-hidden="true">🧋</span>

@@ -118,7 +118,7 @@ describe('landing hero', () => {
     expect(card.get('.hero-restaurant-name').text()).toBe('Woodlands')
     expect(card.get('.hero-promotion-title').text()).toBe('North lunch')
     expect(card.get('.hero-promotion-period').text()).toContain('End date not provided')
-    expect(card.get('.hero-outlet-location').text()).toBe('Near Woodlands')
+    expect(card.get('.hero-outlet-location').text()).toBe('Woodlands')
     expect(card.find('.hero-deal-badge, b').exists()).toBe(false)
     expect(card.get('.hero-deal-action').text()).toContain('View deal')
   })
@@ -132,6 +132,16 @@ describe('landing hero', () => {
     expect(wrapper.get('.hero-live-card').text()).not.toContain('participating outlet')
     await wrapper.get('.island-marker:nth-child(4)').trigger('click')
     expect(wrapper.get('.hero-outlet-location').text()).toContain('Tampines')
+  })
+  it('starts in a populated region when North has no deals', () => {
+    const wrapper = keep(
+      mount(HeroSection, {
+        props: { live: [liveDealAt(3)], liveState: 'ready' },
+        global: { plugins: [router()] },
+      }),
+    )
+    expect(wrapper.get('.hero-card-region').text()).toBe('East')
+    expect(wrapper.get('.hero-outlet-location').text()).toBe('Tampines')
   })
   it('falls back gracefully when a featured photo cannot load', async () => {
     const wrapper = keep(mount(HeroSection, { props: heroProps, global: { plugins: [router()] } }))
@@ -218,6 +228,74 @@ describe('landing hero', () => {
 })
 
 describe('live cuisine discovery', () => {
+  it('uses the displayed outlet address and retains it through login', async () => {
+    mocks.venue.mockImplementation(async (id: string) => ({
+      venue: { address: `Address for ${id}` },
+    }))
+    const r = router()
+    const wrapper = keep(mount(CuisineDiscovery, { props: heroProps, global: { plugins: [r] } }))
+    await flushPromises()
+    const card = wrapper.get('.landing-food-card')
+    expect(card.get('.landing-card-location').text()).toBe(
+      `Address for ${liveDealAt(0).venues[0]?.id}`,
+    )
+    expect(card.find('.landing-card-location svg').exists()).toBe(true)
+    await card.get('img').trigger('error')
+    expect(card.text()).toContain('Photo unavailable')
+    const login = card.findAll('a').find((link) => link.text().includes('Log in to save'))
+    expect(login).toBeDefined()
+    await login?.trigger('click')
+    await flushPromises()
+    expect(r.currentRoute.value.path).toBe('/login')
+    expect(r.currentRoute.value.query.redirect).toBe(
+      `/deals/${liveDealAt(0).id}?at=${liveDealAt(0).venues[0]?.id}`,
+    )
+    expect(wrapper.get('.landing-view-all').attributes('href')).toBe('/browse?cat=food')
+  })
+  it('keeps the filtered outlet location when an earlier address request finishes late', async () => {
+    const north = liveDealAt(0).venues[0]
+    const east = liveDealAt(3).venues[0]
+    if (!north || !east) throw new Error('Missing test outlets')
+    let resolveNorth!: (value: unknown) => void
+    mocks.venue.mockImplementation((id: string) =>
+      id === north.id
+        ? new Promise((resolve) => {
+            resolveNorth = resolve
+          })
+        : Promise.resolve({ venue: { address: '4 Tampines Central 5, Singapore 529510' } }),
+    )
+    const wrapper = keep(
+      mount(CuisineDiscovery, {
+        props: { live: [{ ...liveDealAt(0), venues: [north, east] }], liveState: 'ready' },
+        global: { plugins: [router()] },
+      }),
+    )
+    await wrapper.get('#deal-area').setValue('3')
+    await flushPromises()
+    expect(wrapper.get('.landing-card-location').text()).toBe(
+      '4 Tampines Central 5, Singapore 529510',
+    )
+    resolveNorth({ venue: { address: '1 Woodlands Square, Singapore 738099' } })
+    await flushPromises()
+    expect(wrapper.get('.landing-card-location').text()).toBe(
+      '4 Tampines Central 5, Singapore 529510',
+    )
+    expect(wrapper.get('.landing-card-primary').attributes('href')).toContain(`at=${east.id}`)
+  })
+  it('shows skeletons while loading and exposes an explicit retry on failure', async () => {
+    const wrapper = keep(
+      mount(CuisineDiscovery, {
+        props: { live: [], liveState: 'loading' },
+        global: { plugins: [router()] },
+      }),
+    )
+    expect(wrapper.findAll('.landing-skeleton-card')).toHaveLength(4)
+    await wrapper.setProps({ liveState: 'error' })
+    await wrapper.get('.landing-deals-error button').trigger('click')
+    expect(wrapper.emitted('retry')).toHaveLength(1)
+    expect(wrapper.findAll('.landing-skeleton-card')).toHaveLength(0)
+  })
+
   it('combines live cuisine and region dropdown filters and resets empty results', async () => {
     const wrapper = keep(
       mount(CuisineDiscovery, {

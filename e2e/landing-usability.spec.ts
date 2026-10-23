@@ -2,6 +2,19 @@ import { expect, test } from '@playwright/test'
 
 // Synthetic API fixtures exercise the actual landing page, client, routing and responsive CSS.
 const venueId = 'a'.repeat(24)
+const address = '1 Woodlands Square, Singapore 738099'
+const venueResponse = {
+  venue: {
+    id: venueId,
+    name: 'Synthetic Woodlands outlet',
+    address,
+    area: 'Woodlands',
+    postalCode: '738099',
+    merchantName: 'Synthetic',
+  },
+  deals: [],
+  pastDeals: [],
+}
 const deals = Array.from({ length: 6 }, (_, index) => ({
   id: String(index + 1).padStart(24, '0'),
   title: `Synthetic meal ${index + 1}`,
@@ -30,6 +43,7 @@ for (const width of [320, 390, 1440]) {
     await page.route('**/api/**', (route) => {
       const path = new URL(route.request().url()).pathname
       if (path === '/api/auth/get-session') return route.fulfill({ json: null })
+      if (path === `/api/venues/${venueId}`) return route.fulfill({ json: venueResponse })
       if (path === '/api/deals')
         return route.fulfill({ json: { items: deals, categories: ['FOOD'] } })
       return route.fulfill({
@@ -62,8 +76,18 @@ for (const width of [320, 390, 1440]) {
     await expect(cards.first().locator('.landing-verification-badge')).toHaveText(
       '✓ Likely still on',
     )
-    await expect(cards.first().locator('.landing-card-location')).toContainText('Woodlands')
+    await expect(cards.first().locator('.landing-card-location')).toHaveText(address)
+    const loginHref = await cards
+      .first()
+      .getByRole('link', { name: 'Log in to save' })
+      .getAttribute('href')
+    expect(new URL(loginHref ?? '', 'http://localhost').searchParams.get('redirect')).toBe(
+      `/deals/${deals[0]?.id}?at=${venueId}`,
+    )
     const controls = page.locator('.landing-carousel-controls')
+    await expect(
+      page.locator('.deal-grid-toolbar').getByRole('link', { name: 'View all food deals' }),
+    ).toHaveAttribute('href', '/browse?cat=food')
     await controls.scrollIntoViewIfNeeded()
     const bounds = await page.evaluate(() => ({
       grid: document.querySelector('.landing-deal-grid')?.getBoundingClientRect().bottom ?? 0,
@@ -78,6 +102,24 @@ for (const width of [320, 390, 1440]) {
     )
     await controls.getByRole('button', { name: 'Previous deals', exact: true }).click()
     await page.screenshot({ path: info.outputPath(`landing-deals-${width}.png`) })
+    if (width === 390) {
+      const story = page.locator('.cinematic-story')
+      expect(
+        await story.evaluate((el) => el.getBoundingClientRect().height / innerHeight),
+      ).toBeCloseTo(5.2, 1)
+      for (const progress of [0.25, 0.6, 0.9]) {
+        await story.evaluate((el, p) => {
+          const top = el.getBoundingClientRect().top + scrollY
+          window.scrollTo({
+            top: top + (el.getBoundingClientRect().height - innerHeight) * p,
+            behavior: 'instant',
+          })
+        }, progress)
+        await expect(page.getByRole('link', { name: 'Skip to food deals' })).toBeVisible()
+      }
+      await page.getByRole('link', { name: 'Skip to food deals' }).click()
+      await expect(page).toHaveURL(/#cuisines$/)
+    }
     const fonts = await page
       .locator('.story-playback-toggle')
       .evaluateAll((elements) =>
@@ -87,3 +129,39 @@ for (const width of [320, 390, 1440]) {
     expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)).toBe(false)
   })
 }
+
+test('failed deals can retry, with skeletons until the replacement response arrives', async ({
+  page,
+}) => {
+  let calls = 0
+  let release!: () => void
+  const ready = new Promise<void>((resolve) => {
+    release = resolve
+  })
+  await page.route('**/api/**', async (route) => {
+    const path = new URL(route.request().url()).pathname
+    if (path === '/api/auth/get-session') return route.fulfill({ json: null })
+    if (path === `/api/venues/${venueId}`) return route.fulfill({ json: venueResponse })
+    if (path === '/api/deals') {
+      calls++
+      if (calls === 1)
+        return route.fulfill({
+          status: 503,
+          json: { error: { code: 'UNAVAILABLE', message: 'Synthetic error' } },
+        })
+      await ready
+      return route.fulfill({ json: { items: deals, categories: ['FOOD'] } })
+    }
+    return route.fulfill({ status: 404, json: {} })
+  })
+  await page.goto('/')
+  const section = page.locator('#cuisines')
+  await section.getByRole('button', { name: 'Retry loading deals' }).click()
+  await expect(section.locator('.landing-skeleton-card')).toHaveCount(4)
+  await expect(page.locator('.hero-loading-card')).toHaveAttribute('aria-busy', 'true')
+  release()
+  await expect(section.locator('.landing-skeleton-card')).toHaveCount(0)
+  await expect(section.locator('.landing-food-card')).toHaveCount(4)
+  await expect(section.locator('.landing-card-location').first()).toHaveText(address)
+  expect(calls).toBe(2)
+})

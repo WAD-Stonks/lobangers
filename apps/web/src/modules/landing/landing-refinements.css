@@ -173,6 +173,20 @@
   padding: 8px 12px;
   letter-spacing: 0;
   border-radius: var(--landing-control-radius);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #ddd7bf;
+  background: #fffdf5;
+  color: #252a20;
+  font-weight: 700;
+  text-decoration: none;
+  white-space: nowrap;
+  box-shadow: 0 4px 10px #8270390a;
+}
+.lobangers-landing .story-playback-toggle:is(:hover, :focus-visible),
+.lobangers-landing .cinematic-story .story-top-actions > a:is(:hover, :focus-visible) {
+  background: #f7f0d6;
 }
 .lobangers-landing .cinematic-story .story-sample-note {
   font-size: 12px;
@@ -247,5 +261,126 @@
       .community-explore
     ) {
     transition: none;
+  }
+}
+
+.lobangers-landing .landing-card-location {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  white-space: normal;
+  min-height: 2.9em;
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.45;
+}
+.lobangers-landing .landing-card-location svg {
+  width: 20px;
+  height: 20px;
+  flex: none;
+}
+.lobangers-landing .landing-card-location > span {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+.lobangers-landing .deal-grid-toolbar .landing-view-all {
+  grid-area: all;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 8px 0;
+  margin-left: auto;
+  color: var(--landing-coral-ink);
+  font-size: 14px;
+  font-weight: 700;
+  text-decoration: none;
+}
+.lobangers-landing .landing-view-all > span:first-child {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.lobangers-landing .deal-grid-toolbar {
+  display: grid;
+  grid-template-areas: "count filters all";
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px 12px;
+  margin-bottom: 16px;
+}
+.lobangers-landing .deal-grid-toolbar > p {
+  grid-area: count;
+}
+.lobangers-landing .deal-grid-toolbar > div {
+  grid-area: filters;
+  margin-left: 0;
+  gap: 8px;
+}
+.lobangers-landing .deal-grid-toolbar select {
+  appearance: none;
+  padding: 10px 44px 10px 16px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23252a20' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 16px center;
+  background-size: 16px 16px;
+}
+.landing-skeleton {
+  display: block;
+  min-height: 18px;
+  border-radius: 6px;
+  background: #e8e7df;
+}
+.landing-skeleton-card .landing-food-content {
+  display: grid;
+  gap: 16px;
+  min-height: 250px;
+}
+.landing-skeleton-card .landing-food-content > span {
+  height: 18px;
+}
+.hero-loading-card .hero-loading-content {
+  grid-column: 1 / -1;
+  display: grid;
+  align-content: center;
+  gap: 20px;
+  min-height: 200px;
+}
+.landing-deals-error {
+  padding-block: 24px;
+}
+.lobangers-landing .landing-deals-error > p {
+  margin-bottom: 16px;
+}
+.lobangers-landing .cuisine-discovery .landing-deals-error > a {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  margin: 8px 12px;
+  text-decoration: underline;
+}
+@media (max-width: 800px) {
+  .lobangers-landing .deal-grid-toolbar {
+    grid-template-areas:
+      "count all"
+      "filters filters";
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px;
+  }
+  .lobangers-landing .deal-grid-toolbar > div {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+  .lobangers-landing .deal-grid-toolbar select {
+    width: 100%;
+    min-width: 0;
+    max-width: none;
+    padding-inline: 12px 36px;
+    background-position: right 12px center;
   }
 }

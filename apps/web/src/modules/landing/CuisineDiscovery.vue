@@ -3,13 +3,15 @@ import type { DealPin } from '@broke-oclock/contracts/deals'
 import BookmarkButton from '@web/components/BookmarkButton.vue'
 import { api } from '@web/lib/api-client'
 import { authClient } from '@web/lib/auth-client'
-import { nearestArea } from '@web/modules/browse-map/cluster-area'
 import { regions } from '@web/modules/landing/deals'
 import { isLikelyStillOn, landingDealLink, promotionDates, venuesInRegion } from '@web/modules/landing/live-deals'
 import type { LandingDealsStatus } from '@web/modules/landing/use-landing-deals'
+import { useOutletAddresses } from '@web/modules/landing/use-outlet-addresses'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { RouterLink } from 'vue-router'
 
+const emit = defineEmits<{ retry: [] }>()
+const failedImages = ref(new Set<string>())
 const cuisine = ref('All Cuisines')
 const area = ref('all')
 const props = defineProps<{ live: DealPin[]; liveState: LandingDealsStatus }>()
@@ -33,8 +35,7 @@ let alive = true
 const selectedRegion = computed(() => regions[Number(area.value)]?.name)
 const cardVenue = (deal: DealPin) =>
   area.value === 'all' ? deal.venues[0] : selectedRegion.value ? venuesInRegion(deal, selectedRegion.value)[0] : undefined
-const cardArea = (deal: DealPin) => { const venue = cardVenue(deal); return venue ? nearestArea(venue) : '' }
-const dealLink = (deal: DealPin) => { const venue = cardVenue(deal); return venue ? landingDealLink(deal, venue.id) : '/browse' }
+const dealLink = (deal: DealPin) => { const venue = cardVenue(deal); return venue ? landingDealLink(deal, venue.id) : `/deals/${deal.id}` }
 const filtered = computed(() =>
   props.live.filter(
     (deal) =>
@@ -71,6 +72,7 @@ const endSwipe = (event: TouchEvent) => {
 }
 const pageCount = computed(() => Math.ceil(filtered.value.length / pageSize.value))
 const visibleDeals = computed(() => filtered.value.slice(page.value * pageSize.value, (page.value + 1) * pageSize.value))
+const { locationFor } = useOutletAddresses(computed(() => visibleDeals.value.flatMap(deal => { const venue = cardVenue(deal); return venue ? [venue] : [] })))
 watch(pageSize, () => { page.value = 0 })
 watch(filtered, () => { page.value = 0 }, { flush: 'sync' })
 const updateSaved = (id: string, value: boolean) => {
@@ -117,30 +119,43 @@ onBeforeUnmount(() => {
       <h2 id="cuisine-heading"><span class="cuisine-heading-question">Craving something?</span><span class="cuisine-heading-offer">We've got some lobangs for you.</span></h2>
     </header>
     <div class="deal-grid-toolbar">
-      <p role="status">
-        <strong>{{ filtered.length }}</strong> current {{ filtered.length === 1 ? 'deal' : 'deals' }} <span>· Fresh finds from the food map</span>
+      <p v-if="liveState === 'ready'" role="status">
+        <strong>{{ filtered.length }}</strong> current {{ filtered.length === 1 ? 'deal' : 'deals' }}
       </p>
+      <RouterLink class="landing-view-all" to="/browse?cat=food"><span>View all food deals</span><span aria-hidden="true">→</span></RouterLink>
       <div>
         <label for="deal-area" class="visually-hidden">Filter deals by region</label>
-        <select id="deal-area" v-model="area">
+        <select id="deal-area" v-model="area" :disabled="liveState !== 'ready'">
           <option value="all">All regions</option>
           <option v-for="(item, index) in regions" :key="item.name" :value="String(index)">{{ item.name }}</option>
         </select>
         <label for="deal-cuisine" class="visually-hidden">Filter deals by cuisine</label>
-        <select id="deal-cuisine" v-model="cuisine">
+        <select id="deal-cuisine" v-model="cuisine" :disabled="liveState !== 'ready'">
           <option v-for="item in cuisines" :key="item" :value="item">{{ item }}</option>
         </select>
       </div>
     </div>
-    <p v-if="liveState === 'loading'" role="status">Loading current food deals…</p>
-    <p v-else-if="liveState === 'error'" role="status">Deals couldn't load right now. <RouterLink to="/browse">Try the deal map</RouterLink>.</p>
+    <div v-if="liveState === 'loading'" role="status" aria-busy="true">
+      <p>Loading current food deals…</p>
+      <div class="landing-deal-grid" :style="{ gridTemplateColumns: `repeat(${pageSize}, minmax(0, 1fr))` }" aria-hidden="true">
+        <div v-for="index in pageSize" :key="index" class="landing-food-card landing-skeleton-card">
+          <div class="landing-food-photo landing-skeleton" />
+          <div class="landing-food-content"><span class="landing-skeleton" /><span class="landing-skeleton" /><span class="landing-skeleton" /></div>
+        </div>
+      </div>
+    </div>
+    <div v-else-if="liveState === 'error'" class="landing-deals-error" role="alert">
+      <p>Deals couldn't load right now.</p>
+      <button type="button" class="landing-button secondary" @click="emit('retry')">Retry loading deals</button>
+      <RouterLink to="/browse">Explore the deal map →</RouterLink>
+    </div>
     <template v-else>
       <div class="landing-carousel">
       <div id="landing-deal-carousel" class="landing-deal-grid" :style="{ gridTemplateColumns: `repeat(${pageSize}, minmax(0, 1fr))` }" @touchstart.passive="startSwipe" @touchend="endSwipe" @touchcancel="touchStart = null">
         <article v-for="deal in visibleDeals" :key="deal.id" class="landing-food-card" :aria-labelledby="`landing-restaurant-${deal.id} landing-offer-${deal.id}`">
           <div class="landing-food-photo">
-            <img v-if="deal.images[0]" :src="deal.images[0].url" :alt="deal.images[0].alt ?? deal.title" loading="lazy" width="640" height="480" />
-            <div v-else class="landing-food-placeholder"><span aria-hidden="true">🍽️</span><span>No photo yet</span></div>
+            <img v-if="deal.images[0] && !failedImages.has(deal.images[0].url)" @error="failedImages.add(deal.images[0].url)" :src="deal.images[0].url" :alt="deal.images[0].alt ?? deal.title" loading="lazy" width="640" height="480" />
+            <div v-else class="landing-food-placeholder"><span aria-hidden="true">🍽️</span><span>{{ deal.images.length ? 'Photo unavailable' : 'No photo yet' }}</span></div>
           </div>
           <div class="landing-food-content">
             <small>{{ deal.cuisine ?? 'Others' }}</small>
@@ -150,7 +165,7 @@ onBeforeUnmount(() => {
             </div>
             <p class="landing-promotion-dates" :title="promotionDates(deal)"><span>Promotion period</span>{{ promotionDates(deal) }}</p>
             <div class="landing-outlet-summary">
-              <p v-if="cardVenue(deal)" class="landing-card-location">⌖ Near {{ cardArea(deal) }}</p>
+              <p v-if="cardVenue(deal)" class="landing-card-location" :title="locationFor(cardVenue(deal))"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M20 10c0 6-8 11-8 11S4 16 4 10a8 8 0 1 1 16 0Z" /><circle cx="12" cy="10" r="2.5" /></svg><span>{{ locationFor(cardVenue(deal)) }}</span></p>
               <span v-if="isLikelyStillOn(deal)" class="landing-verification-badge">✓ Likely still on</span>
               <button v-if="deal.venues.length > 1" type="button" class="landing-outlet-button" :aria-label="`View all ${deal.venues.length} outlets for ${deal.title}`" @click="openOutlets(deal)">+{{ deal.venues.length - 1 }} more outlets</button>
               <span v-else-if="!deal.venues.length" class="landing-outlet-count">{{ deal.venues.length === 0 ? 'No outlets listed' : '' }}</span>
@@ -159,7 +174,7 @@ onBeforeUnmount(() => {
               <RouterLink class="landing-card-primary" v-if="cardVenue(deal)" :aria-label="`View ${deal.title} at ${cardVenue(deal)?.name}`" :to="dealLink(deal)">View deal <span aria-hidden="true">→</span></RouterLink>
               <BookmarkButton v-if="session.data && bookmarksReady" :deal-id="deal.id" :saved="saved.has(deal.id)" @change="updateSaved(deal.id, $event)" />
               <RouterLink class="landing-card-secondary" v-else-if="session.data" to="/saved">Manage saved deals</RouterLink>
-              <RouterLink class="landing-card-secondary" v-else to="/login">Log in to save</RouterLink>
+              <RouterLink class="landing-card-secondary" v-else :to="{ path: '/login', query: { redirect: dealLink(deal) } }">Log in to save</RouterLink>
             </div>
           </div>
         </article>

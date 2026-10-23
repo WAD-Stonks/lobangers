@@ -631,7 +631,8 @@
 }
 @media (max-width: 800px) {
   .cinematic-story {
-    height: 1020svh;
+    /* Retain every chapter with about half the mobile scrolling distance. */
+    height: 520svh;
   }
   .cinematic-story .story-sticky {
     min-height: 600px;

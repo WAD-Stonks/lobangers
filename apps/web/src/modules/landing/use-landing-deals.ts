@@ -9,18 +9,24 @@ export function useLandingDeals() {
   const deals = ref<DealPin[]>([])
   const status = ref<LandingDealsStatus>('loading')
   let active = true
-  onMounted(async () => {
+  let version = 0
+  const retry = async () => {
+    const request = ++version
+    status.value = 'loading'
     try {
       const response = await api.deals.list({ validNow: 'true' })
-      if (!active) return
+      if (!active || request !== version) return
       deals.value = response.items
       status.value = 'ready'
     } catch {
-      if (active) status.value = 'error'
+      if (active && request === version) status.value = 'error'
     }
+  }
+  onMounted(() => {
+    void retry()
   })
   onBeforeUnmount(() => {
     active = false
   })
-  return { deals, status }
+  return { deals, status, retry }
 }
