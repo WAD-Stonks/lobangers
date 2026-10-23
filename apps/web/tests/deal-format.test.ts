@@ -63,11 +63,11 @@ describe('dealFreshness and priceText', () => {
       dealFreshness({ validUntil: '2026-10-20T10:00:00.000Z', votes: votes(5, 0) }, now),
     ).toEqual({ label: 'Ends today', tone: 'end' })
     expect(dealFreshness({ validUntil: null, votes: votes(5, 1) }, now)).toEqual({
-      label: '5 confirmed',
+      label: 'Likely still on',
       tone: 'ok',
     })
     expect(dealFreshness({ validUntil: null, votes: votes(0, 2) }, now)).toEqual({
-      label: 'Reported ended',
+      label: 'Availability uncertain',
       tone: 'end',
     })
     expect(dealFreshness({ validUntil: null, votes: votes(0, 0) }, now)).toEqual({

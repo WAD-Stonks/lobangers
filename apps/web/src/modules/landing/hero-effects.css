@@ -434,9 +434,6 @@
   animation: hero-selected-deal-pop 0.6s cubic-bezier(0.16, 1.2, 0.3, 1) both;
   transform-origin: center;
 }
-.hero-map-area > .hero-deal-initial {
-  animation-delay: 1.65s;
-}
 @keyframes hero-selected-deal-pop {
   from {
     opacity: 0;

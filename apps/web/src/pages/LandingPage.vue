@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import logo from '@web/assets/logo.png'
 import CuisineDiscovery from '@web/modules/landing/CuisineDiscovery.vue'
 import HeroSection from '@web/modules/landing/HeroSection.vue'
 import LandingNavbar from '@web/modules/landing/LandingNavbar.vue'
@@ -10,6 +11,7 @@ import '@web/modules/landing/hero-layout.css'
 import '@web/modules/landing/landing-usability.css'
 import '@web/modules/landing/community-freshness.css'
 import '@web/modules/landing/landing-backgrounds.css'
+import '@web/modules/landing/landing-refinements.css'
 import { useLandingDeals } from '@web/modules/landing/use-landing-deals'
 import { useLandingMotion } from '@web/modules/landing/use-landing-motion'
 import { ref } from 'vue'
@@ -17,7 +19,7 @@ import { RouterLink } from 'vue-router'
 
 const root = ref<HTMLElement | null>(null)
 const { pageProgress } = useLandingMotion(root)
-const { deals, status } = useLandingDeals()
+const { deals, status, retry } = useLandingDeals()
 </script>
 
 <template>
@@ -25,7 +27,7 @@ const { deals, status } = useLandingDeals()
     <div class="landing-reading-progress" :style="{ transform: `scaleX(${pageProgress})` }" aria-hidden="true" />
     <a class="landing-skip" href="#hero-heading">Skip to content</a>
     <LandingNavbar />
-    <HeroSection />
+    <HeroSection :live="deals" :live-state="status" @retry="retry" />
     <div class="story-intro" data-reveal data-scroll-reveal>
       <span class="landing-eyebrow">LESS HUNTING. MORE MAKAN.</span>
       <p class="story-intro-copy">A great meal shouldn't take<br />
@@ -33,8 +35,8 @@ const { deals, status } = useLandingDeals()
       </p>
       <span class="intro-scribble" aria-hidden="true">↓</span>
     </div>
-    <ScrollStory :live-deals="deals" />
-    <CuisineDiscovery :live="deals" :live-state="status" />
+    <ScrollStory />
+    <CuisineDiscovery :live="deals" :live-state="status" @retry="retry" />
     <section class="landing-final" aria-labelledby="final-heading">
       <span class="final-food food-one" aria-hidden="true">🍜</span>
       <span class="final-food food-two" aria-hidden="true">🧋</span>
@@ -44,14 +46,13 @@ const { deals, status } = useLandingDeals()
       <h2 id="final-heading" data-reveal>Less searching.<br />More munching.</h2>
       <p data-reveal>Your next great food deal is waiting.<br />Discover delicious lobangs around Singapore.</p>
       <div data-reveal>
-        <RouterLink to="/browse" class="landing-button dark">Explore Food Deals ↗</RouterLink>
+        <RouterLink to="/browse" class="landing-button dark">Explore food deals ↗</RouterLink>
         <a href="#story" class="landing-button replay">↺ Replay the Story</a>
       </div>
       <span class="final-spark" aria-hidden="true">✳</span>
     </section>
     <footer class="landing-footer">
-      <RouterLink to="/" class="footer-wordmark">LOBANGERS<span>✳</span>
-      </RouterLink>
+      <RouterLink to="/" class="footer-wordmark" aria-label="Lobangers home"><img :src="logo" alt="LOBANGERS" width="200" height="44" /></RouterLink>
       <p>Good food. Better prices. Little red dot.</p>
       <div>
         <RouterLink to="/browse">Find a lobang ↗</RouterLink>

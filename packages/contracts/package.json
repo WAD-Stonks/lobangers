@@ -12,7 +12,8 @@
     "./deal-copy": "./src/deal-copy.ts",
     "./deal-cuisines": "./src/deal-cuisines.ts",
     "./venues": "./src/venues.ts",
-    "./account": "./src/account.ts"
+    "./account": "./src/account.ts",
+    "./community-policy": "./src/community-policy.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit -p tsconfig.json"

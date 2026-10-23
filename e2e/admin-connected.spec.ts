@@ -155,7 +155,9 @@ test.beforeAll(async () => {
         TMPDIR: process.env.TMPDIR,
         NODE_ENV: 'test',
         DATABASE_URL: 'mongodb://127.0.0.1:1/admin_connected_nonconnecting',
-        MONGOMS_RUNTIME_DOWNLOAD: 'false',
+        // The fixture must also work on a clean runner without a cached mongod.
+        MONGOMS_RUNTIME_DOWNLOAD: 'true',
+        MONGOMS_DOWNLOAD_DIR: resolve(tmpdir(), 'lobangers-mongodb-binaries'),
         ADMIN_CONNECTED_ARTIFACTS: artifacts,
         ADMIN_CONNECTED_REPO_ROOT: root,
       },

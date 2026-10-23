@@ -1,12 +1,9 @@
 <script setup lang="ts">
 import { money, regions, samples } from '@web/modules/landing/deals'
 import { segment } from '@web/modules/landing/use-story-progress'
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 
-const props = withDefaults(
-  defineProps<{ index: number; progress: number; reduced: boolean; shuffle?: number }>(),
-  { shuffle: 0 },
-)
+const props = defineProps<{ index: number; progress: number; reduced: boolean }>()
 const root = ref<HTMLElement | null>(null)
 const dragging = ref(false)
 const offset = ref({ x: 0, y: 0 })
@@ -76,17 +73,6 @@ const release = () => {
   dragging.value = false
   resume()
 }
-watch(
-  () => props.shuffle,
-  () => {
-    if (props.reduced) return
-    velocity = {
-      x: Math.sin(props.shuffle + props.index * 1.9) * 14,
-      y: Math.cos(props.shuffle + props.index * 2.1) * 12,
-    }
-    resume()
-  },
-)
 const visibility = () => {
   if (!document.hidden) resume()
 }

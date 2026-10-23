@@ -13,8 +13,10 @@
   --landing-paper: #fffdf6;
   --landing-ink: #20231e;
   --landing-muted: #72756b;
-  --landing-coral: #e76d4e;
-  --landing-yellow: #ffda53;
+  --landing-coral: var(--coral, #d8603f);
+  --landing-coral-ink: var(--coral-deep, #bf4f30);
+  --landing-control-radius: 12px;
+  --landing-yellow: var(--sunny, #ffda53);
   background: var(--landing-paper);
   color: var(--landing-ink);
   font-family: var(--font-sans);
@@ -1436,16 +1438,18 @@
   color: #e1e3d8;
 }
 .footer-wordmark {
-  font-family: "Lobang Pop", "Arial Black", sans-serif;
-  font-weight: 900;
-  font-size: 27px;
-  letter-spacing: -1px;
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
   grid-column: 1;
+  width: fit-content;
 }
-.footer-wordmark > span {
-  color: var(--landing-yellow);
-  margin-left: 7px;
-  font-size: 22px;
+.footer-wordmark > img {
+  width: 200px;
+  height: 44px;
+  object-fit: cover;
+  object-position: center 48%;
+  filter: brightness(0) invert(1);
 }
 .landing-footer > p {
   grid-column: 1;
@@ -2215,7 +2219,7 @@
     text-align: center;
   }
   .footer-wordmark {
-    font-size: 25px;
+    justify-self: center;
   }
   .landing-footer > p {
     font-size: 9px;

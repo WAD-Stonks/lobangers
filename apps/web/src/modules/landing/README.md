@@ -4,11 +4,11 @@
 
 ## Current components
 
-- `HeroSection.vue`, `IllustratedMap.vue`, `FoodMapPin.vue` and `HeroWaterfront.vue` provide the featured sample offer, selectable regional pins and animated landmarks. Landmark animations continue during map hover. Reduced motion stops decorative movement.
-- `ScrollStory.vue` owns the scroll narrative. `story-timeline.ts`, `use-story-progress.ts` and `use-story-playback.ts` handle reversible progress, optional playback and the still view.
+- `HeroSection.vue`, `IllustratedMap.vue`, `FoodMapPin.vue` and `HeroWaterfront.vue` provide the random current deal per region (using the browse map’s nearest-area lookup), manually selectable regional pins and animated landmarks. The first deal appears without a staged delay, and deals never auto-rotate. Landmark animations continue during map hover. Reduced motion stops decorative movement.
+- `ScrollStory.vue` owns the scroll narrative. `story-timeline.ts`, `use-story-progress.ts` and `use-story-playback.ts` handle reversible progress, optional playback and the still view. The neighbourhood illustration always uses Central and never reads geolocation or location permissions.
 - `FloatingSocialPost.vue` presents illustrative sources. `NeighbourhoodDetail.vue` supplies the illustrated neighbourhood close-up and the portal marker uses a bowl SVG.
 - `CommunityFreshnessScene.vue` explains recent community reports using the animated hawker stall. See [COMMUNITY_SCENE.md](./COMMUNITY_SCENE.md) for renderer lifecycle, fallback behavior and sample-status logic.
-- `CuisineDiscovery.vue` filters illustrative offers and separately renders live API results. Sample content is explicitly labelled; sample links lead to the live browser.
+- `CuisineDiscovery.vue` filters current API deals by cuisine and region dropdowns, using stored photos and venue links. Deals appear one at a time on mobile, two on tablet, and four on desktop, with previous/next controls beside the result range below the cards, plus horizontal touch swipes. View deal links preserve the promotion and selected outlet; restaurant names link separately to venue pages. Cards show the outlet neighbourhood and only display positive verification when the server supplies qualified recent evidence. Filtering or changing the viewport layout resets to the first set. Bookmark actions remain on each card. The hero and cuisine grid share the page’s public deals request; loading, unavailable and empty states never substitute sample offers. The separate scroll story retains its illustrative content.
 - `use-landing-motion.ts` enhances content with scroll reveals. The introduction stays hidden at the top of the page and fades after scrolling. Reduced motion or missing observation support leaves content readable.
 
 ## Active assets
@@ -20,7 +20,6 @@ Assets are served from `apps/web/public`:
 | `landing/singapore-map-hero-water-extended-{768,1536}.webp` | Responsive hero artwork |
 | `landing/hero-water-edge-mask.svg` | Smooth lower-right water boundary |
 | `landing/singapore-map-hero-complete-1536.webp` | Story's island map |
-| `landing/singapore-map-soft-sea.png` | Shared map component's default artwork |
 | `landing/neighbourhood-map.png` | Story close-up |
 | `landing/{burger,tea,noodles,dessert,rice}.jpg` | Illustrative food photographs |
 | `landing/scattered-feed-backdrop.svg` | Noninteractive conversation fragments behind the opening story |
@@ -28,11 +27,11 @@ Assets are served from `apps/web/public`:
 
 `landing-backgrounds.css` contains the rounded background shapes and washes. Decorations do not accept pointer input or introduce continuous animation. The older map exports, rejected background designs and v5 web font pack have been removed from public assets.
 
-The current font pack retains its license, provenance, QA report, desktop TTF and standalone stylesheet. `tools/fonts/lobang-pop/build_v6.py` and its baseline font are rebuild inputs. `output/imagegen` contains illustration generation sources and prompts; `artifacts` contains review screenshots and the exported font pack. These are design/build records, not runtime imports.
+The font folder retains the WOFF2/WOFF files used by `landing.css`, its licence, provenance and original export QA record. Unused desktop/standalone font exports, the orphaned v5 source font and the superseded soft-sea map have been removed. Both map consumers provide their current artwork explicitly. All landing source modules remain in use; other application features and their assets are outside this cleanup.
 
 ## Styling
 
-The base `landing.css` is followed by narrative choreography in `cinematic-story.css`, hero details in `hero-effects.css` and `hero-layout.css`, responsive/accessibility overrides in `landing-usability.css`, community styles in `community-freshness.css`, and decorative backgrounds in `landing-backgrounds.css`.
+The base `landing.css` is followed by narrative choreography in `cinematic-story.css`, hero details in `hero-effects.css` and `hero-layout.css`, responsive/accessibility overrides in `landing-usability.css`, community styles in `community-freshness.css`, decorative backgrounds in `landing-backgrounds.css`, and shared controls, semantic colours and readable story text in `landing-refinements.css`. The “How it works” navigation opens the fixed Central example, without implying geolocation.
 
 ## Verification
 

@@ -56,7 +56,8 @@ export function useStoryPlayback(
       window.innerHeight
     const duration = Math.max(
       5000,
-      26000 * Math.min(1, Math.max(0, (end - start) / root.value.offsetHeight)),
+      (window.innerWidth <= 800 ? 14000 : 26000) *
+        Math.min(1, Math.max(0, (end - start) / root.value.offsetHeight)),
     )
     let began: number | undefined
     playing.value = true

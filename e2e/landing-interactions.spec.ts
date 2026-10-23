@@ -19,22 +19,24 @@ for (const key of ['Enter', 'Space']) {
   test(`story playback starts and pauses with native ${key} activation`, async ({ page }) => {
     await page.goto('/')
     await scrollStoryTo(page, 0)
-    const toggle = page.getByRole('button', { name: /Auto-play story/ })
+    const toggle = page
+      .locator('#story')
+      .getByRole('button', { name: /Auto-play story|Pause story/ })
+    await expect(toggle).toHaveAccessibleName(/Auto-play story/)
     await toggle.focus()
     await page.keyboard.press(key)
-    const pause = page.locator('.story-play-controls button[aria-pressed]')
-    await expect(pause).toHaveAttribute('aria-pressed', 'true')
+    await expect(toggle).toHaveAttribute('aria-pressed', 'true')
     await page.keyboard.press(key)
-    await expect(pause).toHaveAttribute('aria-pressed', 'false')
+    await expect(toggle).toHaveAttribute('aria-pressed', 'false')
     // The same control can restart playback; navigation keys still interrupt it.
     await page.keyboard.press(key)
-    await expect(pause).toHaveAttribute('aria-pressed', 'true')
+    await expect(toggle).toHaveAttribute('aria-pressed', 'true')
     await page.keyboard.press('Escape')
-    await expect(pause).toHaveAttribute('aria-pressed', 'false')
+    await expect(toggle).toHaveAttribute('aria-pressed', 'false')
   })
 }
 
-test('the WebGL stall disappears on reverse scrolling and after leaving the still view', async ({
+test('the WebGL stall disappears on reverse scrolling and after leaving reduced motion', async ({
   page,
 }) => {
   await page.goto('/')
@@ -48,10 +50,13 @@ test('the WebGL stall disappears on reverse scrolling and after leaving the stil
   await expect(canvas).toBeHidden()
   await scrollStoryTo(page, 0.96)
   await expect(canvas).toBeVisible()
-  await page.getByRole('button', { name: 'Show still version', exact: true }).click()
+  await page.emulateMedia({ reducedMotion: 'reduce' })
   await expect(page.locator('#story')).toHaveClass(/story-reduced/)
   await expect(canvas).toBeVisible()
-  await page.getByRole('button', { name: 'Play story motion', exact: true }).click()
+  await expect(page.locator('.story-playback-toggle')).toHaveCount(0)
+  // Move back while the still scene is displayed, then restore scroll-driven motion.
+  await scrollStoryTo(page, 0)
+  await page.emulateMedia({ reducedMotion: 'no-preference' })
   await expect(page.locator('#story')).not.toHaveClass(/story-reduced/)
   await expect(canvas).toBeHidden()
 })

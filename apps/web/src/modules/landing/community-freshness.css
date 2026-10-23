@@ -394,6 +394,7 @@
   gap: 8px;
   margin-top: 6px;
 }
+
 .voting-preview-options > span {
   flex: 1;
   text-align: center;
@@ -411,6 +412,7 @@
   border-color: #e7bfa9;
   color: #a33e2a;
 }
+
 .community-voting-preview p {
   font-size: 12px;
   color: #535d49;
@@ -701,6 +703,7 @@
     min-height: 30px;
     font-size: 12px;
   }
+
   .community-voting-preview p {
     font-size: 11px;
   }
