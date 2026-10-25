@@ -15,7 +15,6 @@ import {
 import { declutter, type PlacedGroup } from '@web/modules/browse-map/declutter'
 import { distanceMetres } from '@web/modules/browse-map/distance'
 import {
-  BOUNDS_VISCOSITY,
   FLY_DURATION_S,
   FOCUS_ZOOM,
   MAX_ACCURACY_HALO_METRES,
@@ -43,17 +42,12 @@ import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 
 export type MapOffset = { readonly x: number; readonly y: number }
 
-// The map stays mounted for the whole shell. It opens fitted to Singapore; `focus` later flies
-// to a point. `focusOffset` is how far the visible centre sits from the map's centre (the side
-// panel or bottom sheet covers part of it), so a focused pin lands beside the panel.
 const props = withDefaults(
   defineProps<{
     pins?: readonly VenuePin[]
     focus?: Coordinates | null
-    // Zoom a focus lands at; "Near me" passes a closer one than a selected deal.
     focusZoom?: number
     focusOffset?: MapOffset
-    // Pixels the panel, sheet or header cover on each side; the first fit keeps the island clear of them.
     viewPadding?: { top: number; right: number; bottom: number; left: number }
     userPosition?: Coordinates | null
     userAccuracyMetres?: number | null
@@ -80,14 +74,11 @@ const emit = defineEmits<{ select: [id: string]; hover: [id: string | null]; mov
 
 const container = ref<HTMLDivElement | null>(null)
 let map: L.Map | null = null
-// Real pins (stacked only where outlets share a spot) and the area pills summing up the rest.
 let pinLayer: L.MarkerClusterGroup | null = null
 let groupLayer: L.LayerGroup | null = null
-// The open outlet's pin sits here, outside the stacks, so it is never folded into "2 places".
 let selectedLayer: L.LayerGroup | null = null
 let planKey = ''
 const SETTLED_CLASS = 'is-settled'
-// What replan last put on the map, so the next plan only adds and removes the difference.
 let shownPins = new Set<string>()
 let groupMarkers = new Map<string, { marker: L.Marker; group: PlacedGroup }>()
 let userLayer: L.LayerGroup | null = null
@@ -95,7 +86,6 @@ let resizeObserver: ResizeObserver | null = null
 let ambient: Ambient | null = null
 const markers = new Map<string, { marker: L.Marker; pin: VenuePin; key: string }>()
 
-// The canvas resizes the map when the list panel opens; Leaflet must re-measure its container.
 const observeResize = (element: HTMLElement) => {
   if (typeof ResizeObserver === 'undefined') return null
   const observer = new ResizeObserver(() => map?.invalidateSize({ animate: false }))
@@ -299,8 +289,6 @@ onMounted(() => {
   map = L.map(container.value, {
     minZoom: MIN_ZOOM,
     maxZoom: MAX_ZOOM,
-    maxBounds: bounds,
-    maxBoundsViscosity: BOUNDS_VISCOSITY,
     // MapControls draws its own zoom buttons in the shell's control stack.
     zoomControl: false,
     zoomAnimation: !props.reducedMotion,
