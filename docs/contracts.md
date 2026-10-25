@@ -1,6 +1,6 @@
 # Draft domain/API contract — team review required
 
-The initial domain Prisma schema is now implemented; [database-schema.md](database-schema.md) is authoritative for the approved persistence decisions. This document remains a checklist for student-owned feature API contracts; no feature endpoints are implemented.
+The initial domain Prisma schema is now implemented; [database-schema.md](database-schema.md) is authoritative for the approved persistence decisions. This document remains a checklist for feature API contracts; implemented community resources are documented in [community.md](community.md).
 
 ## Persistence decisions and remaining API work
 

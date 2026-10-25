@@ -24,13 +24,12 @@ The shell loads `GET /api/deals` once per validity setting: only `validNow` goes
 - `venue-pin.ts`: `createVenuePinIcon`, built from DOM nodes so deal text is never parsed as HTML.
 - `BrowseListPanel.vue`: count heading, sort, location notice, filter tokens, rows (map view) or cards (list view), and loading, error and empty states.
 - `DealRowList.vue` / `DealCardGrid.vue`: rows and cards that link to the deal panel; hovering a row lights its pin.
-- `DealPanel.vue`: deal details, `DealReviewSummary`, more deals at the outlet, and the sticky Save and Get directions bar. Save is optimistic and rolls back with an error toast.
+- `DealPanel.vue`: deal details, live `DealCommunity` voting/comments/reports, more deals at the outlet, and the sticky Save and Get directions bar. Save is optimistic and rolls back with an error toast. Community behavior and the approved freshness policy are documented in [community.md](../../../../../docs/community.md).
 - `CategoryBubble.vue`, `DealReviewSummary.vue`, `category-style.ts`, `distance.ts`, `singapore-bounds.ts`, `map-config.ts`, `use-geolocation.ts`, `types.ts`: unchanged helpers.
 
 ## Still to do
 
 - Deal photos: `GET /api/deals` does not return images yet, so the deal panel shows a tinted block.
-- Voting, comments and reports in the deal panel, once the community module exposes them. The panel only reads the tallies the deals list returns.
 - Halal, vegetarian and "fresh in 24h" filters need schema fields first (doc section 11).
 - A separate list for `ONLINE` and `NO_FIXED_LOCATION` deals; never invent coordinates for them.
 

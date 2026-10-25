@@ -1,3 +1,4 @@
+import { communityStatus } from '@broke-oclock/contracts/community-policy'
 import type { DealPin, DealVoteSummary } from '@broke-oclock/contracts/deals'
 import { distanceMetres } from '@web/modules/browse-map/distance'
 import type { BrowseFilters, EndingWindow } from '@web/modules/browse-map/filters'
@@ -32,7 +33,7 @@ export const walkMinutesFor = (metres: number): number =>
   Math.max(1, Math.ceil(metres / WALK_METRES_PER_MINUTE))
 
 export const isVerified = (votes: DealVoteSummary): boolean =>
-  votes.alive >= 1 && votes.alive > votes.dead
+  (votes.status ?? communityStatus(votes, null)) === 'LIKELY_STILL_ON'
 
 // Midnight at the end of "today" in Singapore, which has no daylight saving.
 const endOfSingaporeDay = (now: Date): number => {
