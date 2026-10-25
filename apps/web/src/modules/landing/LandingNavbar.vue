@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import logo from '@web/assets/logo.png'
+import logo from '@web/assets/lobangers-logo.png'
 import AccountMenu from '@web/components/AccountMenu.vue'
 import { useSiteMenu } from '@web/components/use-site-menu'
 import { ref } from 'vue'

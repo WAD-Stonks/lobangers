@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import logoUrl from '@web/assets/logo.png'
+import logoUrl from '@web/assets/lobangers-logo.png'
 import { ACCOUNT_NAV_LINKS, SITE_MENU_ID, SITE_NAV_LINKS } from '@web/components/site-nav-links'
 import { TICKET_ICON_PATHS } from '@web/components/ticket-icon'
 import { useSiteMenu } from '@web/components/use-site-menu'
@@ -145,7 +145,7 @@ const logOut = async () => {
   position: relative;
   display: flex;
   align-items: center;
-  gap: var(--space-2);
+  gap: var(--space-1);
   height: var(--control-h);
   padding: 0 12px 0 8px;
   color: var(--ink);
@@ -181,10 +181,8 @@ const logOut = async () => {
 
 .brand-menu__word {
   display: block;
-  height: 26px;
-  aspect-ratio: 4.6;
-  object-fit: cover;
-  object-position: center 48%;
+  height: 140px;
+  width: auto;
 }
 
 .brand-menu__burger {
