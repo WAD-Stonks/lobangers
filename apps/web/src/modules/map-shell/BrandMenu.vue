@@ -145,7 +145,7 @@ const logOut = async () => {
   position: relative;
   display: flex;
   align-items: center;
-  gap: var(--space-1);
+  gap: var(--space-3);
   height: var(--control-h);
   padding: 0 12px 0 8px;
   color: var(--ink);
@@ -181,7 +181,7 @@ const logOut = async () => {
 
 .brand-menu__word {
   display: block;
-  height: 140px;
+  height: 26px;
   width: auto;
 }
 
