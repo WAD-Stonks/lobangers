@@ -1,4 +1,5 @@
 import { readFileSync } from 'node:fs'
+import type { CommunitySummary } from '@broke-oclock/contracts/community'
 import type { DealPin } from '@broke-oclock/contracts/deals'
 import type { IngestionDraft } from '@broke-oclock/contracts/ingestion'
 import type { VenueDealSummary } from '@broke-oclock/contracts/venues'
@@ -37,6 +38,17 @@ const deal: DealPin = {
   venues: [venue],
   imageUrl,
   imageAltText: 'Synthetic sample image: LoBangers logo',
+}
+const community: CommunitySummary = {
+  alive: deal.votes.alive,
+  dead: deal.votes.dead,
+  status: 'NO_RECENT_REPORTS',
+  myVote: null,
+  myVoteIsRecent: false,
+  lastReportedAt: null,
+  asOf: '2026-10-26T00:00:00.000Z',
+  commentCount: deal.commentCount,
+  policy: { minAlive: 3, positivePercent: 80, windowHours: 24 },
 }
 const card: VenueDealSummary = { ...deal, currency: 'SGD', imageUrl }
 const image = {
@@ -162,6 +174,9 @@ async function installBoundary(page: Page) {
         } else data = { items: [draft], nextCursor: null }
       } else if (url.pathname === '/api/ingestion/runs') data = { items: [] }
       else if (url.pathname === '/api/deals') data = { items: [deal], categories: ['FOOD'] }
+      else if (url.pathname === `/api/deals/${deal.id}/community`) data = community
+      else if (url.pathname === `/api/deals/${deal.id}/comments`)
+        data = { items: [], nextCursor: null }
       else if (url.pathname === `/api/venues/${venue.id}`)
         data = {
           venue: {
@@ -294,6 +309,11 @@ for (const width of [320, 768, 1024, 1440]) {
     await page.keyboard.press('Enter')
     const detail = page.getByTestId('shell-panel')
     await expect(detail.getByRole('heading', { name: deal.title })).toBeVisible()
+    await expect(detail.locator('.deal-community-status')).toHaveText('No recent reports')
+    await expect(detail.locator('.deal-community-empty')).toContainText('No comments yet')
+    await expect(detail.locator('[role="alert"]')).toHaveCount(0)
+    expect(state.requests).toContain(`GET /api/deals/${deal.id}/community`)
+    expect(state.requests).toContain(`GET /api/deals/${deal.id}/comments`)
     await expandSheet(page, width)
     await painted(detail.locator('img'))
     await detail.screenshot({
