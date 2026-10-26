@@ -74,7 +74,7 @@ export const dealFreshness = (
     return { label: 'Expired', tone: 'end' }
   if (isEndingToday(deal, now)) return { label: 'Ends today', tone: 'end' }
   if (isVerified(deal.votes)) return { label: 'Likely still on', tone: 'ok' }
-  if (deal.votes.dead > deal.votes.alive) return { label: 'Availability uncertain', tone: 'end' }
+  if (deal.votes.dead > 0) return { label: 'Conflicting reports', tone: 'end' }
   return { label: 'Unverified', tone: 'new' }
 }
 

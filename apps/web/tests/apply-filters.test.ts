@@ -116,7 +116,7 @@ describe('helpers', () => {
     expect(walkMinutesFor(81)).toBe(2)
   })
 
-  it('uses the approved minimum and ratio for likely availability', () => {
+  it('requires the approved positive-voter count and ratio', () => {
     expect(isVerified({ alive: 0, dead: 0 })).toBe(false)
     expect(isVerified({ alive: 2, dead: 1 })).toBe(false)
     expect(isVerified({ alive: 3, dead: 0 })).toBe(true)

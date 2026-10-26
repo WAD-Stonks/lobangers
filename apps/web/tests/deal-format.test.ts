@@ -67,7 +67,7 @@ describe('dealFreshness and priceText', () => {
       tone: 'ok',
     })
     expect(dealFreshness({ validUntil: null, votes: votes(0, 2) }, now)).toEqual({
-      label: 'Availability uncertain',
+      label: 'Conflicting reports',
       tone: 'end',
     })
     expect(dealFreshness({ validUntil: null, votes: votes(0, 0) }, now)).toEqual({
