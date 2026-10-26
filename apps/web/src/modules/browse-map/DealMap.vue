@@ -21,6 +21,7 @@ import {
   MAX_ZOOM,
   MIN_ZOOM,
   NEARBY_PAN_METRES,
+  OPEN_MIN_ZOOM,
   PAN_DURATION_S,
   USER_ACCURACY_STYLE,
   USER_DOT_CLASS,
@@ -296,7 +297,12 @@ onMounted(() => {
     markerZoomAnimation: !props.reducedMotion,
   })
   const { top, right, bottom, left } = props.viewPadding
-  map.fitBounds(bounds, { paddingTopLeft: [left, top], paddingBottomRight: [right, bottom] })
+  const fitted = map.getBoundsZoom(bounds, false, L.point(left + right, top + bottom))
+  if (fitted >= OPEN_MIN_ZOOM) {
+    map.fitBounds(bounds, { paddingTopLeft: [left, top], paddingBottomRight: [right, bottom] })
+  } else {
+    map.setView(centreFor(bounds.getCenter(), OPEN_MIN_ZOOM), OPEN_MIN_ZOOM)
+  }
   const basemap = resolveBasemap(readCartoApiKey())
   L.tileLayer(basemap.url, {
     attribution: basemap.attribution,

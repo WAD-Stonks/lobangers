@@ -5,6 +5,7 @@ export const FOCUS_ZOOM = 15
 // "Near me" lands much closer in, at walking-street level around the visitor.
 export const LOCATE_ZOOM = 17
 export const MIN_ZOOM = 3
+export const OPEN_MIN_ZOOM = 11
 export const MAX_ZOOM = 19
 // Selecting a deal flies there; hopping to a deal this close (at street zoom) pans instead.
 export const FLY_DURATION_S = 0.65
