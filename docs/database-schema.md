@@ -86,7 +86,7 @@ See [platform administration](platform-admin.md) for invariants, API contracts, 
 
 ## Outlet evidence foundation, 21 October 2026
 
-See [ADR 0002](decisions/0002-outlet-evidence-and-campaign-scope.md) for the decision and rollout boundary. This branch integrates the additive schema, shared policy, public readers and guarded writers. Test evidence is revision-specific; historical focused checks do not establish acceptance of a newer merged tree. Code review, data verification, index application and deployment remain separate stages.
+This branch integrates the additive schema, shared policy, public readers and guarded writers. Test evidence is revision-specific; historical focused checks do not establish acceptance of a newer merged tree. Code review, data verification, index application and deployment remain separate stages.
 
 ### Stored evidence
 
