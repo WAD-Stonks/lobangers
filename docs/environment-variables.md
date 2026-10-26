@@ -68,15 +68,17 @@ The fixed-host publisher transports need no WordPress username/password. Manual 
 
 `GET /api/ingestion/scheduled-runs` is the machine-only Vercel Cron entry point. `apps/api/vercel.json` declares one daily `0 0 * * *` job and the API build carries it into `.vercel/output/config.json`. Vercel invokes the API project's production domain directly, not the web proxy or GitHub Actions. The cron is nominally 08:00 Singapore time; Hobby may invoke it anywhere in the 08:00-08:59 window. The single API function emits a 300-second maximum duration to accommodate the existing 90-second soft ingestion budget and bounded in-flight work. Verify a compatible plan/Fluid compute setting before activation. Deployment, `CRON_SECRET`, source configuration and reuse approval remain separate gates. Missing or malformed credentials reject the request; ingestion remains default-off. The rejected GitHub scheduler settings `INGESTION_CRON_SECRET` and `INGESTION_API_URL` are not used. Do not populate secrets, deploy, enable sources or trigger a live run merely to verify this configuration. See [multi-source ingestion](multisource-ingestion.md), [source administration](ingestion-sources.md) and the official [Vercel Cron guide](https://vercel.com/docs/cron-jobs/manage-cron-jobs).
 
-## Reserved trust/moderation settings — Community
+## Community verification settings
 
-All are GitHub **variables** initially set to `UNCONFIGURED`:
+The approved policy uses three positive voters, at least 80% positive evidence, within 24 hours. The API validates these optional server-only values:
 
-- DEAL_CONFIRM_THRESHOLD — confirmation count required for the agreed evidence scope.
-- DEAL_DEAD_REPORT_THRESHOLD — dead-report count required to flag that scope.
-- CONTENT_REPORT_THRESHOLD — inappropriate-content review/hiding threshold, after the team chooses that policy.
+- `DEAL_CONFIRM_THRESHOLD`: default 3, integer 1–100.
+- `DEAL_POSITIVE_PERCENT`: default 80, integer 1–100.
+- `DEAL_VOTE_WINDOW_HOURS`: default 24, integer 1–168.
 
-The team plan specifies configurable N/M values but does not choose them. No numeric defaults were invented. The feature implementation must decide scope, storage (env-backed defaults vs database-managed config), concurrency and strict validation before using these reserved names. No existing business logic reads them.
+Missing, blank or `UNCONFIGURED` values use the approved defaults. They are runtime API inputs, not VITE settings. Public community summaries expose the active policy. Restart the API after changing its environment. See [community behavior and tests](community.md).
+
+`DEAL_DEAD_REPORT_THRESHOLD` and `CONTENT_REPORT_THRESHOLD` remain reserved and unused. No automatic ended/hiding threshold has been implemented; a report does not change content visibility.
 
 ## Photo storage — UploadThing adapter and client helper
 

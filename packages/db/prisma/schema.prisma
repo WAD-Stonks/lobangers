@@ -346,6 +346,7 @@ model Comment {
   reports   CommentReport[]
 
   @@index([dealId, createdAt])
+  @@index([dealId, id(sort: Desc)])
   @@index([authorId, createdAt])
 }
 

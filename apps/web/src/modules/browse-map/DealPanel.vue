@@ -6,7 +6,6 @@ import CategoryBubble from '@web/modules/browse-map/CategoryBubble.vue'
 import { categoryStyle } from '@web/modules/browse-map/category-style'
 import DealGallery from '@web/modules/browse-map/DealGallery.vue'
 import DealOutlets from '@web/modules/browse-map/DealOutlets.vue'
-import DealReviewSummary from '@web/modules/browse-map/DealReviewSummary.vue'
 import DealRowList from '@web/modules/browse-map/DealRowList.vue'
 import {
   dealFreshness,
@@ -17,6 +16,7 @@ import {
 } from '@web/modules/browse-map/deal-format'
 import { OFFER_TYPE_LABELS } from '@web/modules/browse-map/filters'
 import type { DealRow } from '@web/modules/browse-map/types'
+import DealCommunity from '@web/modules/community/DealCommunity.vue'
 import { errorCode } from '@web/modules/ingestion-admin/errors'
 import PanelFrame from '@web/modules/map-shell/PanelFrame.vue'
 import ShellIcon from '@web/modules/map-shell/ShellIcon.vue'
@@ -24,7 +24,7 @@ import { browseLocation, dealLocation, venueLocation } from '@web/modules/map-sh
 import { useShell } from '@web/modules/map-shell/shell-state'
 import { useSavedDeals } from '@web/modules/map-shell/use-saved-deals'
 import { useToast } from '@web/modules/map-shell/use-toast'
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 
 // One deal, opened from a pin, a row or the hot card. Details scroll; Save and Get directions
@@ -40,6 +40,8 @@ const SAVE_VIBRATE_MS = 10
 const DIRECTIONS_URL = 'https://www.google.com/maps/dir/?api=1&destination='
 
 const dealId = computed(() => String(route.params.dealId ?? ''))
+const commentsOpen = ref(false)
+watch(dealId, () => { commentsOpen.value = false })
 const venueId = computed(() => (typeof route.query.at === 'string' ? route.query.at : null))
 const selected = computed(() => shell.findDeal(dealId.value, venueId.value))
 const backTo = computed(() => browseLocation(route.query))
@@ -125,11 +127,16 @@ const toggleSave = async () => {
 <template>
   <PanelFrame
     v-if="selected"
-    :title="selected.deal.title"
-    :back="backTo"
+    :title="commentsOpen ? 'Comments' : selected.deal.title"
+    :hide-title="commentsOpen"
+    :back="commentsOpen ? null : backTo"
     back-label="Back to results"
     :scroll-key="selected.deal.id"
   >
+    <template v-if="commentsOpen" #heading>
+      <button type="button" class="deal-panel__comments-back deal-community-text-button" @click="commentsOpen = false"><ShellIcon name="back" :size="16" />Back to deal</button>
+    </template>
+    <template v-if="!commentsOpen">
     <div class="deal-panel__media" :style="{ '--hero-tint': categoryStyle(selected.deal.category).tint }">
       <DealGallery
         :key="selected.deal.id"
@@ -189,9 +196,11 @@ const toggleSave = async () => {
         </dd>
       </div>
     </dl>
+    </template>
 
-    <DealReviewSummary :votes="selected.deal.votes" :comment-count="selected.deal.commentCount" />
+    <DealCommunity :deal-id="selected.deal.id" :all-comments="commentsOpen" @view-change="commentsOpen = $event" @updated="shell.reload" />
 
+    <template v-if="!commentsOpen">
     <DealOutlets
       :deal="selected.deal"
       :current-venue-id="selected.venue.id"
@@ -204,8 +213,9 @@ const toggleSave = async () => {
       <h2 id="deal-more-title" class="deal-panel__label">More at {{ selected.venue.name }}</h2>
       <DealRowList :rows="otherRows" :to="toRow" test-id="same-outlet-rows" @hover="shell.setHovered" />
     </section>
+    </template>
 
-    <template #actions>
+    <template v-if="!commentsOpen" #actions>
       <button
         type="button"
         class="lb-btn"
@@ -245,6 +255,8 @@ const toggleSave = async () => {
 </template>
 
 <style scoped>
+.deal-panel__comments-back { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 8px 0; border: 0; border-radius: 4px; background: transparent; color: var(--ink-muted); font: 600 0.875rem/1.5 var(--font-sans); cursor: pointer; }
+.deal-panel__comments-back:focus-visible { outline: 3px solid var(--coral-deep); outline-offset: 3px; }
 .deal-panel__hero {
   position: relative;
   display: flex;

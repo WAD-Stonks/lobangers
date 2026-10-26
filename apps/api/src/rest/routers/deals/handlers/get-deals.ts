@@ -15,12 +15,12 @@ export const getDeals = (dependencies: RestDependencies): RequestHandler =>
     const query = parseRestInput(dealsQuerySchema, request.query)
     const now = new Date()
 
-    const rows = await findPublicDeals(context.db, query, now)
+    const rows = await findPublicDeals(context.db, query, now, dependencies.config.community)
     const categories = await findEligibleCategories(context.db)
 
     const items = rows
       .filter(isCurrentApproval)
-      .map(toDealPin)
+      .map((row) => toDealPin(row, dependencies.config.community, now))
       .filter((deal) => deal.venues.length > 0)
 
     response.json(dealsResponseSchema.parse({ items, categories }))

@@ -1,4 +1,9 @@
+import {
+  type CommunityPolicy,
+  DEFAULT_COMMUNITY_POLICY,
+} from '@broke-oclock/contracts/community-policy'
 export type AppConfig = {
+  community?: CommunityPolicy
   port: number
   webOrigin: string
   betterAuthUrl: string
@@ -110,6 +115,25 @@ const parseAuthProviders = (env: Environment): AppConfig['authProviders'] => {
   }
 }
 
+const parseCommunityPolicy = (env: Environment): CommunityPolicy => {
+  const integer = (name: string, fallback: number, max: number) => {
+    const raw = env[name]?.trim()
+    if (!raw || raw === 'UNCONFIGURED') return fallback
+    if (!/^[1-9][0-9]*$/.test(raw) || Number(raw) > max)
+      throw new Error(`${name} must be an integer between 1 and ${max}`)
+    return Number(raw)
+  }
+  return {
+    minAlive: integer('DEAL_CONFIRM_THRESHOLD', DEFAULT_COMMUNITY_POLICY.minAlive, 100),
+    positivePercent: integer(
+      'DEAL_POSITIVE_PERCENT',
+      DEFAULT_COMMUNITY_POLICY.positivePercent,
+      100,
+    ),
+    windowHours: integer('DEAL_VOTE_WINDOW_HOURS', DEFAULT_COMMUNITY_POLICY.windowHours, 168),
+  }
+}
+
 export const parseConfig = (env: Environment): AppConfig => {
   const betterAuthSecret = requiredString(env, 'BETTER_AUTH_SECRET')
   if (betterAuthSecret.length < 32)
@@ -118,6 +142,7 @@ export const parseConfig = (env: Environment): AppConfig => {
   const email = authProviders?.email
   return {
     port: parsePort(env.PORT),
+    community: parseCommunityPolicy(env),
     ingestion: parseIngestion(env),
     authProviders,
     photoStorage: parsePhotoStorage(env),

@@ -1,5 +1,6 @@
 import type { RestDependencies } from '@api/rest/context'
 import { createAccountRouter } from '@api/rest/routers/account'
+import { createCommunityRouter } from '@api/rest/routers/community'
 import { createDealsRouter } from '@api/rest/routers/deals'
 import { createInfrastructureRouter } from '@api/rest/routers/infrastructure'
 import { createIngestionRouter } from '@api/rest/routers/ingestion'
@@ -10,6 +11,7 @@ import { Router } from 'express'
 export const createRestRouter = (dependencies: RestDependencies): Router => {
   const router = Router()
   router.use(createInfrastructureRouter(dependencies))
+  router.use(createCommunityRouter(dependencies))
   router.use('/ingestion', createIngestionRouter(dependencies))
   router.use('/account', createAccountRouter(dependencies))
   router.use(createPlatformAdminRouter(dependencies))
