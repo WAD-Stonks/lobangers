@@ -6,6 +6,11 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { promisify } from 'node:util'
+import {
+  registerSyntheticOutletFixtureDatabase,
+  seedSyntheticOutletProof,
+  seedSyntheticScope,
+} from '@api/../tests/fixtures/outlet-proof'
 import { parseConfig } from '@api/config'
 import { createApiClient } from '@broke-oclock/api-client'
 import { MongoMemoryReplSet } from 'mongodb-memory-server'
@@ -81,7 +86,7 @@ beforeAll(async () => {
     replSet: { count: 1, storageEngine: 'wiredTiger', ip: '127.0.0.1' },
   })
   // Always a fresh disposable replica set; never a configured DATABASE_URL.
-  databaseUrl = mongo.getUri(`community_${randomUUID().replaceAll('-', '')}`)
+  databaseUrl = mongo.getUri(`integration_${randomUUID().replaceAll('-', '')}`)
   vi.stubEnv('DATABASE_URL', databaseUrl)
   vi.stubEnv('NODE_ENV', 'test')
   await promisify(execFile)('pnpm', ['--dir', 'packages/db', 'run', 'push'], {
@@ -91,6 +96,7 @@ beforeAll(async () => {
     timeout: 60_000,
   })
   db = (await import('@broke-oclock/db')).db
+  registerSyntheticOutletFixtureDatabase(db, databaseUrl)
   disconnect = () => db.$disconnect()
   const { createApp } = await import('@api/app')
   server = createServer()
@@ -371,7 +377,7 @@ describe('community REST with real cookies and disposable MongoDB', () => {
   })
   it('uses the real shared Axios client and public list with fresh evidence only', async () => {
     const merchant = await db.merchant.create({ data: { name: 'Synthetic chain' } })
-    await db.venue.create({
+    const venue = await db.venue.create({
       data: {
         merchantId: merchant.id,
         name: 'Synthetic outlet',
@@ -386,6 +392,10 @@ describe('community REST with real cookies and disposable MongoDB', () => {
       data: { applicability: 'ALL_MERCHANT_OUTLETS', merchantId: merchant.id },
     })
     const client = createApiClient(`${baseURL}/api`)
+    expect((await client.deals.list()).items.map((item) => item.id)).not.toContain(deal.id)
+    await seedSyntheticOutletProof(db, venue.id)
+    await seedSyntheticScope(db, deal.id, 'SOURCE_ALL')
+    expect((await client.deals.list()).items.map((item) => item.id)).toContain(deal.id)
     client.http.defaults.headers.common.Origin = origin
     client.http.defaults.headers.common.Cookie = alice.cookies
     expect(await client.community.vote(deal.id, 'ALIVE')).toMatchObject({
