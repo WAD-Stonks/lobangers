@@ -80,17 +80,8 @@ watch(venueId, () => {
       </div>
 
       <div class="lb-tabs" role="tablist" aria-label="Venue sections">
-        <button
-          v-for="item in TABS"
-          :id="`venue-tab-${item.value}`"
-          :key="item.value"
-          type="button"
-          role="tab"
-          class="lb-tab"
-          :aria-selected="tab === item.value"
-          aria-controls="venue-tabpanel"
-          @click="tab = item.value"
-        >
+        <button v-for="item in TABS" :id="`venue-tab-${item.value}`" :key="item.value" type="button" role="tab"
+          class="lb-tab" :aria-selected="tab === item.value" aria-controls="venue-tabpanel" @click="tab = item.value">
           {{ item.label }}
         </button>
       </div>
@@ -128,10 +119,6 @@ watch(venueId, () => {
           <div v-if="detail.venue.area">
             <dt class="lb-meta">Area</dt>
             <dd>{{ detail.venue.area }}</dd>
-          </div>
-          <div>
-            <dt class="lb-meta">Run by</dt>
-            <dd class="lb-text-wrap">{{ detail.venue.merchantName }}</dd>
           </div>
         </dl>
       </div>

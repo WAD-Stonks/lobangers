@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import logoUrl from '@web/assets/logo.png'
+import logoUrl from '@web/assets/lobangers-logo.png'
 import { SPLASH_DURATION_MS } from '@web/components/splash-config'
 import TicketLoader from '@web/components/TicketLoader.vue'
 import { onBeforeUnmount, onMounted, ref } from 'vue'
@@ -43,10 +43,8 @@ onBeforeUnmount(() => clearTimeout(timer))
 
 .splash__logo {
   display: block;
-  width: min(60vw, 20rem);
-  aspect-ratio: 5.6;
-  object-fit: cover;
-  object-position: center 48%;
+  width: min(54vw, 18rem);
+  height: auto;
 }
 
 .splash__loader {

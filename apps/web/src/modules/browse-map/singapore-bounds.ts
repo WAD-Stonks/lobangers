@@ -7,8 +7,6 @@ export type BoundingBox = {
   readonly east: number
 }
 
-// Singapore's mainland and islands with a small margin. The map opens fitted to this box and
-// cannot be dragged outside it; positions beyond it are ignored rather than clamped.
 export const SINGAPORE_BOUNDS: BoundingBox = {
   south: 1.15,
   west: 103.58,
