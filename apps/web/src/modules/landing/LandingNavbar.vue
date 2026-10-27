@@ -20,7 +20,7 @@ const { isOpen, toggle, close } = useSiteMenu({ root, toggle: toggleButton, pane
       <div class="landing-nav-links">
         <RouterLink to="/browse">Map</RouterLink>
         <a href="#cuisines">Explore Cuisines</a>
-        <a href="#neighbourhood">Near Me</a>
+        <a href="#story">How it works</a>
         <RouterLink to="/saved">Saved Deals</RouterLink>
       </div>
       <div class="landing-account">
@@ -30,7 +30,7 @@ const { isOpen, toggle, close } = useSiteMenu({ root, toggle: toggleButton, pane
       <div v-if="isOpen" id="landing-mobile-menu" ref="panel" class="landing-mobile-menu">
         <RouterLink to="/browse" @click="close">Map</RouterLink>
         <a href="#cuisines" @click="close">Explore Cuisines</a>
-        <a href="#neighbourhood" @click="close">Near Me</a>
+        <a href="#story" @click="close">How it works</a>
         <RouterLink to="/saved" @click="close">Saved Deals</RouterLink>
         <AccountMenu />
       </div>

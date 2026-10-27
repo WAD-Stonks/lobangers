@@ -4,11 +4,16 @@ Lowercase **s** has a slightly fuller diagonal waist. Lowercase **t** has a redr
 
 Web formats: WOFF2 (preferred) and WOFF. Desktop format: TTF. Weight: 900. Family: Lobang Pop. Use `font-display: swap`.
 
-To rebuild the standalone pack, install `fonttools` and `brotli`, then run `python source/build_v6.py`. The source includes the v5 baseline and the new outlines. Repository build command: `python tools/fonts/lobang-pop/build_v6.py`.
+## Files used by the app
 
-Validation: all three formats decode successfully; all unchanged simple glyphs, composite placements, metrics and kerning are compared with the v5 baseline. This is a targeted lowercase refinement, not a redraw of the entire alphabet.
+- `LobangPop-Heavy.woff2` — preferred web font; preloaded by `apps/web/index.html`.
+- `LobangPop-Heavy.woff` — web fallback.
+- `OFL-LICENSE.txt` — SIL Open Font License 1.1 and upstream notices; retain with the fonts.
+- `QA-report.json` — original revision 6 export verification, including the historical desktop TTF checksum. The desktop export is no longer shipped.
 
-Distributed under the included SIL Open Font License 1.1, with upstream notices retained.
+The active font declaration is in `apps/web/src/modules/landing/landing.css`. No separate font stylesheet is required. Use weight 900 and `font-display: swap`.
+
+The unused desktop TTF, standalone specimen stylesheet and orphaned v5 baseline have been removed. Rebuild scripts and the original specimen pack are not included in this repository. The web fonts remain byte-for-byte identical to the checksums in the original QA record.
 
 ## Previous revision provenance
 
@@ -26,47 +31,6 @@ The authentic reference outlines and spacing for **B a n g f r y o u b c k .** a
 
 Characters absent from the screenshot are interpretations. Other characters retain the recovered pack’s outlines, including Noto-derived supporting lowercase letters, digits, punctuation and extended Latin. This is a display font for headlines; the revision concentrates on A–Z and e, m, p, q, s, v, w, x, z. It does not claim a complete custom redraw of every supported Unicode character.
 
-## Files
-
-- `fonts/LobangPop-Heavy.ttf` — desktop font
-- `fonts/LobangPop-Heavy.woff2` — preferred web font
-- `fonts/LobangPop-Heavy.woff` — compatible web fallback
-- `fonts/lobang-pop.css` — ready-to-use font declaration and classes
-- `index.html` — offline editable specimen; also shows font-loading results
-- `specimen.png` — alphabet, headline and e examples
-- `character-set.png` — all 94 visible ASCII characters (space is also mapped)
-- `detail-preview.png` — large family and readability checks
-- `QA-report.json` — preservation, format checks and file checksums
-- `source/` — editable outline definitions, rebuild scripts, archived original font, original screenshot and upstream font
-- `OFL-LICENSE.txt` — included SIL Open Font License and upstream notices
-
-## Website use
-
-Copy `fonts/` into your site's public assets. Include:
-
-```html
-<link rel="stylesheet" href="/fonts/lobang-pop.css">
-<h1 class="lobang-headline">Bang for your buck.</h1>
-```
-
-The single available weight is 900. Start with `line-height: 1.02` and zero letter spacing; adjust for the actual headline. Replace older font files and refresh the browser cache. A versioned asset folder such as `/fonts/lobang-pop-v5/` can avoid cached copies.
-
-Open `index.html` for a live editable preview. If a browser blocks local font loading, serve the folder with your normal development server. It has no external resources or network dependencies.
-
-## Verification
-
-All 95 printable ASCII code points are mapped. The authentic traced outlines and metrics match the archived original exactly. TTF, WOFF and WOFF2 decode with identical outlines and spacing, render after round-trip decoding, and all three load successfully in the browser. The complete basic alphabet, digits, punctuation and headline were visually inspected, along with repeated e and sample words. Extended Latin remains inherited and was not comprehensively visually reviewed.
-
-## Rebuild
-
-Requires Python 3, `fonttools` and `brotli`:
-
-```sh
-python source/build_font.py
-```
-
-Edit `source/custom_shapes.py` for the new capital and lowercase outlines. Paths use reference-pixel coordinates with y down; the build converts them into quadratic TrueType curves. The build starts from `source/LobangPop-Original.ttf` to preserve the original sample traces exactly. `build_original.py` archives the earlier screenshot-tracing process and additionally needs Pillow, numpy, scipy and OpenCV. Rebuilding is optional; the exported fonts are ready to use.
-
 ## License and provenance
 
-Distributed under SIL Open Font License 1.1, with the original upstream notices retained. Unchanged and adapted upstream components come from Noto Sans Black. The renamed family is Lobang Pop. Reference artwork is included as supplied by the user; its inclusion does not imply ownership of the original artwork. This pack reconstructs a short lettering sample rather than identifying a pre-existing typeface.
+Distributed under SIL Open Font License 1.1, with the original upstream notices retained. Unchanged and adapted upstream components come from Noto Sans Black. The renamed family is Lobang Pop. This pack reconstructs a short lettering sample rather than identifying a pre-existing typeface. Supporting glyphs and extended Latin remain inherited; the revision does not claim a complete custom redraw of every Unicode character.

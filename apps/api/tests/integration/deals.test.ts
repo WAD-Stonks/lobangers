@@ -161,4 +161,63 @@ describe('GET /api/deals', () => {
     expect(post.status).toBe(405)
     expect(post.headers.allow).toBe('GET')
   })
+
+  it('derives verification from distinct recent voters, the ratio, approval and expiry', async () => {
+    const merchant = await db.merchant.findFirstOrThrow()
+    const deal = await db.deal.create({
+      data: {
+        title: 'Synthetic freshness fixture',
+        description: 'Test only',
+        category: 'FOOD',
+        offerType: 'OTHER',
+        applicability: 'ALL_MERCHANT_OUTLETS',
+        merchantId: merchant.id,
+        reviewStatus: 'APPROVED',
+        reviewedVersion: 1,
+        publishedAt: new Date(Date.now() - 2 * DAY_MS),
+      },
+    })
+    const users = []
+    try {
+      for (let index = 0; index < 5; index++) {
+        const user = await db.user.create({
+          data: {
+            name: 'Synthetic voter',
+            email: `${randomUUID()}@example.test`,
+            emailVerified: true,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          },
+        })
+        users.push(user)
+        await db.dealVote.create({
+          data: { dealId: deal.id, userId: user.id, value: index === 3 ? 'DEAD' : 'ALIVE' },
+        })
+      }
+      const read = async () =>
+        (
+          await client().get<DealsResponse>('/api/deals', { params: { validNow: 'false' } })
+        ).data.items.find((item) => item.id === deal.id)?.votes
+      expect(await read()).toEqual({ alive: 4, dead: 1, status: 'LIKELY_STILL_ON' })
+      await db.dealVote.updateMany({
+        where: { dealId: deal.id, userId: users[4]?.id },
+        data: { updatedAt: new Date(Date.now() - 25 * 3600000) },
+      })
+      expect(await read()).toEqual({ alive: 3, dead: 1, status: 'UNCERTAIN' })
+      await db.deal.update({
+        where: { id: deal.id },
+        data: { reviewedAt: new Date(Date.now() + 1000) },
+      })
+      expect(await read()).toEqual({ alive: 0, dead: 0, status: 'NO_RECENT_REPORTS' })
+      await db.deal.update({
+        where: { id: deal.id },
+        data: { validUntil: new Date(Date.now() - 1000) },
+      })
+      expect((await read())?.status).toBe('EXPIRED')
+    } finally {
+      await db.dealVote.deleteMany({ where: { dealId: deal.id } })
+      await db.deal.delete({ where: { id: deal.id } })
+      await db.user.deleteMany({ where: { id: { in: users.map((user) => user.id) } } })
+    }
+  })
 })
