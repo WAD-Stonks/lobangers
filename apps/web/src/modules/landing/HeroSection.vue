@@ -27,6 +27,8 @@ const preview = ref<HTMLElement | null>(null)
 const previewOverlap = ref(64)
 const previewDockTop = ref(0)
 const previewPosition = ref<{ left: string; top: string } | undefined>()
+const featuredHasAppeared = ref(false)
+const shouldPopFeatured = ref(false)
 let layoutObserver: ResizeObserver | undefined
 function positionPreview() {
   const area = mapArea.value
@@ -82,7 +84,7 @@ function positionPreview() {
   const best = candidates.sort((a, b) => a.distance - b.distance)[0]
   previewPosition.value = best ? { left: `${best.x - bounds.left}px`, top: `${best.y - bounds.top}px` } : undefined
 }
-watch([featured, selected], async () => {
+watch([featured, selected, () => props.liveState], async () => {
   await nextTick()
   layoutObserver?.disconnect()
   if (mapArea.value) layoutObserver?.observe(mapArea.value)
@@ -103,12 +105,15 @@ function discover(index: number) {
 watch(picks, available => {
   featured.value = available.find(pick => pick.deal.id === featured.value?.deal.id && pick.venue.id === featured.value?.venue.id) ?? available[0] ?? null
 }, { immediate: true })
-watch(featured, pick => {
+watch(featured, async pick => {
   imageFailed.value = false
   discoveryKey.value++
+  shouldPopFeatured.value = Boolean(pick && featuredHasAppeared.value)
   if (pick) {
     selected.value = regions.findIndex(region => region.name === areaFor(pick.venue).region)
     lastDealByRegion.set(selected.value, pick.deal.id)
+    await nextTick()
+    featuredHasAppeared.value = true
   }
 }, { immediate: true })
 let rotation: ReturnType<typeof setInterval> | undefined
@@ -175,12 +180,12 @@ onBeforeUnmount(() => {
       <RouterLink to="/browse" class="landing-button primary">Explore food deals <span aria-hidden="true">→</span>
       </RouterLink>
     </div>
-    <section ref="mapArea" aria-label="Regional food deal preview" class="hero-map-area" :class="{ 'hero-map-docked': featured && !previewPosition }" @transitionend="positionPreview" @animationend="positionPreview">
+    <section ref="mapArea" aria-label="Regional food deal preview" class="hero-map-area" :class="{ 'hero-map-docked': (featured || liveState === 'loading' || liveState === 'ready') && !previewPosition }" @transitionend="positionPreview" @animationend="positionPreview">
       <div class="hero-map-scene">
         <IllustratedMap hero-pins art-src="/landing/singapore-map-hero-water-extended-1536.webp" :active="selected" @select="discover" />
         <HeroWaterfront :paused="reduced" />
       </div>
-        <div v-if="liveState === 'loading'" class="hero-deal hero-live-card hero-loading-card" role="status" aria-busy="true">
+        <div v-if="liveState === 'loading'" ref="preview" class="hero-deal hero-live-card hero-loading-card" :class="{ 'hero-card-docked': !previewPosition }" :style="previewPosition ?? { left: '50%', top: `${previewDockTop}px` }" role="status" aria-busy="true">
           <span class="visually-hidden">Loading current deals…</span>
           <div class="hero-card-topline" aria-hidden="true">
             <span class="hero-card-region"><i /><span class="landing-skeleton hero-loading-region" /></span>
@@ -200,7 +205,7 @@ onBeforeUnmount(() => {
             <span class="landing-skeleton hero-loading-action" />
           </div>
         </div>
-        <article v-else-if="featured" :key="discoveryKey" ref="preview" class="hero-deal hero-live-card" :class="{ 'hero-card-docked': !previewPosition }" :style="previewPosition ?? { left: '50%', top: `${previewDockTop}px` }" :aria-label="`View ${featured.deal.title} at ${featured.venue.name}`">
+        <article v-else-if="featured" :key="discoveryKey" ref="preview" class="hero-deal hero-live-card" :class="{ 'hero-card-docked': !previewPosition, 'hero-card-no-entry': !featuredHasAppeared, 'hero-card-pop': shouldPopFeatured }" :style="previewPosition ?? { left: '50%', top: `${previewDockTop}px` }" :aria-label="`View ${featured.deal.title} at ${featured.venue.name}`">
           <RouterLink class="landing-card-link" :to="landingDealLink(featured.deal, featured.venue.id)" :aria-label="`View ${featured.deal.title}`" />
           <div class="hero-card-topline"><span class="hero-card-region"><i aria-hidden="true" />{{ regions[selected]?.name }}</span><span>FEATURED FIND</span></div>
           <div class="hero-card-main">
@@ -225,7 +230,7 @@ onBeforeUnmount(() => {
             <RouterLink :to="landingDealLink(featured.deal, featured.venue.id)" class="hero-deal-action">View deal <span aria-hidden="true">→</span></RouterLink>
           </div>
         </article>
-        <div v-else class="hero-deal" role="status">
+        <div v-else ref="preview" class="hero-deal hero-live-card hero-empty-card" :class="{ 'hero-card-docked': !previewPosition }" :style="previewPosition ?? { left: '50%', top: `${previewDockTop}px` }" role="status">
           <div class="hero-deal-copy">
             <small>{{ regions[selected]?.name }}</small>
             <strong>{{ liveState === 'error' ? 'Deals could not load right now.' : 'No current deals in this region yet.' }}</strong>

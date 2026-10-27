@@ -126,6 +126,7 @@ for (const width of [320, 390, 1440]) {
 test('failed deals can retry, with skeletons until the replacement response arrives', async ({
   page,
 }) => {
+  await page.setViewportSize({ width: 390, height: 844 })
   let calls = 0
   let release!: () => void
   const ready = new Promise<void>((resolve) => {
@@ -152,9 +153,23 @@ test('failed deals can retry, with skeletons until the replacement response arri
   await section.getByRole('button', { name: 'Retry loading deals' }).click()
   await expect(section.locator('.landing-skeleton-card')).toHaveCount(4)
   await expect(page.locator('.hero-loading-card')).toHaveAttribute('aria-busy', 'true')
+  await expect(page.locator('.hero-map-area')).toHaveClass(/hero-map-docked/)
+  const skeletonPosition = await page.locator('.hero-loading-card').evaluate((element) => {
+    const { x, y } = element.getBoundingClientRect()
+    return { x, y }
+  })
   release()
   await expect(section.locator('.landing-skeleton-card')).toHaveCount(0)
   await expect(section.locator('.landing-food-card')).toHaveCount(4)
+  const featuredCard = page.locator('.hero-live-card:not(.hero-loading-card)')
+  await expect(featuredCard).toBeVisible()
+  await expect(page.locator('.hero-map-area')).toHaveClass(/hero-map-docked/)
+  const featuredPosition = await featuredCard.evaluate((element) => {
+    const { x, y } = element.getBoundingClientRect()
+    return { x, y }
+  })
+  expect(featuredPosition.x).toBeCloseTo(skeletonPosition.x, 0)
+  expect(featuredPosition.y).toBeCloseTo(skeletonPosition.y, 0)
   await expect(section.locator('.landing-offer-link').first()).toHaveText('Synthetic meal 1')
   expect(calls).toBe(2)
 })
