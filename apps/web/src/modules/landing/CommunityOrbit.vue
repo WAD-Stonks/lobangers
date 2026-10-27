@@ -25,7 +25,7 @@ const orbitStyle = computed(() => ({
 }))
 const anchor = (index: number) => ({
   x: mobile.value ? props.width / 2 : props.width * ([props.width <= 1400 ? .39 : .38, .92, props.width <= 1400 ? .39 : .38, .92, .92][index] ?? .5),
-  y: mobile.value ? props.stallBottom + 11 + index * 50 : props.height * ([.25, .25, .61, .61, .83][index] ?? .5),
+  y: mobile.value ? props.stallBottom + 16 + index * 66 : props.height * ([.25, .25, .61, .61, .83][index] ?? .5),
 })
 const signal = (index: number) => {
   const t = segment(props.pulse, index * .13, index * .13 + .35)
@@ -46,7 +46,7 @@ const position = (index: number) => {
   return {
     left: `${x + (index % 2 ? -1 : 1) * ((1 - enter) * 45 + wave * 20)}px`,
     top: `${y - wave * (mobile.value ? 10 : 28)}px`,
-    opacity: enter,
+    opacity: enter * (mobile.value ? 1 - segment(props.progress, .82, .95) : 1),
     transform: `translate(-50%, ${mobile.value ? 0 : '-50%'}) rotate(${(1 - orbit) * (index % 2 ? 3 : -3)}deg) scale(${.78 + enter * .22})`,
   }
 }
@@ -62,7 +62,7 @@ const position = (index: number) => {
       <span class="report-symbol" aria-hidden="true">{{ report.kind === 'alive' ? '✓' : report.kind === 'ended' ? '×' : '!' }}</span>
       <div><small>SAMPLE · {{ reportAge(report) }}</small><p>{{ report.message }}</p><span v-if="index > 2" class="report-age-note">Older than 24h · excluded</span></div>
     </article>
-    <p v-if="mobile && !reduced" class="mobile-older-reports" :style="{ top: `${stallBottom + 163}px`, opacity: progress >= .7 ? 1 : 0 }">2 older sample reports excluded · check dates &amp; terms.</p>
+    <p v-if="mobile && !reduced" class="mobile-older-reports" :style="{ top: `${stallBottom + 16 + 3 * 66}px`, opacity: progress >= .7 ? 1 - segment(progress, .82, .95) : 0 }">2 older sample reports excluded · check dates &amp; terms.</p>
     <svg v-if="!reduced" class="community-signals" :viewBox="`0 0 ${width} ${height}`" aria-hidden="true" focusable="false">
       <g v-for="(report, index) in reports" :key="report.id" :opacity="signal(index).opacity">
         <circle :cx="signal(index).x" :cy="signal(index).y" r="10" fill="#fffdf6" :stroke="report.kind === 'alive' ? '#366341' : '#a33e2a'" stroke-width="2" />

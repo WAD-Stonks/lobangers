@@ -36,7 +36,7 @@ const statusStyle = computed(() => props.reduced ? {} : ({
   transform: `translate(-50%, -50%) perspective(700px) rotateX(${motion.value.flip * 180}deg)`,
 }))
 const chapters = [
-  { label: 'THE STALL COMES ALIVE', title: 'Your own', accent: 'hawker stall.', copy: 'See how a discovered deal becomes a local find.' },
+  { label: 'THE STALL COMES ALIVE', title: 'A nearby deal', accent: 'comes to life.', copy: 'Watch a sample map pin turn into a local food find.' },
   { label: 'THE COMMUNITY ORBIT', title: 'The word', accent: 'on the street.', copy: 'Recent visits add context to each deal.' },
   { label: 'STATUS REVEAL', title: 'Keep deals', accent: 'in the loop.', copy: 'Check recent votes, dates and terms.' },
 ] as const
@@ -69,9 +69,9 @@ const photoStyle = computed(() => {
   const g = layout.value
   const sourceMobile = w <= 800
   const t = motion.value.handoff
-  const sourceSize = sourceMobile ? Math.min(w * (w <= 350 ? .52 : .48), 300) : Math.min(w * .4, 610)
+  const sourceSize = sourceMobile ? Math.min(w * .42, h * .2, 240) : Math.min(w * .4, 610)
   const sourceX = sourceMobile ? w * .5 : w * .95 - sourceSize / 2
-  const sourceY = h * (sourceMobile ? .07 : .15) + sourceSize / 2
+  const sourceY = (sourceMobile ? Math.max(160, h * .1) : h * .15) + sourceSize / 2
   return {
     opacity: props.offer * (1 - segment(t, .45, .95)),
     left: `${sourceX + (g.x + (hawkerPhotoAnchor.x - 220) / 440 * g.size - sourceX) * t + (1 - props.offer) * 60}px`,
@@ -93,22 +93,24 @@ const pulseTarget = computed(() => ({
 }))
 const pulseStyle = computed(() => props.reduced ? {} : ({
   left: `${pulseTarget.value.x}px`,
-  top: `${props.viewport.width <= 600 ? layout.value.top + layout.value.height - 85 : pulseTarget.value.y - (layout.value.mobile ? 54 : 78)}px`,
-  opacity: segment(progress.value, .51, .58),
+  top: `${props.viewport.width <= 600 ? layout.value.top + layout.value.height - 110 : pulseTarget.value.y - (layout.value.mobile ? 54 : 78)}px`,
+  opacity: segment(progress.value, .51, .58) * (layout.value.mobile ? 1 - segment(progress.value, .82, .95) : 1),
 }))
 const statusVisible = computed(() => props.reduced || motion.value.flip >= .5)
+const joinStyle = computed(() => layout.value.mobile && !props.reduced
+  ? { opacity: motion.value.cta, top: `${layout.value.top + layout.value.height + 18}px`, bottom: 'auto' }
+  : { opacity: motion.value.cta })
 </script>
 
 <template>
   <div :aria-hidden="!reduced && offer < .1" class="community-freshness" :class="{ 'model-ready': modelReady, 'is-static': reduced, 'has-community': progress > .1, 'has-cta': motion.cta > .9 }" :data-community-progress="progress" :data-deal-id="deal.id">
     <div class="hawker-environment" :style="{ opacity: motion.handoff }" aria-hidden="true"><span class="hawker-floor" /><span class="hawker-sun" /></div>
     <header class="community-intro" :style="introStyle" :aria-hidden="!reduced && (progress < .12 || ((layout.mobile || viewport.height <= 850) && motion.cta > .9))">
-      <span class="community-eyebrow">Example walkthrough · sample data</span>
       <h2>{{ chapter.title }}{{ reduced ? ' ' : '' }}<br /><em>{{ chapter.accent }}</em></h2>
       <p>{{ chapter.copy }}</p>
       <div class="community-chapter-dots" aria-hidden="true"><span v-for="(_, index) in chapters" :key="index" :class="{ active: index === chapterIndex }" /></div>
     </header>
-    <div class="compact-stall-summary" :style="{opacity: motion.food}" :aria-hidden="!reduced && motion.food < .9"><strong>{{ deal.restaurant }} · {{ money(deal.price) }}</strong><span>{{ area }} · Illustrative offer</span></div>
+    <div class="compact-stall-summary" :style="{ opacity: motion.food * segment(motion.cta, .95, 1), top: layout.mobile ? `${layout.top - 70}px` : undefined }" :aria-hidden="!reduced && motion.cta < .95"><strong>{{ deal.restaurant }} · {{ money(deal.price) }}</strong><span>{{ area }} · Illustrative offer</span></div>
     <div class="hawker-stage" :style="stallStyle">
       <HawkerStallModel :motion="motion" :deal="deal" :area="area" :active="offer > .05 || reduced" :reduced="reduced" @ready="modelReady = $event" @anchors="anchors = $event" />
     </div>
@@ -132,7 +134,7 @@ const statusVisible = computed(() => props.reduced || motion.value.flip >= .5)
     <div class="community-pulse-position" :style="pulseStyle" :aria-hidden="!reduced && progress < .52">
       <CommunityPulse :progress="motion.pulse" :complete="motion.pulse === 1" />
     </div>
-    <div class="community-join-position" :style="{ opacity: motion.cta }">
+    <div class="community-join-position" :style="joinStyle">
       <JoinCommunityCTA :progress="motion.cta" :reduced="reduced" />
     </div>
   </div>

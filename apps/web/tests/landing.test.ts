@@ -399,7 +399,7 @@ describe('live cuisine discovery', () => {
     expect(next().attributes('disabled')).toBeDefined()
     expect(wrapper.get('.landing-carousel-status').text()).toContain('Showing 1–1 of 1 deals')
   })
-  it('shows one card on mobile, two on tablet and four on desktop', async () => {
+  it('shows four cards in two columns on mobile and tablet and four columns on desktop', async () => {
     vi.stubGlobal('innerWidth', 390)
     const wrapper = keep(
       mount(CuisineDiscovery, {
@@ -408,14 +408,18 @@ describe('live cuisine discovery', () => {
       }),
     )
     await flushPromises()
-    expect(wrapper.findAll('.landing-food-card')).toHaveLength(1)
+    expect(wrapper.findAll('.landing-food-card')).toHaveLength(4)
+    expect(wrapper.get('#landing-deal-carousel').attributes('style')).toContain('repeat(2, minmax(0, 1fr))')
+    expect(wrapper.get('.landing-carousel-status').text()).toContain('Showing 1–4')
     await wrapper.get('[aria-label="Next deals"]').trigger('click')
-    expect(wrapper.get('.landing-deal-title').text()).toBe('North-East lunch')
+    expect(wrapper.get('.landing-deal-title').text()).toBe('Central lunch')
+    await wrapper.get('[aria-label="Previous deals"]').trigger('click')
     vi.stubGlobal('innerWidth', 900)
     window.dispatchEvent(new Event('resize'))
     await flushPromises()
-    expect(wrapper.findAll('.landing-food-card')).toHaveLength(2)
-    expect(wrapper.get('.landing-carousel-status').text()).toContain('Showing 1–2')
+    expect(wrapper.findAll('.landing-food-card')).toHaveLength(4)
+    expect(wrapper.get('#landing-deal-carousel').attributes('style')).toContain('repeat(2, minmax(0, 1fr))')
+    expect(wrapper.get('.landing-carousel-status').text()).toContain('Showing 1–4')
     vi.stubGlobal('innerWidth', 1440)
     window.dispatchEvent(new Event('resize'))
     await flushPromises()
@@ -433,10 +437,10 @@ describe('live cuisine discovery', () => {
     const track = wrapper.get('#landing-deal-carousel')
     await track.trigger('touchstart', { touches: [{ clientX: 280, clientY: 100 }] })
     await track.trigger('touchend', { changedTouches: [{ clientX: 80, clientY: 105 }] })
-    expect(wrapper.get('.landing-deal-title').text()).toBe('North-East lunch')
+    expect(wrapper.get('.landing-deal-title').text()).toBe('Central lunch')
     await track.trigger('touchstart', { touches: [{ clientX: 280, clientY: 100 }] })
     await track.trigger('touchend', { changedTouches: [{ clientX: 250, clientY: 350 }] })
-    expect(wrapper.get('.landing-deal-title').text()).toBe('North-East lunch')
+    expect(wrapper.get('.landing-deal-title').text()).toBe('Central lunch')
     await track.trigger('touchstart', { touches: [{ clientX: 80, clientY: 100 }] })
     await track.trigger('touchend', { changedTouches: [{ clientX: 280, clientY: 105 }] })
     expect(wrapper.get('.landing-deal-title').text()).toBe('North lunch')
@@ -490,6 +494,39 @@ describe('live cuisine discovery', () => {
 })
 
 describe('regional hero selection', () => {
+  it('rotates through all five regions before returning and cycles deals within each region', async () => {
+    const secondNorth = { ...liveDealAt(0), id: '000000000000000000000090', title: 'Another North deal' }
+    const wrapper = keep(mount(HeroSection, {
+      props: { live: [liveDealAt(0), secondNorth, ...liveDeals.slice(1)], liveState: 'ready' },
+      global: { plugins: [router()] },
+    }))
+    expect(wrapper.get('.hero-card-region').text()).toBe('North')
+    for (const region of [...regions.slice(1), regions[0]]) {
+      await vi.advanceTimersByTimeAsync(5000)
+      expect(wrapper.get('.hero-card-region').text()).toBe(region.name)
+    }
+    expect(wrapper.get('.hero-promotion-title').text()).toBe('Another North deal')
+  })
+  it('skips empty regions and uses a chain outlet in each available region', async () => {
+    const chain = { ...liveDealAt(0), venues: [...liveDealAt(0).venues, ...liveDealAt(3).venues] }
+    const wrapper = keep(mount(HeroSection, {
+      props: { live: [chain], liveState: 'ready' },
+      global: { plugins: [router()] },
+    }))
+    await vi.advanceTimersByTimeAsync(5000)
+    expect(wrapper.get('.hero-card-region').text()).toBe('East')
+    expect(wrapper.get('.hero-deal-action').attributes('href')).toContain(`at=${liveDealAt(3).venues[0]?.id}`)
+    await vi.advanceTimersByTimeAsync(5000)
+    expect(wrapper.get('.hero-card-region').text()).toBe('North')
+  })
+  it('keeps the current deal when only one region has deals', async () => {
+    const wrapper = keep(mount(HeroSection, {
+      props: { live: [liveDealAt(0), { ...liveDealAt(0), id: '000000000000000000000090', title: 'Another North deal' }], liveState: 'ready' },
+      global: { plugins: [router()] },
+    }))
+    await vi.advanceTimersByTimeAsync(15000)
+    expect(wrapper.get('.hero-promotion-title').text()).toBe('North lunch')
+  })
   it('chooses only deals and outlets in the requested region', () => {
     const chain = {
       ...liveDealAt(0),

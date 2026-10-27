@@ -395,22 +395,23 @@
   margin-top: 6px;
 }
 
-.voting-preview-options > span {
+.voting-preview-options > button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 7px;
   flex: 1;
   text-align: center;
-  padding: 10px;
-  min-height: 42px;
+  padding: 10px 8px;
+  min-height: 48px;
   border-radius: 12px;
-  font-size: 14px;
-  font-weight: 700;
-  border: 1px solid #b9d2af;
-  background: #e4efda;
-  color: #366341;
-}
-.voting-preview-options .preview-gone {
-  background: #ffe7db;
-  border-color: #e7bfa9;
-  color: #a33e2a;
+  font: 700 0.875rem / 1.4 var(--font-sans);
+  border: 1px solid var(--hairline-strong);
+  background: var(--paper-white);
+  color: var(--ink);
+  cursor: default;
+  opacity: 1;
 }
 
 .community-voting-preview p {
@@ -639,18 +640,22 @@
     letter-spacing: 0.03em;
   }
   .pulse-ring {
-    width: 68px;
-    height: 68px;
+    width: 82px;
+    height: 82px;
     margin-bottom: 2px;
     background: #fffdf6ed;
     border-radius: 50%;
   }
   .pulse-ring b {
-    font-size: 23px;
+    font-size: 24px;
   }
   .pulse-ring span {
+    width: 62px;
+    max-width: 100%;
     font-size: 8px;
+    line-height: 1.1;
     margin-top: 1px;
+    text-align: center;
   }
   .community-pulse > strong {
     font-size: 11px;
@@ -697,11 +702,6 @@
   .voting-preview-options {
     margin-top: 3px;
     gap: 8px;
-  }
-  .voting-preview-options > span {
-    padding: 5px 8px;
-    min-height: 30px;
-    font-size: 12px;
   }
 
   .community-voting-preview p {
