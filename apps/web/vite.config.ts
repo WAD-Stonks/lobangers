@@ -11,6 +11,7 @@ export default defineConfig({
   // re-optimization and stale Vue chunk URLs during concurrent navigation.
   optimizeDeps: { entries: ['index.html', 'src/lib/*.ts'] },
   resolve: {
+    alias: { '@web/assets': fileURLToPath(new URL('./src/assets', import.meta.url)) },
     tsconfigPaths: true,
   },
   server: {
