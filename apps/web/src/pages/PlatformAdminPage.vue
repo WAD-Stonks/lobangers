@@ -71,7 +71,10 @@ watch(() => route?.query.requestStatus, value => { s.requestStatus = status(valu
           <button type="button" v-if="s.venues.data?.nextCursor" data-testid="more-venues" class="btn btn-outline-secondary mb-3" :disabled="s.busy || s.venues.loading" @click="s.loadVenues(true)">Load more stalls</button>
           <p v-if="s.venues.loading" role="status">Loading stalls…</p>
           <p v-if="s.venues.error" role="alert">{{ s.venues.error }}</p>
-          <p v-if="s.venues.data && !s.venues.data.items.length">No existing stalls match this search.</p>
+          <p v-if="s.venues.data && !s.venues.loading && !s.venues.error && !s.venues.data.items.length" role="status">
+            <template v-if="s.venues.data.nextCursor">No verified stalls on this page. Load more stalls to continue searching.</template>
+            <template v-else>No existing stalls match this search.</template>
+          </p>
         </div>
         <form id="account-action-form" @submit.prevent="s.submitAccountAction">
           <fieldset :disabled="s.busy || s.detail.loading">

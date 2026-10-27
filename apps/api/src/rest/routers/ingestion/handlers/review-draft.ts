@@ -1,6 +1,7 @@
 import { ApiErrorException } from '@api/errors'
 import { fenceDraftEvidence } from '@api/modules/ingestion/draft-evidence'
 import {
+  hasCurrentSourceScope,
   importedDealScope,
   isReviewReady,
   requireSelectedOutletAuthority,
@@ -44,7 +45,9 @@ export const postIngestionDraftReview = (dependencies: RestDependencies): Reques
         tx,
         deal.sources,
         now,
-        input.decision === 'APPROVE' && deal.applicability === 'SELECTED_OUTLETS',
+        input.decision === 'APPROVE' &&
+          (deal.applicability === 'SELECTED_OUTLETS' ||
+            deal.applicability === 'ALL_MERCHANT_OUTLETS'),
       )
       const reviewStatus =
         input.decision === 'APPROVE' ? ('APPROVED' as const) : ('REJECTED' as const)
@@ -61,7 +64,7 @@ export const postIngestionDraftReview = (dependencies: RestDependencies): Reques
           reviewedById: session.user.id,
           reviewedAt: now,
           reviewedVersion: input.expectedContentVersion,
-          publishedAt: input.decision === 'APPROVE' ? now : null,
+          publishedAt: input.decision === 'APPROVE' && hasCurrentSourceScope(deal) ? now : null,
         },
       })
       if (changed.count !== 1)

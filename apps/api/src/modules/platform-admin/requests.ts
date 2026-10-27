@@ -1,3 +1,4 @@
+import { isSelectableCatalogueVenue } from '@api/modules/deals/outlet-eligibility'
 import { DomainError } from '@api/modules/domain-error'
 import { activateGrant } from '@api/modules/platform-admin/grants'
 import { requestSubmission } from '@api/modules/platform-admin/schemas'
@@ -27,6 +28,8 @@ export const submitMerchantAccessRequest = async (
     if (user.role !== 'USER' && user.role !== 'MERCHANT')
       throw new DomainError('PRECONDITION_FAILED', 'Staff accounts cannot request merchant access')
     const { venue, merchant } = await activeVenue(tx, input.venueId)
+    if (!isSelectableCatalogueVenue(venue))
+      throw new DomainError('PRECONDITION_FAILED', 'Verified current outlet occupancy required')
     const existing = await tx.merchantAccessRequest.findFirst({
       where: { userId: user.id, venueId: venue.id, status: 'PENDING' },
     })
@@ -91,7 +94,9 @@ export const reviewRequest = (
           'PRECONDITION_FAILED',
           'Staff accounts cannot be made merchants by approval',
         )
-      await activeVenue(tx, request.venueId)
+      const { venue } = await activeVenue(tx, request.venueId)
+      if (!isSelectableCatalogueVenue(venue))
+        throw new DomainError('PRECONDITION_FAILED', 'Verified current outlet occupancy required')
       await activateGrant(tx, target.id, request.venueId)
       await tx.user.update({
         where: { id: target.id },

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import DealImage from '@web/components/DealImage.vue'
 import { walkMinutesFor } from '@web/modules/browse-map/apply-filters'
 import CategoryBubble from '@web/modules/browse-map/CategoryBubble.vue'
 import { dealFreshness, formatMoreOutlets, priceText } from '@web/modules/browse-map/deal-format'
@@ -36,7 +37,9 @@ const emit = defineEmits<{ hover: [venueId: string | null] }>()
         @focus="emit('hover', row.venue.id)"
         @blur="emit('hover', null)"
       >
+        <DealImage v-if="row.deal.imageUrl" :key="row.deal.id" class="deal-rows__image" :url="row.deal.imageUrl" :alt="row.deal.imageAltText?.trim() || row.deal.title" />
         <CategoryBubble
+          v-else
           :category="row.deal.category"
           :title="row.deal.title"
           :venue="row.venue.name"
@@ -110,6 +113,14 @@ const emit = defineEmits<{ hover: [venueId: string | null] }>()
 .deal-rows__row:focus-visible {
   outline: 3px solid var(--sunny-ring);
   outline-offset: -2px;
+}
+
+.deal-rows__image {
+  flex: 0 0 3.5rem;
+  width: 3.5rem;
+  aspect-ratio: 1;
+  font-size: var(--text-xs);
+  text-align: center;
 }
 
 .deal-rows__text {

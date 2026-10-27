@@ -63,6 +63,15 @@ it('runs the isolated Node function with real auth/Prisma and no workspace depen
       assert.equal((await request('/api/health')).status, 200);
       assert.equal((await request('/api/ready')).status, 200);
       assert.equal((await request('/api/me')).status, 401);
+      const cronUrl = base + '/api/ingestion/scheduled-runs';
+      const cronHeaders = { Authorization: 'Bearer ' + process.env.CRON_SECRET };
+      assert.equal((await fetch(cronUrl)).status, 401);
+      assert.equal((await fetch(cronUrl, {method: 'HEAD', headers: cronHeaders})).status, 405);
+      assert.equal((await fetch(cronUrl, {method: 'POST', headers: cronHeaders})).status, 405);
+      const disabledCron = await fetch(cronUrl, {headers: cronHeaders});
+      assert.equal(disabledCron.status, 412);
+      assert.equal(disabledCron.headers.get('cache-control'), 'no-store');
+      assert.equal((await disabledCron.json()).error.code, 'PRECONDITION_FAILED');
       const admin = await request('/api/admin/accounts');
       assert.equal(admin.status, 401);
       assert.deepEqual(await admin.json(), {error: {code: 'UNAUTHORIZED', message: 'UNAUTHORIZED'}});
@@ -96,6 +105,8 @@ it('runs the isolated Node function with real auth/Prisma and no workspace depen
       BETTER_AUTH_URL: 'http://localhost:5173',
       WEB_ORIGIN: 'http://localhost:5173',
       NODE_ENV: 'test',
+      INGESTION_ENABLED: 'false',
+      CRON_SECRET: 'v'.repeat(48),
       PHOTO_STORAGE_PROVIDER: 'uploadthing',
       UPLOADTHING_TOKEN: 'UNSET',
     },

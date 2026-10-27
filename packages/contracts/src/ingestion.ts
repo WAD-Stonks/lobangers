@@ -119,12 +119,33 @@ export const ingestionDraftSchema = z
     applicability: z.string(),
     merchantId: objectIdSchema.nullable().default(null),
     outlet: ingestionOutletSchema.nullable().default(null),
+    outlets: z.array(ingestionOutletSchema).max(20).optional(),
+    outletCount: z.number().int().nonnegative().optional(),
+    outletsTruncated: z.boolean().optional(),
     reviewStatus: z.string(),
     contentVersion: z.number().int(),
     sourceUrl: z.string(),
     sourceName: z.string(),
+    images: z
+      .array(
+        z.strictObject({
+          sha256: z.string().regex(/^[a-f0-9]{64}$/u),
+          url: z.string().nullable(),
+          sourceUrl: z.string().max(8192),
+          altText: z.string().nullable(),
+          mimeType: z.string(),
+          sizeBytes: z.number().int().positive(),
+          status: z.string(),
+        }),
+      )
+      .max(5)
+      .optional(),
     reviewNote: z.string().nullable(),
     reviewReady: z.boolean(),
+    // Read-only server policy projections; these are never accepted by write schemas.
+    approvalReady: z.boolean().optional(),
+    scopeStatus: z.enum(['UNCONFIRMED', 'SOURCE_CONFIRMED', 'LEGACY_RETAINED']).optional(),
+    physicalEligibilityReady: z.boolean().optional(),
   })
   .strict()
 export const ingestionDraftsResponseSchema = z

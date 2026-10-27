@@ -44,6 +44,7 @@ export const setDraftCategory = async (
       data: {
         category: input.category,
         contentVersion: { increment: 1 },
+        scopeConfirmation: { unset: true },
         reviewedVersion: null,
         reviewedById: null,
         reviewedAt: null,

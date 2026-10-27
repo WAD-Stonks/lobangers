@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { VenueDealSummary } from '@broke-oclock/contracts/venues'
+import DealImage from '@web/components/DealImage.vue'
 import { offerLabel, validityLabel } from '@web/modules/venues-feed/deal-format'
 import { computed } from 'vue'
 
@@ -10,8 +11,7 @@ const validity = computed(() => validityLabel(props.deal))
 
 <template>
   <article class="venue-deal-card" data-testid="venue-deal-card">
-    <img v-if="deal.imageUrl" :src="deal.imageUrl" :alt="deal.title" class="venue-deal-card__image" loading="lazy" />
-    <div v-else class="venue-deal-card__image venue-deal-card__image--empty" aria-hidden="true">No photo</div>
+    <DealImage :key="deal.id" :url="deal.imageUrl" :alt="deal.imageAltText?.trim() || deal.title" class="venue-deal-card__image" />
     <div class="venue-deal-card__body">
       <span class="lb-tag lb-tag--new venue-deal-card__category">{{ deal.category }}</span>
       <h3 class="venue-deal-card__title">{{ deal.title }}</h3>

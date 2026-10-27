@@ -8,7 +8,7 @@ const hostedUrl = (key: string) => `https://a2rucyxaq8.ufs.sh/f/${key}`
 type Row = {
   sourceUrl: string
   altText: string | null
-  image: { status: string; hostedUrl: string | null } | null
+  image: { status: string; hostedUrl: string | null; mimeType: string } | null
 }
 
 const row = (
@@ -18,7 +18,7 @@ const row = (
 ): Row => ({
   sourceUrl,
   altText,
-  image: { status: 'HOSTED', hostedUrl: hostedUrl(key) },
+  image: { mimeType: 'image/jpeg', status: 'HOSTED', hostedUrl: hostedUrl(key) },
 })
 
 const article = (html: string, images: Row[]) => ({
@@ -93,9 +93,19 @@ describe('deal images', () => {
     const images = imagesFor({
       sources: [
         telegram([
-          { ...row('p'), image: { status: 'PENDING', hostedUrl: hostedUrl('p') } },
-          { ...row('n'), image: { status: 'HOSTED', hostedUrl: null } },
-          { ...row('h'), image: { status: 'HOSTED', hostedUrl: 'http://example.com/x.jpg' } },
+          {
+            ...row('p'),
+            image: { mimeType: 'image/jpeg', status: 'PENDING', hostedUrl: hostedUrl('p') },
+          },
+          { ...row('n'), image: { mimeType: 'image/jpeg', status: 'HOSTED', hostedUrl: null } },
+          {
+            ...row('h'),
+            image: {
+              mimeType: 'image/jpeg',
+              status: 'HOSTED',
+              hostedUrl: 'http://example.com/x.jpg',
+            },
+          },
           { ...row('x'), image: null },
           row('ok'),
         ]),
@@ -106,7 +116,9 @@ describe('deal images', () => {
 
   it('removes duplicates shared by two sources and caps the gallery', () => {
     const many = Array.from({ length: MAX_DEAL_IMAGES + 4 }, (_, index) => row(`k${index}`))
-    const images = imagesFor({ sources: [telegram([row('k0'), ...many]), telegram([row('k1')])] })
+    const images = imagesFor({
+      sources: [telegram([row('k0'), ...many]), telegram([row('k1'), row('k4'), row('extra')])],
+    })
     expect(images).toHaveLength(MAX_DEAL_IMAGES)
     expect(new Set(images.map((image) => image.url)).size).toBe(MAX_DEAL_IMAGES)
   })

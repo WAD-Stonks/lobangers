@@ -2,6 +2,8 @@ import type { Request } from 'express'
 import { createRouteHandler, createUploadthing, type FileRouter } from 'uploadthing/express'
 import { UploadThingError } from 'uploadthing/server'
 
+export { UTApi, UTFile } from 'uploadthing/server'
+
 const allowedTypes = ['image/jpeg', 'image/png', 'image/webp']
 const fileLimit = { maxFileSize: '4MB', maxFileCount: 1, minFileCount: 0 } as const
 

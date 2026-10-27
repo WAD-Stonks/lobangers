@@ -11,6 +11,7 @@ import DraftQueue from '@web/modules/ingestion-admin/DraftQueue.vue'
 import { errorCode } from '@web/modules/ingestion-admin/errors'
 import IngestionRuns from '@web/modules/ingestion-admin/IngestionRuns.vue'
 import LocationSearch from '@web/modules/ingestion-admin/LocationSearch.vue'
+import SourcesPanel from '@web/modules/ingestion-admin/SourcesPanel.vue'
 import { inject, onMounted, onUnmounted, ref, watch } from 'vue'
 import { routeLocationKey } from 'vue-router'
 
@@ -139,6 +140,7 @@ onUnmounted(() => { fence.dispose(); operationFence.dispose(); nativeFence.dispo
       <DraftQueue :key="panelKey" :initial-status="initialStatus" :revision="revision" @changed="refresh" @denied="denied" />
       <IngestionRuns :revision="revision" @denied="denied" />
       <LocationSearch :configured="dashboard.source.onemapConfigured" @denied="denied" />
+      <SourcesPanel @changed="refresh" @denied="denied" />
       <AccountsPanel @denied="denied" />
     </template>
   </section>

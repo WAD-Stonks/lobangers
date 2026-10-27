@@ -1,20 +1,37 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { safeMediaUrl } from '@web/lib/media-url'
+import { computed, nextTick, onMounted, ref, watch } from 'vue'
 
 // One deal photo filling its frame. A soft shimmer runs until the image has loaded, then the
 // photo fades in. The parent owns the frame's shape and learns the photo's from `ratio`.
 const props = withDefaults(defineProps<{ src: string; alt: string; eager?: boolean }>(), { eager: false })
 const emit = defineEmits<{ ratio: [number]; error: [] }>()
 
+const safeUrl = computed(() => safeMediaUrl(props.src))
+const failed = ref(false)
 const loaded = ref(false)
 const img = ref<HTMLImageElement | null>(null)
 
-const onLoad = () => {
+const onLoad = (event?: Event) => {
   const el = img.value
-  if (!el || el.naturalWidth === 0 || el.naturalHeight === 0) return
+  if ((event && event.currentTarget !== el) || !el || el.naturalWidth === 0 || el.naturalHeight === 0) return
   loaded.value = true
   emit('ratio', el.naturalWidth / el.naturalHeight)
 }
+
+const onError = (event: Event) => {
+  if (event.currentTarget !== img.value) return
+  failed.value = true
+  emit('error')
+}
+
+watch(() => props.src, async () => {
+  loaded.value = false
+  failed.value = false
+  if (!safeUrl.value) emit('error')
+  await nextTick()
+  if (img.value?.complete) onLoad()
+}, { immediate: true })
 
 // A cached image can finish before the listener is attached.
 onMounted(() => {
@@ -23,18 +40,21 @@ onMounted(() => {
 </script>
 
 <template>
-  <span class="deal-photo" :class="{ 'is-loading': !loaded }" :aria-busy="loaded ? undefined : 'true'">
+  <span class="deal-photo" :class="{ 'is-loading': safeUrl && !failed && !loaded }" :aria-busy="safeUrl && !failed && !loaded ? 'true' : undefined">
     <img
+      v-if="safeUrl && !failed"
+      :key="safeUrl"
       ref="img"
       class="deal-photo__img"
-      :src="props.src"
+      referrerpolicy="no-referrer"
+      :src="safeUrl"
       :alt="props.alt"
       :loading="props.eager ? 'eager' : 'lazy'"
       decoding="async"
-      referrerpolicy="no-referrer"
       @load="onLoad"
-      @error="emit('error')"
+      @error="onError"
     />
+    <span v-else role="img" :aria-label="failed ? 'Image unavailable' : 'No photo for this deal yet'">{{ failed ? 'Image unavailable' : 'No photo' }}</span>
   </span>
 </template>
 
