@@ -7,7 +7,9 @@ import { expect, type Locator, type Page, test } from '@playwright/test'
 
 // SYNTHETIC network/session/media fixtures around the original SPA, router, SDK and CSS.
 // Does not establish live authentication, UploadThing delivery or production authorization.
-const samplePng = readFileSync(new URL('../apps/web/src/assets/logo.png', import.meta.url))
+const samplePng = readFileSync(
+  new URL('../apps/web/src/assets/lobangers-logo.png', import.meta.url),
+)
 const imageUrl = 'https://media.example.test/synthetic-sample.png'
 const failedUrl = 'https://media.example.test/synthetic-failure.png'
 const gifUrl = 'https://media.example.test/synthetic-archive.gif'
