@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import logo from '@web/assets/logo.png'
 import CuisineDiscovery from '@web/modules/landing/CuisineDiscovery.vue'
 import HeroSection from '@web/modules/landing/HeroSection.vue'
 import LandingNavbar from '@web/modules/landing/LandingNavbar.vue'
@@ -37,7 +36,7 @@ const { deals, status, retry } = useLandingDeals()
     <ScrollStory />
     <CuisineDiscovery :live="deals" :live-state="status" @retry="retry" />
     <footer class="landing-footer">
-      <RouterLink to="/" class="footer-wordmark" aria-label="Lobangers home"><img :src="logo" alt="LOBANGERS" width="200" height="44" /></RouterLink>
+      <RouterLink to="/" class="footer-wordmark" aria-label="Lobangers home"><img src="/logo.png" alt="LOBANGERS" width="200" height="44" /></RouterLink>
       <p>Good food. Better prices. Little red dot.</p>
       <div>
         <RouterLink to="/browse">Find a lobang ↗</RouterLink>

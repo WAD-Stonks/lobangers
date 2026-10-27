@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import logoUrl from '@web/assets/logo.png'
 import AccountMenu from '@web/components/AccountMenu.vue'
 import { SITE_MENU_ID, SITE_NAV_LINKS } from '@web/components/site-nav-links'
 import { useSiteMenu } from '@web/components/use-site-menu'
@@ -21,7 +20,7 @@ const { isOpen, close, toggle } = useSiteMenu({ root, toggle: toggleButton, pane
   <header ref="root" class="site-header" :class="{ 'is-open': isOpen, 'site-header--embedded': embedded }">
     <nav aria-label="Primary navigation" class="site-pill" data-testid="primary-nav">
       <RouterLink class="site-brand" to="/" @click="close">
-        <img :src="logoUrl" alt="Lobangers" class="site-logo" />
+        <img src="/logo.png" alt="Lobangers" class="site-logo" />
       </RouterLink>
 
       <button ref="toggleButton" type="button" class="site-toggle" data-testid="nav-toggle"
