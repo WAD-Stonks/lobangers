@@ -182,7 +182,23 @@ onBeforeUnmount(() => {
       </div>
         <div v-if="liveState === 'loading'" class="hero-deal hero-live-card hero-loading-card" role="status" aria-busy="true">
           <span class="visually-hidden">Loading current deals…</span>
-          <div class="hero-loading-content" aria-hidden="true"><span class="landing-skeleton" /><span class="landing-skeleton" /><span class="landing-skeleton" /></div>
+          <div class="hero-card-topline" aria-hidden="true">
+            <span class="hero-card-region"><i /><span class="landing-skeleton hero-loading-region" /></span>
+            <span class="landing-skeleton hero-loading-eyebrow" />
+          </div>
+          <div class="hero-card-main" aria-hidden="true">
+            <div class="hero-card-photo"><span class="landing-skeleton" /></div>
+            <div class="hero-deal-copy hero-loading-content">
+              <span class="landing-skeleton hero-loading-cuisine" />
+              <span class="landing-skeleton hero-loading-title" />
+              <span class="landing-skeleton hero-loading-restaurant" />
+              <span class="landing-skeleton hero-loading-period" />
+            </div>
+          </div>
+          <div class="hero-card-footer" aria-hidden="true">
+            <span class="landing-skeleton hero-loading-location" />
+            <span class="landing-skeleton hero-loading-action" />
+          </div>
         </div>
         <article v-else-if="featured" :key="discoveryKey" ref="preview" class="hero-deal hero-live-card" :class="{ 'hero-card-docked': !previewPosition }" :style="previewPosition ?? { left: '50%', top: `${previewDockTop}px` }" :aria-label="`View ${featured.deal.title} at ${featured.venue.name}`">
           <RouterLink class="landing-card-link" :to="landingDealLink(featured.deal, featured.venue.id)" :aria-label="`View ${featured.deal.title}`" />
