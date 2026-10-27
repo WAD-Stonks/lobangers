@@ -191,7 +191,7 @@ describe('landing hero', () => {
     expect(wrapper.get('.hero-promotion-title').text()).toBe(second.title)
     await wrapper.setProps({ live: [] })
     await vi.advanceTimersByTimeAsync(5000)
-    expect(wrapper.find('.hero-live-card').exists()).toBe(false)
+    expect(wrapper.get('.hero-empty-card').text()).toContain('No current deals in this region yet.')
   })
 
   it('replays the selected deal pop without rendering a route overlay', async () => {
