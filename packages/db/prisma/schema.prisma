@@ -172,6 +172,59 @@ model Merchant {
   @@index([name])
 }
 
+enum OutletVerificationState {
+  UNVERIFIED
+  VERIFIED
+  LEGACY_RETAINED
+}
+
+enum OutletEvidenceProvider {
+  DATABASE_SNAPSHOT
+  ONEMAP
+  GOOGLE_PLACES
+  OFFICIAL_MERCHANT
+  OFFICIAL_PROPERTY
+  ADMIN
+}
+
+enum OutletGeographyPrecision {
+  UNKNOWN
+  PROPERTY
+  OUTLET
+}
+
+enum OutletScopeBasis {
+  UNCONFIRMED
+  SOURCE_SELECTED
+  SOURCE_ALL
+  SOURCE_NONSPATIAL
+  LEGACY_RETAINED
+}
+
+// No positive defaults: missing evidence is unknown, never inferred verification.
+type OutletVerificationEvidence {
+  state             OutletVerificationState
+  provider          OutletEvidenceProvider
+  reference         String
+  subjectHash       String
+  sourceUrl         String?
+  sourceContentHash String?
+  observedAt        DateTime?
+  verifiedAt        DateTime?
+}
+
+type OutletScopeConfirmation {
+  basis             OutletScopeBasis
+  contentVersion    Int
+  scopeHash         String
+  evidenceRef       String
+  retainedVenueIds  String[] @db.ObjectId
+  sourceContentHash String?
+  sourceUrl         String?
+  confirmedAt       DateTime?
+  reasonCode        String?
+}
+
 model Venue {
   id         String      @id @default(auto()) @map("_id") @db.ObjectId
   merchantId String      @db.ObjectId
@@ -188,6 +241,12 @@ model Venue {
   deletedAt  DateTime?
   deals      DealVenue[]
 
+  catalogueKey       String?
+  geographyEvidence  OutletVerificationEvidence?
+  geographyPrecision OutletGeographyPrecision?
+  occupancyEvidence  OutletVerificationEvidence?
+
+  @@index([catalogueKey])
   @@index([merchantId, name])
   @@index([latitude, longitude])
   @@index([area])
@@ -198,7 +257,7 @@ model Deal {
   title           String
   description     String
   category        String
-  // One of DEAL_CUISINES in contracts; null when a cuisine does not apply (a supermarket deal).
+  // Native upstream cuisine remains optional for existing records.
   cuisine         String?
   offerType       OfferType
   terms           String?
@@ -234,6 +293,8 @@ model Deal {
   reports         DealReport[]
   images          UploadedFile[]
   sources         DealSource[]
+
+  scopeConfirmation OutletScopeConfirmation?
 
   @@index([reviewStatus, deletedAt, publishedAt])
   @@index([reviewStatus, deletedAt, validUntil])
@@ -419,42 +480,55 @@ model DealSource {
   sourceContentHash     String
   sourceContentSnapshot String
   sourceUrl             String
-  createdAt             DateTime     @default(now())
   images                DealSourceImage[]
+  createdAt             DateTime     @default(now())
 
   @@unique([dealId, importedPostId])
   @@index([importedPostId])
 }
 
-// A source image re-hosted on UploadThing by the importer. The id is the image's SHA-256,
-// so the same poster seen in two posts is stored once.
+// Server-imported media never fabricates a user-owned UploadThing file.
+// _id is the actual byte SHA-256. UNKNOWN uploads must reconcile, never resend.
 model ImportedImage {
-  id         String            @id @map("_id")
-  mimeType   String
-  sizeBytes  Int
-  // HOSTED once the UploadThing upload has finished; only hosted images are shown.
-  status     String
-  storageKey String?
-  hostedUrl  String?
-  createdAt  DateTime          @default(now())
-  updatedAt  DateTime          @updatedAt
-  sources    DealSourceImage[]
+  id             String   @id @map("_id")
+  mimeType       String
+  sizeBytes      Int
+  status         String   @default("DOWNLOADED_ONLY")
+  storageKey     String?
+  hostedUrl      String?
+  uploadToken    String?
+  uploadExpiresAt DateTime?
+  errorCode      String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  sources        DealSourceImage[]
 }
 
-// Links a deal's source post to the images it carried, keeping the original URL as provenance.
+// Immutable per-citation provenance, including URLs actually fetched.
 model DealSourceImage {
-  id           String        @id @default(auto()) @map("_id") @db.ObjectId
-  dealSourceId String        @db.ObjectId
-  dealSource   DealSource    @relation(fields: [dealSourceId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  id           String @id @default(auto()) @map("_id") @db.ObjectId
+  dealSourceId String @db.ObjectId
+  dealSource   DealSource @relation(fields: [dealSourceId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   imageId      String
   image        ImportedImage @relation(fields: [imageId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   sourceUrl    String
+  // Historical links may predate redirect capture. New captures still supply finalUrl.
   finalUrl     String?
   altText      String?
-  createdAt    DateTime      @default(now())
+  createdAt    DateTime @default(now())
 
   @@unique([dealSourceId, imageId])
   @@index([imageId])
+}
+
+// Deterministic promotion identity lives in Mongo's native unique _id index.
+// Its creation and the canonical deal/citation commit in one transaction.
+model PromotionIdentity {
+  id        String   @id @map("_id")
+  dealId    String   @db.ObjectId
+  createdAt DateTime @default(now())
+
+  @@index([dealId])
 }
 
 model IngestionRun {

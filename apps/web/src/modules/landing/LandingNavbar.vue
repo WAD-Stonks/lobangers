@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import logo from '@web/assets/lobangers-logo.png'
 import AccountMenu from '@web/components/AccountMenu.vue'
 import { useSiteMenu } from '@web/components/use-site-menu'
 import { ref } from 'vue'
@@ -14,7 +15,7 @@ const { isOpen, toggle, close } = useSiteMenu({ root, toggle: toggleButton, pane
   <header ref="root" class="landing-header">
     <nav class="landing-nav" aria-label="Primary navigation">
       <RouterLink to="/" class="landing-brand" aria-label="Lobangers home">
-        <img src="/logo.png" alt="LOBANGERS" />
+        <img :src="logo" alt="LOBANGERS" />
       </RouterLink>
       <div class="landing-nav-links">
         <RouterLink to="/browse">Map</RouterLink>

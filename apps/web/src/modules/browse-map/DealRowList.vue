@@ -1,16 +1,18 @@
 <script setup lang="ts">
+import DealImage from '@web/components/DealImage.vue'
 import { walkMinutesFor } from '@web/modules/browse-map/apply-filters'
 import CategoryBubble from '@web/modules/browse-map/CategoryBubble.vue'
 import { dealFreshness, formatMoreOutlets, priceText } from '@web/modules/browse-map/deal-format'
 import { OFFER_TYPE_LABELS } from '@web/modules/browse-map/filters'
 import type { DealRow } from '@web/modules/browse-map/types'
 import ShellIcon from '@web/modules/map-shell/ShellIcon.vue'
+import { ref } from 'vue'
 import type { RouteLocationRaw } from 'vue-router'
 import { RouterLink } from 'vue-router'
 
 // Price-first deal rows. Each row links to its deal; hovering or focusing a row lights up its
 // pin on the map (and the shell lights the row when its pin is hovered).
-withDefaults(
+const props = withDefaults(
   defineProps<{
     rows: readonly DealRow[]
     to: (row: DealRow) => RouteLocationRaw
@@ -21,6 +23,16 @@ withDefaults(
   { hotVenueId: null, currentKey: null, testId: 'deal-rows' },
 )
 const emit = defineEmits<{ hover: [venueId: string | null] }>()
+const pointedKey = ref<string | null>(null)
+const point = (row: DealRow | null) => {
+  pointedKey.value = row?.key ?? null
+  emit('hover', row?.venue.id ?? null)
+}
+const isHot = (row: DealRow) => {
+  const pointed = props.rows.find((candidate) => candidate.key === pointedKey.value)
+  if (pointed && pointed.venue.id === props.hotVenueId) return row.key === pointed.key
+  return row.venue.id === props.hotVenueId
+}
 </script>
 
 <template>
@@ -29,14 +41,16 @@ const emit = defineEmits<{ hover: [venueId: string | null] }>()
       <RouterLink
         :to="to(row)"
         class="deal-rows__row"
-        :class="{ 'is-hot': row.venue.id === hotVenueId, 'is-current': row.key === currentKey }"
+        :class="{ 'is-hot': isHot(row), 'is-current': row.key === currentKey }"
         :aria-current="row.key === currentKey ? 'true' : undefined"
-        @mouseenter="emit('hover', row.venue.id)"
-        @mouseleave="emit('hover', null)"
-        @focus="emit('hover', row.venue.id)"
-        @blur="emit('hover', null)"
+        @mouseenter="point(row)"
+        @mouseleave="point(null)"
+        @focus="point(row)"
+        @blur="point(null)"
       >
+        <DealImage v-if="row.deal.imageUrl" :key="row.deal.id" class="deal-rows__image" :url="row.deal.imageUrl" :alt="row.deal.imageAltText?.trim() || row.deal.title" />
         <CategoryBubble
+          v-else
           :category="row.deal.category"
           :title="row.deal.title"
           :venue="row.venue.name"
@@ -110,6 +124,14 @@ const emit = defineEmits<{ hover: [venueId: string | null] }>()
 .deal-rows__row:focus-visible {
   outline: 3px solid var(--sunny-ring);
   outline-offset: -2px;
+}
+
+.deal-rows__image {
+  flex: 0 0 3.5rem;
+  width: 3.5rem;
+  aspect-ratio: 1;
+  font-size: var(--text-xs);
+  text-align: center;
 }
 
 .deal-rows__text {

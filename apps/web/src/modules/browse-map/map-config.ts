@@ -4,18 +4,13 @@ export const SINGAPORE_CENTER = { lat: 1.3521, lng: 103.8198 } as const
 export const FOCUS_ZOOM = 15
 // "Near me" lands much closer in, at walking-street level around the visitor.
 export const LOCATE_ZOOM = 17
-// Zoom 11 keeps the whole island on screen; anything wider shows only sea and Johor.
-export const MIN_ZOOM = 11
+export const MIN_ZOOM = 3
+export const OPEN_MIN_ZOOM = 11
 export const MAX_ZOOM = 19
 // Selecting a deal flies there; hopping to a deal this close (at street zoom) pans instead.
 export const FLY_DURATION_S = 0.65
 export const PAN_DURATION_S = 0.4
 export const NEARBY_PAN_METRES = 1500
-// 1 = the edge is a hard wall; lower values let the map bounce past it and spring back.
-export const BOUNDS_VISCOSITY = 1
-
-// "You are here": a CSS dot inside an L.divIcon. A marker is repositioned, never scaled, during
-// zoom animations, whereas a vector circleMarker balloons while Leaflet flies in.
 export const USER_DOT_SIZE_PX = 14
 export const USER_DOT_CLASS = 'deal-map-user-dot'
 // Soft sky-blue halo for the browser's accuracy radius; matches --sky in main.css.
@@ -25,8 +20,6 @@ export const USER_ACCURACY_STYLE = {
   fillColor: '#4f7df3',
   fillOpacity: 0.14,
 } as const
-// Skip the halo when the accuracy estimate is coarser than this; at street zoom (1px ~ 5 m)
-// anything wider would cover the whole view.
 export const MAX_ACCURACY_HALO_METRES = 500
 
 // Venue pins (animated 3D food plus a black price badge) are built by venue-pin.ts; area and

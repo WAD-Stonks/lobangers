@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import type { DealImage } from '@broke-oclock/contracts/deals'
+import { safeMediaUrl } from '@web/lib/media-url'
 import DealPhoto from '@web/modules/browse-map/DealPhoto.vue'
 import { clampPhotoRatio } from '@web/modules/browse-map/deal-columns'
 import ShellIcon from '@web/modules/map-shell/ShellIcon.vue'
-import { computed, ref, watchEffect } from 'vue'
+import { computed, ref, watch, watchEffect } from 'vue'
 
 // Swipeable deal photos. The frame takes the shape of the photo on screen (portrait poster,
 // square, landscape), within limits so one odd image cannot fill or flatten the panel. Photos
@@ -17,7 +18,17 @@ const ratios = ref<Readonly<Record<string, number>>>({})
 const active = ref(0)
 const track = ref<HTMLElement | null>(null)
 
-const shown = computed(() => props.images.filter((image) => !failed.value.has(image.url)))
+const MAX_GALLERY_IMAGES = 6
+const shown = computed(() => {
+  const seen = new Set<string>()
+  return props.images.filter((image) => {
+    const url = safeMediaUrl(image.url)
+    if (!url || failed.value.has(image.url) || seen.has(url)) return false
+    seen.add(url)
+    return true
+  }).slice(0, MAX_GALLERY_IMAGES)
+})
+watch(shown, (images) => { active.value = Math.min(active.value, Math.max(0, images.length - 1)) })
 const current = computed(() => shown.value[Math.min(active.value, shown.value.length - 1)])
 const frameRatio = computed(() =>
   clampPhotoRatio(current.value ? ratios.value[current.value.url] : undefined),
@@ -49,7 +60,7 @@ const goTo = (index: number) => {
   el?.scrollTo?.({ left: target * el.clientWidth, behavior: prefersReducedMotion() ? 'auto' : 'smooth' })
 }
 
-const altFor = (image: DealImage, index: number) => image.alt ?? `${props.title}, photo ${index + 1}`
+const altFor = (image: DealImage, index: number) => image.alt?.trim() || `${props.title}, photo ${index + 1}`
 </script>
 
 <template>

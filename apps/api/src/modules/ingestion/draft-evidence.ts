@@ -1,5 +1,5 @@
 import { DomainError } from '@api/modules/domain-error'
-import { MONEYDIGEST_SOURCE } from '@api/modules/ingestion/source'
+import { sourceFromRecord } from '@api/modules/ingestion/source'
 import type { AccessTransaction } from '@api/modules/platform-admin/transaction'
 
 type DraftSource = {
@@ -28,12 +28,7 @@ export const fenceDraftEvidence = async (
         throw new DomainError('PRECONDITION_FAILED', 'Source evidence needs clarification')
       if (!sourceIds.has(evidence.sourceId)) {
         const publisher = await tx.importSource.findUnique({ where: { id: evidence.sourceId } })
-        if (
-          !publisher?.enabled ||
-          publisher.provider !== MONEYDIGEST_SOURCE.provider ||
-          publisher.externalId !== MONEYDIGEST_SOURCE.externalId ||
-          publisher.url !== MONEYDIGEST_SOURCE.url
-        )
+        if (!publisher?.enabled || !sourceFromRecord(publisher))
           throw new DomainError('PRECONDITION_FAILED', 'Active supported source required')
         const changed = await tx.importSource.updateMany({
           where: {

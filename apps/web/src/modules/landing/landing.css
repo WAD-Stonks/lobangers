@@ -91,10 +91,8 @@
   flex-shrink: 0;
 }
 .landing-brand img {
-  width: 181px;
-  height: 40px;
-  object-fit: cover;
-  object-position: center 48%;
+  width: auto;
+  height: 33px;
 }
 .landing-nav-links {
   display: flex;
@@ -1481,8 +1479,7 @@
     padding-inline: 22px;
   }
   .landing-brand img {
-    width: 147px;
-    height: 33px;
+    height: 27px;
   }
   .landing-nav-links {
     gap: 17px;

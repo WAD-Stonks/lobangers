@@ -6,6 +6,7 @@
   "exports": {
     "./api": "./src/api.ts",
     "./ingestion": "./src/ingestion.ts",
+    "./ingestion-sources": "./src/ingestion-sources.ts",
     "./platform-admin": "./src/platform-admin.ts",
     "./deals": "./src/deals.ts",
     "./deal-categories": "./src/deal-categories.ts",

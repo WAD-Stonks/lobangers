@@ -1,9 +1,10 @@
 import assert from 'node:assert/strict'
+import { execFileSync } from 'node:child_process'
 import { existsSync, readdirSync, readFileSync, realpathSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { join, relative } from 'node:path'
 import { test } from 'node:test'
-import { fileURLToPath } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 import ts from 'typescript'
 
 const root = fileURLToPath(new URL('../../', import.meta.url))
@@ -94,6 +95,51 @@ test('workspace imports preserve app isolation, package ownership and public exp
     }
   }
   assert.deepEqual(violations, [])
+})
+
+test('DB constructor is a public server-only export without ambient application state', () => {
+  assert.equal(Object.hasOwn(manifest('packages/db').exports, './constructor'), true)
+  const require = createRequire(join(root, 'apps/api/package.json'))
+  const entry = pathToFileURL(require.resolve('@broke-oclock/db/constructor')).href
+  const output = execFileSync(
+    process.execPath,
+    [
+      '--import',
+      'tsx',
+      '--input-type=module',
+      '--eval',
+      `
+        import assert from 'node:assert/strict'
+        assert.equal(Object.hasOwn(globalThis, '__brokeOclockDb'), false)
+        const { Prisma, PrismaClient } = await import(${JSON.stringify(entry)})
+        assert.equal(typeof PrismaClient, 'function')
+        assert.ok(Prisma.DbNull)
+        assert.equal(Object.hasOwn(globalThis, '__brokeOclockDb'), false)
+        process.stdout.write('constructor-only')
+      `,
+    ],
+    {
+      cwd: root,
+      env: { ...process.env, NODE_ENV: 'test', DATABASE_URL: 'invalid-ambient-datasource' },
+      encoding: 'utf8',
+      timeout: 15_000,
+    },
+  )
+  assert.equal(output, 'constructor-only')
+  const browser = execFileSync(
+    process.execPath,
+    [
+      '--conditions=browser',
+      '--eval',
+      `
+        const assert = require('node:assert/strict')
+        const scoped = require('node:module').createRequire(${JSON.stringify(join(root, 'apps/api/package.json'))})
+        assert.throws(() => scoped.resolve('@broke-oclock/db/constructor'), { code: 'ERR_PACKAGE_PATH_NOT_EXPORTED' })
+      `,
+    ],
+    { cwd: root, encoding: 'utf8', timeout: 15_000 },
+  )
+  assert.equal(browser, '')
 })
 
 test('public contract resolution agrees between TypeScript and Node and rejects private subpaths', () => {

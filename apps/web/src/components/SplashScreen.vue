@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import logoUrl from '@web/assets/lobangers-logo.png'
 import { SPLASH_DURATION_MS } from '@web/components/splash-config'
 import TicketLoader from '@web/components/TicketLoader.vue'
 import { onBeforeUnmount, onMounted, ref } from 'vue'
@@ -20,7 +21,7 @@ onBeforeUnmount(() => clearTimeout(timer))
 <template>
   <Transition name="splash">
     <div v-if="visible" class="splash" role="status" aria-live="polite" data-testid="splash-screen">
-      <img src="/logo.png" alt="Lobangers" class="splash__logo" />
+      <img :src="logoUrl" alt="Lobangers" class="splash__logo" />
       <TicketLoader class="splash__loader" />
       <span class="visually-hidden">Loading Lobangers…</span>
     </div>
@@ -42,10 +43,8 @@ onBeforeUnmount(() => clearTimeout(timer))
 
 .splash__logo {
   display: block;
-  width: min(60vw, 20rem);
-  aspect-ratio: 5.6;
-  object-fit: cover;
-  object-position: center 48%;
+  width: min(54vw, 18rem);
+  height: auto;
 }
 
 .splash__loader {

@@ -3,6 +3,11 @@ import { randomBytes, randomUUID } from 'node:crypto'
 import { createServer, type Server } from 'node:http'
 import { fileURLToPath } from 'node:url'
 import { promisify } from 'node:util'
+import {
+  registerSyntheticOutletFixtureDatabase,
+  seedSyntheticOccupancy,
+  seedSyntheticScope,
+} from '@api/../tests/fixtures/outlet-proof'
 import { parseConfig } from '@api/config'
 import { MongoMemoryReplSet } from 'mongodb-memory-server'
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -60,8 +65,8 @@ const dealBase = {
   applicability: 'NO_FIXED_LOCATION',
 } as const
 
-const publicDeal = (title: string) =>
-  db.deal.create({
+const publicDeal = async (title: string) => {
+  const deal = await db.deal.create({
     data: {
       ...dealBase,
       title,
@@ -70,11 +75,14 @@ const publicDeal = (title: string) =>
       reviewedVersion: 1,
     },
   })
+  // Genuinely nonspatial user fixture, not a missing-outlet imported promotion.
+  return seedSyntheticScope(db, deal.id, 'SOURCE_NONSPATIAL')
+}
 const pendingDeal = (title: string, submittedById?: string) =>
   db.deal.create({ data: { ...dealBase, title, ...(submittedById ? { submittedById } : {}) } })
 const syntheticVenue = async (name = 'Synthetic stall') => {
   const merchant = await db.merchant.create({ data: { name: 'Synthetic merchant' } })
-  return db.venue.create({
+  const venue = await db.venue.create({
     data: {
       merchantId: merchant.id,
       name,
@@ -83,6 +91,8 @@ const syntheticVenue = async (name = 'Synthetic stall') => {
       longitude: 103.8,
     },
   })
+  // Selectable claim positive; role/inactivity mutations happen only afterward.
+  return seedSyntheticOccupancy(db, venue.id)
 }
 
 beforeAll(async () => {
@@ -100,6 +110,7 @@ beforeAll(async () => {
     timeout: 60_000,
   })
   db = (await import('@broke-oclock/db')).db
+  registerSyntheticOutletFixtureDatabase(db, databaseUrl)
   disconnect = () => db.$disconnect()
   const { createApp } = await import('@api/app')
   server = createServer()
@@ -233,6 +244,27 @@ describe('account endpoints: saved deals', () => {
     ).toBe(400)
     expect(await db.bookmark.count({ where: { userId: user.id } })).toBe(0)
   })
+
+  it.each(['missing', 'null'] as const)(
+    'does not manufacture nonspatial scope for an approved unknown fixture: %s confirmation',
+    async (mode) => {
+      const deal = await db.deal.create({
+        data: {
+          ...dealBase,
+          title: 'Unconfirmed synthetic user deal',
+          reviewStatus: 'APPROVED',
+          publishedAt: new Date(),
+          reviewedVersion: 1,
+        },
+      })
+      if (mode === 'null')
+        await db.deal.update({ where: { id: deal.id }, data: { scopeConfirmation: null } })
+      expect(
+        (await call('PUT', `/api/account/bookmarks/${deal.id}`, { cookie: alice.cookies })).status,
+      ).toBe(404)
+      expect(await db.bookmark.count({ where: { userId: alice.id, dealId: deal.id } })).toBe(0)
+    },
+  )
 
   it("never shows or deletes another user's bookmarks", async () => {
     const owner = alice

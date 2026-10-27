@@ -4,6 +4,7 @@ import type { IngestionDraft, IngestionDraftsQuery, IngestionReviewRequest } fro
 import type { PlatformVenue } from '@broke-oclock/contracts/platform-admin'
 import { BButton } from '@broke-oclock/ui'
 import { api } from '@web/lib/api-client'
+import DraftImages from '@web/modules/ingestion-admin/DraftImages.vue'
 import { approvalBlockReason } from '@web/modules/ingestion-admin/draft-validity'
 import { errorCode } from '@web/modules/ingestion-admin/errors'
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
@@ -78,7 +79,7 @@ const approvalReason = computed(() => approvalBlockReason(selected.value))
 const canReview = computed(() => !closed && selected.value?.reviewStatus === 'PENDING' && note.value.trim().length > 0 && note.value.trim().length <= 1000 && !busy.value && !venuePending.value && !pending.value && !error.value && !conflict.value)
 const categoryAllowed = computed(() => selected.value?.reviewStatus === 'PENDING')
 const canSetCategory = computed(() => !closed && categoryAllowed.value && dealCategorySchema.safeParse(category.value).success && category.value !== selected.value?.category && !busy.value && !pending.value && !venuePending.value && !error.value && !conflict.value)
-const associationAllowed = computed(() => selected.value?.reviewStatus === 'PENDING' && ['NO_FIXED_LOCATION', 'SELECTED_OUTLETS'].includes(selected.value.applicability))
+const associationAllowed = computed(() => selected.value?.reviewStatus === 'PENDING' && (selected.value.outletCount ?? selected.value.outlets?.length ?? 0) <= 1 && ['NO_FIXED_LOCATION', 'SELECTED_OUTLETS'].includes(selected.value.applicability))
 const chosenVenue = computed(() => venues.value?.find(item => item.id === venueId.value))
 const canAssociate = computed(() => !closed && associationAllowed.value && chosenVenue.value && chosenVenue.value.id !== selected.value?.outlet?.id && confirmed.value && !busy.value && !pending.value && !venuePending.value && !error.value && !conflict.value)
 const load = async (cursor?: string) => {
@@ -239,7 +240,7 @@ watch([() => props.revision, status], (_value, previous) => {
   ++generation; ++request; clearOutlets(); note.value = ''
   // A context shift makes an in-flight review outcome uncertain for its old target.
   for (const id of activeWrites) lock(id, highest.get(id)?.contentVersion ?? 1)
-  reviewPending.value = false; associationPending.value = false
+  reviewPending.value = false; associationPending.value = false; categoryPending.value = false
   if (previous && previous[1] !== status.value) { selectedId.value = null; note.value = ''; items.value = null; reviewError.value = ''; success.value = '' }
   void load()
 }, { immediate: true, flush: 'sync' })
@@ -267,14 +268,30 @@ watch([() => props.revision, status], (_value, previous) => {
     <article v-if="selected" aria-labelledby="draft-title" class="border-top pt-4 text-break">
       <h3 id="draft-title" class="h5">{{ selected.title }}</h3>
       <p class="draft-text">{{ selected.description }}</p>
+      <DraftImages :key="`${selected.id}:${selected.contentVersion}`" :images="selected.images" :title="selected.title" />
       <dl>
         <dt>Terms</dt><dd class="draft-text">{{ selected.terms ?? 'Not supplied' }}</dd>
         <dt>Category / offer type</dt><dd>{{ selected.category }} / {{ selected.offerType }}</dd>
         <dt>Validity</dt><dd>{{ selected.validFrom ?? 'Unknown start' }} to {{ selected.validUntil ?? 'Unknown end' }}</dd>
         <dt>Original validity text</dt><dd>{{ selected.rawValidityText ?? 'Not supplied' }}</dd>
         <dt>Content version</dt><dd>Version {{ selected.contentVersion }}</dd>
-        <dt>Current outlet</dt><dd v-if="selected.outlet">{{ selected.outlet.name }} · {{ selected.outlet.address }} · {{ selected.outlet.merchantName }}</dd><dd v-else>No existing outlet associated</dd>
+        <dt>Current outlet</dt>
+        <dd v-if="selected.outlets?.length">
+          <ul><li v-for="outlet in selected.outlets" :key="outlet.id">{{ outlet.name }} · {{ outlet.address }} · {{ outlet.merchantName }}</li></ul>
+          <p v-if="selected.outletsTruncated">Showing {{ selected.outlets.length }} of {{ selected.outletCount }} associated outlets. Display is truncated; approval checks the complete set.</p>
+          <p v-else>{{ selected.outletCount ?? selected.outlets.length }} associated outlet(s). Association alone does not confirm campaign participation.</p>
+        </dd>
+        <dd v-else-if="selected.outlet">{{ selected.outlet.name }} · {{ selected.outlet.address }} · {{ selected.outlet.merchantName }}</dd>
+        <dd v-else-if="(selected.outletCount ?? 0) > 0">{{ selected.outletCount }} associated outlets; details unavailable.</dd>
+        <dd v-else>No existing outlet associated</dd>
         <dt>Applicability</dt><dd>{{ selected.applicability }}</dd>
+        <dt>Content review</dt><dd>{{ selected.reviewReady ? 'Content reviewable; scope and publication are separate checks.' : 'Source, offer or validity clarification required.' }}</dd>
+        <dt>Scope / physical eligibility</dt>
+        <dd v-if="selected.scopeStatus === 'SOURCE_CONFIRMED' && selected.physicalEligibilityReady">Source-confirmed physical scope. Public visibility still requires current approval and publication.</dd>
+        <dd v-else-if="selected.scopeStatus === 'SOURCE_CONFIRMED' && ['ONLINE', 'NO_FIXED_LOCATION'].includes(selected.applicability)">Source-confirmed nonspatial scope. No map points.</dd>
+        <dd v-else-if="selected.scopeStatus === 'SOURCE_CONFIRMED'">Scope confirmed, but current physical outlet proof is incomplete. Not ready for physical approval.</dd>
+        <dd v-else-if="selected.scopeStatus === 'LEGACY_RETAINED'">Exact historical scope retained; not fresh verification or authority for new outlet associations.</dd>
+        <dd v-else>Scope unconfirmed. Content approval does not establish public or map eligibility.</dd>
         <dt>Source</dt><dd>{{ selected.sourceName }} · <a v-if="sourceLink" data-testid="draft-source" :href="sourceLink" target="_blank" rel="noopener noreferrer">Open original source</a><span v-else>Source link unavailable (unsafe or invalid URL).</span></dd>
         <dt>Previous review note</dt><dd>{{ selected.reviewNote ?? 'No previous note' }}</dd>
       </dl>
@@ -311,7 +328,8 @@ watch([() => props.revision, status], (_value, previous) => {
           <BButton type="submit" :disabled="busy || pending || venuePending || conflict || outletQuery.trim().length > 100">Search outlets</BButton>
         </form>
         <p v-if="venuePending" role="status">Loading existing outlets…</p>
-        <p v-if="venues?.length === 0">No matching active outlet records. Association requires an existing merchant and outlet. This screen cannot create them; ask the responsible administrator to maintain canonical records.</p>
+        <p v-if="venues?.length === 0 && venueCursor">No selectable verified outlets on this page. More catalogue rows remain; load more.</p>
+        <p v-else-if="venues?.length === 0">No matching verified outlet records. Association requires an existing merchant and outlet. This screen cannot create or verify them; ask the responsible administrator to maintain canonical records.</p>
         <BButton v-if="venueCursor" data-testid="more-outlets" :disabled="busy || venuePending || pending || conflict" @click="searchOutlets(venueCursor)">Load more outlets</BButton>
         <form data-testid="outlet-association" @submit.prevent="associate" :aria-busy="associationPending">
           <label for="outlet-choice" class="form-label">Existing outlet</label>

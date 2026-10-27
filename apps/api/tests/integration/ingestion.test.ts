@@ -3,6 +3,10 @@ import { createHash, randomBytes, randomUUID } from 'node:crypto'
 import { createServer, type Server } from 'node:http'
 import { fileURLToPath } from 'node:url'
 import { promisify } from 'node:util'
+import {
+  registerSyntheticOutletFixtureDatabase,
+  seedSyntheticScope,
+} from '@api/../tests/fixtures/outlet-proof'
 import { parseConfig } from '@api/config'
 import type { IngestionRuntime } from '@api/modules/ingestion/runtime'
 import { MONEYDIGEST_SOURCE, sourceWhere } from '@api/modules/ingestion/source'
@@ -117,6 +121,7 @@ beforeAll(async () => {
     timeout: 60_000,
   })
   db = (await import('@broke-oclock/db')).db
+  registerSyntheticOutletFixtureDatabase(db, databaseUrl)
   const { createApp } = await import('@api/app')
   server = createServer()
   await new Promise<void>((resolve) => server?.listen(0, '127.0.0.1', resolve))
@@ -444,6 +449,9 @@ describe('ingestion admin real HTTP/session/disposable Mongo', () => {
       contentVersion: 1,
     })
     expect(deal).not.toHaveProperty('rawContent')
+    // Explicit synthetic publication control, not scope inferred by the parser/reviewer.
+    const source = await db.dealSource.findFirstOrThrow({ where: { dealId: deal.id } })
+    await seedSyntheticScope(db, deal.id, 'SOURCE_NONSPATIAL', source)
     await expect(
       clientFor(admin.cookie, 'https://hostile.test').ingestion.reviewDraft({
         dealId: deal.id,
@@ -557,7 +565,7 @@ describe('ingestion admin real HTTP/session/disposable Mongo', () => {
     expect(await client.ingestion.runNow()).toMatchObject({
       status: 'PARTIAL',
       fetchedCount: 4,
-      createdCount: 2,
+      createdCount: 3,
       updatedCount: 0,
       failedCount: 1,
     })
@@ -597,7 +605,7 @@ describe('ingestion admin real HTTP/session/disposable Mongo', () => {
       }),
     ).toEqual({ id: unknown.id, reviewStatus: 'REJECTED' })
     expect((await client.ingestion.getDashboard()).counts).toMatchObject({
-      pending: 1,
+      pending: 2,
       approved: 1,
       rejected: 1,
       failed: 1,
@@ -650,7 +658,10 @@ describe('ingestion admin real HTTP/session/disposable Mongo', () => {
 
   it('supersedes changed pending drafts without rewriting their pinned source snapshot', async () => {
     const old = await db.deal.findFirstOrThrow({
-      where: { reviewStatus: 'PENDING' },
+      where: {
+        reviewStatus: 'PENDING',
+        sources: { some: { importedPost: { externalId: '104' } } },
+      },
       include: { sources: true },
     })
     clock = new Date(clock.getTime() + 30_000)
@@ -676,7 +687,9 @@ describe('ingestion admin real HTTP/session/disposable Mongo', () => {
       publishedAt: null,
     })
     expect(superseded.sources).toEqual(old.sources)
-    const replacement = (await clientFor(admin.cookie).ingestion.getDrafts()).items[0]
+    const replacement = (await clientFor(admin.cookie).ingestion.getDrafts()).items.find((item) =>
+      item.sourceUrl.endsWith('/synthetic-104/'),
+    )
     expect(replacement).toMatchObject({ contentVersion: old.contentVersion + 1, reviewReady: true })
     expect(replacement?.id).not.toBe(old.id)
     await expect(
@@ -689,7 +702,9 @@ describe('ingestion admin real HTTP/session/disposable Mongo', () => {
     ).rejects.toMatchObject({ response: { status: 409, data: { error: { code: 'CONFLICT' } } } })
   })
   it('allows only one concurrent review decision for the same content version', async () => {
-    const draft = (await clientFor(admin.cookie).ingestion.getDrafts()).items[0]
+    const draft = (await clientFor(admin.cookie).ingestion.getDrafts()).items.find((item) =>
+      item.sourceUrl.endsWith('/synthetic-104/'),
+    )
     if (!draft) throw new Error('Missing pending revision')
     const results = await Promise.allSettled(
       ['APPROVE', 'REJECT'].map((decision) =>
@@ -767,7 +782,7 @@ describe('ingestion admin real HTTP/session/disposable Mongo', () => {
           cursor: queue.nextCursor ?? undefined,
         })
       ).items,
-    ).toHaveLength(1)
+    ).toHaveLength(2)
     expect(
       (await clientFor(admin.cookie).ingestion.getDrafts({ status: 'APPROVED' })).items.find(
         (row) => row.sourceUrl.endsWith('/synthetic-101/'),
@@ -1065,6 +1080,10 @@ describe('ingestion admin real HTTP/session/disposable Mongo', () => {
         priceMinor,
         discountPercent,
       })
+      // Preserve the publication assertion with an explicit source-bound synthetic receipt.
+      const source = draft.sources[0]
+      if (!source) throw new Error('Missing synthetic parser evidence')
+      await seedSyntheticScope(db, draft.id, 'SOURCE_NONSPATIAL', source)
       const queue = await client.ingestion.getDrafts({ limit: 50 })
       expect(queue.items.find((item) => item.id === draft.id)?.reviewReady).toBe(true)
       expect(

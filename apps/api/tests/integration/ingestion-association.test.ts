@@ -1,11 +1,20 @@
 import { execFile } from 'node:child_process'
 import { createHash, randomBytes, randomUUID } from 'node:crypto'
+import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { createServer, type Server } from 'node:http'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { promisify } from 'node:util'
+import {
+  registerSyntheticOutletFixtureDatabase,
+  seedSyntheticOutletProof,
+  seedSyntheticScope,
+} from '@api/../tests/fixtures/outlet-proof'
 import { parseConfig } from '@api/config'
 import type { IngestionRuntime } from '@api/modules/ingestion/runtime'
 import { MONEYDIGEST_SOURCE, sourceWhere } from '@api/modules/ingestion/source'
+import { parseDealCopyBatch } from '@api/tools/deal-copy/batch'
 import axios from 'axios'
 import { MongoMemoryReplSet } from 'mongodb-memory-server'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
@@ -67,13 +76,14 @@ beforeAll(async () => {
   fixtureDatabaseUrl = databaseUrl
   vi.stubEnv('DATABASE_URL', databaseUrl)
   vi.stubEnv('NODE_ENV', 'test')
-  await promisify(execFile)('pnpm', ['--dir', 'packages/db', 'run', 'push'], {
+  await promisify(execFile)('pnpm', ['--dir', 'packages/db', 'run', 'push', '--skip-generate'], {
     cwd: root,
     env: { ...process.env, DATABASE_URL: databaseUrl },
     encoding: 'utf8',
     timeout: 60_000,
   })
   db = (await import('@broke-oclock/db')).db
+  registerSyntheticOutletFixtureDatabase(db, databaseUrl)
   const { createApp } = await import('@api/app')
   server = createServer()
   await new Promise<void>((resolve) => server?.listen(0, '127.0.0.1', resolve))
@@ -163,6 +173,8 @@ const fixture = async () => {
       longitude: 103.8,
     },
   })
+  // Explicit existing selectable catalogue positive, independent of the pending draft.
+  await seedSyntheticOutletProof(db, venue.id)
   return { deal, post, venue, merchant, source }
 }
 const associate = (f: Awaited<ReturnType<typeof fixture>>, version = 1, venueId = f.venue.id) =>
@@ -298,6 +310,9 @@ describe('existing outlet association real native HTTP and disposable Mongo', ()
       'hash',
       'failed',
       'multi',
+      'occupancyMissing',
+      'occupancyNull',
+      'occupancyStale',
     ]) {
       const f = await fixture()
       let status = 412
@@ -335,6 +350,18 @@ describe('existing outlet association real native HTTP and disposable Mongo', ()
         })
       if (state === 'multi')
         await db.dealVenue.create({ data: { dealId: f.deal.id, venueId: f.venue.id } })
+      if (state === 'occupancyMissing')
+        await db.venue.update({
+          where: { id: f.venue.id },
+          data: { occupancyEvidence: { unset: true } },
+        })
+      if (state === 'occupancyNull')
+        await db.venue.update({ where: { id: f.venue.id }, data: { occupancyEvidence: null } })
+      if (state === 'occupancyStale')
+        await db.venue.update({
+          where: { id: f.venue.id },
+          data: { address: 'Changed synthetic occupancy tuple' },
+        })
       const before = await stored(f.deal.id)
       expect(
         (
@@ -502,6 +529,12 @@ describe('existing outlet association real native HTTP and disposable Mongo', ()
     for (const target of ['venue', 'merchant'] as const) {
       const f = await fixture()
       expect((await associate(f)).status).toBe(200)
+      // Approval positive prerequisite is a separately reviewed synthetic campaign,
+      // never inferred from selecting a venue. Inactivity remains the only changed gate.
+      await seedSyntheticScope(db, f.deal.id, 'SOURCE_SELECTED', {
+        sourceUrl: f.post.url,
+        sourceContentHash: f.post.contentHash,
+      })
       if (target === 'venue')
         await db.venue.update({ where: { id: f.venue.id }, data: { deletedAt: new Date() } })
       else
@@ -587,6 +620,19 @@ describe('existing outlet association real native HTTP and disposable Mongo', ()
     })
     expect(after.venues.map((v) => v.venueId)).toEqual([f.venue.id])
     expect(await Promise.all([db.merchant.count(), db.venue.count()])).toEqual(counts)
+    // A catalogue association deliberately does not confirm campaign participation.
+    expect(after.scopeConfirmation).toBeNull()
+    const heldQueue = await http().get('/api/ingestion/drafts?limit=50')
+    expect(heldQueue.data.items.find((d: { id: string }) => d.id === f.deal.id)).toMatchObject({
+      reviewReady: true,
+      approvalReady: false,
+      scopeStatus: 'UNCONFIRMED',
+    })
+    expect((await review(f, 2)).status).toBe(412)
+    await seedSyntheticScope(db, f.deal.id, 'SOURCE_SELECTED', {
+      sourceUrl: f.post.url,
+      sourceContentHash: f.post.contentHash,
+    })
     const queue = await http().get('/api/ingestion/drafts?limit=50')
     expect(queue.data.items.find((d: { id: string }) => d.id === f.deal.id)).toMatchObject({
       merchantId: f.merchant.id,
@@ -598,6 +644,295 @@ describe('existing outlet association real native HTTP and disposable Mongo', ()
   })
 })
 
+const approvedPhysicalFixture = async (title = 'Synthetic Pizza') => {
+  const f = await fixture()
+  if (title !== f.deal.title) {
+    // Setup only, before association, proof or moderation.
+    await db.deal.update({ where: { id: f.deal.id }, data: { title } })
+  }
+  expect((await associate(f)).status).toBe(200)
+  await seedSyntheticScope(db, f.deal.id, 'SOURCE_SELECTED', {
+    sourceUrl: f.post.url,
+    sourceContentHash: f.post.contentHash,
+  })
+  expect((await review(f, 2)).status).toBe(200)
+  expect((await stored(f.deal.id)).publishedAt).not.toBeNull()
+  return f
+}
+
+const publicVenueDealIds = async (venueId: string): Promise<string[]> => {
+  const response = await http().get(`/api/venues/${venueId}`)
+  expect(response.status).toBe(200)
+  return response.data.deals.map((deal: { id: string }) => deal.id)
+}
+
+describe('operator copy writer actual caller with native review and public projection', () => {
+  it('rejects conflicting planned rewrites of one field without changing any deal', async () => {
+    const { rewriteDealCopy } = await import('@api/tools/rewrite-deal-copy')
+    const f = await approvedPhysicalFixture()
+    const before = await stored(f.deal.id)
+    const batch = parseDealCopyBatch({
+      note: 'SYNTHETIC: ambiguous batch must not silently choose the last value',
+      rewrites: [
+        { id: f.deal.id, field: 'title', from: before.title, to: 'Synthetic first title' },
+        { id: f.deal.id, field: 'title', from: before.title, to: 'Synthetic second title' },
+      ],
+    })
+    await expect(rewriteDealCopy(db, batch.rewrites, { apply: true })).rejects.toThrow(
+      'Conflicting rewrites',
+    )
+    expect(await stored(f.deal.id)).toEqual(before)
+  })
+
+  it('versions a multi-field rewrite once, withdraws publication and never reuses old scope', async () => {
+    const { rewriteDealCopy } = await import('@api/tools/rewrite-deal-copy')
+    const f = await approvedPhysicalFixture()
+    const before = await stored(f.deal.id)
+    const postBefore = await db.importedPost.findUniqueOrThrow({ where: { id: f.post.id } })
+    expect(await publicVenueDealIds(f.venue.id)).toContain(f.deal.id)
+    const batch = parseDealCopyBatch({
+      note: 'SYNTHETIC: inert material writer control only',
+      rewrites: [
+        { id: f.deal.id, field: 'title', from: before.title, to: 'Synthetic new title' },
+        { id: f.deal.id, field: 'description', from: before.description, to: 'Synthetic new copy' },
+        { id: f.deal.id, field: 'terms', from: before.terms, to: 'Synthetic new terms' },
+        { id: f.deal.id, field: 'category', from: before.category, to: 'DRINKS' },
+        { id: f.deal.id, field: 'cuisine', from: null, to: 'CAFE' },
+      ],
+    })
+    await rewriteDealCopy(db, batch.rewrites, { apply: false })
+    expect(await stored(f.deal.id)).toEqual(before)
+    await rewriteDealCopy(db, batch.rewrites, { apply: true })
+    const after = await stored(f.deal.id)
+    expect(after).toMatchObject({
+      title: 'Synthetic new title',
+      description: 'Synthetic new copy',
+      terms: 'Synthetic new terms',
+      category: 'DRINKS',
+      cuisine: 'CAFE',
+      contentVersion: 3,
+      reviewStatus: 'PENDING',
+      reviewedVersion: null,
+      reviewedById: null,
+      reviewedAt: null,
+      reviewNote: null,
+      publishedAt: null,
+      scopeConfirmation: null,
+    })
+    expect(after.sources).toEqual(before.sources)
+    expect(after.venues).toEqual(before.venues)
+    expect(await db.importedPost.findUniqueOrThrow({ where: { id: f.post.id } })).toEqual(
+      postBefore,
+    )
+    expect(await publicVenueDealIds(f.venue.id)).not.toContain(f.deal.id)
+    expect((await review(f, 2)).status).toBe(409)
+    expect((await review(f, 3)).status).toBe(412)
+    await seedSyntheticScope(db, f.deal.id, 'SOURCE_SELECTED', {
+      sourceUrl: f.post.url,
+      sourceContentHash: f.post.contentHash,
+    })
+    expect((await review(f, 3)).status).toBe(200)
+    expect(await publicVenueDealIds(f.venue.id)).toContain(f.deal.id)
+    // Revert is also material content, not restoration of the previous review/proof.
+    await rewriteDealCopy(db, batch.rewrites, { apply: true, revert: true })
+    expect(await stored(f.deal.id)).toMatchObject({
+      title: before.title,
+      description: before.description,
+      terms: before.terms,
+      category: before.category,
+      cuisine: null,
+      contentVersion: 4,
+      reviewStatus: 'PENDING',
+      reviewedVersion: null,
+      publishedAt: null,
+      scopeConfirmation: null,
+    })
+    const reverted = await stored(f.deal.id)
+    await rewriteDealCopy(db, batch.rewrites, { apply: true, revert: true })
+    expect(await stored(f.deal.id)).toEqual(reverted)
+    expect(await publicVenueDealIds(f.venue.id)).not.toContain(f.deal.id)
+  })
+})
+
+describe('operator category writer actual caller with native review and public projection', () => {
+  it('withdraws a reclassified approved deal until fresh source scope and review, but leaves noops alone', async () => {
+    const { reclassifyCategories } = await import('@api/tools/reclassify-categories')
+    const f = await approvedPhysicalFixture('Synthetic bubble tea')
+    const unchanged = await approvedPhysicalFixture()
+    const before = await stored(f.deal.id)
+    const unchangedBefore = await stored(unchanged.deal.id)
+    const postBefore = await db.importedPost.findUniqueOrThrow({ where: { id: f.post.id } })
+    expect(await publicVenueDealIds(f.venue.id)).toContain(f.deal.id)
+    await reclassifyCategories(db, false)
+    expect(await stored(f.deal.id)).toEqual(before)
+    await reclassifyCategories(db, true)
+    const after = await stored(f.deal.id)
+    expect(after).toMatchObject({
+      title: before.title,
+      description: before.description,
+      category: 'DRINKS',
+      contentVersion: 3,
+      reviewStatus: 'PENDING',
+      reviewedVersion: null,
+      reviewedById: null,
+      reviewedAt: null,
+      reviewNote: null,
+      publishedAt: null,
+      scopeConfirmation: null,
+    })
+    expect(after.sources).toEqual(before.sources)
+    expect(after.venues).toEqual(before.venues)
+    expect(await stored(unchanged.deal.id)).toEqual(unchangedBefore)
+    expect(await db.importedPost.findUniqueOrThrow({ where: { id: f.post.id } })).toEqual(
+      postBefore,
+    )
+    expect(await publicVenueDealIds(f.venue.id)).not.toContain(f.deal.id)
+    expect((await review(f, 2)).status).toBe(409)
+    expect((await review(f, 3)).status).toBe(412)
+    await seedSyntheticScope(db, f.deal.id, 'SOURCE_SELECTED', {
+      sourceUrl: f.post.url,
+      sourceContentHash: f.post.contentHash,
+    })
+    expect((await review(f, 3)).status).toBe(200)
+    expect(await publicVenueDealIds(f.venue.id)).toContain(f.deal.id)
+    const reviewed = await stored(f.deal.id)
+    await reclassifyCategories(db, true)
+    expect(await stored(f.deal.id)).toEqual(reviewed)
+  })
+})
+
+describe('material writer concurrency and disposable CLI characterization', () => {
+  it.each(['rewrite', 'reclassify'] as const)(
+    '%s refuses a concurrently advanced version and rolls back the other batch member',
+    async (writer) => {
+      const first = await approvedPhysicalFixture('Synthetic bubble tea')
+      const second = await approvedPhysicalFixture('Synthetic bubble tea')
+      const firstBefore = await stored(first.deal.id)
+      const secondBefore = await stored(second.deal.id)
+      const { PrismaClient } = await import('@broke-oclock/db/constructor')
+      const concurrent = new PrismaClient({ datasourceUrl: fixtureDatabaseUrl })
+      const transact = db.$transaction.bind(db)
+      let racedRow: Awaited<ReturnType<typeof stored>> | undefined
+      const spy = vi
+        .spyOn(db, '$transaction')
+        .mockImplementationOnce(async (operation, options) => {
+          // Commit after real planning but before the real transaction. Change a field NOT being
+          // rewritten/classified: expected-field guards alone cannot detect this new version.
+          await concurrent.deal.update({
+            where: { id: second.deal.id },
+            data: { terms: 'SYNTHETIC concurrent terms', contentVersion: { increment: 1 } },
+          })
+          racedRow = await stored(second.deal.id)
+          return transact(operation, options)
+        })
+      try {
+        if (writer === 'rewrite') {
+          const { rewriteDealCopy } = await import('@api/tools/rewrite-deal-copy')
+          const batch = parseDealCopyBatch({
+            note: 'SYNTHETIC: real multi-deal transaction rollback',
+            rewrites: [first, second].map((f) => ({
+              id: f.deal.id,
+              field: 'title',
+              from: 'Synthetic bubble tea',
+              to: 'Synthetic rewritten bubble tea',
+            })),
+          })
+          await expect(rewriteDealCopy(db, batch.rewrites, { apply: true })).rejects.toMatchObject({
+            code: 'P2025',
+          })
+        } else {
+          const { reclassifyCategories } = await import('@api/tools/reclassify-categories')
+          await expect(reclassifyCategories(db, true)).rejects.toMatchObject({ code: 'P2025' })
+        }
+        expect(racedRow).toMatchObject({ contentVersion: secondBefore.contentVersion + 1 })
+        expect(await stored(first.deal.id)).toEqual(firstBefore)
+        expect(await stored(second.deal.id)).toEqual(racedRow)
+      } finally {
+        spy.mockRestore()
+        await concurrent.$disconnect()
+      }
+    },
+  )
+
+  it('keeps actual CLI dry-run, apply and revert usable on an explicitly owned loopback database', async () => {
+    const f = await approvedPhysicalFixture()
+    const before = await stored(f.deal.id)
+    const url = new URL(fixtureDatabaseUrl)
+    expect(url.protocol).toBe('mongodb:')
+    expect(url.hostname).toBe('127.0.0.1')
+    expect(url.pathname).toMatch(/^\/ingestion_[a-f0-9]+$/)
+    const directory = await mkdtemp(join(tmpdir(), 'synthetic-material-cli-'))
+    const batchPath = join(directory, 'synthetic-copy.json')
+    await writeFile(
+      batchPath,
+      JSON.stringify({
+        note: 'SYNTHETIC: actual CLI against a disposable loopback replica only',
+        rewrites: [
+          { id: f.deal.id, field: 'title', from: before.title, to: 'Synthetic bubble tea' },
+        ],
+      }),
+    )
+    // Do not forward provider credentials, NODE_OPTIONS, dotenv loaders or ambient DB values.
+    const cliEnvironment = {
+      PATH: process.env.PATH,
+      TMPDIR: tmpdir(),
+      NODE_ENV: 'test',
+      DATABASE_URL: fixtureDatabaseUrl,
+      PRISMA_HIDE_UPDATE_MESSAGE: 'true',
+    }
+    const cli = async (tool: string, args: string[] = []) =>
+      promisify(execFile)(process.execPath, ['--import', 'tsx', `src/tools/${tool}.ts`, ...args], {
+        cwd: join(root, 'apps/api'),
+        env: cliEnvironment,
+        timeout: 30_000,
+      })
+    try {
+      const copyPreview = await cli('rewrite-deal-copy', ['--batch', batchPath])
+      expect(copyPreview.stdout).toContain('Dry run:')
+      expect(copyPreview.stdout).toContain(
+        'withdraw publication and require fresh review and outlet scope',
+      )
+      expect(await stored(f.deal.id)).toEqual(before)
+      expect((await cli('rewrite-deal-copy', ['--batch', batchPath, '--apply'])).stdout).toContain(
+        'Updated 1 field(s).',
+      )
+      expect(await stored(f.deal.id)).toMatchObject({
+        title: 'Synthetic bubble tea',
+        contentVersion: 3,
+        reviewStatus: 'PENDING',
+        publishedAt: null,
+        scopeConfirmation: null,
+      })
+      const rewritten = await stored(f.deal.id)
+      const categoryPreview = await cli('reclassify-categories')
+      expect(categoryPreview.stdout).toContain('Dry run:')
+      expect(categoryPreview.stdout).toContain(
+        'withdraw publication and require fresh review and outlet scope',
+      )
+      expect(await stored(f.deal.id)).toEqual(rewritten)
+      expect((await cli('reclassify-categories', ['--apply'])).stdout).toContain('Updated')
+      expect(await stored(f.deal.id)).toMatchObject({
+        category: 'DRINKS',
+        contentVersion: 4,
+        reviewStatus: 'PENDING',
+        publishedAt: null,
+        scopeConfirmation: null,
+      })
+      await cli('rewrite-deal-copy', ['--batch', batchPath, '--apply', '--revert'])
+      expect(await stored(f.deal.id)).toMatchObject({
+        title: before.title,
+        contentVersion: 5,
+        reviewStatus: 'PENDING',
+        publishedAt: null,
+        scopeConfirmation: null,
+      })
+      expect(await publicVenueDealIds(f.venue.id)).not.toContain(f.deal.id)
+    } finally {
+      await rm(directory, { recursive: true, force: true })
+    }
+  })
+})
+
 const setCategory = (f: Awaited<ReturnType<typeof fixture>>, version = 1, category = 'DRINKS') =>
   http().patch(`/api/ingestion/drafts/${f.deal.id}/category`, {
     expectedContentVersion: version,
@@ -605,8 +940,54 @@ const setCategory = (f: Awaited<ReturnType<typeof fixture>>, version = 1, catego
   })
 
 describe('draft category correction', () => {
+  it('discards version-bound outlet proof and requires fresh source-confirmed scope before publication', async () => {
+    const f = await fixture()
+    // SYNTHETIC positive with every physical prerequisite, not a catalogue selection as proof.
+    await db.deal.update({
+      where: { id: f.deal.id },
+      data: {
+        applicability: 'SELECTED_OUTLETS',
+        merchantId: f.merchant.id,
+        venues: { create: { venueId: f.venue.id } },
+      },
+    })
+    await seedSyntheticScope(db, f.deal.id, 'SOURCE_SELECTED', {
+      sourceUrl: f.post.url,
+      sourceContentHash: f.post.contentHash,
+    })
+    const before = await stored(f.deal.id)
+    expect(before.scopeConfirmation?.contentVersion).toBe(1)
+    expect((await setCategory(f)).status).toBe(200)
+    const after = await stored(f.deal.id)
+    expect(after.scopeConfirmation).toBeNull()
+    expect(after.sources).toEqual(before.sources)
+    expect(after.venues).toEqual(before.venues)
+    expect((await review(f, 2)).status).toBe(412)
+    expect((await stored(f.deal.id)).publishedAt).toBeNull()
+    await seedSyntheticScope(db, f.deal.id, 'SOURCE_SELECTED', {
+      sourceUrl: f.post.url,
+      sourceContentHash: f.post.contentHash,
+    })
+    expect((await review(f, 2)).status).toBe(200)
+    expect((await stored(f.deal.id)).publishedAt).not.toBeNull()
+  })
+
   it('moves the draft to a new pending version and refuses stale, unchanged or unknown input', async () => {
     const f = await fixture()
+    // The upstream category approval positive needs the same independent physical proof as
+    // association/review positives. A version change cannot inherit campaign participation.
+    await db.deal.update({
+      where: { id: f.deal.id },
+      data: {
+        applicability: 'SELECTED_OUTLETS',
+        merchantId: f.merchant.id,
+        venues: { create: { venueId: f.venue.id } },
+      },
+    })
+    await seedSyntheticScope(db, f.deal.id, 'SOURCE_SELECTED', {
+      sourceUrl: f.post.url,
+      sourceContentHash: f.post.contentHash,
+    })
     expect((await setCategory(f, 1, 'MYSTERY')).status).toBe(400)
     expect((await setCategory(f, 1, 'FOOD')).status).toBe(412)
     expect(
@@ -637,7 +1018,13 @@ describe('draft category correction', () => {
     })
     expect((await setCategory(f, 1, 'BAKERY')).status).toBe(409)
     expect((await review(f, 1)).status).toBe(409)
+    expect((await review(f, 2)).status).toBe(412)
+    await seedSyntheticScope(db, f.deal.id, 'SOURCE_SELECTED', {
+      sourceUrl: f.post.url,
+      sourceContentHash: f.post.contentHash,
+    })
     expect((await review(f, 2)).status).toBe(200)
+    expect((await stored(f.deal.id)).publishedAt).not.toBeNull()
     expect((await setCategory(f, 2, 'BAKERY')).status).toBe(409)
   })
 })
