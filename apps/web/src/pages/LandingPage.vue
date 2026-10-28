@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import logo from '@web/assets/logo.png'
+import logo from '@web/assets/lobangers-logo.png'
 import CuisineDiscovery from '@web/modules/landing/CuisineDiscovery.vue'
 import HeroSection from '@web/modules/landing/HeroSection.vue'
 import LandingNavbar from '@web/modules/landing/LandingNavbar.vue'
