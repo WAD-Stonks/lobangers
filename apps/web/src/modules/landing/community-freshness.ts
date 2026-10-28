@@ -120,7 +120,7 @@ export function hawkerLayout(width: number, height: number, cta: number) {
     ? Math.min(width <= 600 ? 320 : 440, width * 0.94, height * (width <= 600 ? 0.37 : 0.41))
     : Math.min(800, width * 0.43, height * 0.88)
   const x = width * (mobile ? 0.5 : 0.66)
-  const top = height * (mobile ? 0.25 + cta * 0.17 : height <= 850 ? 0.18 : 0.12)
+  const top = height * (mobile ? 0.25 + cta * 0.08 : height <= 850 ? 0.18 : 0.12)
   return {
     mobile,
     size,

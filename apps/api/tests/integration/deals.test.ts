@@ -187,6 +187,7 @@ describe('GET /api/deals', () => {
         publishedAt: new Date(Date.now() - 2 * DAY_MS),
       },
     })
+    await seedSyntheticScope(db, deal.id, 'SOURCE_ALL')
     const users = []
     try {
       for (let index = 0; index < 5; index++) {

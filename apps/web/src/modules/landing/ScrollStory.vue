@@ -44,8 +44,8 @@ const scenes = [
   },
   {
     label: '04 / THE NEIGHBOURHOOD',
-    title: 'Dive into your neighbourhood.',
-    description: 'Discover the best food deals closer to home.',
+    title: 'Find food deals near you.',
+    description: 'Explore nearby food deals right on the map.',
     hint: 'Explore Central, then follow a nearby find. ↓',
   },
   {
@@ -64,7 +64,7 @@ const scenes = [
   },
   {
     label: '07 / THE FIND',
-    title: 'Close to home. Lobang found.',
+    title: 'A deal near you. Lobang found.',
     description: 'A tasty little find in Central.',
     hint: 'Found the deal? Next, check whether it is still on. ↓',
   },
@@ -92,7 +92,8 @@ const geometry = computed(() => {
   const t = motion.value.handoff
   const width = startWidth + (fullWidth - startWidth) * t
   const startX = mobile ? w * 0.02 : w * 0.39
-  const startY = mobile ? h * 0.51 : (h - startWidth / 1.5) * 0.5
+  // Keep the opening cards near the copy even on tall mobile viewports.
+  const startY = mobile ? (w <= 480 ? 340 : 360) : (h - startWidth / 1.5) * 0.5
   const fullY = mobile ? h * 0.4 : (h - fullWidth / 1.5) * 0.5
   const x = startX + ((w - fullWidth) / 2 - startX) * t
   const y = startY + (fullY - startY) * t + Math.sin(t * Math.PI) * (mobile ? 18 : 54)
@@ -205,7 +206,6 @@ const chapters = [0, 0.1, 0.25, 0.34, 0.45, 0.54, 0.66, 0.81, 0.92, 1]
       <div class="story-vignette" :style="{ opacity: motion.handoff * (1 - motion.portal) }" aria-hidden="true" />
       <div class="story-handoff-caption" :style="{ opacity: segment(progress, .285, .31) * (1 - segment(progress, .345, .375)) }">ONE MAP → YOUR NEIGHBOURHOOD ↓</div>
       <div class="story-copy" :style="copyStyle" :inert="!reduced && copyStyle.opacity < .1">
-        <span class="landing-eyebrow" :style="entrance(.34, .365, 10)">{{ scene.label }}</span>
         <Transition name="scene-copy" mode="out-in">
           <div :key="chapter">
             <h2 :style="entrance(.35, .385, 24)">{{ scene.title }}</h2>
@@ -230,8 +230,8 @@ const chapters = [0, 0.1, 0.25, 0.34, 0.45, 0.54, 0.66, 0.81, 0.92, 1]
         <span>✓ SAMPLE LOBANG LOCATED</span>
       </div>
       <div v-if="chapter === 4" class="story-scan-label" role="status" aria-live="off">
-        <small>LOOKING AROUND {{ region.area.toUpperCase() }}</small>
-        <strong>{{ motion.scan > .85 ? 'Sample pin located' : 'Scanning your neighbourhood…' }}</strong>
+        <small>SAMPLE SEARCH · {{ region.area.toUpperCase() }}</small>
+        <strong>{{ motion.scan > .85 ? 'Sample pin located' : 'Finding food deals near you…' }}</strong>
         <div>
           <i :style="{ width: `${motion.scan * 100}%` }" />
         </div>
@@ -244,16 +244,14 @@ const chapters = [0, 0.1, 0.25, 0.34, 0.45, 0.54, 0.66, 0.81, 0.92, 1]
       </div>
       <div class="story-food-portal" :style="portalStyle" :aria-hidden="reduced || motion.portal < .98 || motion.transfer > .98">
         <div class="portal-food-copy" :style="{ opacity: motion.offer * (1 - segment(progress, .79, .815)), transform: `translateY(${55 * (1 - motion.offer)}px)` }">
-          <span class="landing-eyebrow">⌖ {{ region.area.toUpperCase() }} · SAMPLE NEARBY FIND</span>
-          <h2>Close to home.<br />
+          <h2>A deal near you.<br />
             <em>Lobang found.</em>
           </h2>
-          <p>A delicious possibility, right in your neighbourhood. Next, see what the community says.</p>
+          <p>A tasty find nearby. Next, see what the community says.</p>
         </div>
       </div>
       <CommunityFreshnessScene :deal="deal" :area="region.area" :story-progress="progress" :offer="motion.offer" :reduced="reduced" :viewport="viewport" />
       <div class="story-bottom">
-        <span>{{ chapter < 2 ? 'FIVE FEEDS. TOO MANY TABS.' : chapter < 7 ? 'ONE MAP → YOUR NEIGHBOURHOOD → A NEARBY FIND' : 'STILL ON? GONE? KEEP YOUR NEIGHBOURS IN THE KNOW.' }}</span>
         <div class="story-rail">
           <i v-for="(item, index) in scenes" :key="item.label">
             <b :style="{ width: `${segment(progress, chapters[index] ?? 0, chapters[index + 1] ?? 1) * 100}%` }" />

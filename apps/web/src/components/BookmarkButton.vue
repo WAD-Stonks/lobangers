@@ -5,7 +5,7 @@ import { ref } from 'vue'
 
 // Props: data the parent gives us. Emits: how we tell the parent something happened.
 // Use it like: <BookmarkButton :deal-id="deal.id" :saved="isSaved" @change="isSaved = $event" />
-const props = defineProps<{ dealId: string; saved: boolean }>()
+const props = defineProps<{ dealId: string; saved: boolean; iconOnly?: boolean }>()
 const emit = defineEmits<{ change: [saved: boolean] }>()
 
 const busy = ref(false)
@@ -39,10 +39,12 @@ const toggle = async () => {
       class="btn btn-sm"
       :class="saved ? 'btn-primary' : 'btn-outline-primary'"
       :aria-pressed="saved"
+      :aria-label="iconOnly ? (saved ? 'Unsave deal' : 'Save deal') : undefined"
       :disabled="busy"
       @click="toggle"
     >
-      {{ saved ? 'Saved' : 'Save' }}
+      <svg v-if="iconOnly" viewBox="0 0 24 24" width="24" height="24" :fill="saved ? 'currentColor' : 'none'" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1.1-1.1a5.5 5.5 0 0 0-7.8 7.8L12 21l8.8-8.6a5.5 5.5 0 0 0 0-7.8Z" /></svg>
+      <template v-else>{{ saved ? 'Saved' : 'Save' }}</template>
     </button>
     <span v-if="errorMessage" class="text-danger small ms-2" role="alert">{{ errorMessage }}</span>
   </span>

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import logo from '@web/assets/logo.png'
+import logo from '@web/assets/lobangers-logo.png'
 import CuisineDiscovery from '@web/modules/landing/CuisineDiscovery.vue'
 import HeroSection from '@web/modules/landing/HeroSection.vue'
 import LandingNavbar from '@web/modules/landing/LandingNavbar.vue'
@@ -29,7 +29,6 @@ const { deals, status, retry } = useLandingDeals()
     <LandingNavbar />
     <HeroSection :live="deals" :live-state="status" @retry="retry" />
     <div class="story-intro" data-reveal data-scroll-reveal>
-      <span class="landing-eyebrow">LESS HUNTING. MORE MAKAN.</span>
       <p class="story-intro-copy">A great meal shouldn't take<br />
         <span>twenty open tabs.</span>
       </p>
@@ -37,20 +36,6 @@ const { deals, status, retry } = useLandingDeals()
     </div>
     <ScrollStory />
     <CuisineDiscovery :live="deals" :live-state="status" @retry="retry" />
-    <section class="landing-final" aria-labelledby="final-heading">
-      <span class="final-food food-one" aria-hidden="true">🍜</span>
-      <span class="final-food food-two" aria-hidden="true">🧋</span>
-      <span class="final-food food-three" aria-hidden="true">🍗</span>
-      <span class="final-food food-four" aria-hidden="true">SAVE MORE ✳</span>
-      <span class="landing-eyebrow" data-reveal>YOUR NEXT MEAL HAS A BETTER DEAL.</span>
-      <h2 id="final-heading" data-reveal>Less searching.<br />More munching.</h2>
-      <p data-reveal>Your next great food deal is waiting.<br />Discover delicious lobangs around Singapore.</p>
-      <div data-reveal>
-        <RouterLink to="/browse" class="landing-button dark">Explore food deals ↗</RouterLink>
-        <a href="#story" class="landing-button replay">↺ Replay the Story</a>
-      </div>
-      <span class="final-spark" aria-hidden="true">✳</span>
-    </section>
     <footer class="landing-footer">
       <RouterLink to="/" class="footer-wordmark" aria-label="Lobangers home"><img :src="logo" alt="LOBANGERS" width="200" height="44" /></RouterLink>
       <p>Good food. Better prices. Little red dot.</p>

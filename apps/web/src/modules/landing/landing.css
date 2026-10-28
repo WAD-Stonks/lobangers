@@ -17,6 +17,7 @@
   --landing-coral-ink: var(--coral-deep, #bf4f30);
   --landing-control-radius: 12px;
   --landing-yellow: var(--sunny, #ffda53);
+  --landing-nav-clearance: 118px;
   background: var(--landing-paper);
   color: var(--landing-ink);
   font-family: var(--font-sans);
@@ -65,12 +66,12 @@
   top: 12px;
 }
 .landing-header {
-  position: absolute;
+  position: fixed;
   z-index: 1200;
   top: 24px;
   left: 4%;
   right: 4%;
-  max-width: 1440px;
+  max-width: 1500px;
   margin: auto;
 }
 .landing-nav {
@@ -401,10 +402,6 @@
 }
 .hero-map-scene {
   position: relative;
-}
-/* Keep the Central preview reachable below the enlarged foreground card. */
-.hero-map-scene .island-marker:last-child {
-  margin-top: clamp(100px, 16%, 140px);
 }
 .hero-deal {
   position: absolute;
@@ -1584,6 +1581,9 @@
   }
 }
 @media (max-width: 800px) {
+  .lobangers-landing {
+    --landing-nav-clearance: 97px;
+  }
   .landing-header {
     top: 16px;
   }

@@ -149,9 +149,6 @@
     padding: 16px;
     gap: 14px;
   }
-  .hero-map-scene .island-marker:last-child {
-    margin-top: 0;
-  }
 }
 @media (max-width: 800px) {
   .landing-hero {

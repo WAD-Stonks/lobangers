@@ -68,21 +68,16 @@ for (const width of [320, 390, 1440]) {
     await expect(page.locator('.landing-mobile-menu')).toHaveCount(0)
     await page.locator('#cuisines').scrollIntoViewIfNeeded()
     const cards = page.locator('.landing-food-card')
-    await expect(cards).toHaveCount(width < 600 ? 1 : 4)
-    await expect(cards.first().locator('.landing-card-primary')).toHaveAttribute(
+    await expect(cards).toHaveCount(4)
+    await expect(cards.first().locator('.landing-card-link')).toHaveAttribute(
       'href',
       `/deals/${deals[0]?.id}?at=${venueId}`,
     )
-    await expect(cards.first().locator('.landing-verification-badge')).toHaveText(
-      '✓ Likely still on',
-    )
-    await expect(cards.first().locator('.landing-card-location')).toHaveText(address)
-    const loginHref = await cards
-      .first()
-      .getByRole('link', { name: 'Log in to save' })
-      .getAttribute('href')
-    expect(new URL(loginHref ?? '', 'http://localhost').searchParams.get('redirect')).toBe(
-      `/deals/${deals[0]?.id}?at=${venueId}`,
+    await expect(cards.first().locator('.landing-photo-badge')).toHaveText('Likely still on')
+    await expect(cards.first().locator('.landing-offer-link')).toHaveText('Synthetic meal 1')
+    await expect(cards.first().locator('.landing-venue-link')).toHaveAttribute(
+      'href',
+      `/venues/${venueId}`,
     )
     const controls = page.locator('.landing-carousel-controls')
     await expect(
@@ -97,9 +92,7 @@ for (const width of [320, 390, 1440]) {
     expect(bounds.controls).toBeGreaterThanOrEqual(bounds.grid)
     await controls.getByRole('button', { name: 'Next deals', exact: true }).focus()
     await page.keyboard.press('Enter')
-    await expect(page.locator('.landing-carousel-status')).toContainText(
-      width < 600 ? 'Showing 2–2' : 'Showing 5–6',
-    )
+    await expect(page.locator('.landing-carousel-status')).toContainText('Showing 5–6')
     await controls.getByRole('button', { name: 'Previous deals', exact: true }).click()
     await page.screenshot({ path: info.outputPath(`landing-deals-${width}.png`) })
     if (width === 390) {
@@ -133,6 +126,7 @@ for (const width of [320, 390, 1440]) {
 test('failed deals can retry, with skeletons until the replacement response arrives', async ({
   page,
 }) => {
+  await page.setViewportSize({ width: 390, height: 844 })
   let calls = 0
   let release!: () => void
   const ready = new Promise<void>((resolve) => {
@@ -159,9 +153,23 @@ test('failed deals can retry, with skeletons until the replacement response arri
   await section.getByRole('button', { name: 'Retry loading deals' }).click()
   await expect(section.locator('.landing-skeleton-card')).toHaveCount(4)
   await expect(page.locator('.hero-loading-card')).toHaveAttribute('aria-busy', 'true')
+  await expect(page.locator('.hero-map-area')).toHaveClass(/hero-map-docked/)
+  const skeletonPosition = await page.locator('.hero-loading-card').evaluate((element) => {
+    const { x, y } = element.getBoundingClientRect()
+    return { x, y }
+  })
   release()
   await expect(section.locator('.landing-skeleton-card')).toHaveCount(0)
   await expect(section.locator('.landing-food-card')).toHaveCount(4)
-  await expect(section.locator('.landing-card-location').first()).toHaveText(address)
+  const featuredCard = page.locator('.hero-live-card:not(.hero-loading-card)')
+  await expect(featuredCard).toBeVisible()
+  await expect(page.locator('.hero-map-area')).toHaveClass(/hero-map-docked/)
+  const featuredPosition = await featuredCard.evaluate((element) => {
+    const { x, y } = element.getBoundingClientRect()
+    return { x, y }
+  })
+  expect(featuredPosition.x).toBeCloseTo(skeletonPosition.x, 0)
+  expect(featuredPosition.y).toBeCloseTo(skeletonPosition.y, 0)
+  await expect(section.locator('.landing-offer-link').first()).toHaveText('Synthetic meal 1')
   expect(calls).toBe(2)
 })

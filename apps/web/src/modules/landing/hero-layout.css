@@ -77,21 +77,6 @@
   font-size: 1.35em;
   line-height: 1;
 }
-.hero-copy > .landing-button:after {
-  content: "";
-  position: absolute;
-  width: 12px;
-  height: 12px;
-  right: -30px;
-  top: 44%;
-  border-radius: 8px;
-  background: #ffda53;
-  box-shadow:
-    -6px -25px 0 #ffda53,
-    -6px 25px 0 #ffda53;
-  transform: rotate(-15deg);
-  pointer-events: none;
-}
 .hero-benefits {
   flex-wrap: nowrap;
   gap: 18px;
@@ -264,7 +249,13 @@
   }
   .hero-map-area {
     width: 100%;
-    margin: 30px 0 5px;
+    left: auto;
+    transform: none;
+    margin: 30px auto 5px;
+  }
+  .hero-map-scene {
+    /* Extend the artwork through the hero's right padding. */
+    width: calc(100% + 7vw);
   }
   .hero-map-scene .island-marker {
     width: 48px;
@@ -596,11 +587,11 @@
   mask: url("/landing/hero-water-edge-mask.svg") center / 100% 100% no-repeat;
 }
 
-/* Keep the original hero artwork aligned with its 3:2 landmark frame. */
+/* Blend the artwork's white paper into the page, including on mobile. */
 .hero-map-scene > .illustrated-map {
   isolation: auto;
   background: transparent;
-  mix-blend-mode: normal;
+  mix-blend-mode: multiply;
 }
 
 .hero-copy > .landing-button {
@@ -613,9 +604,6 @@
 .hero-copy > .landing-button > span {
   transition: transform 0.22s ease;
 }
-.hero-copy > .landing-button::after {
-  transition: transform 0.25s ease;
-}
 .hero-copy > .landing-button:is(:hover, :focus-visible) {
   translate: 0 -3px;
   scale: 1.025;
@@ -625,17 +613,13 @@
 .hero-copy > .landing-button:is(:hover, :focus-visible) > span {
   transform: translateX(5px);
 }
-.hero-copy > .landing-button:is(:hover, :focus-visible)::after {
-  transform: rotate(-5deg) scale(1.12);
-}
 .hero-copy > .landing-button:active {
   translate: 0 -1px;
   scale: 0.99;
 }
 @media (prefers-reduced-motion: reduce) {
   .hero-copy > .landing-button,
-  .hero-copy > .landing-button > span,
-  .hero-copy > .landing-button::after {
+  .hero-copy > .landing-button > span {
     transition: none;
   }
   .hero-copy > .landing-button:is(:hover, :focus-visible, :active) {
@@ -644,8 +628,5 @@
   }
   .hero-copy > .landing-button:is(:hover, :focus-visible) > span {
     transform: none;
-  }
-  .hero-copy > .landing-button:is(:hover, :focus-visible)::after {
-    transform: rotate(-15deg);
   }
 }
