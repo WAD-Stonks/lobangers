@@ -1,5 +1,10 @@
 import { setCommunityVote } from '@api/modules/community/writes'
-import { createRestHandler, type RestDependencies, requireSession } from '@api/rest/context'
+import {
+  authenticatedActor,
+  createRestHandler,
+  type RestDependencies,
+  requireSession,
+} from '@api/rest/context'
 import { requireTrustedOrigin } from '@api/rest/policy'
 import { parseRestInput } from '@api/rest/validation'
 import {
@@ -14,14 +19,14 @@ export const deleteVote = (dependencies: RestDependencies) =>
     requireTrustedOrigin(request.get('Origin'), dependencies.config.webOrigin)
     parseRestInput(communityEmptySchema, request.query)
     parseRestInput(communityEmptySchema, request.body ?? {})
-    const userId = requireSession(context).user.id
+    const actor = authenticatedActor(requireSession(context))
     const { dealId } = parseRestInput(communityDealParamsSchema, request.params)
     response.json(
       communitySummarySchema.parse(
         await setCommunityVote(
           context.db,
           dealId,
-          userId,
+          actor,
           null,
           dependencies.config.community ?? DEFAULT_COMMUNITY_POLICY,
         ),

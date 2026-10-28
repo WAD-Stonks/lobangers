@@ -4,7 +4,13 @@
   "private": true,
   "type": "module",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./admin-audit": "./src/admin-audit.ts",
+    "./admin-catalogue": "./src/admin-catalogue.ts",
+    "./admin-deals": "./src/admin-deals.ts",
+    "./admin-moderation": "./src/admin-moderation.ts",
+    "./ingestion-investigation": "./src/ingestion-investigation.ts",
+    "./platform-security": "./src/platform-security.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit -p tsconfig.json"

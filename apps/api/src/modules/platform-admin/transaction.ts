@@ -35,19 +35,7 @@ export const accessTransaction = async <T>(
     throw error
   }
 }
-export const requireCurrentAdmin = async (tx: AccessTransaction, actorId: string) => {
-  const actor = await tx.user.findUnique({
-    where: { id: actorId },
-    select: { id: true, role: true, name: true, updatedAt: true },
-  })
-  if (actor?.role !== 'ADMIN') throw new DomainError('FORBIDDEN')
-  // Also fence the actual identity record against a concurrent out-of-band demotion.
-  await tx.user.update({
-    where: { id: actor.id },
-    data: { updatedAt: new Date(Math.max(Date.now(), actor.updatedAt.getTime() + 1)) },
-  })
-  return actor
-}
+export { requireCurrentAdmin, requireRecentAdminWrite } from '@api/modules/account/security-access'
 export const currentUser = async (tx: AccessTransaction, userId: string) => {
   const user = await tx.user.findUnique({ where: { id: userId } })
   if (!user) throw new DomainError('NOT_FOUND', 'Account not found')

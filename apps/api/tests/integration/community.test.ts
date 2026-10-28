@@ -6,6 +6,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { promisify } from 'node:util'
+import { pushDisposableSchema } from '@api/../tests/fixtures/disposable-schema'
 import {
   registerSyntheticOutletFixtureDatabase,
   seedSyntheticOutletProof,
@@ -89,12 +90,7 @@ beforeAll(async () => {
   databaseUrl = mongo.getUri(`integration_${randomUUID().replaceAll('-', '')}`)
   vi.stubEnv('DATABASE_URL', databaseUrl)
   vi.stubEnv('NODE_ENV', 'test')
-  await promisify(execFile)('pnpm', ['--dir', 'packages/db', 'run', 'push'], {
-    cwd: root,
-    env: { ...process.env, DATABASE_URL: databaseUrl },
-    encoding: 'utf8',
-    timeout: 60_000,
-  })
+  await pushDisposableSchema(databaseUrl)
   db = (await import('@broke-oclock/db')).db
   registerSyntheticOutletFixtureDatabase(db, databaseUrl)
   disconnect = () => db.$disconnect()

@@ -12,7 +12,7 @@ const state = createAdminSession({ closing: () => emit('closing'), signedOut: ()
   // Refetch resolves void; failures live on the reactive atom, not its return value.
   if (nativeState.value.error) throw new Error('Native session could not be confirmed')
 })
-const { session, loading, pending, uncertain, notice } = state
+const { session, loading, pending, uncertain, accessRequired, notice } = state
 const focus = () => { void state.refresh() }
 onMounted(() => { void state.refresh(); window.addEventListener('focus', focus) })
 watch(() => props.refreshKey, focus)
@@ -29,7 +29,7 @@ onUnmounted(() => { state.dispose(); window.removeEventListener('focus', focus) 
     <div class="d-flex flex-wrap gap-2">
       <button v-if="session || loading || pending || uncertain" data-testid="admin-sign-out" type="button" class="btn btn-link" :disabled="pending" @click="state.signOut">{{ pending ? 'Signing out…' : uncertain ? 'Retry sign-out' : 'Sign out' }}</button>
       <button v-if="uncertain || !session" type="button" class="btn btn-link" :disabled="pending || loading" @click="state.refresh">Recheck session</button>
-      <button v-if="uncertain && session" data-testid="admin-access-reload" type="button" class="btn btn-outline-primary" :disabled="pending || loading" @click="state.requestAccessReload">Reload access</button>
+      <button v-if="(uncertain || accessRequired) && session" data-testid="admin-access-reload" type="button" class="btn btn-outline-primary" :disabled="pending || loading" @click="state.requestAccessReload">Reload access</button>
     </div>
   </section>
 </template>

@@ -18,7 +18,8 @@ export type {
   OneMapMatch,
 } from '@integrations/onemap-client'
 export { createOneMapClient, OneMapClientError } from '@integrations/onemap-client'
-export { createScoobifyClient } from '@integrations/scoobify-client'
+export { readProviderEnvelope, withProviderEnvelope } from '@integrations/provider-envelope'
+export { createScoobifyClient, normalizeScoobifyPost } from '@integrations/scoobify-client'
 export type { SourceImage, SourceImageClientOptions } from '@integrations/source-image-client'
 export { createSourceImageClient } from '@integrations/source-image-client'
 export type { TelegramClientOptions } from '@integrations/telegram-client'

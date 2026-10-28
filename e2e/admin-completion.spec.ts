@@ -1,5 +1,58 @@
+import { postsPageSchema } from '@broke-oclock/contracts/ingestion-recovery'
 import type { AdminOverviewResponse } from '@broke-oclock/contracts/platform-admin'
 import { expect, type Page, test } from '@playwright/test'
+
+// Evidence only: observe actual Chromium output without replacing SPA or browser behavior.
+const browserObservations = new WeakMap<
+  Page,
+  {
+    console: string[]
+    pageErrors: string[]
+    resources: { url: string; status?: number; error?: string }[]
+  }
+>()
+test.beforeEach(async ({ page }) => {
+  const observed = {
+    console: [] as string[],
+    pageErrors: [] as string[],
+    resources: [] as { url: string; status?: number; error?: string }[],
+  }
+  browserObservations.set(page, observed)
+  page.on('console', (message) => observed.console.push(`${message.type()}: ${message.text()}`))
+  page.on('pageerror', (error) => observed.pageErrors.push(error.message))
+  page.on('response', (response) =>
+    observed.resources.push({ url: response.url(), status: response.status() }),
+  )
+  page.on('requestfailed', (request) =>
+    observed.resources.push({ url: request.url(), error: request.failure()?.errorText }),
+  )
+})
+test.afterEach(async ({ page }, info) => {
+  await info.attach('actual-browser-observations', {
+    body: JSON.stringify(
+      {
+        ...browserObservations.get(page),
+        layout: await page.evaluate(() => ({
+          url: location.href,
+          fonts: document.fonts.status,
+          splash: Boolean(document.querySelector('[data-testid="splash-screen"]')),
+          width: document.documentElement.clientWidth,
+          scroll: document.documentElement.scrollWidth,
+          alerts: [...document.querySelectorAll('[role="alert"]')].map((el) => el.textContent),
+          buttons: [...document.querySelectorAll('button')].map((el) => ({
+            name: el.getAttribute('aria-label') ?? el.textContent,
+            width: el.getBoundingClientRect().width,
+            height: el.getBoundingClientRect().height,
+            minHeight: getComputedStyle(el).minHeight,
+          })),
+        })),
+      },
+      null,
+      2,
+    ),
+    contentType: 'application/json',
+  })
+})
 
 // Explicitly synthetic native/REST boundaries. Real SPA/transport/layout only,
 // not live authentication, provider delivery, database authorization or acceptance.
@@ -59,7 +112,10 @@ async function boundary(page: Page) {
         counts: { pending: 4, approved: 0, rejected: 0, failed: 3 },
       }
     else if (url.pathname === '/api/ingestion/runs') body = { items: [] }
-    else if (
+    else if (url.pathname === '/api/ingestion/posts' && route.request().method() === 'GET') {
+      expect(Object.fromEntries(url.searchParams)).toEqual({ status: 'FAILED', limit: '20' })
+      body = postsPageSchema.parse({ items: [], nextCursor: null })
+    } else if (
       [
         '/api/admin/accounts',
         '/api/admin/merchant-requests',
@@ -143,7 +199,28 @@ for (const width of [320, 768, 1024, 1440]) {
       const active = nav.locator('[aria-current="page"]')
       await expect(active).toHaveCount(1)
       await expect(active).toHaveAttribute('href', path)
-      await expect(nav.locator('a')).toHaveText(['Overview', 'Accounts', 'Ingestion'])
+      await expect(nav.locator('a')).toHaveText([
+        'Overview',
+        'Deals',
+        'Catalogue',
+        'Moderation',
+        'Accounts',
+        'Ingestion',
+        'Audit',
+      ])
+      expect(
+        await nav
+          .locator('a')
+          .evaluateAll((links) => links.map((link) => link.getAttribute('href'))),
+      ).toEqual([
+        '/admin',
+        '/admin/deals',
+        '/admin/catalogue',
+        '/admin/moderation',
+        '/admin/accounts',
+        '/admin/ingestion',
+        '/admin/audit',
+      ])
       await expect(page.locator('.site-header')).toHaveCSS('position', 'relative')
       await expect(page.locator('.admin-content .card').first()).toBeVisible()
       const styles = await page.evaluate(() => {
@@ -174,7 +251,7 @@ for (const width of [320, 768, 1024, 1440]) {
         accent: 'rgb(233, 198, 42)',
         navFill: 'rgba(0, 0, 0, 0)',
         navWeight: '700',
-        navRows: 1,
+        navRows: width === 320 ? 3 : 1,
         surface: 'rgb(255, 255, 255)',
         canvas: 'rgb(243, 242, 239)',
         radius: '16px',

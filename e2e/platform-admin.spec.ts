@@ -1,3 +1,5 @@
+import { bookmarksResponseSchema } from '@broke-oclock/contracts/account'
+import { dealsResponseSchema } from '@broke-oclock/contracts/deals'
 import type {
   MerchantRequest,
   MerchantRequestsQuery,
@@ -8,6 +10,17 @@ import type {
   PlatformRole,
   PlatformVenue,
 } from '@broke-oclock/contracts/platform-admin'
+import {
+  changePlatformRoleBodySchema,
+  grantStallBodySchema,
+  reviewMerchantRequestBodySchema,
+  revokeStallBodySchema,
+} from '@broke-oclock/contracts/platform-admin'
+import {
+  accountSecurityResponseSchema,
+  accountSessionsResponseSchema,
+  securityContextResponseSchema,
+} from '@broke-oclock/contracts/platform-security'
 import { expect, type Page, test } from '@playwright/test'
 
 type RestPage<T> = { items: T[]; nextCursor: string | null }
@@ -20,24 +33,81 @@ const requestA = '333333333333333333333333'
 const requestB = '444444444444444444444444'
 const grantA = '555555555555555555555555'
 const grantB = '666666666666666666666666'
+const actorUserId = '999999999999999999999999'
+const observations = new WeakMap<
+  Page,
+  { console: string[]; pageErrors: string[]; network: string[]; unexpected: string[] }
+>()
+
+test.afterEach(async ({ page }, info) => {
+  const observed = observations.get(page)
+  if (!observed) throw new Error('Missing synthetic boundary observations')
+  await info.attach('synthetic-boundary-observations', {
+    contentType: 'application/json',
+    body: JSON.stringify(observed, null, 2),
+  })
+  expect(observed.unexpected).toEqual([])
+  expect(observed.pageErrors).toEqual([])
+})
 
 // Explicitly synthetic API boundaries. These verify the real Vue SPA and same-origin
 // Axios REST transport, NOT live authentication, database authorization or backend acceptance.
 async function syntheticBoundary(page: Page) {
+  const observed = {
+    console: [] as string[],
+    pageErrors: [] as string[],
+    network: [] as string[],
+    unexpected: [] as string[],
+  }
+  observations.set(page, observed)
+  page.on('console', (message) => observed.console.push(`${message.type()}: ${message.text()}`))
+  page.on('pageerror', (error) => observed.pageErrors.push(error.message))
+  page.on('requestfailed', (request) => {
+    observed.network.push(
+      `FAILED ${request.method()} ${request.url()} ${request.failure()?.errorText}`,
+    )
+  })
+  page.on('request', (request) => {
+    if (new URL(request.url()).pathname.startsWith('/api/admin/'))
+      observed.network.push(
+        `REQUEST ${request.method()} ${request.url()} ${request.postData() ?? ''}`,
+      )
+  })
+  page.on('response', (response) => {
+    if (new URL(response.url()).pathname.startsWith('/api/'))
+      observed.network.push(`${response.status()} ${response.request().method()} ${response.url()}`)
+  })
+  // Only the two public reads used by the original /browse navigation are synthetic.
+  // Fail closed on every other API request; never contact an ambient API/provider.
+  await page.route('**/api/**', async (route) => {
+    const pathname = new URL(route.request().url()).pathname
+    const method = route.request().method()
+    let data: unknown
+    if (pathname === '/api/deals' && method === 'GET')
+      data = dealsResponseSchema.parse({ items: [], categories: [] })
+    else if (pathname === '/api/account/bookmarks' && method === 'GET')
+      data = bookmarksResponseSchema.parse({ items: [], nextCursor: null })
+    else {
+      observed.unexpected.push(`${method} ${pathname}`)
+      await route.abort('blockedbyclient')
+      return
+    }
+    await route.fulfill({ contentType: 'application/json', body: JSON.stringify(data) })
+  })
   // Synthetic native identity and method presentation, not connected authentication.
   await page.route('**/api/auth/get-session**', (route) =>
     route.fulfill({
       contentType: 'application/json',
       body: JSON.stringify({
         user: {
-          id: 'synthetic-admin',
+          id: actorUserId,
           name: 'Synthetic operator',
           email: 'operator@example.test',
           role: 'USER',
         },
         session: {
           id: 'synthetic-session',
-          userId: 'synthetic-admin',
+          userId: actorUserId,
           expiresAt: '2099-01-01T00:00:00.000Z',
         },
       }),
@@ -151,7 +221,7 @@ async function syntheticBoundary(page: Page) {
   ) => {
     state.audit.unshift({
       id: (state.audit.length + 1).toString(16).padStart(24, '0'),
-      actorId: '999999999999999999999999',
+      actorId: actorUserId,
       actorName: 'Synthetic administrator',
       action,
       targetUserId,
@@ -172,14 +242,30 @@ async function syntheticBoundary(page: Page) {
     const body: Record<string, unknown> = request.postDataJSON?.() ?? {}
     let path: string
     let input: Record<string, unknown>
-    if (pathname === '/api/admin/accounts' && method === 'GET') {
+    // Registered nested security reads must precede the generic account detail route.
+    if (pathname === '/api/admin/security-context' && method === 'GET') {
+      path = 'platformSecurity.context'
+      input = query
+    } else if (
+      /^\/api\/admin\/accounts\/[a-f0-9]{24}\/security$/.test(pathname) &&
+      method === 'GET'
+    ) {
+      path = 'platformSecurity.account'
+      input = { userId: pathname.split('/')[4] }
+    } else if (
+      /^\/api\/admin\/accounts\/[a-f0-9]{24}\/sessions$/.test(pathname) &&
+      method === 'GET'
+    ) {
+      path = 'platformSecurity.sessions'
+      input = { userId: pathname.split('/')[4], ...query }
+    } else if (pathname === '/api/admin/accounts' && method === 'GET') {
       path = 'platformAdmin.accounts'
       input = query
     } else if (pathname.startsWith('/api/admin/accounts/') && pathname.endsWith('/role')) {
       const userId = pathname.split('/')[4]
       path = 'platformAdmin.changeRole'
-      input = { userId, ...body }
-    } else if (pathname.startsWith('/api/admin/accounts/') && method === 'GET') {
+      input = { userId, ...changePlatformRoleBodySchema.parse(body) }
+    } else if (/^\/api\/admin\/accounts\/[a-f0-9]{24}$/.test(pathname) && method === 'GET') {
       path = 'platformAdmin.account'
       input = { userId: pathname.split('/').at(-1) }
     } else if (pathname === '/api/admin/merchant-requests' && method === 'GET') {
@@ -191,7 +277,7 @@ async function syntheticBoundary(page: Page) {
     ) {
       const requestId = pathname.split('/')[4]
       path = 'platformAdmin.reviewRequest'
-      input = { requestId, ...body }
+      input = { requestId, ...reviewMerchantRequestBodySchema.parse(body) }
     } else if (pathname === '/api/admin/venues' && method === 'GET') {
       path = 'platformAdmin.venues'
       input = query
@@ -200,12 +286,13 @@ async function syntheticBoundary(page: Page) {
       input = query
     } else if (pathname === '/api/admin/stall-grants' && method === 'POST') {
       path = 'platformAdmin.grantStall'
-      input = body
+      input = grantStallBodySchema.parse(body)
     } else if (pathname.startsWith('/api/admin/stall-grants/') && method === 'DELETE') {
       const grantId = pathname.split('/').at(-1)
       path = 'platformAdmin.revokeStall'
-      input = { grantId, ...body }
+      input = { grantId, ...revokeStallBodySchema.parse(body) }
     } else {
+      observed.unexpected.push(`${method} ${pathname}`)
       await route.fulfill({
         status: 404,
         contentType: 'application/json',
@@ -231,6 +318,40 @@ async function syntheticBoundary(page: Page) {
     }
     let data: unknown
     switch (path) {
+      case 'platformSecurity.context':
+        // Synthetic fresh primary-login presentation only, not a native-auth policy test.
+        data = securityContextResponseSchema.parse({
+          actorUserId,
+          freshLoginUntil: new Date(Date.now() + 600_000).toISOString(),
+          reauthenticationRequired: false,
+        })
+        break
+      case 'platformSecurity.account':
+      case 'platformSecurity.sessions': {
+        const account = accounts.find((item) => item.id === input.userId)
+        if (!account) throw new Error(`Unknown synthetic security account ${input.userId}`)
+        data =
+          path === 'platformSecurity.account'
+            ? accountSecurityResponseSchema.parse({
+                userId: account.id,
+                version: account.version,
+                emailVerified: true,
+                state: 'ACTIVE',
+                suspendedAt: null,
+                methods: {
+                  passwordConfigured: true,
+                  googleLinked: false,
+                  emailOtpAvailable: false,
+                },
+              })
+            : accountSessionsResponseSchema.parse({
+                userId: account.id,
+                version: account.version,
+                items: [],
+                nextCursor: null,
+              })
+        break
+      }
       case 'platformAdmin.accounts': {
         const value = input as PlatformAccountsQuery
         data = (value.cursor ? state.accountPages.get(value.cursor) : undefined) ?? {
@@ -365,6 +486,10 @@ for (const width of [320, 390, 1280]) {
     const details = page.getByRole('region', { name: 'Account details' })
     await expect(details).toContainText('<img src=x onerror=alert(1)> Alice')
     await expect(details.locator('img, script')).toHaveCount(0)
+    const security = page.getByRole('region', { name: 'Account security', exact: true })
+    await expect(security).toContainText('ACTIVE')
+    await expect(security).toContainText('Password configured: Yes')
+    await expect(security.getByRole('alert')).toHaveCount(0)
     await expect(page.getByRole('button', { name: /delete/i })).toHaveCount(0)
     await expect(
       page.getByText(
@@ -389,6 +514,7 @@ for (const width of [320, 390, 1280]) {
           venueId: stallB,
           expectedUserVersion: 7,
           note: 'Verified second outlet only',
+          confirmed: true,
         },
       },
     ])
@@ -404,7 +530,12 @@ for (const width of [320, 390, 1280]) {
       {
         path: 'platformAdmin.revokeStall',
         method: 'DELETE',
-        input: { grantId: grantB, expectedVersion: 1, note: 'Remove second outlet access' },
+        input: {
+          grantId: grantB,
+          expectedVersion: 1,
+          note: 'Remove second outlet access',
+          confirmed: true,
+        },
       },
     ])
     await page.getByLabel('Account action', { exact: true }).selectOption('role')
@@ -427,6 +558,7 @@ for (const width of [320, 390, 1280]) {
           expectedVersion: 9,
           role: 'USER',
           note: 'End merchant responsibility',
+          confirmed: true,
         },
       },
     ])
@@ -463,12 +595,14 @@ test('synthetic-boundary request review uses exact request identities and escape
       expectedVersion: 3,
       decision: 'REJECT',
       note: 'No ownership evidence for Stall A',
+      confirmed: true,
     },
     {
       requestId: requestB,
       expectedVersion: 9,
       decision: 'APPROVE',
       note: 'Verified the named second stall',
+      confirmed: true,
     },
   ])
   await page.getByLabel('Request status', { exact: true }).selectOption('APPROVED')
@@ -517,8 +651,8 @@ test('synthetic-boundary account conflict survives pagination and forces refresh
   await page.getByRole('button', { name: 'Change role', exact: true }).click()
   await expect(page.getByRole('region', { name: 'Account details' })).toContainText('Version 9')
   expect(calls(state, 'changeRole').map((call) => call.input)).toEqual([
-    { userId: userA, expectedVersion: 7, role: 'USER', note: 'Old version' },
-    { userId: userA, expectedVersion: 8, role: 'USER', note: 'Fresh version' },
+    { userId: userA, expectedVersion: 7, role: 'USER', note: 'Old version', confirmed: true },
+    { userId: userA, expectedVersion: 8, role: 'USER', note: 'Fresh version', confirmed: true },
   ])
 })
 
@@ -553,8 +687,20 @@ test('synthetic-boundary request conflicts are identity-scoped until fetched fre
   await page.getByRole('button', { name: 'Approve request', exact: true }).click()
   await expect(page.getByRole('status').filter({ hasText: 'Request reviewed.' })).toBeVisible()
   expect(calls(state, 'reviewRequest').map((call) => call.input)).toEqual([
-    { requestId: requestA, expectedVersion: 3, decision: 'APPROVE', note: 'Review stale claim' },
-    { requestId: requestA, expectedVersion: 4, decision: 'APPROVE', note: 'Fresh claim evidence' },
+    {
+      requestId: requestA,
+      expectedVersion: 3,
+      decision: 'APPROVE',
+      note: 'Review stale claim',
+      confirmed: true,
+    },
+    {
+      requestId: requestA,
+      expectedVersion: 4,
+      decision: 'APPROVE',
+      note: 'Fresh claim evidence',
+      confirmed: true,
+    },
   ])
 })
 
@@ -583,6 +729,7 @@ test('synthetic-boundary pending writes prevent duplicate submits and target swi
     expectedVersion: 7,
     role: 'USER',
     note: 'Review first identity',
+    confirmed: true,
   })
   release()
   await expect(page.getByRole('region', { name: 'Account details' })).toContainText(
@@ -634,6 +781,7 @@ test('synthetic-boundary live permission loss removes every administrative panel
   await expect(page.getByRole('region', { name: 'Account details' })).toHaveCount(0)
   await expect(page.getByRole('region', { name: 'Merchant requests' })).toHaveCount(0)
   await expect(page.getByRole('region', { name: 'Audit history' })).toHaveCount(0)
+  await expect(page.getByRole('region', { name: 'Account security', exact: true })).toHaveCount(0)
 })
 
 test('synthetic-boundary stale denial cannot overwrite newer search and current errors can be reloaded', async ({
@@ -738,7 +886,7 @@ test('synthetic sign-in rechecks platform API access rather than trusting a clie
       contentType: 'application/json',
       body: JSON.stringify({
         user: {
-          id: 'synthetic-admin',
+          id: actorUserId,
           name: 'Synthetic stale session',
           email: 'synthetic@example.test',
           emailVerified: false,

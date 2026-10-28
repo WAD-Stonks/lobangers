@@ -10,8 +10,12 @@ const route = inject(routeLocationKey, null)
 const router = inject(routerKey, null)
 const navigation = [
   { href: '/admin', label: 'Overview' },
+  { href: '/admin/deals', label: 'Deals' },
+  { href: '/admin/catalogue', label: 'Catalogue' },
+  { href: '/admin/moderation', label: 'Moderation' },
   { href: '/admin/accounts', label: 'Accounts' },
   { href: '/admin/ingestion', label: 'Ingestion' },
+  { href: '/admin/audit', label: 'Audit' },
 ]
 const navigate = (event: MouseEvent, href: string) => {
   if (!router || event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return

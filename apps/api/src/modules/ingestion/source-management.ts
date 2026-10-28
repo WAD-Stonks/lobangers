@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto'
+import type { AuthenticatedActor } from '@api/modules/account/security-access'
 import { DomainError } from '@api/modules/domain-error'
 import { MONEYDIGEST_SOURCE } from '@api/modules/ingestion/source'
 import {
@@ -21,13 +22,13 @@ type ImportSource = Awaited<ReturnType<Database['importSource']['findUniqueOrThr
 
 export const setIngestionSourceEnabled = async (
   db: Database,
-  actorId: string,
+  actor: AuthenticatedActor,
   sourceId: string,
   input: IngestionSetSourceEnabledRequest,
   now: Date,
 ) =>
   accessTransaction(db, async (tx) => {
-    await requireCurrentAdmin(tx, actorId)
+    await requireCurrentAdmin(tx, actor)
     const source = await tx.importSource.findUnique({ where: { id: sourceId } })
     if (!source) throw new DomainError('NOT_FOUND', 'Source not found')
     if (!isRegisteredTelegramSource(source))
@@ -88,7 +89,7 @@ export const listIngestionSources = async (db: Database, input: IngestionSources
 }
 export const addIngestionSource = async (
   db: Database,
-  actorId: string,
+  actor: AuthenticatedActor,
   input: IngestionAddSourceRequest,
 ) => {
   const identity = parseTelegramPreviewUrl(input.previewUrl)
@@ -97,7 +98,7 @@ export const addIngestionSource = async (
     .digest('hex')
     .slice(0, 24)
   return accessTransaction(db, async (tx) => {
-    await requireCurrentAdmin(tx, actorId)
+    await requireCurrentAdmin(tx, actor)
     const duplicate = await tx.importSource.findFirst({
       where: {
         provider: 'TELEGRAM',

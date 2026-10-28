@@ -30,6 +30,13 @@ const rest = vi.hoisted(() => ({
   session: vi.fn(),
   signOut: vi.fn(),
   authMethods: vi.fn(),
+  securityAccount: vi.fn(),
+  securitySessions: vi.fn(),
+  securityContext: vi.fn(),
+  suspend: vi.fn(),
+  reinstate: vi.fn(),
+  revokeSession: vi.fn(),
+  revokeSessions: vi.fn(),
 }))
 vi.mock('@web/lib/api-client', () => ({
   ApiClientError: class ApiClientError extends Error {
@@ -43,6 +50,15 @@ vi.mock('@web/lib/api-client', () => ({
   },
   api: {
     infrastructure: { authMethods: rest.authMethods },
+    platformSecurity: {
+      account: rest.securityAccount,
+      sessions: rest.securitySessions,
+      context: rest.securityContext,
+      suspend: rest.suspend,
+      reinstate: rest.reinstate,
+      revokeSession: rest.revokeSession,
+      revokeSessions: rest.revokeSessions,
+    },
     platformAdmin: {
       accounts: rest.accounts,
       account: rest.account,
@@ -84,6 +100,7 @@ beforeEach(() => {
         email: 'admin@example.test',
         role: 'USER',
       },
+      session: { id: 'synthetic-session', userId: 'synthetic-admin' },
     },
     error: null,
   })
@@ -96,6 +113,25 @@ beforeEach(() => {
   })
   for (const name of ['accounts', 'requests', 'venues', 'audit'] as const)
     rest[name].mockResolvedValue({ items: [], nextCursor: null })
+  rest.securityAccount.mockImplementation(async (userId: string) => ({
+    userId,
+    version: 7,
+    emailVerified: true,
+    state: 'ACTIVE',
+    suspendedAt: null,
+    methods: { passwordConfigured: true, googleLinked: false, emailOtpAvailable: false },
+  }))
+  rest.securitySessions.mockImplementation(async (userId: string) => ({
+    userId,
+    version: 7,
+    items: [],
+    nextCursor: null,
+  }))
+  rest.securityContext.mockResolvedValue({
+    actorUserId: 'synthetic-admin',
+    freshLoginUntil: '2026-10-28T16:00:00Z',
+    reauthenticationRequired: false,
+  })
 })
 async function open(path = '/admin/accounts') {
   const router = createRouter({ history: createMemoryHistory(), routes })
@@ -105,6 +141,100 @@ async function open(path = '/admin/accounts') {
   await flushPromises()
   return wrapper
 }
+it('coordinates account-security mutations with the existing account forms and refreshes parent evidence', async () => {
+  rest.accounts.mockResolvedValue({ items: [account], nextCursor: null })
+  rest.account.mockResolvedValue(account)
+  let release:
+    | ((value: { id: string; version: number; affectedSessionCount: number }) => void)
+    | undefined
+  rest.suspend.mockImplementation(
+    () =>
+      new Promise((resolve) => {
+        release = resolve
+      }),
+  )
+  const w = await open()
+  await w.get('[data-testid="account-user-a"]').trigger('click')
+  await flushPromises()
+  expect(w.get('[aria-label="Account security"]').text()).toContain('ACTIVE')
+  await w.get('[data-testid="security-note"]').setValue('Reviewed abuse report')
+  await w.get('[data-testid="security-confirm"]').setValue(true)
+  await w.get('[data-testid="security-form"]').trigger('submit')
+  expect(rest.suspend).toHaveBeenCalledExactlyOnceWith('user-a', {
+    expectedVersion: 7,
+    note: 'Reviewed abuse report',
+    confirmed: true,
+  })
+  expect(w.get('#account-action-form fieldset').attributes('disabled')).toBeDefined()
+  expect(w.get('[data-testid="account-user-a"]').attributes('disabled')).toBeDefined()
+  rest.account.mockResolvedValue({ ...account, version: 8 })
+  rest.securityAccount.mockResolvedValue({
+    userId: account.id,
+    version: 8,
+    emailVerified: true,
+    state: 'SUSPENDED',
+    suspendedAt: '2026-10-28T14:00:00Z',
+    methods: { passwordConfigured: true, googleLinked: false, emailOtpAvailable: false },
+  })
+  rest.securitySessions.mockResolvedValue({
+    userId: account.id,
+    version: 8,
+    items: [],
+    nextCursor: null,
+  })
+  release?.({ id: account.id, version: 8, affectedSessionCount: 1 })
+  await flushPromises()
+  expect(rest.account).toHaveBeenCalledTimes(2)
+  expect(rest.audit).toHaveBeenCalledTimes(2)
+  expect(w.get('[aria-label="Account security"]').text()).toContain('SUSPENDED')
+  expect((w.get('#account-confirm').element as HTMLInputElement).checked).toBe(false)
+  w.unmount()
+})
+it('keeps reads available after a server freshness refusal without replaying a sensitive action', async () => {
+  rest.accounts.mockResolvedValue({ items: [account], nextCursor: null })
+  rest.account.mockResolvedValue(account)
+  rest.changeRole.mockRejectedValueOnce(
+    new ApiClientError('PRECONDITION_FAILED', 412, 'Fresh sign-in required'),
+  )
+  const w = await open()
+  await w.get('[data-testid="account-user-a"]').trigger('click')
+  await flushPromises()
+  await w.get('#new-role').setValue('MERCHANT')
+  await w.get('#account-note').setValue('Verified account ownership')
+  await w.get('#account-confirm').setValue(true)
+  await w.get('#account-action-form').trigger('submit')
+  await flushPromises()
+  expect(w.text()).toContain('Fresh sign-in required')
+  expect(w.find('[aria-label="Accounts"]').exists()).toBe(true)
+  expect((w.get('#account-confirm').element as HTMLInputElement).checked).toBe(false)
+  await w.get('#account-action-form').trigger('submit')
+  expect(rest.changeRole).toHaveBeenCalledTimes(1)
+  w.unmount()
+})
+it('disables child security controls during an existing role mutation', async () => {
+  rest.accounts.mockResolvedValue({ items: [account], nextCursor: null })
+  rest.account.mockResolvedValue(account)
+  let release: (() => void) | undefined
+  rest.changeRole.mockImplementation(
+    () =>
+      new Promise<void>((resolve) => {
+        release = resolve
+      }),
+  )
+  const w = await open()
+  await w.get('[data-testid="account-user-a"]').trigger('click')
+  await flushPromises()
+  await w.get('#new-role').setValue('MERCHANT')
+  await w.get('#account-note').setValue('Approved merchant ownership')
+  await w.get('#account-confirm').setValue(true)
+  await w.get('#account-action-form').trigger('submit')
+  expect(w.get('[data-testid="security-reload"]').attributes('disabled')).toBeDefined()
+  expect(w.find('[data-testid="security-form"]').exists()).toBe(false)
+  expect(rest.suspend).not.toHaveBeenCalled()
+  release?.()
+  await flushPromises()
+  w.unmount()
+})
 it('routes platform administration separately and uses server denial, not a client role', async () => {
   rest.accounts.mockRejectedValueOnce(new ApiClientError('UNAUTHORIZED', 401, 'Sign in required'))
   const wrapper = await open()
@@ -146,6 +276,7 @@ it('changes the selected account role only with a note and confirmation, then re
     expectedVersion: 7,
     role: 'MERCHANT',
     note: 'Approved merchant onboarding',
+    confirmed: true,
   })
   expect(w.get('[data-testid="account-user-a"]').attributes('disabled')).toBeDefined()
   rest.account.mockResolvedValue({ ...account, role: 'MERCHANT', version: 8 })
@@ -197,6 +328,7 @@ it('reviews only the selected pending request with its exact identity and versio
     expectedVersion: 9,
     decision: 'APPROVE',
     note: 'Verified Stall B ownership',
+    confirmed: true,
   })
   expect((w.get('#request-note').element as HTMLTextAreaElement).value).toBe('')
   await w.get('#request-status').setValue('REJECTED')
@@ -254,6 +386,7 @@ it('grants the picked second stall and revokes only the selected active grant ve
     venueId: 'stall-d',
     expectedUserVersion: 7,
     note: 'Verified the second outlet',
+    confirmed: true,
   })
   expect(rest.venues).toHaveBeenCalledWith({ search: 'Stall', limit: 20 })
   await w.get('#account-action').setValue('revoke')
@@ -265,6 +398,7 @@ it('grants the picked second stall and revokes only the selected active grant ve
   expect(rest.revokeStall).toHaveBeenCalledExactlyOnceWith('grant-b', {
     expectedVersion: 8,
     note: 'Access no longer required',
+    confirmed: true,
   })
 })
 
@@ -419,6 +553,7 @@ it('keeps request conflict guards by identity across pagination and selection un
     expectedVersion: 4,
     decision: 'REJECT',
     note: 'Current evidence',
+    confirmed: true,
   })
 })
 
@@ -948,6 +1083,7 @@ it('ignores version evidence from a superseded account filter response', async (
     expectedVersion: 8,
     role: 'MERCHANT',
     note: 'Current accepted evidence',
+    confirmed: true,
   })
 })
 
@@ -976,6 +1112,7 @@ it('does not let a late older list invalidate newer reviewed detail', async () =
     expectedVersion: 8,
     role: 'MODERATOR',
     note: 'Reviewed version eight',
+    confirmed: true,
   })
 })
 
@@ -1014,6 +1151,7 @@ it('keeps a deferred old detail locked after a newer account list arrives', asyn
     expectedVersion: 8,
     role: 'MERCHANT',
     note: 'Reviewed current detail',
+    confirmed: true,
   })
 })
 

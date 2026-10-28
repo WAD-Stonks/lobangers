@@ -2,6 +2,8 @@
 import AdminShell from '@web/components/admin/AdminShell.vue'
 import SharedSignIn from '@web/components/auth/SharedSignIn.vue'
 import { usePlatformAdmin } from '@web/modules/platform-admin/use-platform-admin'
+import AccountSecurityPanel from '@web/modules/platform-security/AccountSecurityPanel.vue'
+import FreshLoginNotice from '@web/modules/platform-security/FreshLoginNotice.vue'
 import { inject, watch } from 'vue'
 import { routeLocationKey } from 'vue-router'
 
@@ -24,6 +26,7 @@ watch(() => route?.query.requestStatus, value => { s.requestStatus = status(valu
       <p>Manage account roles and explicit stall access. Permissions are checked against the current server record for every action.</p>
       <p>Account deletion is unavailable pending the retention and anonymisation policy.</p>
       <p v-if="s.notice" role="status">{{ s.notice }}</p>
+      <FreshLoginNotice v-if="s.freshnessRequired" />
       <div class="admin-account-workspace">
       <section aria-label="Accounts" class="card p-3 mb-3">
         <h2 class="h4">Accounts</h2>
@@ -98,6 +101,7 @@ watch(() => route?.query.requestStatus, value => { s.requestStatus = status(valu
           </fieldset>
         </form>
       </section>
+      <AccountSecurityPanel v-if="s.detail.data" :user-id="s.detail.data.id" :account-version="s.detail.data.version" :revision="s.securityRevision" :disabled="s.accountActionBusy || s.detail.loading || s.staleAccounts.has(s.detail.data.id)" @busy="s.setSecurityBusy" @changed="s.securityChanged" @denied="s.securityDenied" @freshness-required="s.requireFreshLogin" />
       <p v-if="!s.selectedId" class="admin-empty-detail">Select an account to review its role and stall access.</p>
       </div>
       </div>

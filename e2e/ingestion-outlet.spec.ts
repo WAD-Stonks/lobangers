@@ -38,6 +38,7 @@ const draft: IngestionDraft = {
   outlet: null,
   reviewStatus: 'PENDING',
   contentVersion: 7,
+  operationVersion: 0,
   sourceUrl: 'https://example.test/source/offer#exact-outlet',
   sourceName: 'Named synthetic source',
   reviewNote: null,
@@ -46,6 +47,7 @@ const draft: IngestionDraft = {
 const associated: IngestionOutletAssociationResponse = {
   id,
   contentVersion: 8,
+  operationVersion: 1,
   reviewStatus: 'PENDING',
   applicability: 'SELECTED_OUTLETS',
   merchantId: '444444444444444444444444',
@@ -131,6 +133,12 @@ async function boundary(page: Page) {
         counts: { pending: 2, approved: 0, rejected: 0, failed: 0 },
       } satisfies IngestionDashboardResponse)
     }
+    if (
+      path === '/api/ingestion/posts' ||
+      path === '/api/ingestion/sources' ||
+      /^\/api\/ingestion\/drafts\/[a-f0-9]{24}\/evidence$/u.test(path)
+    )
+      return reply({ items: [], nextCursor: null })
     if (path === '/api/ingestion/runs') return reply({ items: [] })
     if (path === '/api/ingestion/accounts') return reply({ items: [], nextCursor: null })
     if (path === '/api/ingestion/drafts' && method === 'GET') {
@@ -321,7 +329,7 @@ for (const width of [320, 390, 1280]) {
           method: 'PATCH',
           path: `/api/ingestion/drafts/${id}/outlet`,
           query: {},
-          body: { expectedContentVersion: 7, venueId: venue.id },
+          body: { expectedContentVersion: 7, expectedOperationVersion: 0, venueId: venue.id },
         },
       ])
       fixture.association.resolve()
@@ -370,6 +378,7 @@ for (const width of [320, 390, 1280]) {
         query: {},
         body: {
           expectedContentVersion: 8,
+          expectedOperationVersion: 1,
           decision: 'REJECT',
           note: 'Read version eight and exact associated outlet',
         },

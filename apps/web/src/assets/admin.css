@@ -37,9 +37,15 @@
   border-bottom: 1px solid var(--hairline);
 }
 
+.admin-navigation {
+  min-width: 0;
+  max-width: 100%;
+}
+
 .admin-navigation ul {
   display: flex;
-  gap: var(--space-6);
+  flex-wrap: wrap;
+  gap: 0 var(--space-4);
   list-style: none;
   padding: 0;
   margin: 0;
@@ -454,8 +460,8 @@
     width: 100%;
   }
   .admin-navigation ul {
-    justify-content: space-between;
-    gap: var(--space-3);
+    justify-content: flex-start;
+    gap: 0 var(--space-4);
   }
   .admin-map-link {
     margin-left: auto;

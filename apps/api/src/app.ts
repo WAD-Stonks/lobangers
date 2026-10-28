@@ -2,6 +2,7 @@ import { createAuth } from '@api/auth'
 import type { AppConfig } from '@api/config'
 import { apiErrorMiddleware } from '@api/errors'
 import { createIngestionRuntime, type IngestionRuntime } from '@api/modules/ingestion/runtime'
+import { createAdminOptionsRouter } from '@api/rest/admin-options'
 import { requireJsonRequestBody } from '@api/rest/body'
 import { methodNotAllowed } from '@api/rest/policy'
 import { requireBoundedRestQuery } from '@api/rest/query'
@@ -31,6 +32,7 @@ export const createApp = (
   // Preserve preflight behavior on the existing native SDK and REST routes.
   app.options(['/api/auth-methods', '/api/admin/overview'], methodNotAllowed('GET'))
   app.options('/api/ingestion/drafts/:dealId/outlet', methodNotAllowed('PATCH'))
+  app.use(createAdminOptionsRouter())
   app.use(
     cors({
       origin: config.webOrigin,

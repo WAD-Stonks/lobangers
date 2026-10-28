@@ -21,7 +21,9 @@ let webURL = ''
 let bindings: { apiPort: number; webPort: number; mongoPorts: number[]; pid: number } | undefined
 let passwordAdmin: Identity
 let otpAdmin: Identity
+let securityTarget: { id: string }
 let pendingId = 0
+let nextBrowserIp = 100
 const pending = new Map<
   number,
   { resolve: (value: unknown) => void; reject: (error: Error) => void }
@@ -117,6 +119,276 @@ const overview = async (page: Page) => {
   expect(await page.locator('body').innerText()).toContain('Admin overview')
   expect(await page.locator('vite-error-overlay').count()).toBe(0)
 }
+const destinations = [
+  {
+    name: 'Deals',
+    path: '/admin/deals',
+    heading: 'Deals operations',
+    content: 'No deals match these filters.',
+    api: '/api/admin/deals',
+  },
+  {
+    name: 'Catalogue',
+    path: '/admin/catalogue',
+    heading: 'Merchants & outlets',
+    content: 'Synthetic connected merchant',
+    api: '/api/admin/catalogue/merchants',
+  },
+  {
+    name: 'Moderation',
+    path: '/admin/moderation',
+    heading: 'Reports & comment moderation',
+    content: 'No records match these filters.',
+    api: '/api/admin/moderation/reports',
+  },
+  {
+    name: 'Accounts',
+    path: '/admin/accounts',
+    heading: 'Platform admin',
+    content: 'View account: Synthetic security-target operator',
+    api: '/api/admin/accounts',
+  },
+  {
+    name: 'Ingestion',
+    path: '/admin/ingestion',
+    heading: 'Ingestion admin',
+    content: 'Source readiness',
+    api: '/api/ingestion/dashboard',
+  },
+  {
+    name: 'Audit',
+    path: '/admin/audit',
+    heading: 'Audit investigation',
+    content: 'Audit history',
+    api: '/api/admin/audit',
+  },
+] as const
+const destinationMatrix = async (page: Page, width: number) => {
+  await page.setViewportSize({ width, height: 900 })
+  for (const destination of destinations) {
+    const response = page.waitForResponse(
+      (response) =>
+        new URL(response.url()).pathname.replace(/\/$/u, '') === destination.api &&
+        response.request().method() === 'GET',
+    )
+    await page
+      .getByRole('navigation', { name: 'Administration', exact: true })
+      .getByRole('link', { name: destination.name, exact: true })
+      .click()
+    expect((await response).status()).toBe(200)
+    await expect(page).toHaveURL(`${webURL}${destination.path}`)
+    await expect(
+      page.getByRole('heading', { name: destination.heading, exact: true }),
+    ).toBeVisible()
+    await expect(page.getByText(destination.content, { exact: true })).toBeVisible()
+    await expect(
+      page
+        .getByRole('navigation', { name: 'Administration', exact: true })
+        .getByRole('link', { name: destination.name, exact: true }),
+    ).toHaveAttribute('aria-current', 'page')
+    const geometry = await page.evaluate(() => ({
+      viewport: innerWidth,
+      client: document.documentElement.clientWidth,
+      scroll: document.documentElement.scrollWidth,
+      bootstrap: getComputedStyle(document.documentElement)
+        .getPropertyValue('--bs-breakpoint-md')
+        .trim(),
+    }))
+    await writeFile(
+      resolve(artifacts, `destination-${width}-${destination.name}.json`),
+      JSON.stringify({ destination: destination.path, geometry }, null, 2),
+    )
+    expect(geometry.viewport).toBe(width)
+    expect(geometry.client).toBe(width)
+    expect(geometry.scroll).toBeLessThanOrEqual(geometry.client)
+    expect(geometry.bootstrap).toBe('768px')
+    await screenshot(page, `destination-${width}-${destination.name}`)
+  }
+}
+const catalogueMutation = async (page: Page) => {
+  await page
+    .getByRole('navigation', { name: 'Administration', exact: true })
+    .getByRole('link', { name: 'Catalogue', exact: true })
+    .click()
+  await expect(page.getByRole('button', { name: 'New merchant', exact: true })).toBeVisible()
+  const name = `Synthetic browser merchant ${randomBytes(6).toString('hex')}`
+  const corrected = `${name} corrected`
+  const note = 'Synthetic connected acceptance: canonical name correction only'
+  await page.getByRole('button', { name: 'New merchant', exact: true }).click()
+  await page.getByLabel('Canonical merchant name', { exact: true }).fill(name)
+  await page.getByLabel('Reason for this operation', { exact: true }).fill(note)
+  await page.locator('.catalogue-editor input[name="confirmed"]').check()
+  const createdResponse = page.waitForResponse(
+    (response) =>
+      new URL(response.url()).pathname === '/api/admin/catalogue/merchants' &&
+      response.request().method() === 'POST',
+  )
+  await page.getByRole('button', { name: 'Create merchant', exact: true }).click()
+  const createdHTTP = await createdResponse
+  expect(createdHTTP.status()).toBe(201)
+  const created = (await createdHTTP.json()) as { id: string; version: number }
+  expect(created.id).toMatch(/^[a-f0-9]{24}$/u)
+  expect(created.version).toBe(1)
+  await expect(page.getByRole('heading', { name, exact: true })).toBeVisible()
+  expect(await call('catalogueReadback', { merchantName: name })).toEqual([
+    { id: created.id, name, catalogueVersion: 1, deletedAt: null },
+  ])
+  await page.getByLabel('Canonical merchant name', { exact: true }).fill(corrected)
+  await page.getByLabel('Reason for this operation', { exact: true }).fill(note)
+  await page.locator('.catalogue-editor input[name="confirmed"]').check()
+  const changedResponse = page.waitForResponse(
+    (response) =>
+      new URL(response.url()).pathname === `/api/admin/catalogue/merchants/${created.id}` &&
+      response.request().method() === 'PATCH',
+  )
+  await page.getByRole('button', { name: 'Save name correction', exact: true }).click()
+  const changedHTTP = await changedResponse
+  const input = changedHTTP.request().postDataJSON() as {
+    expectedVersion: number
+    confirmed: boolean
+  }
+  expect(input.expectedVersion).toBe(created.version)
+  expect(input.confirmed).toBe(true)
+  expect(changedHTTP.status()).toBe(200)
+  expect(await changedHTTP.json()).toEqual({ id: created.id, version: created.version + 1 })
+  await expect(page.getByRole('heading', { name: corrected, exact: true })).toBeVisible()
+  const persisted = await call('catalogueReadback', { merchantName: corrected })
+  expect(persisted).toEqual([
+    { id: created.id, name: corrected, catalogueVersion: 2, deletedAt: null },
+  ])
+  expect(await call('catalogueReadback', { merchantName: name })).toEqual([])
+  await page.reload()
+  await page.getByLabel('Search name / outlet address', { exact: true }).fill(corrected)
+  await page.getByRole('button', { name: 'Apply filters', exact: true }).click()
+  await page.getByRole('button', { name: `Open ${corrected}`, exact: true }).click()
+  await expect(page.getByLabel('Canonical merchant name', { exact: true })).toHaveValue(corrected)
+  await writeFile(
+    resolve(artifacts, 'catalogue-mutation.json'),
+    JSON.stringify(
+      {
+        created,
+        corrected: persisted,
+        exactTarget: created.id,
+        submittedVersion: input.expectedVersion,
+      },
+      null,
+      2,
+    ),
+  )
+  await screenshot(page, 'catalogue-corrected-persisted')
+}
+type SecurityReadback = {
+  id: string
+  role: string
+  platformVersion: number
+  authVersion: number
+  suspendedAt: string | null
+  sessionIds: string[]
+  nativeUserId: string | null
+  nativeMeStatus: number
+  controls: { id: string; userId: string; genuineRecentLogin: boolean }[]
+  audits: {
+    actorId: string
+    action: string
+    subjectId: string
+    note: string
+    detailsJson: { revokedSessionCount: number }
+  }[]
+}
+const securityMutations = async (page: Page) => {
+  await page
+    .getByRole('navigation', { name: 'Administration', exact: true })
+    .getByRole('link', { name: 'Accounts', exact: true })
+    .click()
+  await page.getByTestId(`account-${securityTarget.id}`).click()
+  const panel = page.getByRole('region', { name: 'Account security', exact: true })
+  await expect(panel).toHaveAttribute('aria-busy', 'false')
+  const before = (await call('securityReadback')) as SecurityReadback
+  expect(before.id).toBe(securityTarget.id)
+  expect(before.role).toBe('USER')
+  expect(before.suspendedAt).toBeNull()
+  expect(before.nativeUserId).toBe(securityTarget.id)
+  expect(before.nativeMeStatus).toBe(200)
+  expect(before.sessionIds.length).toBeGreaterThan(0)
+  expect(
+    before.controls.some((row) => row.userId === passwordAdmin.id && row.genuineRecentLogin),
+  ).toBe(true)
+  const states: SecurityReadback[] = [before]
+  for (const operation of ['suspend', 'reinstate'] as const) {
+    const previous = states[states.length - 1]
+    if (!previous) throw new Error('No previous exact account readback')
+    const label = operation === 'suspend' ? 'Suspend' : 'Reinstate'
+    await expect(
+      panel.getByText(operation === 'suspend' ? 'ACTIVE' : 'SUSPENDED', { exact: true }),
+    ).toBeVisible()
+    await expect(panel.getByTestId('security-note')).toHaveValue('')
+    await expect(panel.getByTestId('security-confirm')).not.toBeChecked()
+    const note = `Synthetic connected acceptance: ${operation} safe target`
+    await panel.getByTestId('security-note').fill(note)
+    await panel.getByTestId('security-confirm').check()
+    const responsePromise = page.waitForResponse(
+      (response) =>
+        new URL(response.url()).pathname ===
+          `/api/admin/accounts/${securityTarget.id}/${operation}` &&
+        response.request().method() === 'POST',
+    )
+    await panel.getByRole('button', { name: `${label} account`, exact: true }).click()
+    const response = await responsePromise
+    const input = response.request().postDataJSON() as {
+      expectedVersion: number
+      confirmed: boolean
+    }
+    expect(input.expectedVersion).toBe(previous.platformVersion)
+    expect(input.confirmed).toBe(true)
+    expect(response.status()).toBe(200)
+    expect(await response.json()).toEqual({
+      id: securityTarget.id,
+      version: previous.platformVersion + 1,
+      affectedSessionCount: previous.sessionIds.length,
+    })
+    await expect(panel).toHaveAttribute('aria-busy', 'false')
+    await expect(
+      panel.getByText(operation === 'suspend' ? 'SUSPENDED' : 'ACTIVE', { exact: true }),
+    ).toBeVisible()
+    const after = (await call('securityReadback')) as SecurityReadback
+    expect(after.id).toBe(before.id)
+    expect(after.role).toBe(before.role)
+    expect(after.platformVersion).toBe(previous.platformVersion + 1)
+    expect(after.authVersion).toBe(previous.authVersion + 1)
+    expect(after.sessionIds).toEqual([])
+    expect(after.nativeUserId).toBeNull()
+    expect(after.nativeMeStatus).toBe(401)
+    expect(after.controls).toEqual(before.controls)
+    if (operation === 'suspend') expect(after.suspendedAt).toMatch(/^\d{4}-/u)
+    else expect(after.suspendedAt).toBeNull()
+    const audit = after.audits.at(-1)
+    expect(audit).toMatchObject({
+      actorId: passwordAdmin.id,
+      action: operation === 'suspend' ? 'ACCOUNT_SUSPENDED' : 'ACCOUNT_REINSTATED',
+      subjectId: securityTarget.id,
+      note,
+      detailsJson: { revokedSessionCount: previous.sessionIds.length },
+    })
+    states.push(after)
+    await writeFile(
+      resolve(artifacts, `security-${operation}.json`),
+      JSON.stringify(
+        {
+          exactTarget: securityTarget.id,
+          submittedVersion: input.expectedVersion,
+          before: previous,
+          after,
+        },
+        null,
+        2,
+      ),
+    )
+    await screenshot(page, `security-${operation}-persisted`)
+  }
+  // The target is ACTIVE again, but native sessions remain ended; OTP/password
+  // principals and their original pending ownership record are untouched.
+  expect(await identity(page)).toEqual({ id: passwordAdmin.id, role: 'ADMIN', verified: true })
+}
 const permissionsAndLogout = async (page: Page, userId: string) => {
   const oldCookie = (await page.context().cookies())
     .map((cookie) => `${cookie.name}=${cookie.value}`)
@@ -173,6 +445,7 @@ test.beforeAll(async () => {
         bindings?: { apiPort: number; webPort: number; mongoPorts: number[]; pid: number }
         passwordAdmin?: Identity
         otpAdmin?: Identity
+        securityTarget?: { id: string }
         id?: number
         value?: unknown
         failure?: string
@@ -182,6 +455,8 @@ test.beforeAll(async () => {
         bindings = result.bindings
         passwordAdmin = result.passwordAdmin
         otpAdmin = result.otpAdmin
+        if (!result.securityTarget) throw new Error('Missing independent security target')
+        securityTarget = result.securityTarget
         resolveReady()
       } else if (result.id) {
         const waiter = pending.get(result.id)
@@ -229,6 +504,12 @@ test.afterAll(async () => {
   }
 })
 test.beforeEach(async ({ page }) => {
+  // Native rate limiting remains enabled. Each independent browser journey gets
+  // its own synthetic client address, just like the fixture's native setup calls;
+  // the expanded root-navigation matrix must not spend later auth cases' budget.
+  await page.context().setExtraHTTPHeaders({
+    'X-Forwarded-For': `203.0.113.${nextBrowserIp++}`,
+  })
   observe(page)
   await page.goto(`${webURL}/admin`)
 })
@@ -257,6 +538,7 @@ test.afterEach(async ({ page }, info) => {
 test('connected password admin reaches counts and deep links then loses permission and logs out', async ({
   page,
 }) => {
+  test.setTimeout(120_000)
   await page.getByLabel('Email', { exact: true }).fill(passwordAdmin.email)
   await page.getByLabel('Password', { exact: true }).fill(passwordAdmin.password)
   await page.getByRole('button', { name: 'Sign in', exact: true }).click()
@@ -273,6 +555,15 @@ test('connected password admin reaches counts and deep links then loses permissi
   await page.goto(`${webURL}/admin`)
   await overview(page)
   await screenshot(page, 'password-admin-settled')
+  await destinationMatrix(page, 1440)
+  await catalogueMutation(page)
+  await securityMutations(page)
+  await destinationMatrix(page, 390)
+  await page
+    .getByRole('navigation', { name: 'Administration', exact: true })
+    .getByRole('link', { name: 'Overview', exact: true })
+    .click()
+  await overview(page)
   await permissionsAndLogout(page, passwordAdmin.id)
 })
 
