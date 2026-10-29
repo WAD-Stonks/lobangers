@@ -5,6 +5,8 @@ import { createConnection } from 'node:net'
 import { tmpdir } from 'node:os'
 import { resolve } from 'node:path'
 import { expect, type Page, test } from '@playwright/test'
+// biome-ignore lint/style/noRestrictedImports: E2E-only helper; no E2E alias exists and config is outside this UI adoption scope.
+import { chooseAccountDetail, openAdminAccount, openAdminNavigation } from './admin-ui'
 
 // Connected original SPA -> original native HTTP -> disposable Prisma/Mongo.
 // ONLY Google authorization/token/JWKS and Resend delivery are controlled.
@@ -144,8 +146,8 @@ const destinations = [
   {
     name: 'Accounts',
     path: '/admin/accounts',
-    heading: 'Platform admin',
-    content: 'View account: Synthetic security-target operator',
+    heading: 'Accounts',
+    content: 'Synthetic security-target operator',
     api: '/api/admin/accounts',
   },
   {
@@ -165,7 +167,15 @@ const destinations = [
 ] as const
 const destinationMatrix = async (page: Page, width: number) => {
   await page.setViewportSize({ width, height: 900 })
+  await openAdminNavigation(page)
+  await page
+    .getByRole('navigation', { name: 'Administration', exact: true })
+    .getByRole('link', { name: 'Overview', exact: true })
+    .click()
+  await overview(page)
+  await screenshot(page, `destination-${width}-Overview`)
   for (const destination of destinations) {
+    await openAdminNavigation(page)
     const response = page.waitForResponse(
       (response) =>
         new URL(response.url()).pathname.replace(/\/$/u, '') === destination.api &&
@@ -178,14 +188,17 @@ const destinationMatrix = async (page: Page, width: number) => {
     expect((await response).status()).toBe(200)
     await expect(page).toHaveURL(`${webURL}${destination.path}`)
     await expect(
-      page.getByRole('heading', { name: destination.heading, exact: true }),
+      page.getByRole('heading', { name: destination.heading, level: 1, exact: true }),
     ).toBeVisible()
     await expect(page.getByText(destination.content, { exact: true })).toBeVisible()
+    await openAdminNavigation(page)
     await expect(
       page
         .getByRole('navigation', { name: 'Administration', exact: true })
         .getByRole('link', { name: destination.name, exact: true }),
     ).toHaveAttribute('aria-current', 'page')
+    if (width < 768)
+      await page.getByRole('button', { name: 'Close navigation', exact: true }).click()
     const geometry = await page.evaluate(() => ({
       viewport: innerWidth,
       client: document.documentElement.clientWidth,
@@ -206,6 +219,7 @@ const destinationMatrix = async (page: Page, width: number) => {
   }
 }
 const catalogueMutation = async (page: Page) => {
+  await openAdminNavigation(page)
   await page
     .getByRole('navigation', { name: 'Administration', exact: true })
     .getByRole('link', { name: 'Catalogue', exact: true })
@@ -296,11 +310,13 @@ type SecurityReadback = {
   }[]
 }
 const securityMutations = async (page: Page) => {
+  await openAdminNavigation(page)
   await page
     .getByRole('navigation', { name: 'Administration', exact: true })
     .getByRole('link', { name: 'Accounts', exact: true })
     .click()
   await page.getByTestId(`account-${securityTarget.id}`).click()
+  await chooseAccountDetail(page, 'Security')
   const panel = page.getByRole('region', { name: 'Account security', exact: true })
   await expect(panel).toHaveAttribute('aria-busy', 'false')
   const before = (await call('securityReadback')) as SecurityReadback
@@ -403,6 +419,7 @@ const permissionsAndLogout = async (page: Page, userId: string) => {
   await expect(page.getByRole('heading', { name: 'Work awaiting review' })).toHaveCount(0)
   expect((await identity(page))?.role).toBe('USER')
   expect(await call('protected', { cookie: oldCookie })).toBe(403)
+  await openAdminAccount(page)
   await page.getByTestId('admin-sign-out').click()
   await expect(page.getByRole('heading', { name: 'Sign in to view administration' })).toBeVisible()
   expect(await identity(page)).toBeNull()
@@ -559,6 +576,7 @@ test('connected password admin reaches counts and deep links then loses permissi
   await catalogueMutation(page)
   await securityMutations(page)
   await destinationMatrix(page, 390)
+  await openAdminNavigation(page)
   await page
     .getByRole('navigation', { name: 'Administration', exact: true })
     .getByRole('link', { name: 'Overview', exact: true })
@@ -588,6 +606,7 @@ test('connected OTP preserves existing admin identity and records while revoking
     oldPasswordDenied: true,
   })
   await screenshot(page, 'otp-admin-settled')
+  await openAdminAccount(page)
   await page.getByTestId('admin-sign-out').click()
   await expect(page.getByRole('heading', { name: 'Sign in to view administration' })).toBeVisible()
   await page.getByTestId('recovery-open').click()

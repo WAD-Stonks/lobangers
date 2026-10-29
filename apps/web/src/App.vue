@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { AppShell, BApp } from '@broke-oclock/ui'
+import { adminNavigation } from '@web/components/admin/admin-navigation'
 import SiteHeader from '@web/components/SiteHeader.vue'
 import SplashScreen from '@web/components/SplashScreen.vue'
 import { routeLayout } from '@web/router/layouts'
@@ -8,7 +9,10 @@ import { RouterView, useRoute } from 'vue-router'
 
 const route = useRoute()
 const layout = computed(() => routeLayout(route))
-const administration = computed(() => route.path === '/admin' || route.path.startsWith('/admin/'))
+// Only matched admin destinations own an AdminShell; unknown URLs use the public fallback.
+const administration = computed(() =>
+  route.matched.some((record) => adminNavigation.some(({ href }) => record.path === href)),
+)
 </script>
 
 <template>
@@ -23,12 +27,11 @@ const administration = computed(() => route.path === '/admin' || route.path.star
     <main v-else-if="layout === 'landing'" class="landing-canvas">
       <RouterView />
     </main>
-    <div
-      v-else
-      class="min-vh-100 bg-light-subtle text-body site-layout"
-      :class="{ 'site-layout--shell': !administration, 'site-layout--admin': administration }"
-    >
-      <SiteHeader :embedded="administration" />
+    <div v-else-if="administration" class="admin-layout">
+      <RouterView />
+    </div>
+    <div v-else class="min-vh-100 bg-light-subtle text-body site-layout site-layout--shell">
+      <SiteHeader />
       <AppShell>
         <RouterView />
       </AppShell>

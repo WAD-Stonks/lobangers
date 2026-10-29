@@ -415,6 +415,7 @@ for (const outcome of ['CONFLICT', 'FORBIDDEN', 'LOGOUT'] as const) {
       await page.getByTestId('associate-outlet').click()
       await expect(page.getByRole('button', { name: 'Associating…', exact: true })).toBeDisabled()
       if (outcome === 'LOGOUT') {
+        await page.getByRole('button', { name: 'Admin account', exact: true }).click()
         await page.getByTestId('admin-sign-out').click()
         await expect(
           page.getByRole('heading', { name: 'Sign in to review ingestion' }),

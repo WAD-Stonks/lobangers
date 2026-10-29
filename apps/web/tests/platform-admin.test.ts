@@ -133,14 +133,172 @@ beforeEach(() => {
     reauthenticationRequired: false,
   })
 })
-async function open(path = '/admin/accounts') {
+async function open(path = '/admin/accounts', attached = false) {
   const router = createRouter({ history: createMemoryHistory(), routes })
   await router.push(path)
   await router.isReady()
-  const wrapper = mount(App, { global: { plugins: [router] } })
+  const wrapper = mount(App, {
+    attachTo: attached ? document.body : undefined,
+    global: { plugins: [router] },
+  })
   await flushPromises()
   return wrapper
 }
+it('composes a semantic account directory with exclusive keyboard-operated workspaces', async () => {
+  rest.accounts.mockResolvedValue({ items: [account], nextCursor: null })
+  const w = await open('/admin/accounts', true)
+  try {
+    expect(w.get('h1').text()).toBe('Accounts')
+    const table = w.get('table[aria-label="Account records"]')
+    expect(table.findAll('thead th').map((cell) => cell.text())).toEqual([
+      'Name',
+      'Role',
+      'Actions',
+    ])
+    expect(table.get('tbody').text()).toContain(account.email)
+    expect(table.get('[data-testid="account-user-a"]').text()).toContain('View account:')
+    expect(w.get('#accounts-workspace-panel-accounts').isVisible()).toBe(true)
+    expect(w.get('#accounts-workspace-panel-accounts').attributes('inert')).toBeUndefined()
+    expect(w.get('#accounts-workspace-panel-requests').attributes('hidden')).toBeDefined()
+    expect(w.get('#accounts-workspace-panel-activity').attributes('inert')).toBeDefined()
+    await w.get('#accounts-workspace-tab-accounts').trigger('keydown', { key: 'ArrowRight' })
+    expect(w.get('#accounts-workspace-tab-requests').attributes('aria-selected')).toBe('true')
+    expect(document.activeElement).toBe(w.get('#accounts-workspace-tab-requests').element)
+    expect(w.get('#accounts-workspace-tab-accounts').attributes('tabindex')).toBe('-1')
+    expect(w.get('#accounts-workspace-panel-accounts').isVisible()).toBe(false)
+    expect(w.get('#accounts-workspace-panel-requests').isVisible()).toBe(true)
+    await w.get('#accounts-workspace-tab-requests').trigger('keydown', { key: 'End' })
+    expect(w.get('#accounts-workspace-panel-activity').isVisible()).toBe(true)
+    await w.get('#accounts-workspace-tab-activity').trigger('keydown', { key: 'Home' })
+    expect(w.get('#accounts-workspace-panel-accounts').isVisible()).toBe(true)
+    expect(rest.accounts).toHaveBeenCalledTimes(1)
+    expect(rest.requests).toHaveBeenCalledTimes(1)
+    expect(rest.audit).toHaveBeenCalledTimes(1)
+  } finally {
+    w.unmount()
+  }
+})
+
+it('shows contextual access and security tabs and discards consent when a review is hidden', async () => {
+  rest.accounts.mockResolvedValue({ items: [account], nextCursor: null })
+  rest.account.mockResolvedValue(account)
+  rest.requests.mockResolvedValue({ items: [requestA], nextCursor: null })
+  const w = await open('/admin/accounts', true)
+  try {
+    await w.get('[data-testid="account-user-a"]').trigger('click')
+    await flushPromises()
+    const security = w.findComponent({ name: 'AccountSecurityPanel' }).element
+    expect(w.get('#account-detail-panel-access').isVisible()).toBe(true)
+    expect(w.get('#account-detail-panel-security').isVisible()).toBe(false)
+    await w.get('#new-role').setValue('MERCHANT')
+    await w.get('#account-note').setValue('Reviewed access')
+    await w.get('#account-confirm').setValue(true)
+    await w.get('#account-detail-tab-security').trigger('click')
+    expect(w.get('#account-detail-panel-access').attributes('inert')).toBeDefined()
+    expect((w.get('#account-confirm').element as HTMLInputElement).checked).toBe(false)
+    expect((w.get('#account-note').element as HTMLTextAreaElement).value).toBe('')
+    await w.get('[data-testid="security-note"]').setValue('Reviewed security')
+    await w.get('[data-testid="security-confirm"]').setValue(true)
+    await w.get('#accounts-workspace-tab-requests').trigger('click')
+    await flushPromises()
+    expect(w.findComponent({ name: 'AccountSecurityPanel' }).element).toBe(security)
+    await w.get('[data-testid="request-request-a"]').trigger('click')
+    await w.get('#request-note').setValue('Reviewed request')
+    await w.get('#request-confirm').setValue(true)
+    await w.get('#accounts-workspace-tab-accounts').trigger('click')
+    await flushPromises()
+    expect(w.get('#account-detail-panel-security').isVisible()).toBe(true)
+    expect((w.get('[data-testid="security-confirm"]').element as HTMLInputElement).checked).toBe(
+      false,
+    )
+    expect((w.get('[data-testid="security-note"]').element as HTMLTextAreaElement).value).toBe('')
+    expect((w.get('#request-confirm').element as HTMLInputElement).checked).toBe(false)
+    expect((w.get('#request-note').element as HTMLTextAreaElement).value).toBe('')
+    expect(rest.changeRole).not.toHaveBeenCalled()
+    expect(rest.suspend).not.toHaveBeenCalled()
+    expect(rest.reviewRequest).not.toHaveBeenCalled()
+  } finally {
+    w.unmount()
+  }
+})
+
+it('focuses and closes a selected account without disposing its security controller or retaining consent', async () => {
+  rest.accounts.mockResolvedValue({ items: [account], nextCursor: null })
+  rest.account.mockResolvedValue(account)
+  const w = await open('/admin/accounts', true)
+  try {
+    const row = w.get('[data-testid="account-user-a"]')
+    await row.trigger('click')
+    await flushPromises()
+    expect(document.activeElement).toBe(w.get('[data-testid="selected-account-heading"]').element)
+    const security = w.get('[aria-label="Account security"]').element
+    await w.get('#new-role').setValue('MERCHANT')
+    await w.get('#account-note').setValue('Do not retain after close')
+    await w.get('#account-confirm').setValue(true)
+    await w.get('[data-testid="close-account-details"]').trigger('click')
+    await flushPromises()
+    expect(w.get('section[aria-label="Account details"]').isVisible()).toBe(false)
+    expect(document.activeElement).toBe(row.element)
+    expect((w.get('#account-confirm').element as HTMLInputElement).checked).toBe(false)
+    expect((w.get('#account-note').element as HTMLTextAreaElement).value).toBe('')
+    await row.trigger('click')
+    await flushPromises()
+    expect(w.get('section[aria-label="Account details"]').isVisible()).toBe(true)
+    expect(w.get('[aria-label="Account security"]').element).toBe(security)
+    expect(document.activeElement).toBe(w.get('[data-testid="selected-account-heading"]').element)
+    expect(rest.account).toHaveBeenCalledTimes(1)
+    await w.get('#account-action-form').trigger('submit')
+    expect(rest.changeRole).not.toHaveBeenCalled()
+  } finally {
+    w.unmount()
+  }
+})
+
+it('retains unknown security results across contextual and workspace tabs without replay', async () => {
+  rest.accounts.mockResolvedValue({ items: [account], nextCursor: null })
+  rest.account.mockResolvedValue(account)
+  rest.suspend.mockRejectedValueOnce(new Error('Synthetic uncertain receipt'))
+  const w = await open('/admin/accounts', true)
+  try {
+    await w.get('[data-testid="account-user-a"]').trigger('click')
+    await flushPromises()
+    await w.get('#account-detail-tab-security').trigger('click')
+    const security = w.get('[aria-label="Account security"]').element
+    await w.get('[data-testid="security-note"]').setValue('Reviewed security evidence')
+    await w.get('[data-testid="security-confirm"]').setValue(true)
+    await w.get('[data-testid="security-form"]').trigger('submit')
+    await flushPromises()
+    expect(rest.suspend).toHaveBeenCalledTimes(1)
+    for (const tab of [
+      '#account-detail-tab-access',
+      '#account-detail-tab-security',
+      '#accounts-workspace-tab-requests',
+      '#accounts-workspace-tab-accounts',
+    ]) {
+      await w.get(tab).trigger('click')
+      await flushPromises()
+      expect(w.get('[aria-label="Account security"]').element).toBe(security)
+    }
+    await w.get('[data-testid="close-account-details"]').trigger('click')
+    await flushPromises()
+    await w.get('[data-testid="account-user-a"]').trigger('click')
+    await flushPromises()
+    expect(w.get('[aria-label="Account security"]').element).toBe(security)
+    expect(rest.account).toHaveBeenCalledTimes(1)
+    expect(w.get('[aria-label="Account security"]').text()).toContain('Result unknown')
+    await w.get('[data-testid="security-note"]').setValue('Cannot reuse old result')
+    await w.get('[data-testid="security-confirm"]').setValue(true)
+    expect(
+      w.get('[data-testid="security-form"] button[type="submit"]').attributes('disabled'),
+    ).toBeDefined()
+    await w.get('[data-testid="security-form"]').trigger('submit')
+    await flushPromises()
+    expect(rest.suspend).toHaveBeenCalledTimes(1)
+  } finally {
+    w.unmount()
+  }
+})
+
 it('coordinates account-security mutations with the existing account forms and refreshes parent evidence', async () => {
   rest.accounts.mockResolvedValue({ items: [account], nextCursor: null })
   rest.account.mockResolvedValue(account)
@@ -157,6 +315,7 @@ it('coordinates account-security mutations with the existing account forms and r
   await w.get('[data-testid="account-user-a"]').trigger('click')
   await flushPromises()
   expect(w.get('[aria-label="Account security"]').text()).toContain('ACTIVE')
+  await w.get('#account-detail-tab-security').trigger('click')
   await w.get('[data-testid="security-note"]').setValue('Reviewed abuse report')
   await w.get('[data-testid="security-confirm"]').setValue(true)
   await w.get('[data-testid="security-form"]').trigger('submit')
@@ -167,6 +326,16 @@ it('coordinates account-security mutations with the existing account forms and r
   })
   expect(w.get('#account-action-form fieldset').attributes('disabled')).toBeDefined()
   expect(w.get('[data-testid="account-user-a"]').attributes('disabled')).toBeDefined()
+  expect(w.get('#accounts-workspace-tab-requests').attributes('disabled')).toBeDefined()
+  expect(w.get('[data-testid="close-account-details"]').attributes('disabled')).toBeDefined()
+  w.get('#accounts-workspace-tab-requests').element.dispatchEvent(new Event('click'))
+  w.get('#account-detail-tab-access').element.dispatchEvent(new Event('click'))
+  w.get('[data-testid="close-account-details"]').element.dispatchEvent(new Event('click'))
+  await flushPromises()
+  expect(w.get('#accounts-workspace-tab-accounts').attributes('aria-selected')).toBe('true')
+  expect(w.get('#account-detail-tab-security').attributes('aria-selected')).toBe('true')
+  expect(w.get('section[aria-label="Account details"]').attributes('hidden')).toBeUndefined()
+
   rest.account.mockResolvedValue({ ...account, version: 8 })
   rest.securityAccount.mockResolvedValue({
     userId: account.id,
@@ -205,7 +374,7 @@ it('keeps reads available after a server freshness refusal without replaying a s
   await w.get('#account-action-form').trigger('submit')
   await flushPromises()
   expect(w.text()).toContain('Fresh sign-in required')
-  expect(w.find('[aria-label="Accounts"]').exists()).toBe(true)
+  expect(w.find('section[aria-label="Accounts"]').exists()).toBe(true)
   expect((w.get('#account-confirm').element as HTMLInputElement).checked).toBe(false)
   await w.get('#account-action-form').trigger('submit')
   expect(rest.changeRole).toHaveBeenCalledTimes(1)
@@ -238,10 +407,10 @@ it('disables child security controls during an existing role mutation', async ()
 it('routes platform administration separately and uses server denial, not a client role', async () => {
   rest.accounts.mockRejectedValueOnce(new ApiClientError('UNAUTHORIZED', 401, 'Sign in required'))
   const wrapper = await open()
-  expect(wrapper.get('h1').text()).toBe('Platform admin')
+  expect(wrapper.get('h1').text()).toBe('Accounts')
   expect(wrapper.text()).toContain('Sign in to manage accounts')
   expect(wrapper.find('input[type="password"]').exists()).toBe(true)
-  await wrapper.get('[data-testid="nav-toggle"]').trigger('click')
+  expect(wrapper.find('[data-testid="nav-toggle"]').exists()).toBe(false)
   expect(wrapper.find('[data-testid="nav-menu"] a[href="/admin/accounts"]').exists()).toBe(false)
   expect(wrapper.find('[data-testid="nav-menu"] a[href="/admin/ingestion"]').exists()).toBe(false)
   expect(wrapper.get('nav[aria-label="Administration"] a[href="/admin/accounts"]').text()).toBe(
@@ -263,7 +432,7 @@ it('changes the selected account role only with a note and confirmation, then re
   const w = await open()
   await w.get('[data-testid="account-user-a"]').trigger('click')
   await flushPromises()
-  expect(w.get('[aria-label="Account details"]').text()).toContain('<img src=x> Alice')
+  expect(w.get('section[aria-label="Account details"]').text()).toContain('<img src=x> Alice')
   expect(w.find('[aria-label="Account details"] img').exists()).toBe(false)
   await w.get('#new-role').setValue('MERCHANT')
   await w.get('#account-note').setValue('Approved merchant onboarding')
@@ -317,8 +486,9 @@ it('reviews only the selected pending request with its exact identity and versio
   })
   rest.reviewRequest.mockResolvedValue({ id: 'request-b', version: 10 })
   const w = await open()
+  await w.get('#accounts-workspace-tab-requests').trigger('click')
   await w.get('[data-testid="request-request-b"]').trigger('click')
-  expect(w.get('[aria-label="Request details"]').text()).toContain('Stall B')
+  expect(w.get('article[aria-label="Request details"]').text()).toContain('Stall B')
   expect(w.find('[aria-label="Request details"] script').exists()).toBe(false)
   await w.get('#request-note').setValue('Verified Stall B ownership')
   await w.get('#request-confirm').setValue(true)
@@ -331,6 +501,7 @@ it('reviews only the selected pending request with its exact identity and versio
     confirmed: true,
   })
   expect((w.get('#request-note').element as HTMLTextAreaElement).value).toBe('')
+  await w.get('#accounts-workspace-tab-requests').trigger('click')
   await w.get('#request-status').setValue('REJECTED')
   await flushPromises()
   expect(rest.requests).toHaveBeenLastCalledWith({ status: 'REJECTED', limit: 20 })
@@ -501,11 +672,12 @@ it('searches and paginates accounts and filters immutable audit transitions from
   await flushPromises()
   expect(rest.accounts).toHaveBeenLastCalledWith({ search: 'Bob', role: 'MERCHANT', limit: 20 })
   expect(w.find('[data-testid="account-user-a"]').exists()).toBe(false)
+  await w.get('#accounts-workspace-tab-activity').trigger('click')
   await w.get('#audit-user').setValue('user-a')
   await w.get('#audit-filter-form').trigger('submit')
   await flushPromises()
   expect(rest.audit).toHaveBeenLastCalledWith({ userId: 'user-a', limit: 20 })
-  expect(w.get('[aria-label="Audit history"]').text()).toContain('USER → MERCHANT')
+  expect(w.get('section[aria-label="Audit history"]').text()).toContain('USER → MERCHANT')
   expect(w.find('[aria-label="Audit history"] img').exists()).toBe(false)
   await w.get('[data-testid="more-audit"]').trigger('click')
   await flushPromises()
@@ -524,6 +696,7 @@ it('keeps request conflict guards by identity across pagination and selection un
     .mockRejectedValueOnce(new ApiClientError('CONFLICT', 409, 'Conflict'))
     .mockResolvedValue({ id: 'request-a', version: 5 })
   const w = await open()
+  await w.get('#accounts-workspace-tab-requests').trigger('click')
   await w.get('[data-testid="request-request-a"]').trigger('click')
   await w.get('#request-note').setValue('Old evidence')
   await w.get('#request-confirm').setValue(true)
@@ -532,14 +705,16 @@ it('keeps request conflict guards by identity across pagination and selection un
   await w.get('[data-testid="more-requests"]').trigger('click')
   await flushPromises()
   expect(rest.requests).toHaveBeenLastCalledWith({ status: 'PENDING', cursor: 'page-b', limit: 20 })
+  await w.get('#accounts-workspace-tab-requests').trigger('click')
   await w.get('[data-testid="request-request-b"]').trigger('click')
+  await w.get('#accounts-workspace-tab-requests').trigger('click')
   await w.get('[data-testid="request-request-a"]').trigger('click')
   await w.get('#request-note').setValue('Cached stale evidence')
   await w.get('#request-confirm').setValue(true)
   await w.get('#request-form').trigger('submit')
   await flushPromises()
   expect(rest.reviewRequest).toHaveBeenCalledTimes(1)
-  expect(w.get('[aria-label="Request details"]').text()).toContain('Reload requests')
+  expect(w.get('article[aria-label="Request details"]').text()).toContain('Reload requests')
   await w.get('[data-testid="reload-requests"]').trigger('click')
   await flushPromises()
   expect((w.get('#request-note').element as HTMLTextAreaElement).value).toBe('')
@@ -562,6 +737,7 @@ it('does not authorize a cached request after a failed evidence refresh', async 
     .mockResolvedValueOnce({ items: [requestA], nextCursor: null })
     .mockRejectedValueOnce(new Error('synthetic read failure'))
   const w = await open()
+  await w.get('#accounts-workspace-tab-requests').trigger('click')
   await w.get('[data-testid="request-request-a"]').trigger('click')
   await w.get('[data-testid="reload-requests"]').trigger('click')
   await flushPromises()
@@ -642,6 +818,7 @@ it('blocks forced reload and selection events while a request mutation is pendin
       }),
   )
   const w = await open()
+  await w.get('#accounts-workspace-tab-requests').trigger('click')
   await w.get('[data-testid="request-request-a"]').trigger('click')
   await w.get('#request-note').setValue('Review current evidence')
   await w.get('#request-confirm').setValue(true)
@@ -701,8 +878,8 @@ it('ignores a late account-detail denial after another identity is selected', as
   await flushPromises()
   old.reject(new ApiClientError('FORBIDDEN', 403, 'Forbidden'))
   await flushPromises()
-  expect(w.get('[aria-label="Account details"]').text()).toContain('Bob')
-  expect(w.get('[aria-label="Account details"]').text()).toContain('Version 12')
+  expect(w.get('section[aria-label="Account details"]').text()).toContain('Bob')
+  expect(w.get('section[aria-label="Account details"]').text()).toContain('Version 12')
 })
 it('ignores stale request-filter and audit-filter responses', async () => {
   const oldRequests = deferred<Page<MerchantRequest>>()
@@ -712,14 +889,18 @@ it('ignores stale request-filter and audit-filter responses', async () => {
     items: [{ ...requestA, status: 'REJECTED', venueName: 'Current rejected' }],
     nextCursor: null,
   })
+  await w.get('#accounts-workspace-tab-requests').trigger('click')
   await w.get('#request-status').setValue('APPROVED')
+  await w.get('#accounts-workspace-tab-requests').trigger('click')
   await w.get('#request-status').setValue('REJECTED')
   await flushPromises()
   rest.audit
     .mockReturnValueOnce(oldAudit.promise)
     .mockResolvedValueOnce({ items: [], nextCursor: null })
+  await w.get('#accounts-workspace-tab-activity').trigger('click')
   await w.get('#audit-user').setValue('old')
   await w.get('#audit-filter-form').trigger('submit')
+  await w.get('#accounts-workspace-tab-activity').trigger('click')
   await w.get('#audit-user').setValue('current')
   await w.get('#audit-filter-form').trigger('submit')
   await flushPromises()
@@ -777,12 +958,16 @@ async function prepareForbiddenMutation(kind: 'account' | 'request') {
   const w = await open()
   await w.get('[data-testid="account-user-a"]').trigger('click')
   await flushPromises()
-  await w.get('[data-testid="request-request-a"]').trigger('click')
-  await w.get('#new-role').setValue('MERCHANT')
-  await w.get('#account-note').setValue('Account mutation evidence')
-  await w.get('#account-confirm').setValue(true)
-  await w.get('#request-note').setValue('Request mutation evidence')
-  await w.get('#request-confirm').setValue(true)
+  if (kind === 'account') {
+    await w.get('#new-role').setValue('MERCHANT')
+    await w.get('#account-note').setValue('Account mutation evidence')
+    await w.get('#account-confirm').setValue(true)
+  } else {
+    await w.get('#accounts-workspace-tab-requests').trigger('click')
+    await w.get('[data-testid="request-request-a"]').trigger('click')
+    await w.get('#request-note').setValue('Request mutation evidence')
+    await w.get('#request-confirm').setValue(true)
+  }
   return { w, mutation, form: kind === 'account' ? '#account-action-form' : '#request-form' }
 }
 
@@ -802,23 +987,26 @@ it.each(['account', 'request'] as const)(
       'Request details',
       'Audit history',
     ])
-      expect(w.find(`[aria-label="${panel}"]`).exists()).toBe(false)
+      expect(
+        w.find(`section[aria-label="${panel}"], article[aria-label="${panel}"]`).exists(),
+      ).toBe(false)
     expect(w.text()).toContain('Loading accounts')
     expect(w.text()).not.toContain('You do not have permission')
     // A successful ADMIN-only query authorizes even an empty filtered result.
     recheck.resolve({ items: [], nextCursor: null })
     await flushPromises()
-    expect(w.find('[aria-label="Accounts"]').exists()).toBe(true)
-    expect(w.find('[aria-label="Merchant requests"]').exists()).toBe(true)
-    expect(w.find('[aria-label="Audit history"]').exists()).toBe(true)
-    expect(w.find('[aria-label="Account details"]').exists()).toBe(false)
-    expect(w.find('[aria-label="Request details"]').exists()).toBe(false)
+    expect(w.find('section[aria-label="Accounts"]').exists()).toBe(true)
+    expect(w.find('section[aria-label="Merchant requests"]').exists()).toBe(true)
+    expect(w.find('section[aria-label="Audit history"]').exists()).toBe(true)
+    expect(w.find('section[aria-label="Account details"]').exists()).toBe(false)
+    expect(w.find('article[aria-label="Request details"]').exists()).toBe(false)
     expect(w.text()).toContain(
       kind === 'account' ? 'Account action was refused' : 'Request review was refused',
     )
     expect(w.text()).not.toContain('Your administrator access was revoked')
     expect(w.text()).not.toContain('completed')
     expect(mutation).toHaveBeenCalledTimes(1)
+    await w.get('#accounts-workspace-tab-requests').trigger('click')
     await w.get('[data-testid="request-request-a"]').trigger('click')
     expect((w.get('#request-note').element as HTMLTextAreaElement).value).toBe('')
     expect((w.get('#request-confirm').element as HTMLInputElement).checked).toBe(false)
@@ -841,19 +1029,21 @@ it.each(['account', 'request'] as const)(
       'Request details',
       'Audit history',
     ])
-      expect(w.find(`[aria-label="${panel}"]`).exists()).toBe(false)
+      expect(
+        w.find(`section[aria-label="${panel}"], article[aria-label="${panel}"]`).exists(),
+      ).toBe(false)
     expect(rest.requests).toHaveBeenCalledTimes(1)
     expect(rest.audit).toHaveBeenCalledTimes(1)
     const retry = deferred<Page<PlatformAccountSummary>>()
     rest.accounts.mockReturnValueOnce(retry.promise)
     await w.get('[data-testid="retry-platform-admin"]').trigger('click')
     await flushPromises()
-    expect(w.find('[aria-label="Accounts"]').exists()).toBe(false)
+    expect(w.find('section[aria-label="Accounts"]').exists()).toBe(false)
     retry.resolve({ items: [account], nextCursor: null })
     await flushPromises()
-    expect(w.find('[aria-label="Accounts"]').exists()).toBe(true)
-    expect(w.find('[aria-label="Account details"]').exists()).toBe(false)
-    expect(w.find('[aria-label="Request details"]').exists()).toBe(false)
+    expect(w.find('section[aria-label="Accounts"]').exists()).toBe(true)
+    expect(w.find('section[aria-label="Account details"]').exists()).toBe(false)
+    expect(w.find('article[aria-label="Request details"]').exists()).toBe(false)
     expect(mutation).toHaveBeenCalledTimes(1)
     await w.get('[data-testid="account-user-a"]').trigger('click')
     await flushPromises()
@@ -883,7 +1073,9 @@ for (const code of ['FORBIDDEN', 'UNAUTHORIZED'] as const) {
         'Request details',
         'Audit history',
       ])
-        expect(w.find(`[aria-label="${panel}"]`).exists()).toBe(false)
+        expect(
+          w.find(`section[aria-label="${panel}"], article[aria-label="${panel}"]`).exists(),
+        ).toBe(false)
       expect(rest.requests).toHaveBeenCalledTimes(1)
       expect(rest.audit).toHaveBeenCalledTimes(1)
       expect(mutation).toHaveBeenCalledTimes(1)
@@ -905,9 +1097,9 @@ it('removes all authorized panels after a mutation permission denial', async () 
   await w.get('#account-action-form').trigger('submit')
   await flushPromises()
   expect(w.text()).toContain('You do not have permission')
-  expect(w.find('[aria-label="Accounts"]').exists()).toBe(false)
-  expect(w.find('[aria-label="Merchant requests"]').exists()).toBe(false)
-  expect(w.find('[aria-label="Audit history"]').exists()).toBe(false)
+  expect(w.find('section[aria-label="Accounts"]').exists()).toBe(false)
+  expect(w.find('section[aria-label="Merchant requests"]').exists()).toBe(false)
+  expect(w.find('section[aria-label="Audit history"]').exists()).toBe(false)
 })
 
 it('matches server note and search bounds and rejects a programmatically overlong action note', async () => {
@@ -949,14 +1141,17 @@ it('reports a completed write separately from a failed follow-up read without cl
 it('exposes the selected account identity and filters its audit without manual ID transcription', async () => {
   rest.accounts.mockResolvedValue({ items: [account], nextCursor: null })
   rest.account.mockResolvedValue(account)
-  const w = await open()
+  const w = await open('/admin/accounts', true)
   await w.get('[data-testid="account-user-a"]').trigger('click')
   await flushPromises()
-  expect(w.get('[aria-label="Account details"]').text()).toContain('Account ID: user-a')
+  expect(w.get('section[aria-label="Account details"]').text()).toContain('Account ID: user-a')
   await w.get('[data-testid="account-audit"]').trigger('click')
   await flushPromises()
   expect(rest.audit).toHaveBeenLastCalledWith({ userId: account.id, limit: 20 })
   expect((w.get('#audit-user').element as HTMLInputElement).value).toBe(account.id)
+  expect(w.get('#accounts-workspace-tab-activity').attributes('aria-selected')).toBe('true')
+  expect(document.activeElement).toBe(w.get('#accounts-workspace-tab-activity').element)
+  w.unmount()
 })
 
 it('discards confirmation entered while selected venue evidence is being refreshed', async () => {
@@ -997,6 +1192,7 @@ it('does not resurrect a previous session request after sign-in and a failed req
   )
   rest.signIn.mockResolvedValue({ error: null })
   const w = await open()
+  await w.get('#accounts-workspace-tab-requests').trigger('click')
   await w.get('[data-testid="request-request-a"]').trigger('click')
   await w.get('#request-note').setValue('Old session evidence')
   await w.get('#request-confirm').setValue(true)
@@ -1007,7 +1203,7 @@ it('does not resurrect a previous session request after sign-in and a failed req
   await w.get('main form').trigger('submit')
   await flushPromises()
   expect(w.text()).toContain('Unable to load data.')
-  expect(w.find('[aria-label="Request details"]').exists()).toBe(false)
+  expect(w.find('article[aria-label="Request details"]').exists()).toBe(false)
 })
 
 it.each(['list', 'detail'] as const)(
@@ -1135,7 +1331,7 @@ it('keeps a deferred old detail locked after a newer account list arrives', asyn
   expect(w.get('#account-action-form button[type="submit"]').attributes('disabled')).toBeDefined()
   await w.get('#account-action-form').trigger('submit')
   expect(rest.changeRole).not.toHaveBeenCalled()
-  expect(w.get('[aria-label="Account details"]').text()).toContain('Reload the account')
+  expect(w.get('section[aria-label="Account details"]').text()).toContain('Reload the account')
 
   rest.account.mockResolvedValue({ ...account, version: 8 })
   await w.get('[data-testid="reload-account"]').trigger('click')
@@ -1190,7 +1386,7 @@ it('ignores a pre-logout account response and never restores protected panels', 
   await flushPromises()
   release({ items: [account], nextCursor: null })
   await flushPromises()
-  expect(w.find('[aria-label="Accounts"]').exists()).toBe(false)
+  expect(w.find('section[aria-label="Accounts"]').exists()).toBe(false)
   expect(w.text()).toContain('Sign in to manage accounts')
   expect(rest.requests).not.toHaveBeenCalled()
   w.unmount()
@@ -1219,7 +1415,7 @@ it('does not replay follow-up reads after an old account action completes after 
   await flushPromises()
   expect(rest.accounts).toHaveBeenCalledTimes(1)
   expect(w.text()).not.toContain('Account action completed')
-  expect(w.find('[aria-label="Account details"]').exists()).toBe(false)
+  expect(w.find('section[aria-label="Account details"]').exists()).toBe(false)
   w.unmount()
 })
 

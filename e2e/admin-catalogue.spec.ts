@@ -3,6 +3,8 @@ import { mkdir } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { resolve } from 'node:path'
 import { expect, test } from '@playwright/test'
+// biome-ignore lint/style/noRestrictedImports: E2E-only helper; no E2E alias exists and config is outside this UI adoption scope.
+import { openAdminAccount } from './admin-ui'
 
 const artifacts = resolve(tmpdir(), 'lobangers-catalogue', 'browser')
 let child: ChildProcess
@@ -145,6 +147,7 @@ test('connected native sign-in, merchant/outlet correction, manual receipts, inv
       .filter({ has: page.locator('#venue-note') })
       .locator('input[name="confirmed"]'),
   ).toBeFocused()
+  await openAdminAccount(page)
   await page.getByTestId('admin-sign-out').click()
   await expect(
     page.getByRole('heading', { name: 'Sign in to maintain the catalogue', exact: true }),
