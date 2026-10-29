@@ -19,7 +19,7 @@ const NOTICES: Record<string, string> = {
 }
 // Why the visitor was sent here, from where the guard bounced them.
 const REASONS: readonly [prefix: string, title: string][] = [
-  ['/add', 'Log in to add a deal'],
+  ['/submit-deal', 'Log in to add a deal'],
   ['/saved', 'Log in to see your saved deals'],
   ['/merchant', 'Log in to manage your stall'],
   ['/me/', 'Log in to see your account'],

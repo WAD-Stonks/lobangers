@@ -64,12 +64,10 @@ describe('map shell routes', () => {
       'browse',
       'deal',
       'venue',
-      'add-deal',
       'login',
       'register',
       'profile',
       'saved',
-      'merchant',
     ])
   })
 
@@ -87,7 +85,6 @@ describe('map shell routes', () => {
   })
 
   it.each([
-    ['/add', 'Add a deal'],
     ['/me/profile', 'Synthetic Student'],
     ['/saved', 'Synthetic Student'],
   ])('renders the signed-in panel %s inside the shell', async (path, heading) => {
@@ -110,13 +107,15 @@ describe('map shell routes', () => {
   })
 
   it('sends guarded children to log in with a redirect back', async () => {
-    const { router, wrapper } = await mountAt('/add')
+    const { router, wrapper } = await mountAt('/saved')
     expect(router.currentRoute.value.name).toBe('login')
-    expect(router.currentRoute.value.query.redirect).toBe('/add')
-    expect(wrapper.get('[data-testid="shell-panel"] h1').text()).toBe('Log in to add a deal')
+    expect(router.currentRoute.value.query.redirect).toBe('/saved')
+    expect(wrapper.get('[data-testid="shell-panel"] h1').text()).toBe(
+      'Log in to see your saved deals',
+    )
   })
 
-  it('keeps visitors without the merchant role out of the merchant panel', async () => {
+  it('keeps visitors without the merchant role out of the merchant dashboard', async () => {
     auth.session.current = SIGNED_IN
     const { router } = await mountAt('/merchant')
     expect(router.currentRoute.value.fullPath).toBe('/')

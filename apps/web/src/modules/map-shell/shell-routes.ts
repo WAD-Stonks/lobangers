@@ -32,14 +32,7 @@ export const venueLocation = (query: LocationQuery, venueId: string): RouteLocat
 
 // Snap index (0 peek, 1 half, 2 full) a panel opens at on a bottom sheet. Forms and the list
 // view need room; browsing and deal details leave the map visible.
-const FULL_HEIGHT_PANELS = new Set([
-  'add-deal',
-  'login',
-  'register',
-  'profile',
-  'saved',
-  'merchant',
-])
+const FULL_HEIGHT_PANELS = new Set(['add-deal', 'login', 'register', 'profile', 'saved'])
 
 export const panelSnapFor = (
   name: RouteRecordNameGeneric | null | undefined,

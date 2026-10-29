@@ -1,10 +1,27 @@
 import type { AppConfig } from '@api/config'
 import { fromNodeHeaders } from '@broke-oclock/auth/node'
-import { createPhotoUploadHandler } from '@broke-oclock/storage/server'
+import { db } from '@broke-oclock/db'
+import { type CompletedPhotoUpload, createPhotoUploadHandler } from '@broke-oclock/storage/server'
 import { type ErrorRequestHandler, json, type Request, Router } from 'express'
 
 type UploadSession = { user: { id: string } } | null
 type GetSession = (headers: Headers) => Promise<UploadSession>
+
+// Record who uploaded each photo, so a deal can later attach only its own submitter's file.
+// The provider may repeat a callback; the first owner of a key is kept.
+const recordUpload = async (upload: CompletedPhotoUpload) => {
+  await db.uploadedFile.upsert({
+    where: { key: upload.key },
+    create: {
+      key: upload.key,
+      url: upload.url,
+      mimeType: upload.mimeType,
+      sizeBytes: upload.sizeBytes,
+      uploaderId: upload.userId,
+    },
+    update: {},
+  })
+}
 
 export const createPhotoRouter = (config: AppConfig, getSession: GetSession) => {
   const router = Router()
@@ -43,6 +60,7 @@ export const createPhotoRouter = (config: AppConfig, getSession: GetSession) => 
         callbackUrl: new URL('/api/uploadthing', config.betterAuthUrl).href,
       },
       (request) => identities.get(request),
+      recordUpload,
     ),
   )
   const handleError: ErrorRequestHandler = (error: unknown, _request, response, _next) => {

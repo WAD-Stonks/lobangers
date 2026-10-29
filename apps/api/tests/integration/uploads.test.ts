@@ -26,6 +26,7 @@ let mongo: MongoMemoryReplSet | undefined
 let enabledServer: Server | undefined
 let missingTokenServer: Server | undefined
 let disconnect: (() => Promise<void>) | undefined
+let database: typeof import('@broke-oclock/db').db
 let enabledBaseURL = ''
 let missingTokenBaseURL = ''
 let originalFetch: typeof fetch
@@ -161,6 +162,7 @@ beforeAll(async () => {
   })
 
   const { db } = await import('@broke-oclock/db')
+  database = db
   disconnect = () => db.$disconnect()
   const { createApp } = await import('@api/app')
   const secret = randomBytes(32).toString('hex')
@@ -389,6 +391,19 @@ describe('real HTTP UploadThing infrastructure', () => {
     expect(result?.body).toEqual({
       fileKey: file.key,
       callbackData: { uploadedBy: user.userId, key: file.key, url: file.ufsUrl },
+    })
+    // The completed upload is recorded with its uploader, unattached to any deal yet.
+    expect(
+      await database.uploadedFile.findUnique({
+        where: { key: file.key },
+        select: { uploaderId: true, url: true, mimeType: true, sizeBytes: true, dealId: true },
+      }),
+    ).toEqual({
+      uploaderId: user.userId,
+      url: file.ufsUrl,
+      mimeType: 'image/webp',
+      sizeBytes: 128,
+      dealId: null,
     })
   })
 

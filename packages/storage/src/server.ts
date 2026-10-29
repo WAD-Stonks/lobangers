@@ -7,7 +7,20 @@ export { UTApi, UTFile } from 'uploadthing/server'
 const allowedTypes = ['image/jpeg', 'image/png', 'image/webp']
 const fileLimit = { maxFileSize: '4MB', maxFileCount: 1, minFileCount: 0 } as const
 
-const createFileRouter = (getUserId: (request: Request) => string | undefined) => {
+// What the API is told after each finished upload, so it can record who owns the file.
+export type CompletedPhotoUpload = {
+  userId: string
+  key: string
+  url: string
+  mimeType: string
+  sizeBytes: number
+}
+type OnPhotoUploaded = (upload: CompletedPhotoUpload) => Promise<void>
+
+const createFileRouter = (
+  getUserId: (request: Request) => string | undefined,
+  onUploaded?: OnPhotoUploaded,
+) => {
   const f = createUploadthing()
   return {
     photoUploader: f(
@@ -36,12 +49,17 @@ const createFileRouter = (getUserId: (request: Request) => string | undefined) =
         }
         return { userId }
       })
-      // Infrastructure response only. Deal attachment/ownership persistence is student-owned.
-      .onUploadComplete(({ metadata, file }) => ({
-        uploadedBy: metadata.userId,
-        key: file.key,
-        url: file.ufsUrl,
-      })),
+      // The consuming API persists ownership through onUploaded; this package stays database-free.
+      .onUploadComplete(async ({ metadata, file }) => {
+        await onUploaded?.({
+          userId: metadata.userId,
+          key: file.key,
+          url: file.ufsUrl,
+          mimeType: file.type,
+          sizeBytes: file.size,
+        })
+        return { uploadedBy: metadata.userId, key: file.key, url: file.ufsUrl }
+      }),
   } satisfies FileRouter
 }
 
@@ -58,8 +76,9 @@ export type PhotoStorageOptions = {
 export const createPhotoUploadHandler = (
   options: PhotoStorageOptions,
   getUserId: (request: Request) => string | undefined,
+  onUploaded?: OnPhotoUploaded,
 ) =>
   createRouteHandler({
-    router: createFileRouter(getUserId),
+    router: createFileRouter(getUserId, onUploaded),
     config: { ...options, logLevel: 'Error' },
   })

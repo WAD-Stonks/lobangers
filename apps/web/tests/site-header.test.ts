@@ -83,7 +83,7 @@ describe('site header pill', () => {
     expect(hrefs).toEqual([
       '/login?redirect=/browse',
       '/register?redirect=/browse',
-      '/add',
+      '/submit-deal',
       '/',
       '/browse',
       '/deals',
