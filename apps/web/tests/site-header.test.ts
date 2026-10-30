@@ -83,11 +83,11 @@ describe('site header pill', () => {
     expect(hrefs).toEqual([
       '/login?redirect=/browse',
       '/register?redirect=/browse',
-      '/submit-deal',
+      '/add',
       '/',
       '/browse',
       '/deals',
-      '/submit-deal',
+      '/add',
       '/getting-started',
     ])
     expect(menu.get('a[href="/browse"]').attributes('aria-current')).toBe('page')

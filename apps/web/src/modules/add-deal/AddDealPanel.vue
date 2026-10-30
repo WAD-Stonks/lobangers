@@ -1,6 +1,6 @@
 <!--
   Map overlay version of "Add a deal", commented out for now.
-  Adding a deal is a full page instead: src/pages/SubmissionForm.vue at /submit-deal.
+  Adding a deal is a full page instead: src/pages/SubmissionForm.vue at /add.
 
 <script setup lang="ts">
 import ComingSoonPanel from '@web/modules/map-shell/ComingSoonPanel.vue'

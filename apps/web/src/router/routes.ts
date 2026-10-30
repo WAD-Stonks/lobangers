@@ -44,7 +44,7 @@ const routes: RouteRecordRaw[] = [
         component: VenuePanel,
         meta: { panelLabel: 'Venue' },
       },
-      // The "Add a deal" map overlay is commented out; adding a deal is the /submit-deal page.
+      // The "Add a deal" map overlay is commented out; adding a deal is the full /add page.
       // {
       //   path: '/add',
       //   name: 'add-deal',
@@ -112,11 +112,13 @@ const routes: RouteRecordRaw[] = [
   },
   { path: '/reset-password', name: 'reset-password', component: ResetPasswordPage },
   {
-    path: '/submit-deal',
+    path: '/add',
     name: 'submit-deal',
     component: SubmissionForm,
     meta: { requiresAuth: true },
   },
+  // The form used to live at /submit-deal; keep old links working.
+  { path: '/submit-deal', redirect: '/add' },
   { path: '/:pathMatch(.*)*', name: 'not-found', component: NotFoundPage },
 ]
 
