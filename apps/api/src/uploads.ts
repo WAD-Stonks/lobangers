@@ -6,11 +6,30 @@ import {
 import { DomainError } from '@api/modules/domain-error'
 import { fromNodeHeaders } from '@broke-oclock/auth/node'
 import { db } from '@broke-oclock/db'
-import { createPhotoUploadHandler } from '@broke-oclock/storage/server'
+import { type CompletedPhotoUpload, createPhotoUploadHandler } from '@broke-oclock/storage/server'
 import { type ErrorRequestHandler, json, type Request, Router } from 'express'
 
 type UploadSession = { user: { id: string }; session: { id: string } } | null
 type GetSession = (headers: Headers) => Promise<UploadSession>
+
+// Record who uploaded each photo, so a deal can later attach only its own submitter's file.
+// The provider may repeat a callback; the first owner of a key is kept.
+const recordUpload = async (
+  database: Pick<typeof db, 'uploadedFile'>,
+  upload: CompletedPhotoUpload,
+) => {
+  await database.uploadedFile.upsert({
+    where: { key: upload.key },
+    create: {
+      key: upload.key,
+      url: upload.url,
+      mimeType: upload.mimeType,
+      sizeBytes: upload.sizeBytes,
+      uploaderId: upload.userId,
+    },
+    update: {},
+  })
+}
 
 export const createPhotoRouter = (config: AppConfig, getSession: GetSession) => {
   const router = Router()
@@ -62,7 +81,7 @@ export const createPhotoRouter = (config: AppConfig, getSession: GetSession) => 
           throw error
         }
       },
-      async (metadata) => {
+      async (metadata, upload) => {
         // SDK-authenticated metadata, never browser input. Revocation cannot undo an
         // already-issued remote URL or bytes; it withholds useful completion only.
         if (!metadata || !Number.isInteger(metadata.authVersion) || metadata.authVersion < 0)
@@ -73,7 +92,10 @@ export const createPhotoRouter = (config: AppConfig, getSession: GetSession) => 
               userId: metadata.userId,
               sessionId: metadata.sessionId,
             })
-            return (active.user.authVersion ?? 0) === metadata.authVersion
+            if ((active.user.authVersion ?? 0) !== metadata.authVersion) return false
+            // Persist ownership inside the same current-session fence as completion.
+            await recordUpload(tx, upload)
+            return true
           })
         } catch (error) {
           if (error instanceof DomainError && ['UNAUTHORIZED', 'CONFLICT'].includes(error.code))

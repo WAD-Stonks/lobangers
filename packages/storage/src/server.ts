@@ -9,9 +9,23 @@ const fileLimit = { maxFileSize: '4MB', maxFileCount: 1, minFileCount: 0 } as co
 
 export type PhotoUploadAdmission = { userId: string; sessionId: string; authVersion: number }
 
+// What the API is told after each finished upload, so it can record who owns the file.
+export type CompletedPhotoUpload = {
+  userId: string
+  key: string
+  url: string
+  mimeType: string
+  sizeBytes: number
+}
+
+type CompletePhotoUpload = (
+  metadata: PhotoUploadAdmission,
+  upload: CompletedPhotoUpload,
+) => Promise<boolean>
+
 const createFileRouter = (
   getAdmission: (request: Request) => Promise<PhotoUploadAdmission | undefined>,
-  canComplete: (metadata: PhotoUploadAdmission) => Promise<boolean>,
+  canComplete: CompletePhotoUpload,
 ) => {
   const f = createUploadthing()
   return {
@@ -41,9 +55,18 @@ const createFileRouter = (
         }
         return admission
       })
-      // Infrastructure response only. Deal attachment/ownership persistence is student-owned.
+      // The consuming API fences and persists ownership together; this package stays database-free.
       .onUploadComplete(async ({ metadata, file }) => {
-        if (!(await canComplete(metadata))) return
+        if (
+          !(await canComplete(metadata, {
+            userId: metadata.userId,
+            key: file.key,
+            url: file.ufsUrl,
+            mimeType: file.type,
+            sizeBytes: file.size,
+          }))
+        )
+          return
         return { uploadedBy: metadata.userId, key: file.key, url: file.ufsUrl }
       }),
   } satisfies FileRouter
@@ -62,7 +85,7 @@ export type PhotoStorageOptions = {
 export const createPhotoUploadHandler = (
   options: PhotoStorageOptions,
   getAdmission: (request: Request) => Promise<PhotoUploadAdmission | undefined>,
-  canComplete: (metadata: PhotoUploadAdmission) => Promise<boolean>,
+  canComplete: CompletePhotoUpload,
 ) =>
   createRouteHandler({
     router: createFileRouter(getAdmission, canComplete),

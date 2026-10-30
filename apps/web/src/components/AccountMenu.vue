@@ -17,6 +17,15 @@ const logOut = async () => {
     <RouterLink class="nav-link px-0" to="/saved">Saved</RouterLink>
     <RouterLink class="nav-link px-0" to="/me/submissions">My submissions</RouterLink>
     <RouterLink class="nav-link px-0" to="/me/merchant-access">Merchant access</RouterLink>
+    <!-- Only merchants see this link. The /merchant route also blocks everyone else. -->
+    <RouterLink
+      v-if="session.data.user.role === 'MERCHANT'"
+      class="nav-link px-0"
+      to="/merchant"
+      data-testid="merchant-dashboard-link"
+    >
+      Merchant dashboard
+    </RouterLink>
     <RouterLink class="nav-link px-0" to="/me/profile" data-testid="signed-in-name">{{ session.data.user.name }}</RouterLink>
     <button type="button" class="btn btn-link nav-link px-0" data-testid="log-out" @click="logOut">Log out</button>
   </template>

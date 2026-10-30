@@ -6,7 +6,7 @@ export const SITE_NAV_LINKS: readonly SiteNavLink[] = Object.freeze([
   { label: 'Home', to: '/' },
   { label: 'Map', to: '/browse' },
   { label: 'All deals', to: '/deals' },
-  { label: 'Share a deal', to: '/submit-deal' },
+  { label: 'Share a deal', to: '/add' },
   { label: 'Getting started', to: '/getting-started' },
   { label: 'Admin overview', to: '/admin', roles: ['ADMIN'] },
   { label: 'Platform admin', to: '/admin/accounts', roles: ['ADMIN'] },

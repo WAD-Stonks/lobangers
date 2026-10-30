@@ -19,6 +19,8 @@
     "./deal-categories": "./src/deal-categories.ts",
     "./deal-copy": "./src/deal-copy.ts",
     "./deal-cuisines": "./src/deal-cuisines.ts",
+    "./deal-forms": "./src/deal-forms.ts",
+    "./merchant": "./src/merchant.ts",
     "./venues": "./src/venues.ts",
     "./account": "./src/account.ts",
     "./community": "./src/community.ts",
