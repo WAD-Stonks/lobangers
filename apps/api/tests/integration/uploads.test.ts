@@ -1,13 +1,12 @@
-import { execFile } from 'node:child_process'
 import { createHmac, randomBytes, randomUUID } from 'node:crypto'
 import { createServer, type Server } from 'node:http'
 import { fileURLToPath } from 'node:url'
-import { promisify } from 'node:util'
+import { pushDisposableSchema } from '@api/../tests/fixtures/disposable-schema'
 import { parseConfig } from '@api/config'
 import { MongoMemoryReplSet } from 'mongodb-memory-server'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 
-const root = fileURLToPath(new URL('../../../../', import.meta.url))
+const _root = fileURLToPath(new URL('../../../../', import.meta.url))
 const origin = 'http://localhost:5173'
 const fixtureIngestOrigin = 'https://sfo1.ingest.integration.test'
 const fixtureIngestHost = 'sfo1.ingest.integration.test'
@@ -154,12 +153,7 @@ beforeAll(async () => {
   const databaseUrl = mongo.getUri(`integration_${randomUUID().replaceAll('-', '')}`)
   vi.stubEnv('DATABASE_URL', databaseUrl)
   // Do not block the event loop: the in-memory Mongo process needs its output drained.
-  await promisify(execFile)('pnpm', ['--dir', 'packages/db', 'run', 'push'], {
-    cwd: root,
-    env: { ...process.env, DATABASE_URL: databaseUrl },
-    encoding: 'utf8',
-    timeout: 60_000,
-  })
+  await pushDisposableSchema(databaseUrl)
 
   const { db } = await import('@broke-oclock/db')
   database = db
@@ -355,6 +349,15 @@ describe('real HTTP UploadThing infrastructure', () => {
 
   it('handles a valid SDK-signed callback without browser credentials and returns completion data', async () => {
     const user = await signup('callback')
+    const admissionStart = fixtureCalls.length
+    expect(
+      (await postUpload(uploadPayload('callback.webp', 'image/webp'), user.cookie)).status,
+    ).toBe(200)
+    const admission = fixtureCalls
+      .slice(admissionStart)
+      .find((call) => call.url.endsWith('/route-metadata'))
+    if (!admission) throw new Error('Missing trusted SDK admission')
+    const trustedMetadata = (admission.body as { metadata: Record<string, unknown> }).metadata
     const file = {
       name: 'callback.webp',
       size: 128,
@@ -371,7 +374,7 @@ describe('real HTTP UploadThing infrastructure', () => {
       status: 'uploaded',
       file,
       origin: fixtureIngestOrigin,
-      metadata: { userId: user.userId },
+      metadata: trustedMetadata,
     })
     const before = fixtureCalls.length
     const callback = await fetch(`${enabledBaseURL}/api/uploadthing?slug=photoUploader`, {
@@ -464,7 +467,11 @@ describe('real HTTP UploadThing infrastructure', () => {
         expect.arrayContaining([
           expect.objectContaining({
             fileKeys: [uploads[index][0].key],
-            metadata: { userId: user.userId },
+            metadata: expect.objectContaining({
+              userId: user.userId,
+              sessionId: expect.stringMatching(/^[a-f0-9]{24}$/),
+              authVersion: 0,
+            }),
           }),
         ]),
       )
@@ -475,5 +482,58 @@ describe('real HTTP UploadThing infrastructure', () => {
     expect(new Set(identities)).toEqual(new Set([first.userId, second.userId]))
     expect(identities).not.toContain('wrong-a')
     expect(identities).not.toContain('wrong-b')
+  })
+  it('withholds useful completion data after its admitted session is revoked', async () => {
+    accounts.clear()
+    const user = await signup('revoked-completion')
+    const beforeAdmission = fixtureCalls.length
+    expect(
+      (await postUpload(uploadPayload('revoked.webp', 'image/webp'), user.cookie)).status,
+    ).toBe(200)
+    const admitted = fixtureCalls
+      .slice(beforeAdmission)
+      .find((call) => call.url.endsWith('/route-metadata'))
+    if (!admitted) throw new Error('Missing trusted SDK admission')
+    const metadata = (admitted.body as { metadata: Record<string, unknown> }).metadata
+    const { db } = await import('@broke-oclock/db')
+    await db.session.deleteMany({ where: { userId: user.userId } })
+    const file = {
+      name: 'revoked.webp',
+      size: 128,
+      type: 'image/webp',
+      lastModified: 1,
+      customId: null,
+      key: 'revoked-file-key',
+      url: `${fixtureIngestOrigin}/f/revoked-file-key`,
+      appUrl: `${fixtureIngestOrigin}/f/revoked-file-key`,
+      ufsUrl: `${fixtureIngestOrigin}/f/revoked-file-key`,
+      fileHash: 'synthetic-file-hash',
+    }
+    const payload = JSON.stringify({
+      status: 'uploaded',
+      file,
+      origin: fixtureIngestOrigin,
+      metadata,
+    })
+    const beforeCallback = fixtureCalls.length
+    const callback = await fetch(`${enabledBaseURL}/api/uploadthing?slug=photoUploader`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'uploadthing-hook': 'callback',
+        'x-uploadthing-signature': sign(payload),
+      },
+      body: payload,
+    })
+    expect(callback.status).toBe(200)
+    const result = fixtureCalls
+      .slice(beforeCallback)
+      .find((call) => call.url.endsWith('/callback-result'))
+    expect(result?.body).toEqual({ fileKey: file.key, callbackData: null })
+    expect(await database.uploadedFile.findUnique({ where: { key: file.key } })).toBeNull()
+    expect((await postUpload(uploadPayload('second.webp', 'image/webp'), user.cookie)).status).toBe(
+      401,
+    )
+    accounts.clear()
   })
 })

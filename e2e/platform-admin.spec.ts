@@ -1,3 +1,5 @@
+import { bookmarksResponseSchema } from '@broke-oclock/contracts/account'
+import { dealsResponseSchema } from '@broke-oclock/contracts/deals'
 import type {
   MerchantRequest,
   MerchantRequestsQuery,
@@ -8,7 +10,20 @@ import type {
   PlatformRole,
   PlatformVenue,
 } from '@broke-oclock/contracts/platform-admin'
+import {
+  changePlatformRoleBodySchema,
+  grantStallBodySchema,
+  reviewMerchantRequestBodySchema,
+  revokeStallBodySchema,
+} from '@broke-oclock/contracts/platform-admin'
+import {
+  accountSecurityResponseSchema,
+  accountSessionsResponseSchema,
+  securityContextResponseSchema,
+} from '@broke-oclock/contracts/platform-security'
 import { expect, type Page, test } from '@playwright/test'
+// biome-ignore lint/style/noRestrictedImports: E2E-only helper; no E2E alias exists and config is outside this UI adoption scope.
+import { chooseAccountDetail, chooseAccountsWorkspace } from './admin-ui'
 
 type RestPage<T> = { items: T[]; nextCursor: string | null }
 const date = '2026-01-01T00:00:00Z'
@@ -20,24 +35,81 @@ const requestA = '333333333333333333333333'
 const requestB = '444444444444444444444444'
 const grantA = '555555555555555555555555'
 const grantB = '666666666666666666666666'
+const actorUserId = '999999999999999999999999'
+const observations = new WeakMap<
+  Page,
+  { console: string[]; pageErrors: string[]; network: string[]; unexpected: string[] }
+>()
+
+test.afterEach(async ({ page }, info) => {
+  const observed = observations.get(page)
+  if (!observed) throw new Error('Missing synthetic boundary observations')
+  await info.attach('synthetic-boundary-observations', {
+    contentType: 'application/json',
+    body: JSON.stringify(observed, null, 2),
+  })
+  expect(observed.unexpected).toEqual([])
+  expect(observed.pageErrors).toEqual([])
+})
 
 // Explicitly synthetic API boundaries. These verify the real Vue SPA and same-origin
 // Axios REST transport, NOT live authentication, database authorization or backend acceptance.
 async function syntheticBoundary(page: Page) {
+  const observed = {
+    console: [] as string[],
+    pageErrors: [] as string[],
+    network: [] as string[],
+    unexpected: [] as string[],
+  }
+  observations.set(page, observed)
+  page.on('console', (message) => observed.console.push(`${message.type()}: ${message.text()}`))
+  page.on('pageerror', (error) => observed.pageErrors.push(error.message))
+  page.on('requestfailed', (request) => {
+    observed.network.push(
+      `FAILED ${request.method()} ${request.url()} ${request.failure()?.errorText}`,
+    )
+  })
+  page.on('request', (request) => {
+    if (new URL(request.url()).pathname.startsWith('/api/admin/'))
+      observed.network.push(
+        `REQUEST ${request.method()} ${request.url()} ${request.postData() ?? ''}`,
+      )
+  })
+  page.on('response', (response) => {
+    if (new URL(response.url()).pathname.startsWith('/api/'))
+      observed.network.push(`${response.status()} ${response.request().method()} ${response.url()}`)
+  })
+  // Only the two public reads used by the original /browse navigation are synthetic.
+  // Fail closed on every other API request; never contact an ambient API/provider.
+  await page.route('**/api/**', async (route) => {
+    const pathname = new URL(route.request().url()).pathname
+    const method = route.request().method()
+    let data: unknown
+    if (pathname === '/api/deals' && method === 'GET')
+      data = dealsResponseSchema.parse({ items: [], categories: [] })
+    else if (pathname === '/api/account/bookmarks' && method === 'GET')
+      data = bookmarksResponseSchema.parse({ items: [], nextCursor: null })
+    else {
+      observed.unexpected.push(`${method} ${pathname}`)
+      await route.abort('blockedbyclient')
+      return
+    }
+    await route.fulfill({ contentType: 'application/json', body: JSON.stringify(data) })
+  })
   // Synthetic native identity and method presentation, not connected authentication.
   await page.route('**/api/auth/get-session**', (route) =>
     route.fulfill({
       contentType: 'application/json',
       body: JSON.stringify({
         user: {
-          id: 'synthetic-admin',
+          id: actorUserId,
           name: 'Synthetic operator',
           email: 'operator@example.test',
           role: 'USER',
         },
         session: {
           id: 'synthetic-session',
-          userId: 'synthetic-admin',
+          userId: actorUserId,
           expiresAt: '2099-01-01T00:00:00.000Z',
         },
       }),
@@ -151,7 +223,7 @@ async function syntheticBoundary(page: Page) {
   ) => {
     state.audit.unshift({
       id: (state.audit.length + 1).toString(16).padStart(24, '0'),
-      actorId: '999999999999999999999999',
+      actorId: actorUserId,
       actorName: 'Synthetic administrator',
       action,
       targetUserId,
@@ -172,14 +244,30 @@ async function syntheticBoundary(page: Page) {
     const body: Record<string, unknown> = request.postDataJSON?.() ?? {}
     let path: string
     let input: Record<string, unknown>
-    if (pathname === '/api/admin/accounts' && method === 'GET') {
+    // Registered nested security reads must precede the generic account detail route.
+    if (pathname === '/api/admin/security-context' && method === 'GET') {
+      path = 'platformSecurity.context'
+      input = query
+    } else if (
+      /^\/api\/admin\/accounts\/[a-f0-9]{24}\/security$/.test(pathname) &&
+      method === 'GET'
+    ) {
+      path = 'platformSecurity.account'
+      input = { userId: pathname.split('/')[4] }
+    } else if (
+      /^\/api\/admin\/accounts\/[a-f0-9]{24}\/sessions$/.test(pathname) &&
+      method === 'GET'
+    ) {
+      path = 'platformSecurity.sessions'
+      input = { userId: pathname.split('/')[4], ...query }
+    } else if (pathname === '/api/admin/accounts' && method === 'GET') {
       path = 'platformAdmin.accounts'
       input = query
     } else if (pathname.startsWith('/api/admin/accounts/') && pathname.endsWith('/role')) {
       const userId = pathname.split('/')[4]
       path = 'platformAdmin.changeRole'
-      input = { userId, ...body }
-    } else if (pathname.startsWith('/api/admin/accounts/') && method === 'GET') {
+      input = { userId, ...changePlatformRoleBodySchema.parse(body) }
+    } else if (/^\/api\/admin\/accounts\/[a-f0-9]{24}$/.test(pathname) && method === 'GET') {
       path = 'platformAdmin.account'
       input = { userId: pathname.split('/').at(-1) }
     } else if (pathname === '/api/admin/merchant-requests' && method === 'GET') {
@@ -191,7 +279,7 @@ async function syntheticBoundary(page: Page) {
     ) {
       const requestId = pathname.split('/')[4]
       path = 'platformAdmin.reviewRequest'
-      input = { requestId, ...body }
+      input = { requestId, ...reviewMerchantRequestBodySchema.parse(body) }
     } else if (pathname === '/api/admin/venues' && method === 'GET') {
       path = 'platformAdmin.venues'
       input = query
@@ -200,12 +288,13 @@ async function syntheticBoundary(page: Page) {
       input = query
     } else if (pathname === '/api/admin/stall-grants' && method === 'POST') {
       path = 'platformAdmin.grantStall'
-      input = body
+      input = grantStallBodySchema.parse(body)
     } else if (pathname.startsWith('/api/admin/stall-grants/') && method === 'DELETE') {
       const grantId = pathname.split('/').at(-1)
       path = 'platformAdmin.revokeStall'
-      input = { grantId, ...body }
+      input = { grantId, ...revokeStallBodySchema.parse(body) }
     } else {
+      observed.unexpected.push(`${method} ${pathname}`)
       await route.fulfill({
         status: 404,
         contentType: 'application/json',
@@ -231,6 +320,40 @@ async function syntheticBoundary(page: Page) {
     }
     let data: unknown
     switch (path) {
+      case 'platformSecurity.context':
+        // Synthetic fresh primary-login presentation only, not a native-auth policy test.
+        data = securityContextResponseSchema.parse({
+          actorUserId,
+          freshLoginUntil: new Date(Date.now() + 600_000).toISOString(),
+          reauthenticationRequired: false,
+        })
+        break
+      case 'platformSecurity.account':
+      case 'platformSecurity.sessions': {
+        const account = accounts.find((item) => item.id === input.userId)
+        if (!account) throw new Error(`Unknown synthetic security account ${input.userId}`)
+        data =
+          path === 'platformSecurity.account'
+            ? accountSecurityResponseSchema.parse({
+                userId: account.id,
+                version: account.version,
+                emailVerified: true,
+                state: 'ACTIVE',
+                suspendedAt: null,
+                methods: {
+                  passwordConfigured: true,
+                  googleLinked: false,
+                  emailOtpAvailable: false,
+                },
+              })
+            : accountSessionsResponseSchema.parse({
+                userId: account.id,
+                version: account.version,
+                items: [],
+                nextCursor: null,
+              })
+        break
+      }
       case 'platformAdmin.accounts': {
         const value = input as PlatformAccountsQuery
         data = (value.cursor ? state.accountPages.get(value.cursor) : undefined) ?? {
@@ -348,7 +471,131 @@ async function requestNote(page: Page, note: string) {
   await page.locator('#request-confirm').check()
 }
 
-for (const width of [320, 390, 1280]) {
+test('mobile Accounts keeps role badges and every workspace label whole through tab roundtrips', async ({
+  page,
+}, info) => {
+  const state = await syntheticBoundary(page)
+  const administrator = state.accounts[1]
+  if (!administrator) throw new Error('Missing synthetic administrator record')
+  administrator.role = 'ADMIN'
+  const tablist = page.getByRole('tablist', { name: 'Accounts workspace', exact: true })
+  const labels = ['Directory', 'Merchant requests', 'Account activity'] as const
+  const receipts: unknown[] = []
+  const inspectLabels = async (width: number, stage: string) => {
+    const geometry = await tablist.evaluate((list) => {
+      const bounds = list.getBoundingClientRect()
+      return Array.from(list.querySelectorAll<HTMLButtonElement>('[role="tab"]')).map((tab) => {
+        const range = document.createRange()
+        range.selectNodeContents(tab)
+        const button = tab.getBoundingClientRect()
+        const text = Array.from(range.getClientRects())
+        return {
+          label: tab.textContent?.trim(),
+          selected: tab.getAttribute('aria-selected'),
+          scrollLeft: list.scrollLeft,
+          textRects: text.map((rect) => rect.toJSON()),
+          fullyReadable:
+            text.length === 1 &&
+            text.every(
+              (rect) =>
+                rect.width > 0 &&
+                rect.left >= Math.max(0, bounds.left, button.left) &&
+                rect.right <= Math.min(innerWidth, bounds.right, button.right) &&
+                rect.top >= Math.max(bounds.top, button.top) &&
+                rect.bottom <= Math.min(bounds.bottom, button.bottom),
+            ),
+        }
+      })
+    })
+    receipts.push({ width, stage, geometry })
+    expect
+      .soft(
+        geometry.map((tab) => tab.label),
+        `${width}px ${stage}: tab labels`,
+      )
+      .toEqual(labels)
+    for (const tab of geometry)
+      expect.soft(tab.fullyReadable, `${width}px ${stage}: ${JSON.stringify(tab)}`).toBe(true)
+  }
+  for (const width of [320, 390]) {
+    await page.setViewportSize({ width, height: 900 })
+    await page.goto('/admin/accounts')
+    await expect(page.getByTestId(`account-${userA}`)).toBeVisible()
+    const inspectBadges = async (stage: string) => {
+      const badges = await page
+        .getByRole('table', { name: 'Account records' })
+        .locator('.record-role')
+        .evaluateAll((elements) =>
+          elements.map((badge) => {
+            const range = document.createRange()
+            range.selectNodeContents(badge)
+            const text = Array.from(range.getClientRects())
+            const bounds = badge.getBoundingClientRect()
+            return {
+              role: badge.textContent?.trim(),
+              textRects: text.map((rect) => rect.toJSON()),
+              singleLine: text.length === 1 && text.every((rect) => rect.height > 0),
+              contained: text.every(
+                (rect) =>
+                  rect.left >= Math.max(0, bounds.left) &&
+                  rect.right <= Math.min(innerWidth, bounds.right) &&
+                  rect.top >= bounds.top &&
+                  rect.bottom <= bounds.bottom,
+              ),
+            }
+          }),
+        )
+      receipts.push({ width, stage, badges })
+      expect.soft(badges.map((badge) => badge.role)).toEqual(['MERCHANT', 'ADMIN'])
+      for (const badge of badges) {
+        expect.soft(badge.singleLine, `${width}px ${stage}: ${JSON.stringify(badge)}`).toBe(true)
+        expect.soft(badge.contained, `${width}px ${stage}: ${JSON.stringify(badge)}`).toBe(true)
+      }
+    }
+    await inspectLabels(width, 'initial')
+    await inspectBadges('initial')
+    await page.screenshot({ path: info.outputPath(`mobile-accounts-${width}-initial.png`) })
+    for (const name of ['Merchant requests', 'Account activity', 'Directory'] as const) {
+      await chooseAccountsWorkspace(page, name)
+      await inspectLabels(width, `clicked ${name}`)
+    }
+    const directory = tablist.getByRole('tab', { name: 'Directory', exact: true })
+    await directory.press('End')
+    const activity = tablist.getByRole('tab', { name: 'Account activity', exact: true })
+    await expect(activity).toBeFocused()
+    await expect(activity).toHaveAttribute('aria-selected', 'true')
+    await inspectLabels(width, 'keyboard End')
+    await activity.press('Home')
+    await expect(directory).toBeFocused()
+    await expect(directory).toHaveAttribute('aria-selected', 'true')
+    await inspectLabels(width, 'keyboard Home')
+    await directory.press('ArrowRight')
+    const requests = tablist.getByRole('tab', { name: 'Merchant requests', exact: true })
+    await expect(requests).toBeFocused()
+    await expect(requests).toHaveAttribute('aria-selected', 'true')
+    await inspectLabels(width, 'keyboard ArrowRight')
+    await requests.press('ArrowLeft')
+    await expect(directory).toBeFocused()
+    await expect(directory).toHaveAttribute('aria-selected', 'true')
+    await expect(page.getByRole('tabpanel', { name: 'Directory', exact: true })).toBeVisible()
+    await inspectLabels(width, 'roundtrip Directory')
+    await inspectBadges('roundtrip Directory')
+    await page.screenshot({ path: info.outputPath(`mobile-accounts-${width}-roundtrip.png`) })
+    expect
+      .soft(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth))
+      .toBe(true)
+  }
+  await info.attach('mobile-accounts-geometry', {
+    contentType: 'application/json',
+    body: JSON.stringify(receipts, null, 2),
+  })
+  expect(state.calls.filter((call) => call.method !== 'GET')).toEqual([])
+  expect(observations.get(page)?.console.filter((message) => message.startsWith('error:'))).toEqual(
+    [],
+  )
+})
+
+for (const width of [320, 390, 1280, 1440]) {
   test(`synthetic-boundary account and two-stall journey fits ${width}px`, async ({
     page,
   }, info) => {
@@ -365,12 +612,18 @@ for (const width of [320, 390, 1280]) {
     const details = page.getByRole('region', { name: 'Account details' })
     await expect(details).toContainText('<img src=x onerror=alert(1)> Alice')
     await expect(details.locator('img, script')).toHaveCount(0)
+    await chooseAccountDetail(page, 'Security')
+    const security = page.getByRole('region', { name: 'Account security', exact: true })
+    await expect(security).toContainText('ACTIVE')
+    await expect(security).toContainText('Password configured: Yes')
+    await expect(security.getByRole('alert')).toHaveCount(0)
     await expect(page.getByRole('button', { name: /delete/i })).toHaveCount(0)
     await expect(
       page.getByText(
         'Account deletion is unavailable pending the retention and anonymisation policy.',
       ),
     ).toBeVisible()
+    await chooseAccountDetail(page, 'Access')
     await page.getByLabel('Account action', { exact: true }).selectOption('grant')
     await page.getByLabel('Search existing stalls').fill('Fixture merchant')
     await page.getByRole('button', { name: 'Search stalls', exact: true }).click()
@@ -379,7 +632,9 @@ for (const width of [320, 390, 1280]) {
     expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)).toBe(false)
     await page.screenshot({ path: info.outputPath(`platform-admin-${width}.png`), fullPage: true })
     await page.getByRole('button', { name: 'Grant stall access', exact: true }).click()
-    await expect(details).toContainText('Version 8')
+    await expect(
+      details.locator('.account-metadata div').filter({ hasText: 'Version' }).locator('dd'),
+    ).toHaveText('8')
     expect(calls(state, 'grantStall')).toEqual([
       {
         path: 'platformAdmin.grantStall',
@@ -389,6 +644,7 @@ for (const width of [320, 390, 1280]) {
           venueId: stallB,
           expectedUserVersion: 7,
           note: 'Verified second outlet only',
+          confirmed: true,
         },
       },
     ])
@@ -404,7 +660,12 @@ for (const width of [320, 390, 1280]) {
       {
         path: 'platformAdmin.revokeStall',
         method: 'DELETE',
-        input: { grantId: grantB, expectedVersion: 1, note: 'Remove second outlet access' },
+        input: {
+          grantId: grantB,
+          expectedVersion: 1,
+          note: 'Remove second outlet access',
+          confirmed: true,
+        },
       },
     ])
     await page.getByLabel('Account action', { exact: true }).selectOption('role')
@@ -414,7 +675,9 @@ for (const width of [320, 390, 1280]) {
       ['accounts', 'account', 'requests', 'audit'].map((name) => [name, calls(state, name).length]),
     )
     await page.getByRole('button', { name: 'Change role', exact: true }).click()
-    await expect(details).toContainText('Version 10')
+    await expect(
+      details.locator('.account-metadata div').filter({ hasText: 'Version' }).locator('dd'),
+    ).toHaveText('10')
     await expect(details).toContainText('No active stall grants.')
     for (const [name, count] of Object.entries(reads))
       expect(calls(state, name)).toHaveLength(count + 1)
@@ -427,14 +690,16 @@ for (const width of [320, 390, 1280]) {
           expectedVersion: 9,
           role: 'USER',
           note: 'End merchant responsibility',
+          confirmed: true,
         },
       },
     ])
+    await expect(page.getByLabel('Account action note (required)')).toHaveValue('')
+    await expect(page.locator('#account-confirm')).not.toBeChecked()
+    await chooseAccountsWorkspace(page, 'Account activity')
     await expect(page.getByRole('region', { name: 'Audit history' })).toContainText(
       'MERCHANT → USER',
     )
-    await expect(page.getByLabel('Account action note (required)')).toHaveValue('')
-    await expect(page.locator('#account-confirm')).not.toBeChecked()
     expect(errors).toEqual([])
   })
 }
@@ -444,6 +709,7 @@ test('synthetic-boundary request review uses exact request identities and escape
 }) => {
   const state = await syntheticBoundary(page)
   await page.goto('/admin/accounts')
+  await chooseAccountsWorkspace(page, 'Merchant requests')
   await page.getByTestId(`request-${requestA}`).click()
   const details = page.getByRole('article', { name: 'Request details' })
   await expect(details).toContainText('<script>synthetic claim</script>')
@@ -463,12 +729,14 @@ test('synthetic-boundary request review uses exact request identities and escape
       expectedVersion: 3,
       decision: 'REJECT',
       note: 'No ownership evidence for Stall A',
+      confirmed: true,
     },
     {
       requestId: requestB,
       expectedVersion: 9,
       decision: 'APPROVE',
       note: 'Verified the named second stall',
+      confirmed: true,
     },
   ])
   await page.getByLabel('Request status', { exact: true }).selectOption('APPROVED')
@@ -509,16 +777,20 @@ test('synthetic-boundary account conflict survives pagination and forces refresh
   if (!first) throw new Error('Missing synthetic account')
   first.version = 8
   await page.getByRole('button', { name: 'Reload account' }).click()
-  await expect(page.getByRole('region', { name: 'Account details' })).toContainText('Version 8')
+  await expect(
+    page.locator('.account-metadata div').filter({ hasText: 'Version' }).locator('dd'),
+  ).toHaveText('8')
   await expect(page.getByLabel('Account action note (required)')).toHaveValue('')
   await expect(page.locator('#account-confirm')).not.toBeChecked()
   await page.getByLabel('New role').selectOption('USER')
   await accountNote(page, 'Fresh version')
   await page.getByRole('button', { name: 'Change role', exact: true }).click()
-  await expect(page.getByRole('region', { name: 'Account details' })).toContainText('Version 9')
+  await expect(
+    page.locator('.account-metadata div').filter({ hasText: 'Version' }).locator('dd'),
+  ).toHaveText('9')
   expect(calls(state, 'changeRole').map((call) => call.input)).toEqual([
-    { userId: userA, expectedVersion: 7, role: 'USER', note: 'Old version' },
-    { userId: userA, expectedVersion: 8, role: 'USER', note: 'Fresh version' },
+    { userId: userA, expectedVersion: 7, role: 'USER', note: 'Old version', confirmed: true },
+    { userId: userA, expectedVersion: 8, role: 'USER', note: 'Fresh version', confirmed: true },
   ])
 })
 
@@ -534,6 +806,7 @@ test('synthetic-boundary request conflicts are identity-scoped until fetched fre
   state.requestPages.set(requestB, { items: [second], nextCursor: null })
   state.failures.set('platformAdmin.reviewRequest', 'CONFLICT')
   await page.goto('/admin/accounts')
+  await chooseAccountsWorkspace(page, 'Merchant requests')
   await page.getByTestId(`request-${requestA}`).click()
   await requestNote(page, 'Review stale claim')
   await page.getByRole('button', { name: 'Approve request', exact: true }).click()
@@ -553,8 +826,20 @@ test('synthetic-boundary request conflicts are identity-scoped until fetched fre
   await page.getByRole('button', { name: 'Approve request', exact: true }).click()
   await expect(page.getByRole('status').filter({ hasText: 'Request reviewed.' })).toBeVisible()
   expect(calls(state, 'reviewRequest').map((call) => call.input)).toEqual([
-    { requestId: requestA, expectedVersion: 3, decision: 'APPROVE', note: 'Review stale claim' },
-    { requestId: requestA, expectedVersion: 4, decision: 'APPROVE', note: 'Fresh claim evidence' },
+    {
+      requestId: requestA,
+      expectedVersion: 3,
+      decision: 'APPROVE',
+      note: 'Review stale claim',
+      confirmed: true,
+    },
+    {
+      requestId: requestA,
+      expectedVersion: 4,
+      decision: 'APPROVE',
+      note: 'Fresh claim evidence',
+      confirmed: true,
+    },
   ])
 })
 
@@ -583,6 +868,7 @@ test('synthetic-boundary pending writes prevent duplicate submits and target swi
     expectedVersion: 7,
     role: 'USER',
     note: 'Review first identity',
+    confirmed: true,
   })
   release()
   await expect(page.getByRole('region', { name: 'Account details' })).toContainText(
@@ -634,6 +920,7 @@ test('synthetic-boundary live permission loss removes every administrative panel
   await expect(page.getByRole('region', { name: 'Account details' })).toHaveCount(0)
   await expect(page.getByRole('region', { name: 'Merchant requests' })).toHaveCount(0)
   await expect(page.getByRole('region', { name: 'Audit history' })).toHaveCount(0)
+  await expect(page.getByRole('region', { name: 'Account security', exact: true })).toHaveCount(0)
 })
 
 test('synthetic-boundary stale denial cannot overwrite newer search and current errors can be reloaded', async ({
@@ -738,7 +1025,7 @@ test('synthetic sign-in rechecks platform API access rather than trusting a clie
       contentType: 'application/json',
       body: JSON.stringify({
         user: {
-          id: 'synthetic-admin',
+          id: actorUserId,
           name: 'Synthetic stale session',
           email: 'synthetic@example.test',
           emailVerified: false,
@@ -759,3 +1046,81 @@ test('synthetic sign-in rechecks platform API access rather than trusting a clie
     await page.evaluate(() => ({ local: { ...localStorage }, session: { ...sessionStorage } })),
   ).toEqual({ local: {}, session: {} })
 })
+
+for (const width of [320, 390, 1440]) {
+  test(`account workspace and Access/Security tabs hide inert panels and reset consent at ${width}px`, async ({
+    page,
+  }, info) => {
+    const state = await syntheticBoundary(page)
+    await page.setViewportSize({ width, height: 900 })
+    await page.goto('/admin/accounts')
+    await expect(
+      page.getByRole('heading', { name: 'Accounts', level: 1, exact: true }),
+    ).toBeVisible()
+    const panels = {
+      Directory: page.locator('#accounts-workspace-panel-accounts'),
+      'Merchant requests': page.locator('#accounts-workspace-panel-requests'),
+      'Account activity': page.locator('#accounts-workspace-panel-activity'),
+    }
+    for (const selected of ['Directory', 'Merchant requests', 'Account activity'] as const) {
+      await chooseAccountsWorkspace(page, selected)
+      for (const [name, panel] of Object.entries(panels)) {
+        if (name === selected) {
+          await expect(panel).toBeVisible()
+          await expect(panel).not.toHaveAttribute('hidden')
+          await expect(panel).not.toHaveAttribute('inert')
+        } else {
+          await expect(panel).toBeHidden()
+          await expect(panel).toHaveAttribute('hidden')
+          await expect(panel).toHaveAttribute('inert')
+        }
+      }
+    }
+    const directory = page.getByRole('tab', { name: 'Directory', exact: true })
+    await page.getByRole('tab', { name: 'Account activity', exact: true }).press('Home')
+    await expect(directory).toBeFocused()
+    await expect(directory).toHaveAttribute('aria-selected', 'true')
+    await page.getByTestId(`account-${userA}`).click()
+    await expect(page.getByTestId('selected-account-heading')).toBeFocused()
+    await page.getByLabel('New role', { exact: true }).selectOption('USER')
+    await accountNote(page, 'Unsubmitted access consent')
+    await chooseAccountDetail(page, 'Security')
+    const access = page.locator('#account-detail-panel-access')
+    const security = page.locator('#account-detail-panel-security')
+    await expect(access).toBeHidden()
+    await expect(access).toHaveAttribute('hidden')
+    await expect(access).toHaveAttribute('inert')
+    await expect(security).toBeVisible()
+    await expect(page.getByRole('region', { name: 'Account security', exact: true })).toContainText(
+      'ACTIVE',
+    )
+    await page.getByTestId('security-note').fill('Unsubmitted security consent')
+    await page.getByTestId('security-confirm').check()
+    await page.screenshot({
+      path: info.outputPath(`accounts-security-${width}.png`),
+      fullPage: true,
+    })
+    await page.getByRole('tab', { name: 'Security', exact: true }).press('ArrowLeft')
+    await expect(page.getByRole('tab', { name: 'Access', exact: true })).toBeFocused()
+    await expect(access).toBeVisible()
+    await expect(security).toBeHidden()
+    await expect(security).toHaveAttribute('hidden')
+    await expect(security).toHaveAttribute('inert')
+    await expect(page.getByLabel('Account action note (required)')).toHaveValue('')
+    await expect(page.locator('#account-confirm')).not.toBeChecked()
+    await chooseAccountDetail(page, 'Security')
+    await expect(page.getByTestId('security-note')).toHaveValue('')
+    await expect(page.getByTestId('security-confirm')).not.toBeChecked()
+    await page.getByTestId('close-account-details').click()
+    await expect(page.getByTestId(`account-${userA}`)).toBeFocused()
+    await expect(page.getByRole('region', { name: 'Account details' })).toHaveCount(0)
+    await page.getByTestId(`account-${userA}`).click()
+    await expect(page.getByTestId('selected-account-heading')).toBeFocused()
+    expect(state.calls.filter((call) => call.method !== 'GET')).toEqual([])
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= document.documentElement.clientWidth,
+      ),
+    ).toBe(true)
+  })
+}

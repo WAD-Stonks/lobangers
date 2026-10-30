@@ -1,5 +1,10 @@
 import { submitMerchantAccessRequest } from '@api/modules/platform-admin/requests'
-import { createRestHandler, type RestDependencies, requireSession } from '@api/rest/context'
+import {
+  authenticatedActor,
+  createRestHandler,
+  type RestDependencies,
+  requireSession,
+} from '@api/rest/context'
 import { requireTrustedOrigin } from '@api/rest/policy'
 import { parseRestInput } from '@api/rest/validation'
 import { createMerchantRequestBodySchema } from '@broke-oclock/contracts/account'
@@ -17,7 +22,7 @@ export const createMerchantRequest = (dependencies: RestDependencies) =>
     // 3. The rules (no duplicate pending request, staff can't apply, venue must be active)
     //    already live in submitMerchantAccessRequest. If one is broken it throws an error that
     //    becomes 409 (duplicate) or 412 (not allowed) automatically.
-    const result = await submitMerchantAccessRequest(context.db, session.user.id, body)
+    const result = await submitMerchantAccessRequest(context.db, authenticatedActor(session), body)
 
     // 4. 201 = "created".
     response.status(201).json(platformMutationResponseSchema.parse(result))

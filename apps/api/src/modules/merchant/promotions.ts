@@ -1,3 +1,4 @@
+import type { AuthenticatedActor } from '@api/modules/account/security-access'
 import { dayOf, endAfterDay, lastDayBefore, startOfDay } from '@api/modules/deals/deal-dates'
 import { outletScopeHash } from '@api/modules/deals/outlet-eligibility'
 import { DomainError } from '@api/modules/domain-error'
@@ -127,10 +128,14 @@ export const listMerchantDeals = async (
 }
 
 // Checks the grant for every outlet inside the transaction, and that they share one merchant.
-const authorizeOutlets = async (tx: AccessTransaction, userId: string, outletIds: string[]) => {
+const authorizeOutlets = async (
+  tx: AccessTransaction,
+  actor: AuthenticatedActor,
+  outletIds: string[],
+) => {
   const grantIds = new Map<string, string>()
   for (const venueId of [...new Set(outletIds)].sort()) {
-    const { grantId } = await requireMerchantStall(tx, userId, venueId)
+    const { grantId } = await requireMerchantStall(tx, actor, venueId)
     grantIds.set(venueId, grantId)
   }
   const venues = await tx.venue.findMany({
@@ -196,13 +201,14 @@ const approvedAs = (userId: string, version: number, now: Date) => ({
 
 export const createMerchantDeal = async (
   database: Database,
-  userId: string,
+  actor: AuthenticatedActor,
   input: MerchantDealBody,
   now: Date,
 ): Promise<MerchantDeal> => {
+  const { userId } = actor
   rejectPastEnd(input, now)
   return accessTransaction(database, async (tx) => {
-    const { merchantId, grantIds } = await authorizeOutlets(tx, userId, input.outletIds)
+    const { merchantId, grantIds } = await authorizeOutlets(tx, actor, input.outletIds)
     const deal = await tx.deal.create({
       data: {
         ...contentOf(input),
@@ -236,11 +242,12 @@ const findOwnDeal = async (tx: AccessTransaction, userId: string, dealId: string
 
 export const updateMerchantDeal = async (
   database: Database,
-  userId: string,
+  actor: AuthenticatedActor,
   dealId: string,
   input: MerchantDealBody,
   now: Date,
 ): Promise<MerchantDeal> => {
+  const { userId } = actor
   rejectPastEnd(input, now)
   return accessTransaction(database, async (tx) => {
     const deal = await findOwnDeal(tx, userId, dealId)
@@ -248,7 +255,7 @@ export const updateMerchantDeal = async (
       throw new DomainError('PRECONDITION_FAILED', 'Ended deals cannot be edited')
     // Moving a deal needs a grant for the outlets it leaves as well as the ones it joins.
     const oldOutletIds = deal.venues.map((link) => link.venueId)
-    const { merchantId, grantIds } = await authorizeOutlets(tx, userId, [
+    const { merchantId, grantIds } = await authorizeOutlets(tx, actor, [
       ...oldOutletIds,
       ...input.outletIds,
     ])
@@ -273,15 +280,16 @@ export const updateMerchantDeal = async (
 
 export const endMerchantDeal = async (
   database: Database,
-  userId: string,
+  actor: AuthenticatedActor,
   dealId: string,
   now: Date,
 ): Promise<MerchantDeal> =>
   accessTransaction(database, async (tx) => {
+    const { userId } = actor
     const deal = await findOwnDeal(tx, userId, dealId)
     if (hasEnded(deal, now)) return toMerchantDeal(deal, now)
     const outletIds = deal.venues.map((link) => link.venueId)
-    const { merchantId, grantIds } = await authorizeOutlets(tx, userId, outletIds)
+    const { merchantId, grantIds } = await authorizeOutlets(tx, actor, outletIds)
     const version = deal.contentVersion + 1
     const ended = await tx.deal.update({
       where: { id: dealId },

@@ -1,5 +1,6 @@
 import { resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { legacyVersionWhere, normalizeVersion } from '@api/modules/platform-admin/operation-version'
 import type { Database } from '@api/modules/platform-admin/transaction'
 import {
   type DealCopyField,
@@ -59,6 +60,7 @@ const planChanges = async (db: Database, rewrites: readonly DealCopyRewrite[], r
     select: {
       id: true,
       contentVersion: true,
+      operationVersion: true,
       title: true,
       description: true,
       terms: true,
@@ -76,6 +78,7 @@ const planChanges = async (db: Database, rewrites: readonly DealCopyRewrite[], r
       ...step,
       from: current(step),
       contentVersion: dealsById.get(step.id)?.contentVersion ?? 0,
+      operationVersion: normalizeVersion(dealsById.get(step.id)?.operationVersion),
     })),
     alreadyDone: steps.filter((step) => exists(step) && current(step) === step.to).length,
     skipped: steps
@@ -141,11 +144,15 @@ export const rewriteDealCopy = async (
         where: {
           id,
           contentVersion: edits[0].contentVersion,
-          AND: edits.map((change) => holds(change.field, change.from)),
+          AND: [
+            legacyVersionWhere('operationVersion', edits[0].operationVersion),
+            ...edits.map((change) => holds(change.field, change.from)),
+          ],
         },
         data: {
           ...Object.fromEntries(edits.map((change) => [change.field, change.to])),
           contentVersion: { increment: 1 },
+          operationVersion: edits[0].operationVersion + 1,
           scopeConfirmation: { unset: true },
           reviewStatus: 'PENDING',
           reviewedVersion: null,

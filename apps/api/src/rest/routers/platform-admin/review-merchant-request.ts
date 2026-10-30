@@ -1,6 +1,6 @@
 import { reviewRequest } from '@api/modules/platform-admin/requests'
 import type { RestDependencies } from '@api/rest/context'
-import { createRestHandler, requireAdmin } from '@api/rest/context'
+import { authenticatedActor, createRestHandler, requireAdmin } from '@api/rest/context'
 import { requireTrustedOrigin } from '@api/rest/policy'
 import { parseRestValue } from '@api/rest/routers/platform-admin/validation'
 import {
@@ -17,7 +17,7 @@ export const reviewMerchantRequest = (dependencies: RestDependencies) =>
     const body = parseRestValue(reviewMerchantRequestBodySchema, request.body)
     response.json(
       platformMutationResponseSchema.parse(
-        await reviewRequest(context.db, session.user.id, { requestId, ...body }),
+        await reviewRequest(context.db, authenticatedActor(session), { requestId, ...body }),
       ),
     )
   })

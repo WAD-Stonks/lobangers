@@ -1,5 +1,10 @@
 import { endMerchantDeal } from '@api/modules/merchant/promotions'
-import { createRestHandler, type RestDependencies, requireSession } from '@api/rest/context'
+import {
+  authenticatedActor,
+  createRestHandler,
+  type RestDependencies,
+  requireSession,
+} from '@api/rest/context'
 import { requireTrustedOrigin } from '@api/rest/policy'
 import { parseRestInput } from '@api/rest/validation'
 import {
@@ -13,8 +18,8 @@ export const endDeal = (dependencies: RestDependencies) =>
   createRestHandler(dependencies, async (request, response, context) => {
     requireTrustedOrigin(request.get('Origin'), dependencies.config.webOrigin)
     parseRestInput(merchantEmptyQuerySchema, request.query)
-    const userId = requireSession(context).user.id
+    const actor = authenticatedActor(requireSession(context))
     const { dealId } = parseRestInput(merchantDealParamsSchema, request.params)
-    const deal = await endMerchantDeal(context.db, userId, dealId, new Date())
+    const deal = await endMerchantDeal(context.db, actor, dealId, new Date())
     response.json(merchantDealSchema.parse(deal))
   })

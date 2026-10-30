@@ -1,8 +1,7 @@
-import { execFile } from 'node:child_process'
 import { randomBytes, randomUUID } from 'node:crypto'
 import { createServer, type Server } from 'node:http'
 import { fileURLToPath } from 'node:url'
-import { promisify } from 'node:util'
+import { pushDisposableSchema } from '@api/../tests/fixtures/disposable-schema'
 import {
   registerSyntheticOutletFixtureDatabase,
   seedSyntheticOccupancy,
@@ -12,7 +11,7 @@ import { parseConfig } from '@api/config'
 import { MongoMemoryReplSet } from 'mongodb-memory-server'
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
-const root = fileURLToPath(new URL('../../../../', import.meta.url))
+const _root = fileURLToPath(new URL('../../../../', import.meta.url))
 const origin = 'http://localhost:5173'
 const unknownId = '507f1f77bcf86cd799439011'
 let mongo: MongoMemoryReplSet | undefined
@@ -103,12 +102,7 @@ beforeAll(async () => {
   const databaseUrl = mongo.getUri(`integration_${randomUUID().replaceAll('-', '')}`)
   vi.stubEnv('DATABASE_URL', databaseUrl)
   vi.stubEnv('NODE_ENV', 'test')
-  await promisify(execFile)('pnpm', ['--dir', 'packages/db', 'run', 'push'], {
-    cwd: root,
-    env: { ...process.env, DATABASE_URL: databaseUrl },
-    encoding: 'utf8',
-    timeout: 60_000,
-  })
+  await pushDisposableSchema(databaseUrl)
   db = (await import('@broke-oclock/db')).db
   registerSyntheticOutletFixtureDatabase(db, databaseUrl)
   disconnect = () => db.$disconnect()

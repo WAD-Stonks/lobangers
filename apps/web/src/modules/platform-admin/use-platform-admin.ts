@@ -1,5 +1,6 @@
 import type {
   ChangePlatformRoleBody,
+  GrantStallBody,
   MerchantRequest,
   MerchantRequestsQuery,
   PlatformAccountResponse,
@@ -11,6 +12,7 @@ import type {
   PlatformVenue,
   ReviewMerchantRequestBody,
 } from '@broke-oclock/contracts/platform-admin'
+import { confirmAdminIdentity } from '@web/lib/admin-recovery'
 import { createAdminReadFence } from '@web/lib/admin-session'
 import { api } from '@web/lib/api-client'
 import { authClient } from '@web/lib/auth-client'
@@ -34,7 +36,11 @@ export function usePlatformAdmin(
   }
   const sessionRefreshKey = ref(0)
   const access = ref('loading')
-  const busy = ref(false)
+  const accountActionBusy = ref(false)
+  const securityBusy = ref(false)
+  const busy = computed(() => accountActionBusy.value || securityBusy.value)
+  const securityRevision = ref(0)
+  const freshnessRequired = ref(false)
   const notice = ref('')
   const accountError = ref('')
   const staleAccounts = reactive(new Set<string>())
@@ -48,7 +54,10 @@ export function usePlatformAdmin(
   const denied = (code: string) => {
     fence.invalidate()
     access.value = code
-    busy.value = false
+    accountActionBusy.value = false
+    securityBusy.value = false
+    securityRevision.value++
+    freshnessRequired.value = false
     notice.value = ''
     for (const query of queries) query.invalidate()
     selectedId.value = ''
@@ -304,6 +313,7 @@ export function usePlatformAdmin(
         return
       }
       if (!identity.data?.user) {
+        confirmAdminIdentity(null)
         if (access.value === 'closed' || access.value === 'loading') anonymous()
         return
       }
@@ -340,7 +350,32 @@ export function usePlatformAdmin(
       ...(selectedId.value ? [loadDetail(selectedId.value)] : []),
     ])
   }
+  const requireFreshLogin = () => {
+    freshnessRequired.value = true
+    resetAccountForm()
+    resetRequestForm()
+  }
+  const setSecurityBusy = (value: boolean) => {
+    securityBusy.value = access.value === 'allowed' && value
+  }
+  const securityChanged = async (record: { id: string; version: number }) => {
+    if (access.value !== 'allowed') return
+    observeAccount(record)
+    staleAccounts.add(record.id)
+    resetAccountForm()
+    resetRequestForm()
+    await refresh()
+  }
+  const securityDenied = async (code: string) => {
+    if (code === 'FORBIDDEN') await recheckMutationAccess('Account security access was refused.')
+    else denied(code)
+  }
+  const freshLoginFailure = (failure: unknown) =>
+    errorCode(failure) === 'PRECONDITION_FAILED' &&
+    failure instanceof Error &&
+    failure.message === 'Fresh sign-in required'
   const accountReady = computed(
+    // The child security panel shares this page's mutation lock.
     () =>
       access.value === 'allowed' &&
       !busy.value &&
@@ -360,16 +395,18 @@ export function usePlatformAdmin(
       expectedVersion: record.version,
       role: newRole.value,
       note: currentNote,
+      confirmed: true,
     }
-    const grantInput = {
+    const grantInput: GrantStallBody = {
       userId: record.id,
       expectedUserVersion: record.version,
       venueId: venueId.value,
       note: currentNote,
+      confirmed: true,
     }
     const grant = chosenGrant.value
     const ticket = fence.begin()
-    busy.value = true
+    accountActionBusy.value = true
     notice.value = ''
     accountError.value = ''
     try {
@@ -379,9 +416,11 @@ export function usePlatformAdmin(
         await api.platformAdmin.revokeStall(grant.id, {
           expectedVersion: grant.version,
           note: currentNote,
+          confirmed: true,
         })
       if (!fence.current(ticket)) return
       resetAccountForm()
+      securityRevision.value++
       await refresh()
       if (!fence.current(ticket)) return
       notice.value =
@@ -389,7 +428,11 @@ export function usePlatformAdmin(
     } catch (failure) {
       if (!fence.current(ticket)) return
       const code = errorCode(failure)
-      if (code === 'UNAUTHORIZED') denied(code)
+      if (freshLoginFailure(failure)) {
+        requireFreshLogin()
+        accountError.value =
+          'Fresh sign-in required. Sign out and sign in again, then reload and confirm the action.'
+      } else if (code === 'UNAUTHORIZED') denied(code)
       else if (code === 'FORBIDDEN')
         await recheckMutationAccess(
           'Account action was refused. Select an account to review fresh evidence before trying another action.',
@@ -401,7 +444,7 @@ export function usePlatformAdmin(
         resetAccountForm()
       }
     } finally {
-      if (fence.current(ticket)) busy.value = false
+      if (fence.current(ticket)) accountActionBusy.value = false
     }
   }
   const requestReady = computed(
@@ -423,9 +466,10 @@ export function usePlatformAdmin(
       expectedVersion: record.version,
       decision: decision.value,
       note: requestNote.value.trim(),
+      confirmed: true,
     }
     const ticket = fence.begin()
-    busy.value = true
+    accountActionBusy.value = true
     notice.value = ''
     requestError.value = ''
     try {
@@ -438,7 +482,11 @@ export function usePlatformAdmin(
     } catch (failure) {
       if (!fence.current(ticket)) return
       const code = errorCode(failure)
-      if (code === 'UNAUTHORIZED') denied(code)
+      if (freshLoginFailure(failure)) {
+        requireFreshLogin()
+        requestError.value =
+          'Fresh sign-in required. Sign out and sign in again, then reload and confirm the decision.'
+      } else if (code === 'UNAUTHORIZED') denied(code)
       else if (code === 'FORBIDDEN')
         await recheckMutationAccess(
           'Request review was refused. Select a request to review fresh evidence before trying another action.',
@@ -450,7 +498,7 @@ export function usePlatformAdmin(
         resetRequestForm()
       }
     } finally {
-      if (fence.current(ticket)) busy.value = false
+      if (fence.current(ticket)) accountActionBusy.value = false
     }
   }
   const signedIn = () => {
@@ -471,6 +519,13 @@ export function usePlatformAdmin(
     logoutStarting,
     access,
     busy,
+    accountActionBusy,
+    securityRevision,
+    freshnessRequired,
+    requireFreshLogin,
+    setSecurityBusy,
+    securityChanged,
+    securityDenied,
     notice,
     accounts: accounts.state,
     detail: detail.state,

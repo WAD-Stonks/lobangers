@@ -9,7 +9,22 @@ describe('association input boundary', () => {
     const venueId = '0123456789abcdef01234567'
     expect(
       ingestionOutletAssociationRequestSchema.parse({ venueId, expectedContentVersion: 1 }),
-    ).toEqual({ venueId, expectedContentVersion: 1 })
+    ).toEqual({ venueId, expectedContentVersion: 1, expectedOperationVersion: 0 })
+    expect(
+      ingestionOutletAssociationRequestSchema.parse({
+        venueId,
+        expectedContentVersion: 1,
+        expectedOperationVersion: 7,
+      }),
+    ).toEqual({ venueId, expectedContentVersion: 1, expectedOperationVersion: 7 })
+    for (const expectedOperationVersion of [-1, 1.5, 2_147_483_647, '1', null])
+      expect(
+        ingestionOutletAssociationRequestSchema.safeParse({
+          venueId,
+          expectedContentVersion: 1,
+          expectedOperationVersion,
+        }).success,
+      ).toBe(false)
     for (const expectedContentVersion of [0, -1, 1.5, 2147483647, '1'])
       expect(
         ingestionOutletAssociationRequestSchema.safeParse({ venueId, expectedContentVersion })

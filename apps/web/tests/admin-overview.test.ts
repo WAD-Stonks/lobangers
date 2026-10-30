@@ -50,7 +50,15 @@ beforeEach(() => {
   vi.resetAllMocks()
   rest.overview.mockResolvedValue(overview)
   rest.session.mockResolvedValue({
-    data: { user: { name: 'Synthetic operator', email: 'operator@example.test', role: 'USER' } },
+    data: {
+      user: {
+        id: 'synthetic-admin',
+        name: 'Synthetic operator',
+        email: 'operator@example.test',
+        role: 'USER',
+      },
+      session: { id: 'synthetic-session', userId: 'synthetic-admin' },
+    },
     error: null,
   })
   rest.signOut.mockResolvedValue({ data: { success: true }, error: null })

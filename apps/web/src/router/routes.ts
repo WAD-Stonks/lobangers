@@ -5,6 +5,10 @@ import RegisterPanel from '@web/modules/account/RegisterPanel.vue'
 import BrowseListPanel from '@web/modules/browse-map/BrowseListPanel.vue'
 import DealPanel from '@web/modules/browse-map/DealPanel.vue'
 import VenuePanel from '@web/modules/venues-feed/VenuePanel.vue'
+import AdminAuditPage from '@web/pages/AdminAuditPage.vue'
+import AdminCataloguePage from '@web/pages/AdminCataloguePage.vue'
+import AdminDealsPage from '@web/pages/AdminDealsPage.vue'
+import AdminModerationPage from '@web/pages/AdminModerationPage.vue'
 import AdminOverviewPage from '@web/pages/AdminOverviewPage.vue'
 import ForgotPasswordPage from '@web/pages/ForgotPasswordPage.vue'
 import GettingStartedPage from '@web/pages/GettingStartedPage.vue'
@@ -82,6 +86,10 @@ const routes: RouteRecordRaw[] = [
   { path: '/deals', redirect: (to) => ({ name: 'browse', query: { ...to.query, view: 'list' } }) },
   { path: '/getting-started', name: 'getting-started', component: GettingStartedPage },
   { path: '/admin', name: 'admin-overview', component: AdminOverviewPage },
+  { path: '/admin/deals', name: 'admin-deals', component: AdminDealsPage },
+  { path: '/admin/catalogue', name: 'admin-catalogue', component: AdminCataloguePage },
+  { path: '/admin/moderation', name: 'admin-moderation', component: AdminModerationPage },
+  { path: '/admin/audit', name: 'admin-audit', component: AdminAuditPage },
   { path: '/admin/ingestion', name: 'ingestion-admin', component: IngestionAdminPage },
   { path: '/admin/accounts', name: 'platform-admin', component: PlatformAdminPage },
   {

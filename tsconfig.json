@@ -2,6 +2,8 @@
   "compilerOptions": {
     "paths": {
       "@api/*": ["./apps/api/src/*"],
+      "@api-tests/*": ["./apps/api/tests/*"],
+      "@api-client/*": ["./packages/api-client/src/*"],
       "@web/*": ["./apps/web/src/*"],
       "@web-tests/*": ["./apps/web/tests/*"],
       "@db/*": ["./packages/db/src/*"],

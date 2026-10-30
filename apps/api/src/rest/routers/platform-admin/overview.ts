@@ -1,5 +1,10 @@
 import { readAdminOverview } from '@api/modules/platform-admin/overview'
-import { type RestContext, type RestDependencies, requireAdmin } from '@api/rest/context'
+import {
+  filterActiveSession,
+  type RestContext,
+  type RestDependencies,
+  requireAdmin,
+} from '@api/rest/context'
 import { parseRestValue } from '@api/rest/routers/platform-admin/validation'
 import { fromNodeHeaders } from '@broke-oclock/auth/node'
 import { adminOverviewQuerySchema } from '@broke-oclock/contracts/platform-admin'
@@ -14,10 +19,13 @@ export const getAdminOverview =
       const context: RestContext = {
         db,
         ingestion: dependencies.ingestion,
-        session: await dependencies.auth.api.getSession({
-          headers: fromNodeHeaders(request.headers),
-          query: { disableRefresh: true },
-        }),
+        session: await filterActiveSession(
+          db,
+          await dependencies.auth.api.getSession({
+            headers: fromNodeHeaders(request.headers),
+            query: { disableRefresh: true },
+          }),
+        ),
       }
       await requireAdmin(context, 'FORBIDDEN')
       parseRestValue(adminOverviewQuerySchema, request.query)

@@ -2,8 +2,62 @@ import { readFileSync } from 'node:fs'
 import type { CommunitySummary } from '@broke-oclock/contracts/community'
 import type { DealPin } from '@broke-oclock/contracts/deals'
 import type { IngestionDraft } from '@broke-oclock/contracts/ingestion'
+import { evidencePageSchema } from '@broke-oclock/contracts/ingestion-evidence'
+import { postsPageSchema } from '@broke-oclock/contracts/ingestion-recovery'
 import type { VenueDealSummary } from '@broke-oclock/contracts/venues'
 import { expect, type Locator, type Page, test } from '@playwright/test'
+
+// Evidence only: observe actual Chromium output without replacing SPA or browser behavior.
+const browserObservations = new WeakMap<
+  Page,
+  {
+    console: string[]
+    pageErrors: string[]
+    resources: { url: string; status?: number; error?: string }[]
+  }
+>()
+test.beforeEach(async ({ page }) => {
+  const observed = {
+    console: [] as string[],
+    pageErrors: [] as string[],
+    resources: [] as { url: string; status?: number; error?: string }[],
+  }
+  browserObservations.set(page, observed)
+  page.on('console', (message) => observed.console.push(`${message.type()}: ${message.text()}`))
+  page.on('pageerror', (error) => observed.pageErrors.push(error.message))
+  page.on('response', (response) =>
+    observed.resources.push({ url: response.url(), status: response.status() }),
+  )
+  page.on('requestfailed', (request) =>
+    observed.resources.push({ url: request.url(), error: request.failure()?.errorText }),
+  )
+})
+test.afterEach(async ({ page }, info) => {
+  await info.attach('actual-browser-observations', {
+    body: JSON.stringify(
+      {
+        ...browserObservations.get(page),
+        layout: await page.evaluate(() => ({
+          url: location.href,
+          fonts: document.fonts.status,
+          splash: Boolean(document.querySelector('[data-testid="splash-screen"]')),
+          width: document.documentElement.clientWidth,
+          scroll: document.documentElement.scrollWidth,
+          alerts: [...document.querySelectorAll('[role="alert"]')].map((el) => el.textContent),
+          buttons: [...document.querySelectorAll('button')].map((el) => ({
+            name: el.getAttribute('aria-label') ?? el.textContent,
+            width: el.getBoundingClientRect().width,
+            height: el.getBoundingClientRect().height,
+            minHeight: getComputedStyle(el).minHeight,
+          })),
+        })),
+      },
+      null,
+      2,
+    ),
+    contentType: 'application/json',
+  })
+})
 
 // SYNTHETIC network/session/media fixtures around the original SPA, router, SDK and CSS.
 // Does not establish live authentication, UploadThing delivery or production authorization.
@@ -175,7 +229,13 @@ async function installBoundary(page: Page) {
           data = { error: { code: 'FORBIDDEN', message: 'Synthetic revoked access' } }
         } else data = { items: [draft], nextCursor: null }
       } else if (url.pathname === '/api/ingestion/runs') data = { items: [] }
-      else if (url.pathname === '/api/deals') data = { items: [deal], categories: ['FOOD'] }
+      else if (url.pathname === '/api/ingestion/posts') {
+        expect(Object.fromEntries(url.searchParams)).toEqual({ status: 'FAILED', limit: '20' })
+        data = postsPageSchema.parse({ items: [], nextCursor: null })
+      } else if (url.pathname === `/api/ingestion/drafts/${draft.id}/evidence`) {
+        expect(Object.fromEntries(url.searchParams)).toEqual({ limit: '20' })
+        data = evidencePageSchema.parse({ items: [], nextCursor: null })
+      } else if (url.pathname === '/api/deals') data = { items: [deal], categories: ['FOOD'] }
       else if (url.pathname === `/api/deals/${deal.id}/community`) data = community
       else if (url.pathname === `/api/deals/${deal.id}/comments`)
         data = { items: [], nextCursor: null }
@@ -274,6 +334,12 @@ for (const width of [320, 768, 1024, 1440]) {
     const view = queue.getByRole('button', { name: `View details: ${draft.title}`, exact: true })
     await view.focus()
     await page.keyboard.press('Enter')
+    const citations = page.getByRole('region', { name: 'Immutable source evidence', exact: true })
+    await expect(citations.getByText('No citations on this page.', { exact: true })).toBeVisible()
+    await expect(citations.getByRole('alert')).toHaveCount(0)
+    await expect(page.getByRole('region', { name: 'Failed post investigation' })).toContainText(
+      'No posts on this page. A bounded page can exclude unsupported sources.',
+    )
     const evidence = page.getByRole('region', { name: 'Imported image evidence' })
     await painted(evidence.getByRole('img', { name: deal.imageAltText ?? '', exact: true }))
     await painted(evidence.getByRole('img', { name: 'Synthetic archive GIF', exact: true }))

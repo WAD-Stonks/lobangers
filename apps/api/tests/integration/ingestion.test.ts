@@ -1,15 +1,13 @@
-import { execFile } from 'node:child_process'
 import { createHash, randomBytes, randomUUID } from 'node:crypto'
 import { createServer, type Server } from 'node:http'
-import { fileURLToPath } from 'node:url'
-import { promisify } from 'node:util'
-import {
-  registerSyntheticOutletFixtureDatabase,
-  seedSyntheticScope,
-} from '@api/../tests/fixtures/outlet-proof'
 import { parseConfig } from '@api/config'
 import type { IngestionRuntime } from '@api/modules/ingestion/runtime'
 import { MONEYDIGEST_SOURCE, sourceWhere } from '@api/modules/ingestion/source'
+import { pushDisposableSchema } from '@api-tests/fixtures/disposable-schema'
+import {
+  registerSyntheticOutletFixtureDatabase,
+  seedSyntheticScope,
+} from '@api-tests/fixtures/outlet-proof'
 import type {
   IngestionAccountsResponse,
   IngestionDashboardResponse,
@@ -24,7 +22,6 @@ import { MongoMemoryReplSet } from 'mongodb-memory-server'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 
 const origin = 'http://localhost:5173'
-const root = fileURLToPath(new URL('../../../../', import.meta.url))
 let mongo: MongoMemoryReplSet | undefined
 let server: Server | undefined
 let db: typeof import('@broke-oclock/db').db
@@ -114,12 +111,7 @@ beforeAll(async () => {
   fixtureDatabaseUrl = databaseUrl
   vi.stubEnv('DATABASE_URL', databaseUrl)
   vi.stubEnv('NODE_ENV', 'test')
-  await promisify(execFile)('pnpm', ['--dir', 'packages/db', 'run', 'push'], {
-    cwd: root,
-    env: { ...process.env, DATABASE_URL: databaseUrl },
-    encoding: 'utf8',
-    timeout: 60_000,
-  })
+  await pushDisposableSchema(databaseUrl)
   db = (await import('@broke-oclock/db')).db
   registerSyntheticOutletFixtureDatabase(db, databaseUrl)
   const { createApp } = await import('@api/app')
@@ -475,7 +467,7 @@ describe('ingestion admin real HTTP/session/disposable Mongo', () => {
         decision: 'APPROVE',
         note: 'Synthetic evidence checked',
       }),
-    ).toEqual({ id: deal.id, reviewStatus: 'APPROVED' })
+    ).toEqual({ id: deal.id, operationVersion: 1, reviewStatus: 'APPROVED' })
     const stored = await db.deal.findUniqueOrThrow({ where: { id: deal.id } })
     expect(stored).toMatchObject({
       reviewedVersion: 1,
@@ -603,7 +595,7 @@ describe('ingestion admin real HTTP/session/disposable Mongo', () => {
         decision: 'REJECT',
         note: 'Unclear expiry',
       }),
-    ).toEqual({ id: unknown.id, reviewStatus: 'REJECTED' })
+    ).toEqual({ id: unknown.id, operationVersion: 1, reviewStatus: 'REJECTED' })
     expect((await client.ingestion.getDashboard()).counts).toMatchObject({
       pending: 2,
       approved: 1,
@@ -916,7 +908,10 @@ describe('ingestion admin real HTTP/session/disposable Mongo', () => {
               : 'x'.repeat(100_001),
           )
         listPosts.mockResolvedValueOnce([changedPost(id), changedPost(id + 10)])
-        expect(await client.ingestion.runNow()).toMatchObject({
+        // An independent scheduled writer has no administrator/session fence.
+        // A second manual call would contend with this paused review's native fence.
+        const { runIngestion } = await import('@api/modules/ingestion/service')
+        expect(await runIngestion(db, runtime)).toMatchObject({
           status: change === 'withdrawal' ? 'SUCCEEDED' : 'FAILED',
           createdCount: 0,
           updatedCount: 0,
@@ -1093,7 +1088,7 @@ describe('ingestion admin real HTTP/session/disposable Mongo', () => {
           decision: 'APPROVE',
           note: 'Synthetic supported offer remains exact',
         }),
-      ).toEqual({ id: draft.id, reviewStatus: 'APPROVED' })
+      ).toEqual({ id: draft.id, operationVersion: 1, reviewStatus: 'APPROVED' })
       const approved = await db.deal.findUniqueOrThrow({
         where: { id: draft.id },
         include: { sources: true },
