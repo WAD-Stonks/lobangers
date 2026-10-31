@@ -4,6 +4,7 @@ import type {
   AdminDealSummary,
   AdminDealsQuery,
 } from '@broke-oclock/contracts/admin-deals'
+import { rememberAdminFilters } from '@web/lib/admin-filter-preferences'
 import { type AdminAttempt, adminRecovery, onAdminIdentityEnd } from '@web/lib/admin-recovery'
 import { errorCode } from '@web/modules/ingestion-admin/errors'
 import { computed, reactive, ref } from 'vue'
@@ -20,14 +21,17 @@ export const useAdminDeals = (
     message = ref(''),
     status = ref('closed'),
     target = ref('')
-  const filters = reactive({
+  const filterDefaults = {
     search: '',
     origin: '',
     reviewStatus: '',
     publication: '',
     merchantId: '',
     includeDeleted: false,
-  })
+  }
+  const filterPreferences = rememberAdminFilters('deals', filterDefaults)
+  const filters = reactive(filterPreferences.read())
+  let appliedFilters = { ...filters }
   const consent = reactive({ note: '', confirmed: false })
   const recovery = adminRecovery('deals')
   const locks = recovery.attempts
@@ -79,6 +83,7 @@ export const useAdminDeals = (
   const failure = (error: unknown) => {
     const code = errorCode(error)
     if (code === 'UNAUTHORIZED' || code === 'FORBIDDEN') {
+      filterPreferences.clear()
       close()
       denied(code)
       return true
@@ -87,15 +92,25 @@ export const useAdminDeals = (
   }
   const load = async (more = false) => {
     if (!alive || (more && (!cursor.value || loading.value))) return
+    if (!more) {
+      appliedFilters = {
+        ...filters,
+        search: filters.search.trim(),
+        merchantId: filters.merchantId.trim(),
+      }
+      filterPreferences.save(appliedFilters)
+    }
     const ticket = ++listTicket,
       epoch = generation
     loading.value = true
     status.value = 'loading'
     const query = {
       ...Object.fromEntries(
-        Object.entries(filters).filter(([key, value]) => key !== 'includeDeleted' && value !== ''),
+        Object.entries(appliedFilters).filter(
+          ([key, value]) => key !== 'includeDeleted' && value !== '',
+        ),
       ),
-      includeDeleted: filters.includeDeleted ? 'true' : 'false',
+      includeDeleted: appliedFilters.includeDeleted ? 'true' : 'false',
       limit: 20,
       ...(more && cursor.value ? { cursor: cursor.value } : {}),
     } as AdminDealsQuery
@@ -254,11 +269,19 @@ export const useAdminDeals = (
     unsubscribe()
     alive = false
   }
+  const clearFilters = () => {
+    if (loading.value || pending.value) return
+    filterPreferences.clear()
+    Object.assign(filters, filterDefaults)
+    resetConsent()
+    return load()
+  }
   return {
     items,
     selected,
     cursor,
     filters,
+    clearFilters,
     consent,
     loading,
     reading,

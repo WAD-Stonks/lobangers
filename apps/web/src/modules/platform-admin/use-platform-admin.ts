@@ -12,6 +12,7 @@ import type {
   PlatformVenue,
   ReviewMerchantRequestBody,
 } from '@broke-oclock/contracts/platform-admin'
+import { rememberAdminFilters } from '@web/lib/admin-filter-preferences'
 import { confirmAdminIdentity } from '@web/lib/admin-recovery'
 import { createAdminReadFence } from '@web/lib/admin-session'
 import { api } from '@web/lib/api-client'
@@ -28,6 +29,8 @@ type Page<T> = { items: T[]; nextCursor: string | null }
 export function usePlatformAdmin(
   initialRequestStatus: 'PENDING' | 'APPROVED' | 'REJECTED' = 'PENDING',
 ) {
+  const filterDefaults = { search: '', role: '' as PlatformRole | '' }
+  let filterPreferences = rememberAdminFilters('accounts', filterDefaults)
   const fence = createAdminReadFence()
   const nativeFence = createAdminReadFence()
   const logoutStarting = (event: Event) => {
@@ -52,6 +55,7 @@ export function usePlatformAdmin(
     return version
   }
   const denied = (code: string) => {
+    if (code === 'UNAUTHORIZED' || code === 'FORBIDDEN') filterPreferences.clear()
     fence.invalidate()
     access.value = code
     accountActionBusy.value = false
@@ -211,11 +215,20 @@ export function usePlatformAdmin(
   }
   const searchAccounts = () => {
     if (busy.value) return
+    filterPreferences.save({ search: accountSearch.value.trim(), role: roleFilter.value })
     accountFilters = {
       limit: 20,
       ...(accountSearch.value.trim() ? { search: accountSearch.value.trim() } : {}),
       ...(roleFilter.value ? { role: roleFilter.value } : {}),
     }
+    return loadAccounts()
+  }
+  const clearAccountFilters = () => {
+    if (busy.value || accounts.state.loading) return
+    filterPreferences.clear()
+    accountSearch.value = ''
+    roleFilter.value = ''
+    accountFilters = { limit: 20 }
     return loadAccounts()
   }
   const loadRequests = async (more = false) => {
@@ -321,6 +334,15 @@ export function usePlatformAdmin(
     } catch {
       if (nativeFence.current(probe) && fence.current(ticket)) close()
       return
+    }
+    filterPreferences = rememberAdminFilters('accounts', filterDefaults)
+    const remembered = filterPreferences.read()
+    accountSearch.value = remembered.search
+    roleFilter.value = remembered.role
+    accountFilters = {
+      limit: 20,
+      ...(remembered.search ? { search: remembered.search } : {}),
+      ...(remembered.role ? { role: remembered.role } : {}),
     }
     const result = await loadAccounts()
     if (!fence.current(ticket)) return
@@ -568,6 +590,7 @@ export function usePlatformAdmin(
     accountSearch,
     roleFilter,
     searchAccounts,
+    clearAccountFilters,
     loadAccounts: (more = false) => {
       if (!busy.value) return loadAccounts(more)
     },

@@ -159,7 +159,9 @@ onUnmounted(state.dispose)
    <label>Merchant ID<input v-model="filters.merchantId" class="form-control" maxlength="24" /></label>
    <label class="check"><input v-model="filters.includeDeleted" type="checkbox" /> Include deleted, investigation only</label>
    <button type="submit" data-testid="reload-list" class="btn btn-outline-primary" :disabled="loading">Apply / reload directory</button>
+   <button type="button" data-testid="clear-deal-filters" class="btn btn-outline-secondary" :disabled="loading || pending" @click="state.clearFilters()">Clear filters</button>
   </form>
+  <p class="small text-secondary">Applied filters are remembered until you reload or sign out.</p>
   <p v-if="loading" role="status">Loading deals…</p><p v-if="status === 'ready' && !items.length" role="status">No deals match these filters.</p>
   <p v-if="message" role="status" class="notice">{{ message }}</p>
   <div class="operations-grid">

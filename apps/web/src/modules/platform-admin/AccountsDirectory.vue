@@ -14,8 +14,10 @@ const emit = defineEmits<{ select: [string] }>()
         <div><label for="account-role-filter" class="form-label">Account role filter</label>
           <select id="account-role-filter" v-model="s.roleFilter" class="form-select"><option value="">All roles</option><option>USER</option><option>MERCHANT</option><option>MODERATOR</option><option>ADMIN</option></select></div>
         <button class="btn btn-outline-primary" type="submit">Search accounts</button>
+        <button class="btn btn-outline-secondary" type="button" data-testid="clear-account-filters" :disabled="s.accounts.loading" @click="s.clearAccountFilters">Clear filters</button>
       </fieldset>
     </form>
+    <p class="workspace-message small text-secondary">Applied filters are remembered until you reload or sign out.</p>
     <p v-if="s.accounts.loading" role="status" class="workspace-message">Loading accounts…</p>
     <p v-if="s.accounts.error" role="alert" class="workspace-message">{{ s.accounts.error }}</p>
     <p v-if="!s.accounts.loading && !s.accounts.error && !s.accounts.data?.items.length" class="workspace-message">No accounts match these filters.</p>
