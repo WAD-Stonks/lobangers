@@ -358,4 +358,44 @@ describe('Ask Lobbie panel', () => {
     // Lobbie's last picks stay on the map until the next question.
     expect(map(wrapper).props('framed')).toBe(true)
   })
+
+  it('shows a Lobbie sprite that follows the conversation: hello, thinking, then deal-found or thinking', async () => {
+    const first = deferred<AssistantChatResponse>()
+    rest.chat.mockReturnValueOnce(first.promise).mockResolvedValueOnce(reply())
+    const { wrapper } = await mountAt('/ask-lobbie')
+    const sprites = () =>
+      wrapper
+        .findAll('[data-testid="lobbie-avatar"]')
+        .map((avatar) => avatar.attributes('data-sprite'))
+    expect(sprites()).toEqual(['hello'])
+    expect(wrapper.get('[data-testid="lobbie-avatar"]').attributes('src')).toBe(
+      '/chatbot-sprites/hello.svg',
+    )
+    // Decorative: the bubble text carries the message.
+    expect(wrapper.get('[data-testid="lobbie-avatar"]').attributes('alt')).toBe('')
+
+    await wrapper.findAll('[data-testid="lobbie-suggestion"]')[1]?.trigger('click')
+    await flushPromises()
+    expect(sprites()).toEqual(['hello', 'thinking'])
+
+    first.resolve(reply({ deals: [RICE] }))
+    await flushPromises()
+    expect(sprites()).toEqual(['hello', 'deal-found'])
+
+    await wrapper.get('[data-testid="lobbie-input"]').setValue('can you do my homework?')
+    await wrapper.get('[data-testid="lobbie-composer"]').trigger('submit')
+    await flushPromises()
+    // A reply without deals is a miss, so Lobbie keeps thinking.
+    expect(sprites()).toEqual(['hello', 'deal-found', 'thinking'])
+  })
+
+  it('shows the thinking sprite when Lobbie cannot answer', async () => {
+    rest.chat.mockRejectedValue(new Error('offline'))
+    const { wrapper } = await mountAt('/ask-lobbie')
+    await wrapper.findAll('[data-testid="lobbie-suggestion"]')[0]?.trigger('click')
+    await flushPromises()
+    expect(wrapper.findAll('[data-testid="lobbie-avatar"]').at(-1)?.attributes('data-sprite')).toBe(
+      'thinking',
+    )
+  })
 })

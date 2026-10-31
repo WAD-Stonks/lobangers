@@ -3,13 +3,14 @@ import { ASSISTANT_MESSAGE_MAX_CHARS } from '@broke-oclock/contracts/assistant'
 import DealRowList from '@web/modules/browse-map/DealRowList.vue'
 import type { DealRow } from '@web/modules/browse-map/types'
 import { filterTokens } from '@web/modules/lobbie/filter-labels'
+import { lobbieSpriteUrl, PRELOAD_SPRITES } from '@web/modules/lobbie/sprites'
 import { LOBBIE_SUGGESTIONS, useLobbieChat } from '@web/modules/lobbie/use-lobbie-chat'
 import PanelFrame from '@web/modules/map-shell/PanelFrame.vue'
 import ShellIcon from '@web/modules/map-shell/ShellIcon.vue'
 import { browseLocation, lobbieDealLocation } from '@web/modules/map-shell/shell-routes'
 import { useShell } from '@web/modules/map-shell/shell-state'
 import { usePrefersReducedMotion } from '@web/modules/map-shell/use-breakpoint'
-import { computed, nextTick, ref, useId, watch } from 'vue'
+import { computed, nextTick, onMounted, ref, useId, watch } from 'vue'
 import { useRoute } from 'vue-router'
 
 
@@ -28,6 +29,10 @@ const backTo = computed(() => browseLocation(route.query))
 const showSuggestions = computed(() => !chat.entries.value.some((entry) => entry.role === 'user'))
 const canSend = computed(() => draft.value.trim().length > 0 && !chat.pending.value)
 const activeTokens = computed(() => filterTokens(chat.activeFilters.value))
+
+onMounted(() => {
+  for (const sprite of PRELOAD_SPRITES) new Image().src = lobbieSpriteUrl(sprite)
+})
 
 const toDeal = (row: DealRow) => lobbieDealLocation(route.query, row.deal.id, row.venue.id)
 
@@ -72,13 +77,25 @@ watch(
         data-testid="lobbie-message"
       >
         <p v-if="entry.role === 'notice'" class="lobbie__notice" data-testid="lobbie-notice">{{ entry.text }}</p>
-        <p
-          v-else
-          class="lobbie__bubble"
-          :class="{ 'lobbie__bubble--failed': entry.role === 'assistant' && entry.failed }"
-        >
-          <span class="visually-hidden">{{ entry.role === 'user' ? 'You' : 'Lobbie' }}: </span>{{ entry.text }}
-        </p>
+        <div v-else class="lobbie__said">
+          <img
+            v-if="entry.role === 'assistant'"
+            class="lobbie__avatar"
+            :src="lobbieSpriteUrl(entry.sprite)"
+            alt=""
+            width="56"
+            height="56"
+            decoding="async"
+            data-testid="lobbie-avatar"
+            :data-sprite="entry.sprite"
+          />
+          <p
+            class="lobbie__bubble"
+            :class="{ 'lobbie__bubble--failed': entry.role === 'assistant' && entry.failed }"
+          >
+            <span class="visually-hidden">{{ entry.role === 'user' ? 'You' : 'Lobbie' }}: </span>{{ entry.text }}
+          </p>
+        </div>
 
         <template v-if="entry.role === 'assistant'">
           <DealRowList
@@ -108,12 +125,24 @@ watch(
       </li>
 
       <li v-if="chat.pending.value" class="lobbie__entry lobbie__entry--assistant" data-testid="lobbie-typing">
-        <p class="lobbie__bubble lobbie__typing">
-          <span class="visually-hidden">Lobbie is typing</span>
-          <span class="lobbie__dot" aria-hidden="true" />
-          <span class="lobbie__dot" aria-hidden="true" />
-          <span class="lobbie__dot" aria-hidden="true" />
-        </p>
+        <div class="lobbie__said">
+          <img
+            class="lobbie__avatar lobbie__avatar--thinking"
+            :src="lobbieSpriteUrl('thinking')"
+            alt=""
+            width="56"
+            height="56"
+            decoding="async"
+            data-testid="lobbie-avatar"
+            data-sprite="thinking"
+          />
+          <p class="lobbie__bubble lobbie__typing">
+            <span class="visually-hidden">Lobbie is typing</span>
+            <span class="lobbie__dot" aria-hidden="true" />
+            <span class="lobbie__dot" aria-hidden="true" />
+            <span class="lobbie__dot" aria-hidden="true" />
+          </p>
+        </div>
       </li>
     </ol>
 
@@ -210,6 +239,34 @@ watch(
 
 .lobbie__entry--assistant .lobbie__bubble {
   align-self: flex-start;
+}
+
+.lobbie__said {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.lobbie__said .lobbie__bubble {
+  max-width: none;
+}
+
+.lobbie__entry--user .lobbie__said {
+  max-width: 88%;
+}
+
+.lobbie__avatar {
+  flex: none;
+  width: 56px;
+  height: 56px;
+  object-fit: contain;
+  animation: lobbie-pop var(--dur-small) var(--ease-out);
+}
+
+/* While Lobbie thinks, it bobs gently. */
+.lobbie__avatar--thinking {
+  animation: lobbie-bob 1.6s ease-in-out infinite;
 }
 
 .lobbie__entry--user .lobbie__bubble {
@@ -424,6 +481,23 @@ watch(
   opacity: 0.35;
 }
 
+@keyframes lobbie-pop {
+  from {
+    transform: scale(0.85);
+  }
+}
+
+@keyframes lobbie-bob {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(-3px);
+  }
+}
+
 @keyframes lobbie-in {
   from {
     opacity: 0;
@@ -446,7 +520,9 @@ watch(
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .lobbie__entry {
+  .lobbie__entry,
+  .lobbie__avatar,
+  .lobbie__avatar--thinking {
     animation: none;
   }
 

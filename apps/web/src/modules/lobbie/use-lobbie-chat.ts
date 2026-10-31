@@ -12,6 +12,7 @@ import { ApiClientError, api } from '@web/lib/api-client'
 import { toDealRows, toVenuePins } from '@web/modules/browse-map/load-deals'
 import type { Coordinates, DealRow, VenuePin } from '@web/modules/browse-map/types'
 import type { FilterToken } from '@web/modules/lobbie/filter-labels'
+import { type LobbieSprite, replySprite } from '@web/modules/lobbie/sprites'
 import { computed, type InjectionKey, inject, provide, type Ref, ref, shallowRef } from 'vue'
 
 export const LOBBIE_GREETING =
@@ -33,6 +34,7 @@ export type LobbieEntry =
       readonly text: string
       readonly deals: readonly DealPin[]
       readonly failed: boolean
+      readonly sprite: LobbieSprite
     }
   | { readonly id: number; readonly role: 'notice'; readonly text: string }
 
@@ -47,6 +49,7 @@ const GREETING: LobbieEntry = {
   text: LOBBIE_GREETING,
   deals: [],
   failed: false,
+  sprite: 'hello',
 }
 
 const historyOf = (entries: readonly LobbieEntry[], fromId: number): AssistantMessage[] =>
@@ -87,6 +90,7 @@ export const createLobbieChat = ({ position, send = (body) => api.assistant.chat
         text: answer.reply,
         deals: answer.deals,
         failed: false,
+        sprite: replySprite(answer.deals),
       })
     } catch (error) {
       const busy = error instanceof ApiClientError && error.code === 'TOO_MANY_REQUESTS'
@@ -96,6 +100,7 @@ export const createLobbieChat = ({ position, send = (body) => api.assistant.chat
         text: busy ? BUSY_REPLY : FAILED_REPLY,
         deals: [],
         failed: true,
+        sprite: 'thinking',
       })
     } finally {
       pending.value = false

@@ -237,7 +237,11 @@ describe('Lobbie answers', () => {
       generate: fakeModel({ reply: 42, dealIds: 'nope', filters: { categories: ['PIZZA'] } })
         .generate,
     })
-    expect(answer).toEqual({ reply: NO_MATCH_REPLY, deals: [], filters: NO_FILTERS })
+    expect(answer).toEqual({
+      reply: NO_MATCH_REPLY,
+      deals: [],
+      filters: NO_FILTERS,
+    })
   })
 
   it('enforces ending today, walking time, category and cuisine', () => {
