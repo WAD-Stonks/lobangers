@@ -6,15 +6,29 @@ import { beforeEach, expect, it, vi } from 'vitest'
 
 const mocks = vi.hoisted(() => ({ list: vi.fn() }))
 vi.mock('@web/lib/api-client', () => ({
-  ApiClientError: class ApiClientError extends Error { constructor(readonly code: string) { super(code) } },
+  ApiClientError: class ApiClientError extends Error {
+    constructor(readonly code: string) {
+      super(code)
+    }
+  },
   api: { adminAudit: { list: mocks.list } },
 }))
 const entry: PlatformAuditEntry = {
-  id: '0123456789abcdef01234567', actorId: '1123456789abcdef01234567', actorName: 'Synthetic admin',
-  action: 'ROLE_CHANGED', targetUserId: '2123456789abcdef01234567', venueId: null,
-  note: '<script>unsafe()</script>', roleBefore: 'USER', roleAfter: 'ADMIN', createdAt: '2026-10-31T00:00:00Z',
+  id: '0123456789abcdef01234567',
+  actorId: '1123456789abcdef01234567',
+  actorName: 'Synthetic admin',
+  action: 'ROLE_CHANGED',
+  targetUserId: '2123456789abcdef01234567',
+  venueId: null,
+  note: '<script>unsafe()</script>',
+  roleBefore: 'USER',
+  roleAfter: 'ADMIN',
+  createdAt: '2026-10-31T00:00:00Z',
 }
-beforeEach(() => { vi.resetAllMocks(); mocks.list.mockResolvedValue({ items: [entry], nextCursor: null }) })
+beforeEach(() => {
+  vi.resetAllMocks()
+  mocks.list.mockResolvedValue({ items: [entry], nextCursor: null })
+})
 it('requests the latest five entries, displays safe details and links to the complete audit history', async () => {
   const w = mount(RecentAdminActivity)
   await flushPromises()
@@ -31,12 +45,19 @@ it('requests the latest five entries, displays safe details and links to the com
   w.unmount()
 })
 it('preserves API order, caps the feed at five and supports non-account subjects', async () => {
-  const entries = Array.from({ length: 6 }, (_, index) => ({ ...entry, id: `synthetic-${index}`, action: 'DEAL_APPROVED', subjectType: 'DEAL', subjectId: '3123456789abcdef01234567', targetUserId: null }))
+  const entries = Array.from({ length: 6 }, (_, index) => ({
+    ...entry,
+    id: `synthetic-${index}`,
+    action: 'DEAL_APPROVED',
+    subjectType: 'DEAL',
+    subjectId: '3123456789abcdef01234567',
+    targetUserId: null,
+  }))
   mocks.list.mockResolvedValueOnce({ items: entries, nextCursor: 'next' })
   const w = mount(RecentAdminActivity)
   await flushPromises()
   expect(w.findAll('[data-testid="recent-activity-entry"]')).toHaveLength(5)
-  expect(w.findAll('h3').every(heading => heading.text() === 'Deal approved')).toBe(true)
+  expect(w.findAll('h3').every((heading) => heading.text() === 'Deal approved')).toBe(true)
   expect(w.text()).toContain('Deal · 3123456789abcdef01234567')
   expect(w.text()).toContain('synthetic-0')
   expect(w.text()).not.toContain('synthetic-5')
@@ -65,17 +86,25 @@ it('contains an independent safe error and retry without exposing diagnostics', 
   expect(w.find('[role="alert"]').exists()).toBe(false)
   w.unmount()
 })
-it.each(['UNAUTHORIZED', 'FORBIDDEN'] as const)('signals %s so the overview clears all protected data', async code => {
-  mocks.list.mockRejectedValueOnce(new ApiClientError(code, 403, code))
-  const w = mount(RecentAdminActivity)
-  await flushPromises()
-  expect(w.emitted('denied')).toEqual([[code]])
-  expect(w.find('[data-testid="recent-activity-entry"]').exists()).toBe(false)
-  w.unmount()
-})
+it.each(['UNAUTHORIZED', 'FORBIDDEN'] as const)(
+  'signals %s so the overview clears all protected data',
+  async (code) => {
+    mocks.list.mockRejectedValueOnce(new ApiClientError(code, 403, code))
+    const w = mount(RecentAdminActivity)
+    await flushPromises()
+    expect(w.emitted('denied')).toEqual([[code]])
+    expect(w.find('[data-testid="recent-activity-entry"]').exists()).toBe(false)
+    w.unmount()
+  },
+)
 it('disables duplicate reads and ignores a late failure after unmount', async () => {
   let reject!: (error: Error) => void
-  mocks.list.mockImplementationOnce(() => new Promise((_resolve, fail) => { reject = fail }))
+  mocks.list.mockImplementationOnce(
+    () =>
+      new Promise((_resolve, fail) => {
+        reject = fail
+      }),
+  )
   const w = mount(RecentAdminActivity)
   await flushPromises()
   expect(w.get('[data-testid="refresh-admin-activity"]').attributes('disabled')).toBeDefined()
