@@ -1,6 +1,7 @@
 import type { AppConfig } from '@api/config'
 import { ApiErrorException } from '@api/errors'
 import { type AuthenticatedActor, readActiveSession } from '@api/modules/account/security-access'
+import type { AssistantRuntime } from '@api/modules/assistant/runtime'
 import { DomainError } from '@api/modules/domain-error'
 import type { IngestionRuntime } from '@api/modules/ingestion/runtime'
 import { fromNodeHeaders } from '@broke-oclock/auth/node'
@@ -18,6 +19,7 @@ export type RestDependencies = {
   config: AppConfig
   auth: Auth
   ingestion?: IngestionRuntime
+  assistant?: AssistantRuntime
 }
 
 export const createRestContext = async (

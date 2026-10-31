@@ -251,6 +251,17 @@ const currentVotes = (deal: PublicDealRow) => {
   return countVotes(deal.votes.filter((vote) => vote.updatedAt >= publication))
 }
 
+export const findPublicDealPins = async (
+  database: Database,
+  query: DealsQuery,
+  now: Date,
+  policy: CommunityPolicy = DEFAULT_COMMUNITY_POLICY,
+): Promise<DealPin[]> =>
+  (await findPublicDeals(database, query, now, policy))
+    .filter(isCurrentApproval)
+    .map((row) => toDealPin(row, policy, now))
+    .filter((deal) => deal.venues.length > 0)
+
 export const toDealPin = (
   deal: PublicDealRow,
   policy: CommunityPolicy = DEFAULT_COMMUNITY_POLICY,

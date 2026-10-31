@@ -8,10 +8,14 @@ import { ref } from 'vue'
 
 // Floating header: menu button and search on the first row, quick chips underneath. On
 // desktop it sits in the panel column; below 992px it spans the screen.
-const props = defineProps<{ filters: BrowseFilters; sheetOpen: boolean }>()
+const props = withDefaults(
+  defineProps<{ filters: BrowseFilters; sheetOpen: boolean; lobbieOpen?: boolean }>(),
+  { lobbieOpen: false },
+)
 const emit = defineEmits<{
   apply: [filters: BrowseFilters, mode: 'push' | 'replace']
   openSheet: []
+  askLobbie: []
 }>()
 
 const chips = ref<InstanceType<typeof QuickChips> | null>(null)
@@ -26,14 +30,16 @@ defineExpose({ focusAllFilters: () => chips.value?.focusAllFilters() })
 <template>
   <header class="shell-header" data-testid="shell-header">
     <BrandMenu />
-    <SearchField :value="filters.q" @search="onSearch" />
+    <SearchField class="shell-header__search" :value="filters.q" @search="onSearch" />
     <QuickChips
       ref="chips"
       class="shell-header__chips"
       :filters="filters"
       :sheet-open="sheetOpen"
+      :lobbie-open="lobbieOpen"
       @apply="(next) => emit('apply', next, 'push')"
       @open-sheet="emit('openSheet')"
+      @ask-lobbie="emit('askLobbie')"
     />
   </header>
 </template>
@@ -45,8 +51,9 @@ defineExpose({ focusAllFilters: () => chips.value?.focusAllFilters() })
   left: var(--shell-gutter);
   z-index: 30;
   display: grid;
+  --header-gap: 10px;
   grid-template-columns: auto minmax(0, 1fr);
-  gap: 10px;
+  gap: var(--header-gap);
   align-items: center;
   width: var(--header-w);
   pointer-events: none;
@@ -58,5 +65,11 @@ defineExpose({ focusAllFilters: () => chips.value?.focusAllFilters() })
 
 .shell-header__chips {
   grid-column: 1 / -1;
+}
+
+@media (min-width: 992px) {
+  .shell-header__search {
+    margin-right: var(--header-gap);
+  }
 }
 </style>

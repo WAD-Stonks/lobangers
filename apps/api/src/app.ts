@@ -1,6 +1,7 @@
 import { createAuth } from '@api/auth'
 import type { AppConfig } from '@api/config'
 import { apiErrorMiddleware } from '@api/errors'
+import { type AssistantRuntime, createAssistantRuntime } from '@api/modules/assistant/runtime'
 import { createIngestionRuntime, type IngestionRuntime } from '@api/modules/ingestion/runtime'
 import { createAdminOptionsRouter } from '@api/rest/admin-options'
 import { requireJsonRequestBody } from '@api/rest/body'
@@ -16,7 +17,7 @@ import helmet from 'helmet'
 
 export const createApp = (
   config: AppConfig,
-  options: { ingestion?: IngestionRuntime } = {},
+  options: { ingestion?: IngestionRuntime; assistant?: AssistantRuntime } = {},
 ): Express => {
   const auth = createAuth(config)
   const app = express()
@@ -62,6 +63,7 @@ export const createApp = (
       config,
       auth,
       ingestion: options.ingestion ?? createIngestionRuntime(config),
+      assistant: options.assistant ?? createAssistantRuntime(config),
     }),
   )
 

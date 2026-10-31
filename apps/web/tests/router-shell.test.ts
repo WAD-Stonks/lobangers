@@ -64,6 +64,7 @@ describe('map shell routes', () => {
       'browse',
       'deal',
       'venue',
+      'lobbie',
       'login',
       'register',
       'profile',
@@ -75,6 +76,7 @@ describe('map shell routes', () => {
     ['/browse', '3 deals'],
     [`/deals/${'c'.repeat(24)}`, 'Synthetic iced kopi'],
     [`/venues/${'a'.repeat(24)}`, 'Loading venue'],
+    ['/ask-lobbie', 'Ask Lobbie'],
     ['/login', 'Welcome back'],
     ['/register', 'Create an account'],
   ])('renders %s as a panel inside the shell', async (path, heading) => {

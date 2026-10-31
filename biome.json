@@ -22,6 +22,7 @@
       "!**/*.pem",
       "!**/*.key",
       "!**/*.tsbuildinfo",
+      "!apps/web/public/chatbot-sprites",
       "!pnpm-lock.yaml"
     ]
   },

@@ -97,6 +97,7 @@ const ROUTES = [
   '/browse?view=list',
   `/deals/${DEALS[0]?.id}`,
   `/venues/${VENUE.id}`,
+  '/ask-lobbie',
   '/login',
   '/add',
 ]
