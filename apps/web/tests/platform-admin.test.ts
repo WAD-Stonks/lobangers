@@ -7,6 +7,7 @@ import type {
 } from '@broke-oclock/contracts/platform-admin'
 import { flushPromises, mount } from '@vue/test-utils'
 import App from '@web/App.vue'
+import { confirmAdminIdentity } from '@web/lib/admin-recovery'
 
 type Page<T> = { items: T[]; nextCursor: string | null }
 
@@ -16,6 +17,7 @@ import { beforeEach, expect, it, vi } from 'vitest'
 import { createMemoryHistory, createRouter } from 'vue-router'
 
 // Synthetic REST boundary only: these tests do not prove backend authorization.
+vi.mock('@web/pages/LandingPage.vue', () => ({ default: { template: '<div />' } }))
 const rest = vi.hoisted(() => ({
   accounts: vi.fn(),
   account: vi.fn(),
@@ -91,6 +93,7 @@ const account = {
   grants: [],
 } satisfies PlatformAccountResponse
 beforeEach(() => {
+  confirmAdminIdentity(null)
   vi.resetAllMocks()
   rest.session.mockResolvedValue({
     data: {
