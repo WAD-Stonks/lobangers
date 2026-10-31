@@ -14,6 +14,7 @@ const props = withDefaults(defineProps<{
   destination?: string
   context?: 'admin' | 'account'
   headingLevel?: 'h1' | 'h2'
+  embedded?: boolean
 }>(), { title: 'Sign in', destination: '/', context: 'admin', headingLevel: 'h2' })
 const emit = defineEmits<{ signedIn: [] }>()
 const email = ref('')
@@ -137,10 +138,10 @@ const recovered = () => { recovery.value = false; notice.value = 'Password reset
 </script>
 
 <template>
-  <section :aria-labelledby="recovery ? 'recovery-title' : 'sign-in-title'" class="shared-sign-in auth-card">
-    <PasswordRecovery v-if="recovery" :heading-level="headingLevel" @completed="recovered" @cancel="recovery = false" />
+  <section :aria-labelledby="recovery ? 'recovery-title' : embedded ? undefined : 'sign-in-title'" :aria-label="!recovery && embedded ? title : undefined" class="shared-sign-in" :class="{ 'auth-card': !embedded }">
+    <PasswordRecovery v-if="recovery" :heading-level="embedded ? 'h2' : headingLevel" @completed="recovered" @cancel="recovery = false" />
     <div v-else class="auth-flow">
-      <header class="auth-header">
+      <header v-if="!embedded" class="auth-header">
         <component :is="headingLevel" id="sign-in-title" class="auth-title">{{ issuedEmail ? 'Check your inbox' : title }}</component>
         <p class="auth-description">{{ issuedEmail ? 'Use the six-digit code sent to your email to sign in.' : description || (context === 'account' ? 'Sign in to keep your favourite deals close.' : 'Sign in with your account to continue to administration.') }}</p>
       </header>

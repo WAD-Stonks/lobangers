@@ -1,6 +1,7 @@
 import { flushPromises, mount } from '@vue/test-utils'
 import SharedSignIn from '@web/components/auth/SharedSignIn.vue'
 import LoginForm from '@web/modules/account/LoginForm.vue'
+import LoginPanel from '@web/modules/account/LoginPanel.vue'
 import LoginPage from '@web/pages/LoginPage.vue'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { createMemoryHistory, createRouter } from 'vue-router'
@@ -94,6 +95,36 @@ it.each(['account', 'admin'] as const)(
     expect(wrapper.find('#sign-in-code').exists()).toBe(true)
   },
 )
+
+it('integrates email-first login into the current map panel without duplicate headings or lost callbacks', async () => {
+  const stub = { template: '<div />' }
+  const router = createRouter({
+    history: createMemoryHistory(),
+    routes: [
+      { path: '/login', name: 'login', component: LoginPanel },
+      { path: '/browse', name: 'browse', component: stub },
+      { path: '/register', name: 'register', component: stub },
+      { path: '/forgot-password', name: 'forgot-password', component: stub },
+    ],
+  })
+  const destination = '/saved?tab=all#latest'
+  await router.push({ path: '/login', query: { redirect: destination } })
+  await router.isReady()
+  const wrapper = mount(LoginPanel, { global: { plugins: [router] } })
+  wrappers.push(wrapper)
+  await flushPromises()
+  expect(wrapper.findAll('h1')).toHaveLength(1)
+  expect(wrapper.find('.auth-card').exists()).toBe(false)
+  expect(wrapper.find('#login-password').exists()).toBe(false)
+  expect(wrapper.findAll('a[href^="/register"]')).toHaveLength(1)
+  await wrapper.get('[data-testid="google-sign-in"]').trigger('click')
+  await flushPromises()
+  expect(sdk.social).toHaveBeenCalledWith(
+    expect.objectContaining({
+      callbackURL: new URL(destination, window.location.origin).href,
+    }),
+  )
+})
 
 it('normal login reuses the shared sign-in with configured providers and a single page heading', async () => {
   const { wrapper } = await loginPage('/saved')

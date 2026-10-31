@@ -75,9 +75,9 @@
   font-weight: 700;
 }
 .auth-flow .auth-primary {
-  color: var(--ink);
-  background: var(--sunny);
-  border: 1px solid var(--sunny);
+  color: var(--admin-text, var(--ink));
+  background: var(--admin-accent, var(--sunny));
+  border: 1px solid var(--admin-accent, var(--sunny));
 }
 .auth-flow .auth-primary:hover:not(:disabled) {
   background: var(--sunny-deep);
