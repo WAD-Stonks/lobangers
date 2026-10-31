@@ -8,13 +8,11 @@ import {
 import ShellIcon from '@web/modules/map-shell/ShellIcon.vue'
 import { computed, ref } from 'vue'
 
-// One-tap filters under the search box. "Ending today" is the least important, so phones hide
-// it rather than letting the row scroll sideways. "All filters" shows a badge for the active
-// filters the chips don't cover.
-const props = withDefaults(defineProps<{ filters: BrowseFilters; sheetOpen?: boolean }>(), {
-  sheetOpen: false,
-})
-const emit = defineEmits<{ apply: [filters: BrowseFilters]; openSheet: [] }>()
+const props = withDefaults(
+  defineProps<{ filters: BrowseFilters; sheetOpen?: boolean; lobbieOpen?: boolean }>(),
+  { sheetOpen: false, lobbieOpen: false },
+)
+const emit = defineEmits<{ apply: [filters: BrowseFilters]; openSheet: []; askLobbie: [] }>()
 
 const allButton = ref<HTMLButtonElement | null>(null)
 
@@ -60,6 +58,23 @@ defineExpose({ focusAllFilters: () => allButton.value?.focus() })
         {{ sheetCount }}<span class="visually-hidden"> active</span>
       </span>
     </button>
+    <button
+      type="button"
+      class="lb-chip quick-chips__lobbie"
+      :class="{ 'is-on': lobbieOpen }"
+      :aria-expanded="lobbieOpen"
+      aria-controls="shell-panel"
+      aria-label="Ask Lobbie for Lobangs"
+      data-testid="ask-lobbie"
+      @click="emit('askLobbie')"
+    >
+      <ShellIcon
+        class="quick-chips__lobbie-icon"
+        :name="lobbieOpen ? 'close' : 'diamond'"
+        :size="16"
+        :stroke-width="lobbieOpen ? 2.4 : 2"
+      /><span>Ask Lobbie<span class="quick-chips__lobbie-more">&nbsp;for Lobangs</span></span>
+    </button>
   </fieldset>
 </template>
 
@@ -78,9 +93,72 @@ defineExpose({ focusAllFilters: () => allButton.value?.focus() })
   box-shadow: var(--shadow-pill);
 }
 
+.quick-chips__lobbie:not(.is-on) .quick-chips__lobbie-icon {
+  color: var(--coral);
+  fill: var(--coral);
+}
+
+.quick-chips__lobbie:not(.is-on) .quick-chips__lobbie-icon {
+  animation: lobbie-twinkle 5s var(--ease-out) 1.5s infinite;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .quick-chips__lobbie:not(.is-on):hover .quick-chips__lobbie-icon {
+    animation: lobbie-spin 700ms var(--ease-out);
+  }
+}
+
+@keyframes lobbie-twinkle {
+  0% {
+    transform: rotate(0) scale(1);
+  }
+
+  8% {
+    transform: rotate(45deg) scale(1.35);
+  }
+
+  16%,
+  100% {
+    transform: rotate(90deg) scale(1);
+  }
+}
+
+@keyframes lobbie-spin {
+  from {
+    transform: rotate(0) scale(1);
+  }
+
+  50% {
+    transform: rotate(90deg) scale(1.3);
+  }
+
+  to {
+    transform: rotate(180deg) scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .quick-chips__lobbie:not(.is-on) .quick-chips__lobbie-icon,
+  .quick-chips__lobbie:not(.is-on):hover .quick-chips__lobbie-icon {
+    animation: none;
+  }
+}
+
 @media (max-width: 767.98px) {
   .quick-chips__optional {
     display: none;
+  }
+
+  /* for mobile view  */
+  .quick-chips__lobbie-more {
+    display: none;
+  }
+}
+
+@media (min-width: 992px) {
+  .quick-chips {
+    flex-wrap: nowrap;
+    width: max-content;
   }
 }
 </style>

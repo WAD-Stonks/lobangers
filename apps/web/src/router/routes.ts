@@ -4,6 +4,7 @@ import RegisterPanel from '@web/modules/account/RegisterPanel.vue'
 // import AddDealPanel from '@web/modules/add-deal/AddDealPanel.vue'
 import BrowseListPanel from '@web/modules/browse-map/BrowseListPanel.vue'
 import DealPanel from '@web/modules/browse-map/DealPanel.vue'
+import LobbiePanel from '@web/modules/lobbie/LobbiePanel.vue'
 import VenuePanel from '@web/modules/venues-feed/VenuePanel.vue'
 import AdminAuditPage from '@web/pages/AdminAuditPage.vue'
 import AdminCataloguePage from '@web/pages/AdminCataloguePage.vue'
@@ -47,6 +48,12 @@ const routes: RouteRecordRaw[] = [
         name: 'venue',
         component: VenuePanel,
         meta: { panelLabel: 'Venue' },
+      },
+      {
+        path: '/ask-lobbie',
+        name: 'lobbie',
+        component: LobbiePanel,
+        meta: { panelLabel: 'Ask Lobbie' },
       },
       // The "Add a deal" map overlay is commented out; adding a deal is the full /add page.
       // {

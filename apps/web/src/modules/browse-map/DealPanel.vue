@@ -22,7 +22,12 @@ import DealCommunity from '@web/modules/community/DealCommunity.vue'
 import { errorCode } from '@web/modules/ingestion-admin/errors'
 import PanelFrame from '@web/modules/map-shell/PanelFrame.vue'
 import ShellIcon from '@web/modules/map-shell/ShellIcon.vue'
-import { browseLocation, dealLocation, venueLocation } from '@web/modules/map-shell/shell-routes'
+import {
+  browseLocation,
+  dealLocation,
+  lobbieLocation,
+  venueLocation,
+} from '@web/modules/map-shell/shell-routes'
 import { useShell } from '@web/modules/map-shell/shell-state'
 import { useSavedDeals } from '@web/modules/map-shell/use-saved-deals'
 import { useToast } from '@web/modules/map-shell/use-toast'
@@ -46,7 +51,12 @@ const commentsOpen = ref(false)
 watch(dealId, () => { commentsOpen.value = false })
 const venueId = computed(() => (typeof route.query.at === 'string' ? route.query.at : null))
 const selected = computed(() => shell.findDeal(dealId.value, venueId.value))
-const backTo = computed(() => browseLocation(route.query))
+// A deal opened from Lobbie's chat goes back to the chat; anything else goes back to the list.
+const fromLobbie = computed(() => route.query.from === 'lobbie')
+const backTo = computed(() =>
+  fromLobbie.value ? lobbieLocation(route.query) : browseLocation(route.query),
+)
+const backLabel = computed(() => (fromLobbie.value ? 'Back to Lobbie' : 'Back to results'))
 const saving = ref(false)
 const popKey = ref(0)
 
@@ -131,7 +141,7 @@ const toggleSave = async () => {
     :title="commentsOpen ? 'Comments' : selected.deal.title"
     :hide-title="commentsOpen"
     :back="commentsOpen ? null : backTo"
-    back-label="Back to results"
+    :back-label="backLabel"
     :scroll-key="selected.deal.id"
   >
     <template v-if="commentsOpen" #heading>
@@ -242,12 +252,12 @@ const toggleSave = async () => {
     </template>
   </PanelFrame>
 
-  <PanelFrame v-else-if="shell.status.value === 'loading'" title="Loading deal" :back="backTo" back-label="Back to results">
+  <PanelFrame v-else-if="shell.status.value === 'loading'" title="Loading deal" :back="backTo" :back-label="backLabel">
     <div class="lb-skeleton deal-panel__hero" aria-hidden="true" />
     <p class="lb-meta" role="status">Loading this deal…</p>
   </PanelFrame>
 
-  <PanelFrame v-else title="Deal not found" :back="backTo" back-label="Back to results">
+  <PanelFrame v-else title="Deal not found" :back="backTo" :back-label="backLabel">
     <div class="lb-state" :role="shell.status.value === 'error' ? 'alert' : undefined">
       <p class="lb-state__body">
         {{ shell.status.value === 'error' ? 'Deals could not be loaded right now.' : 'This deal has ended or is no longer listed.' }}

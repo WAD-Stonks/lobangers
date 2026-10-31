@@ -118,6 +118,82 @@ for (const width of [390, 1280]) {
       await expect(rows(page)).toHaveCount(2)
     })
 
+    test('Lobbie: a suggestion shows typing, then deals in the chat and framed pins on the map', async ({
+      page,
+    }) => {
+      let release: () => void = () => undefined
+      const answered = new Promise<void>((resolve) => {
+        release = resolve
+      })
+      const sent: unknown[] = []
+      await page.route('**/api/assistant/chat', async (route) => {
+        sent.push(route.request().postDataJSON())
+        await answered
+        await route.fulfill({
+          json: {
+            reply: 'Shiok! That kopi set is a proper steal ☕',
+            deals: [DEALS[0], DEALS[2]],
+            filters: {
+              maxPriceMinor: 500,
+              endingToday: false,
+              maxWalkMinutes: 0,
+              categories: [],
+              cuisines: [],
+            },
+          },
+        })
+      })
+      await page.goto('/browse')
+      await expect(groups(page)).toHaveCount(3)
+
+      await page.getByRole('button', { name: 'Ask Lobbie for Lobangs' }).click()
+      await expect(page).toHaveURL(/\/ask-lobbie/)
+      await expect(panelHeading(page)).toHaveText('Ask Lobbie')
+      await expect(page.getByTestId('lobbie-log')).toContainText('Lobbie the Lobang Lobster')
+
+      await page.getByRole('button', { name: 'Lunch under $5' }).click()
+      await expect(page.getByTestId('lobbie-typing')).toBeVisible()
+      await expect(page.getByTestId('lobbie-input')).toBeDisabled()
+      await expect(page.getByRole('button', { name: 'Cheap eats near me' })).toHaveCount(0)
+      await page.screenshot({ path: `test-results/lobbie-typing-${width}.png` })
+      expect(sent).toEqual([
+        {
+          messages: [{ role: 'user', text: 'Lunch under $5' }],
+          position: null,
+          filters: {
+            maxPriceMinor: 0,
+            endingToday: false,
+            maxWalkMinutes: 0,
+            categories: [],
+            cuisines: [],
+          },
+        },
+      ])
+
+      release()
+      await expect(page.getByTestId('lobbie-typing')).toHaveCount(0)
+      await expect(page.getByTestId('lobbie-input')).toBeEnabled()
+      await expect(page.getByTestId('lobbie-log')).toContainText('proper steal')
+      await expect(page.getByTestId('lobbie-deals').locator('li')).toHaveCount(2)
+      const activeFilters = page.getByTestId('lobbie-active-filters')
+      await expect(activeFilters.getByRole('button')).toHaveText(['Up to $5', 'Clear all'])
+      // The two picks are far apart; framing shows both as pins instead of region pills.
+      await expect(groups(page)).toHaveCount(0)
+      await expect(page.locator('.deal-map-pin')).toHaveCount(2)
+      await expect(page.locator('.deal-map-pin').first()).toBeInViewport()
+      await expect(page.locator('.deal-map-pin').last()).toBeInViewport()
+      await page.screenshot({ path: `test-results/lobbie-results-${width}.png` })
+
+      await page.getByTestId('lobbie-deals').getByRole('link').first().click()
+      await expect(panelHeading(page)).toHaveText('Synthetic kopi set')
+      await page.getByRole('link', { name: 'Back to Lobbie' }).click()
+      await expect(page.getByTestId('lobbie-log')).toContainText('Lunch under $5')
+
+      await page.getByRole('button', { name: 'Remove filter Up to $5' }).click()
+      await expect(activeFilters).toHaveCount(0)
+      await expect(page.getByTestId('lobbie-notice')).toHaveText('Removed “Up to $5”')
+    })
+
     test('pin to deal: each pin opens its deal with the panel at the top', async ({ page }) => {
       // Both outlets a short walk apart in Jurong East: tapping West fits them both at street zoom.
       const nextDoor = {

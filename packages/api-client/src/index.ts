@@ -23,6 +23,10 @@ import {
   healthResponseSchema,
 } from '@broke-oclock/contracts/api'
 import {
+  assistantChatBodySchema,
+  assistantChatResponseSchema,
+} from '@broke-oclock/contracts/assistant'
+import {
   commentBodySchema,
   commentParamsSchema,
   commentsQuerySchema,
@@ -244,6 +248,12 @@ export const createApiClient = (baseURL = '/api') => {
       list: (input: QueryInput<typeof dealsQuerySchema> = {}) => {
         const query = validateInput(dealsQuerySchema, input)
         return request(http.get('/deals', { params: query }), dealsResponseSchema)
+      },
+    },
+    assistant: {
+      chat: (input: SchemaInput<typeof assistantChatBodySchema>) => {
+        const body = validateInput(assistantChatBodySchema, input)
+        return request(http.post('/assistant/chat', body), assistantChatResponseSchema)
       },
     },
     platformAdmin: {

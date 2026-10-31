@@ -56,6 +56,7 @@ const props = withDefaults(
     hoveredVenueId?: string | null
     hoverEnabled?: boolean
     reducedMotion?: boolean
+    framed?: boolean
   }>(),
   {
     pins: () => [],
@@ -69,6 +70,7 @@ const props = withDefaults(
     hoveredVenueId: null,
     hoverEnabled: true,
     reducedMotion: false,
+    framed: false,
   },
 )
 const emit = defineEmits<{ select: [id: string]; hover: [id: string | null]; moved: [] }>()
@@ -80,6 +82,8 @@ let groupLayer: L.LayerGroup | null = null
 let selectedLayer: L.LayerGroup | null = null
 let planKey = ''
 const SETTLED_CLASS = 'is-settled'
+const FRAME_MARGIN_PX = 48
+const FRAME_MAX_ZOOM = 16
 let shownPins = new Set<string>()
 let groupMarkers = new Map<string, { marker: L.Marker; group: PlacedGroup }>()
 let userLayer: L.LayerGroup | null = null
@@ -151,15 +155,17 @@ const keyOf = (loose: readonly VenuePin[], groups: readonly PlacedGroup[]) =>
 const replan = (force = false) => {
   if (!map || !pinLayer || !groupLayer || !selectedLayer) return
   const zoom = map.getZoom()
-  const plan = planMapLayers({
-    pins: props.pins,
-    zoom,
-    user: props.userPosition,
-    selectedVenueId: props.selectedVenueId,
-  })
+  const plan = props.framed
+    ? { loose: props.pins, groups: [] }
+    : planMapLayers({
+        pins: props.pins,
+        zoom,
+        user: props.userPosition,
+        selectedVenueId: props.selectedVenueId,
+      })
   const projector = map
   const groups = declutter(plan.groups, (point) => projector.project([point.lat, point.lng], zoom))
-  const key = `${props.selectedVenueId ?? ''}|${keyOf(plan.loose, groups)}`
+  const key = `${props.framed}|${props.selectedVenueId ?? ''}|${keyOf(plan.loose, groups)}`
   if (!force && key === planKey) return
   planKey = key
   syncLoosePins(pinLayer, selectedLayer, plan.loose, force)
@@ -276,6 +282,19 @@ const focusOn = (focus: Coordinates, zoom: number) => {
   map.flyTo(centreFor(target, zoom), zoom, { animate, duration: FLY_DURATION_S })
 }
 
+const frameAll = (pins: readonly VenuePin[]) => {
+  if (!map || pins.length === 0) return
+  const bounds = L.latLngBounds(pins.map((pin) => L.latLng(pin.lat, pin.lng)))
+  const { top, right, bottom, left } = props.viewPadding
+  map.flyToBounds(bounds, {
+    paddingTopLeft: [left + FRAME_MARGIN_PX, top + FRAME_MARGIN_PX],
+    paddingBottomRight: [right + FRAME_MARGIN_PX, bottom + FRAME_MARGIN_PX],
+    maxZoom: FRAME_MAX_ZOOM,
+    animate: !props.reducedMotion,
+    duration: FLY_DURATION_S,
+  })
+}
+
 // The zoom buttons zoom around the middle of the part of the map the visitor can see, not the
 // map's true centre, which sits under the panel or sheet.
 const zoomBy = (delta: number) => {
@@ -324,11 +343,18 @@ onMounted(() => {
   map.on('zoomend', () => replan())
   syncPins(props.pins)
   syncUserPosition(props.userPosition, props.userAccuracyMetres)
-  if (props.focus) focusOn(props.focus, props.focusZoom)
+  if (props.framed) frameAll(props.pins)
+  else if (props.focus) focusOn(props.focus, props.focusZoom)
   resizeObserver = observeResize(container.value)
 })
 
-watch(() => props.pins, syncPins)
+watch(
+  () => [props.pins, props.framed] as const,
+  ([pins, framed]) => {
+    syncPins(pins)
+    if (framed) frameAll(pins)
+  },
+)
 watch(
   () => [props.selectedVenueId, props.hoveredVenueId] as const,
   () => {
@@ -380,7 +406,7 @@ defineExpose({
 </script>
 
 <template>
-  <div class="deal-map-region" data-testid="deal-map">
+  <div class="deal-map-region" :class="{ 'deal-map-region--framed': framed }" data-testid="deal-map">
     <div ref="container" class="deal-map" />
   </div>
 </template>
@@ -502,6 +528,14 @@ defineExpose({
 .deal-map :deep(.deal-map-pin.is-selected .deal-map-pin__stack) {
   transform: translate(-50%, -50%) translateY(-4px) scale(1.15);
   animation: pin-bounce 220ms var(--ease-out);
+}
+
+.deal-map-region--framed :deep(.deal-map-pin__badge) {
+  background: var(--coral);
+}
+
+.deal-map-region--framed :deep(.deal-map-pin__bubble) {
+  filter: drop-shadow(0 0 4px var(--coral));
 }
 
 /* Other pins stay at full strength while a deal is open, so the next one is easy to find; the

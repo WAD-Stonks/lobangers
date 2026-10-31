@@ -91,6 +91,17 @@ Use the [official Express adapter](https://docs.uploadthing.com/backend-adapters
 
 The API config loader consumes these settings. A missing/placeholder token disables `/api/uploadthing` with HTTP 503 without breaking auth or health checks. Configured uploads require an authenticated same-origin request and allow one JPEG/PNG/WebP up to 4 MB. The SDK verifies completion callbacks. The browser helper is exported from `@broke-oclock/storage/client`; `apps/web/src/lib/photo-upload.ts` is a thin compatibility re-export. Account/token setup, live-provider verification, deal attachment, persisted ownership and cleanup remain pending; see [photo upload setup](photo-storage.md).
 
+## Ask Lobbie: optional Gemini and Groq deal chat
+
+| Name | Vercel API placement | Purpose |
+| --- | --- | --- |
+| GEMINI_API_KEY | Secret | Server-only Gemini API key from Google AI Studio; missing, `UNSET` or `UNCONFIGURED` leaves Gemini off |
+| GEMINI_MODEL | Variable | Optional model id; defaults to `gemini-3.5-flash-lite`, the low-latency model that thinks minimally by default. Larger models answer more slowly |
+| GROQ_API_KEY | Secret | Server-only Groq API key from the Groq console; missing, `UNSET` or `UNCONFIGURED` leaves Groq off |
+| GROQ_MODEL | Variable | Optional model id; defaults to `openai/gpt-oss-20b`, which supports Groq's strict JSON output |
+
+Consumers: `apps/api/src/config.ts` and `apps/api/src/modules/assistant/runtime.ts`. `POST /api/assistant/chat` sends the conversation and a compact list of public live deals to the chosen AI. It never sends the visitor's coordinates, only walking times worked out on the server. Which AI is used is set in code, not the environment: `LOBBIE_PROVIDER` in `apps/api/src/modules/assistant/providers.ts` (`'auto'`, the default, tries Gemini then falls back to Groq; `'gemini'` or `'groq'` uses only that one). With neither key, or without the key for the provider chosen there, the endpoint answers 502 `Lobbie is not available right now` and the rest of the app is unaffected. Never put either key in `VITE_*`. See [the assistant module](../apps/api/src/modules/assistant/README.md).
+
 ## Pending choices / things not to add yet
 - **Normal-user verification and account security:** native OTP-based admin sign-in/recovery is locally integrated; full normal-user signup/verification/security screens and verified sender-domain setup remain separate work. Basic password sessions work without email; see the Resend section below.
 - **Web map:** Leaflet and browser geolocation need no Google Maps key. The browse map prefers CARTO Positron (light) tiles when `VITE_CARTO_API_KEY` is set and falls back to keyless OneMap Grey tiles otherwise. The CARTO key is a publishable browser key, so restrict it to the site's domains in the CARTO dashboard and enter the production value in the Vercel web project. Do not duplicate private OneMap ingestion credentials into VITE_* variables.

@@ -24,6 +24,21 @@ export const dealLocation = (
   query: { ...shellQuery(query), ...(venueId ? { at: venueId } : {}) },
 })
 
+export const lobbieLocation = (query: LocationQuery): RouteLocationRaw => ({
+  name: 'lobbie',
+  query: shellQuery(query),
+})
+
+export const lobbieDealLocation = (
+  query: LocationQuery,
+  dealId: string,
+  venueId: string,
+): RouteLocationRaw => ({
+  name: 'deal',
+  params: { dealId },
+  query: { ...shellQuery(query), at: venueId, from: 'lobbie' },
+})
+
 export const venueLocation = (query: LocationQuery, venueId: string): RouteLocationRaw => ({
   name: 'venue',
   params: { venueId },
