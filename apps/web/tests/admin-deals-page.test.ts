@@ -1,6 +1,9 @@
 import { flushPromises, mount } from '@vue/test-utils'
-import { expect, it, vi } from 'vitest'
+import { confirmAdminIdentity } from '@web/lib/admin-recovery'
+import { beforeEach, expect, it, vi } from 'vitest'
 import { defineComponent } from 'vue'
+
+beforeEach(() => confirmAdminIdentity(null))
 
 const id = '0123456789abcdef01234567'
 const detail = (extra = {}) => ({
