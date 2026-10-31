@@ -2,6 +2,7 @@
 import type { AdminOverviewResponse } from '@broke-oclock/contracts/platform-admin'
 import AdminIcon from '@web/components/admin/AdminIcon.vue'
 import AdminShell from '@web/components/admin/AdminShell.vue'
+import RecentAdminActivity from '@web/components/admin/RecentAdminActivity.vue'
 import UserRegistrationAnalytics from '@web/components/admin/UserRegistrationAnalytics.vue'
 import SharedSignIn from '@web/components/auth/SharedSignIn.vue'
 import { confirmAdminIdentity } from '@web/lib/admin-recovery'
@@ -57,7 +58,7 @@ const logoutStarting = (event: Event) => {
 }
 const close = () => { fence.invalidate(); access.value = 'closed'; overview.value = null }
 const anonymous = () => { close(); access.value = 'unauthorized' }
-const analyticsDenied = (code: 'UNAUTHORIZED' | 'FORBIDDEN') => {
+const protectedSectionDenied = (code: 'UNAUTHORIZED' | 'FORBIDDEN') => {
   close()
   access.value = code === 'UNAUTHORIZED' ? 'unauthorized' : 'forbidden'
 }
@@ -121,7 +122,7 @@ onUnmounted(() => { fence.dispose(); nativeFence.dispose() })
         </ul>
         <p class="small mb-0">Failures count imported posts, not ingestion runs.</p>
       </section>
-      <UserRegistrationAnalytics class="overview-registrations" @denied="analyticsDenied" />
+      <UserRegistrationAnalytics class="overview-registrations" @denied="protectedSectionDenied" />
       <div class="overview-next-steps">
         <section class="card overview-attention" aria-labelledby="attention-title">
           <h2 id="attention-title">Attention needed</h2>
@@ -197,6 +198,7 @@ onUnmounted(() => { fence.dispose(); nativeFence.dispose() })
           </table>
         </section>
       </section>
+      <RecentAdminActivity class="overview-activity" @denied="protectedSectionDenied" />
       <section class="card admin-readiness" aria-labelledby="readiness-title">
         <h2 id="readiness-title" class="h4">Configuration readiness</h2>
         <p>Configured and wired does not establish live provider acceptance.</p>
@@ -236,7 +238,7 @@ onUnmounted(() => { fence.dispose(); nativeFence.dispose() })
 .overview-refresh-symbol { font-size: 20px; line-height: 1; }
 .admin-overview-panels.overview-panels {
   grid-template-columns: minmax(0, 1.65fr) minmax(300px, 1fr);
-  grid-template-areas: "work work" "registrations next" "chart chart" "runs runs" "readiness readiness";
+  grid-template-areas: "work work" "registrations next" "chart chart" "runs runs" "activity activity" "readiness readiness";
   gap: 24px;
 }
 .overview-panels :where(.card) {
@@ -259,6 +261,7 @@ onUnmounted(() => { fence.dispose(); nativeFence.dispose() })
 }
 .admin-work-panel > .small { color: var(--admin-muted); }
 .overview-registrations { grid-area: registrations; }
+.overview-activity { grid-area: activity; }
 .overview-next-steps {
   grid-area: next;
   display: grid;
@@ -371,7 +374,7 @@ onUnmounted(() => { fence.dispose(); nativeFence.dispose() })
 @media (max-width: 1199.98px) {
   .admin-overview-panels.overview-panels {
     grid-template-columns: minmax(0, 1fr);
-    grid-template-areas: "work" "registrations" "next" "chart" "runs" "readiness";
+    grid-template-areas: "work" "registrations" "next" "chart" "runs" "activity" "readiness";
   }
   .overview-next-steps { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .overview-summary-link, .overview-summary-static { padding: 20px; }

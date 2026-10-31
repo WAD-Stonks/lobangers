@@ -11,6 +11,7 @@ vi.mock('@web/pages/LandingPage.vue', () => ({ default: { template: '<div />' } 
 const rest = vi.hoisted(() => ({
   overview: vi.fn(),
   analytics: vi.fn(),
+  activity: vi.fn(),
   session: vi.fn(),
   signOut: vi.fn(),
   methods: vi.fn(),
@@ -22,6 +23,7 @@ vi.mock('@web/lib/api-client', () => ({
     }
   },
   api: {
+    adminAudit: { list: rest.activity },
     platformAdmin: { overview: rest.overview, userAnalytics: rest.analytics },
     infrastructure: { authMethods: rest.methods },
   },
@@ -52,6 +54,7 @@ const overview = {
 beforeEach(() => {
   vi.resetAllMocks()
   rest.analytics.mockRejectedValue(new Error('Synthetic analytics unavailable'))
+  rest.activity.mockResolvedValue({ items: [], nextCursor: null })
   rest.overview.mockResolvedValue(overview)
   rest.session.mockResolvedValue({
     data: {
@@ -91,6 +94,7 @@ it('renders protected operational counts and exact actionable links without live
       'quick-actions-title',
       'import-chart-title',
       'overview-runs-title',
+      'recent-activity-title',
       'readiness-title',
     ],
   )
@@ -110,6 +114,21 @@ it('shows sign-in on confirmed absent native identity without a protected read',
   const w = await open()
   expect(w.text()).toContain('Sign in to view administration')
   expect(rest.overview).not.toHaveBeenCalled()
+  expect(rest.activity).not.toHaveBeenCalled()
+  w.unmount()
+})
+it('keeps the overview available when activity fails and clears it when audit access is denied', async () => {
+  rest.activity.mockRejectedValueOnce(new Error('private audit diagnostic'))
+  const w = await open()
+  expect(w.find('.overview-summary').exists()).toBe(true)
+  expect(w.text()).toContain('Recent activity is unavailable')
+  expect(w.text()).not.toContain('private audit diagnostic')
+  rest.activity.mockRejectedValueOnce(new ApiClientError('FORBIDDEN', 403, 'Forbidden'))
+  await w.get('[data-testid="refresh-admin-activity"]').trigger('click')
+  await flushPromises()
+  expect(w.text()).toContain('You do not have permission')
+  expect(w.find('.overview-summary').exists()).toBe(false)
+  expect(w.find('.recent-admin-activity').exists()).toBe(false)
   w.unmount()
 })
 it('shows only nonempty attention queues and links quick actions to existing admin destinations', async () => {
