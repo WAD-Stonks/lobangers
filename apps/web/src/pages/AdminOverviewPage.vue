@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { AdminOverviewResponse } from '@broke-oclock/contracts/platform-admin'
 import AdminShell from '@web/components/admin/AdminShell.vue'
+import UserRegistrationAnalytics from '@web/components/admin/UserRegistrationAnalytics.vue'
 import SharedSignIn from '@web/components/auth/SharedSignIn.vue'
 import { confirmAdminIdentity } from '@web/lib/admin-recovery'
 import { createAdminReadFence } from '@web/lib/admin-session'
@@ -55,6 +56,10 @@ const logoutStarting = (event: Event) => {
 }
 const close = () => { fence.invalidate(); access.value = 'closed'; overview.value = null }
 const anonymous = () => { close(); access.value = 'unauthorized' }
+const analyticsDenied = (code: 'UNAUTHORIZED' | 'FORBIDDEN') => {
+  close()
+  access.value = code === 'UNAUTHORIZED' ? 'unauthorized' : 'forbidden'
+}
 const reload = async () => {
   close()
   const ticket = fence.begin()
@@ -112,6 +117,7 @@ onUnmounted(() => { fence.dispose(); nativeFence.dispose() })
         </ul>
         <p class="small mb-0">Failures count imported posts, not ingestion runs.</p>
       </section>
+      <UserRegistrationAnalytics class="overview-registrations" @denied="analyticsDenied" />
       <div class="overview-next-steps">
         <section class="card p-3 overview-attention" aria-labelledby="attention-title">
           <h2 id="attention-title">Attention needed</h2>
@@ -218,8 +224,9 @@ onUnmounted(() => { fence.dispose(); nativeFence.dispose() })
 }
 .admin-overview-panels.overview-panels {
   grid-template-columns: minmax(0, 1fr);
-  grid-template-areas: "work" "next" "chart" "runs" "readiness";
+  grid-template-areas: "work" "registrations" "next" "chart" "runs" "readiness";
 }
+.overview-registrations { grid-area: registrations; }
 .overview-next-steps {
   grid-area: next;
   display: grid;
