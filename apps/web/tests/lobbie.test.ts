@@ -230,7 +230,7 @@ describe('Ask Lobbie panel', () => {
       '/browse?max=500&when=today&cat=DRINKS&q=kopi&sort=ending',
     )
     const chip = wrapper.get('[data-testid="ask-lobbie"]')
-    expect(chip.text()).toBe('Ask Lobbie for Lobangs')
+    expect(chip.attributes('aria-label')).toBe('Ask Lobbie for Lobangs')
     expect(chip.element.previousElementSibling?.getAttribute('data-testid')).toBe('all-filters')
     // The sparkle is one path; the cross shown while the chat is open is two strokes.
     const iconPaths = () => wrapper.findAll('[data-testid="ask-lobbie"] svg path').length

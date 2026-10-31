@@ -64,6 +64,7 @@ defineExpose({ focusAllFilters: () => allButton.value?.focus() })
       :class="{ 'is-on': lobbieOpen }"
       :aria-expanded="lobbieOpen"
       aria-controls="shell-panel"
+      aria-label="Ask Lobbie for Lobangs"
       data-testid="ask-lobbie"
       @click="emit('askLobbie')"
     >
@@ -72,7 +73,7 @@ defineExpose({ focusAllFilters: () => allButton.value?.focus() })
         :name="lobbieOpen ? 'close' : 'diamond'"
         :size="16"
         :stroke-width="lobbieOpen ? 2.4 : 2"
-      />Ask Lobbie for Lobangs
+      /><span>Ask Lobbie<span class="quick-chips__lobbie-more">&nbsp;for Lobangs</span></span>
     </button>
   </fieldset>
 </template>
@@ -100,6 +101,18 @@ defineExpose({ focusAllFilters: () => allButton.value?.focus() })
 @media (max-width: 767.98px) {
   .quick-chips__optional {
     display: none;
+  }
+
+  /* for mobile view  */
+  .quick-chips__lobbie-more {
+    display: none;
+  }
+}
+
+@media (min-width: 992px) {
+  .quick-chips {
+    flex-wrap: nowrap;
+    width: max-content;
   }
 }
 </style>
