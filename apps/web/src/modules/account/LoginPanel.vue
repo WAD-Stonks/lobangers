@@ -43,7 +43,7 @@ const onSignedIn = async () => {
   <PanelFrame :title="title" :back="{ name: 'browse' }" back-label="Back to the map">
     <div v-if="notice" class="account-panel__notice" role="status">{{ notice }}</div>
     <div class="account-panel__form">
-      <LoginForm @signed-in="onSignedIn" />
+      <LoginForm :destination="redirect" embedded @signed-in="onSignedIn" />
     </div>
     <p class="lb-meta account-panel__switch">
       New here?
@@ -55,25 +55,6 @@ const onSignedIn = async () => {
 </template>
 
 <style scoped>
-/* The form brings its own card and h1 for the standalone page; the panel supplies both here. */
-.account-panel__form :deep(form) {
-  /* biome-ignore lint/complexity/noImportantStyles: beats Bootstrap's p-4 utility, itself !important */
-  padding: 0 !important;
-  background: transparent;
-  border: 0;
-  box-shadow: none;
-}
-
-/* The panel title already greets the visitor, so the form's own lead line would repeat it. */
-.account-panel__form :deep(form > h1),
-.account-panel__form :deep(form > h1 + p) {
-  display: none;
-}
-
-.account-panel__form :deep(input) {
-  font-size: 1rem;
-}
-
 .account-panel__notice {
   padding: var(--space-3);
   font-size: var(--text-sm);

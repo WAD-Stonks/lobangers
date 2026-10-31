@@ -38,6 +38,15 @@ export type AuthEmailSender = {
 }
 
 export type EmailOTPData = Parameters<EmailOTPOptions['sendVerificationOTP']>[0]
+// Server-only native facts; never accepted from public request bodies.
+type VerifiedIdentity = {
+  userId: string
+  email: string
+  authVersion: number
+  platformVersion: number
+}
+export type VerifiedAuthenticationEvent = VerifiedIdentity &
+  ({ type: 'primary-session'; sessionId: string } | { type: 'email-verified' })
 export type AuthConfig = {
   baseURL: string
   secret: string
@@ -46,6 +55,11 @@ export type AuthConfig = {
   email?: AuthEmailSender
   google?: { clientId: string; clientSecret: string }
   sendEmailOTP?: (data: EmailOTPData) => Promise<void>
+  // Called only from native standalone verification after ownership proof, before its user write.
+  prepareEmailVerification?: (identity: VerifiedIdentity) => Promise<VerifiedIdentity | null>
+  onVerifiedAuthentication?: (
+    event: VerifiedAuthenticationEvent,
+  ) => Promise<{ userId: string; role: 'ADMIN' } | null>
 }
 const deliveryFailure = () =>
   APIError.fromStatus('INTERNAL_SERVER_ERROR', { message: 'Email authentication delivery failed' })
@@ -63,6 +77,21 @@ export const createAuth = (config: AuthConfig) => {
   const googleFence = createGoogleAccountFence()
   const sessionFence = createSessionAdmissionFence()
   const nativeOperations = createNativeOperationFence()
+  const admitted = new WeakMap<Request, Omit<VerifiedIdentity, 'userId'>>()
+  const verified = new WeakMap<Request, VerifiedAuthenticationEvent>()
+  const preparedVerification = new WeakMap<Request, VerifiedIdentity>()
+  const observeAdmission = (
+    request: Request | undefined,
+    user: SecurityUser | null,
+    email: string,
+  ) => {
+    if (request)
+      admitted.set(request, {
+        email: email.toLowerCase(),
+        authVersion: generation(user?.authVersion),
+        platformVersion: generation(user?.platformVersion),
+      })
+  }
   // Public native Request identity survives endpoint/hook contexts; shared AuthContext does not own proof.
   const googleEmails = new WeakMap<
     Request,
@@ -202,6 +231,8 @@ export const createAuth = (config: AuthConfig) => {
             })
           if (typeof ctx.body?.email === 'string')
             sessionFence.observe(ctx.request, target, ctx.body.email, ctx.path !== '/sign-up/email')
+          if (ctx.path !== '/sign-up/email' && typeof ctx.body?.email === 'string')
+            observeAdmission(ctx.request, target, ctx.body.email)
         }
         if (ctx.path === '/change-password' && ctx.body?.revokeOtherSessions === true) {
           const native = await getAuthoritativeSessionFromCtx(ctx)
@@ -290,15 +321,72 @@ export const createAuth = (config: AuthConfig) => {
       after: createAuthMiddleware(async (ctx) => {
         // Native server dispatch ignores a falsy before-hook result (including null).
         // HTTP is stopped above; server GETs need their native value filtered here too.
-        if (ctx.path !== '/get-session') return
-        const result = ctx.context.returned as {
-          session?: { id?: string }
-          user?: { id?: string }
-        } | null
-        if (!result?.session?.id || !result.user?.id) return
-        const adapter = await getCurrentAdapter(ctx.context.adapter)
-        if (!(await readActiveNativeSession(adapter, result.session.id, result.user.id)))
-          return ctx.json(null)
+        if (ctx.path === '/get-session') {
+          const result = ctx.context.returned as {
+            session?: { id?: string }
+            user?: { id?: string }
+          } | null
+          if (!result?.session?.id || !result.user?.id) return
+          const adapter = await getCurrentAdapter(ctx.context.adapter)
+          if (!(await readActiveNativeSession(adapter, result.session.id, result.user.id)))
+            return ctx.json(null)
+          return
+        }
+        if (!ctx.request) return
+        const observation = admitted.get(ctx.request)
+        const verification = verified.get(ctx.request)
+        admitted.delete(ctx.request)
+        verified.delete(ctx.request)
+        preparedVerification.delete(ctx.request)
+        const returned = ctx.context.returned
+        // OAuth success redirects are APIErrors too. Never replace their status/Location.
+        if (
+          returned instanceof APIError &&
+          (returned.statusCode < 300 || returned.statusCode >= 400)
+        )
+          return
+        const primary =
+          ctx.path === '/sign-in/email' ||
+          ctx.path === '/sign-in/email-otp' ||
+          (ctx.path === '/sign-in/social' &&
+            ctx.body?.provider === 'google' &&
+            Boolean(ctx.body.idToken)) ||
+          (ctx.path === '/callback/:id' && ctx.params?.id === 'google')
+        const issued = ctx.context.newSession
+        const event: VerifiedAuthenticationEvent | undefined =
+          primary &&
+          observation &&
+          issued &&
+          issued.user.email === observation.email &&
+          generation(issued.session.authVersion) === observation.authVersion
+            ? {
+                ...observation,
+                type: 'primary-session',
+                userId: issued.user.id,
+                sessionId: issued.session.id,
+              }
+            : ['/verify-email', '/email-otp/verify-email'].includes(ctx.path)
+              ? verification
+              : undefined
+        if (!event || !config.onVerifiedAuthentication) return
+        try {
+          const result = await config.onVerifiedAuthentication(event)
+          if (
+            result &&
+            !(returned instanceof APIError) &&
+            returned &&
+            typeof returned === 'object' &&
+            'user' in returned &&
+            returned.user &&
+            typeof returned.user === 'object' &&
+            'id' in returned.user &&
+            returned.user.id === result.userId
+          )
+            return ctx.json({ ...returned, user: { ...returned.user, role: result.role } })
+        } catch {
+          // Authentication already committed; an unconfirmed privilege grant is never retried here.
+          console.warn(JSON.stringify({ event: 'admin-email-provisioning-not-confirmed' }))
+        }
       }),
     },
     socialProviders: config.google ? { google: config.google } : {},
@@ -342,7 +430,10 @@ export const createAuth = (config: AuthConfig) => {
               (ctx.path === '/sign-in/social' &&
                 ctx.body?.provider === 'google' &&
                 Boolean(ctx.body.idToken)))
-          if (primary) sessionFence.observe(ctx.request, target, user.email, true)
+          if (primary) {
+            sessionFence.observe(ctx.request, target, user.email, true)
+            observeAdmission(ctx.request, target, user.email)
+          }
         }
         // Returning sign-in creates no account. A standalone provisioning policy probe mints no proof.
         if (source.action === 'sign-in' || (source.action === 'create-user' && !ctx)) return
@@ -426,17 +517,53 @@ export const createAuth = (config: AuthConfig) => {
           }
         : {}),
     },
-    ...(sender
-      ? {
-          emailVerification: {
+    emailVerification: {
+      autoSignInAfterVerification: false,
+      beforeEmailVerification: async (user, request) => {
+        if (!request || user.emailVerified || !config.prepareEmailVerification) return
+        const security = user as typeof user & Partial<SecurityUser>
+        // Rejection is deliberately fatal: no native verified transition after failed cleanup.
+        const prepared = await config
+          .prepareEmailVerification({
+            userId: user.id,
+            email: user.email,
+            authVersion: generation(security.authVersion),
+            platformVersion: generation(security.platformVersion),
+          })
+          .catch(() => {
+            throw APIError.fromStatus('INTERNAL_SERVER_ERROR', {
+              message: 'Email verification could not be completed',
+            })
+          })
+        if (prepared) preparedVerification.set(request, prepared)
+      },
+      afterEmailVerification: async (user, request) => {
+        if (!request) return
+        const prepared = preparedVerification.get(request)
+        preparedVerification.delete(request)
+        const security = user as typeof user & Partial<SecurityUser>
+        // Never upgrade skipped preparation, replays, foreign Requests or a changed generation.
+        if (
+          !prepared ||
+          !user.emailVerified ||
+          prepared.userId !== user.id ||
+          prepared.email !== user.email ||
+          prepared.authVersion !== generation(security.authVersion) ||
+          prepared.platformVersion !== generation(security.platformVersion)
+        )
+          return
+        verified.set(request, { ...prepared, type: 'email-verified' })
+      },
+      ...(sender
+        ? {
             sendOnSignUp: true,
             sendOnSignIn: true,
             sendVerificationEmail: async ({ user, url }: EmailHookData) => {
               await sender.sendVerification({ name: user.name, email: user.email, url })
             },
-          },
-        }
-      : {}),
+          }
+        : {}),
+    },
     // Staff authorization must use fresh DB sessions. GET preserves DB; native POST renews.
     session: {
       cookieCache: { enabled: false },

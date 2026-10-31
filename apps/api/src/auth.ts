@@ -1,7 +1,12 @@
 import type { AppConfig } from '@api/config'
+import {
+  prepareAdminEmailVerification,
+  provisionVerifiedAdminEmail,
+} from '@api/modules/platform-admin/admin-emails'
 import { type AuthEmailSender, createAuth as createSharedAuth } from '@broke-oclock/auth/server'
 import type { Session } from '@broke-oclock/auth/types'
 import type { CurrentUserResponse } from '@broke-oclock/contracts/api'
+import { db } from '@broke-oclock/db'
 import {
   createEmailClient,
   createEmailOTPEmail,
@@ -40,6 +45,8 @@ export const createAuth = (config: AppConfig) => {
     baseURL: config.betterAuthUrl,
     secret: config.betterAuthSecret,
     trustedOrigin: config.webOrigin,
+    prepareEmailVerification: (identity) => prepareAdminEmailVerification(db, identity),
+    onVerifiedAuthentication: (event) => provisionVerifiedAdminEmail(db, event),
     ...(config.email ? { email: createEmailSender(config.email) } : {}),
     google: config.authProviders?.google,
     sendEmailOTP: sender

@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "tsx watch --clear-screen=false src/server.ts",
     "typecheck": "tsc --noEmit -p tsconfig.json",
+    "admin:emails": "tsx src/tools/admin-emails.ts",
     "test:unit": "vitest run --config vitest.config.ts tests/unit",
     "test:integration": "vitest run --config vitest.config.ts --no-file-parallelism tests/integration",
     "build": "node --import tsx ../../scripts/build-api.ts",
