@@ -67,6 +67,34 @@ async function loginPage(destination: string) {
   await flushPromises()
   return { wrapper, router }
 }
+it.each(['account', 'admin'] as const)(
+  'starts %s login with email only and reveals password only after an explicit switch',
+  async (context) => {
+    const wrapper = mount(SharedSignIn, { props: { context }, attachTo: document.body })
+    wrappers.push(wrapper)
+    await flushPromises()
+    const emailId = context === 'account' ? '#login-email' : '#admin-email'
+    const passwordId = context === 'account' ? '#login-password' : '#admin-password'
+    expect(wrapper.find(passwordId).exists()).toBe(false)
+    expect(wrapper.get('[data-testid="otp-send"]').attributes('type')).toBe('submit')
+    await wrapper.get(emailId).setValue('person@example.test')
+    await wrapper.get('[data-testid="use-password"]').trigger('click')
+    expect(wrapper.find(passwordId).exists()).toBe(true)
+    expect(document.activeElement).toBe(wrapper.get(passwordId).element)
+    expect(sdk.send).not.toHaveBeenCalled()
+    expect(sdk.password).not.toHaveBeenCalled()
+    await wrapper.get(passwordId).setValue('synthetic-password')
+    await wrapper.get('[data-testid="use-code"]').trigger('click')
+    expect(wrapper.find(passwordId).exists()).toBe(false)
+    expect(wrapper.get<HTMLInputElement>(emailId).element.value).toBe('person@example.test')
+    expect(sdk.send).not.toHaveBeenCalled()
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+    expect(sdk.send).toHaveBeenCalledWith({ email: 'person@example.test', type: 'sign-in' })
+    expect(wrapper.find('#sign-in-code').exists()).toBe(true)
+  },
+)
+
 it('normal login reuses the shared sign-in with configured providers and a single page heading', async () => {
   const { wrapper } = await loginPage('/saved')
   expect(wrapper.findComponent(LoginForm).findComponent(SharedSignIn).exists()).toBe(true)
@@ -104,6 +132,7 @@ it.each(['/saved?tab=all#top', '/submit-deal', 'https://evil.test', '//evil.test
   'normal password retains safe redirect for %s',
   async (destination) => {
     const { wrapper, router } = await loginPage(destination)
+    await wrapper.get('[data-testid="use-password"]').trigger('click')
     await wrapper.get('#login-email').setValue('person@example.test')
     await wrapper.get('#login-password').setValue('synthetic-password')
     await wrapper.get('form').trigger('submit')
@@ -117,7 +146,7 @@ it('code sign-in is a dedicated step with cooldown, retry, change-email and pass
   vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] })
   const { wrapper } = await loginPage('/saved')
   await wrapper.get('#login-email').setValue('person@example.test')
-  await wrapper.get('[data-testid="otp-send"]').trigger('click')
+  await wrapper.get('form').trigger('submit')
   await flushPromises()
   expect(wrapper.find('#login-password').exists()).toBe(false)
   expect(wrapper.find('#login-email').exists()).toBe(false)
@@ -135,14 +164,17 @@ it('code sign-in is a dedicated step with cooldown, retry, change-email and pass
   expect(sdk.send).toHaveBeenCalledTimes(2)
   await wrapper.get('[data-testid="change-email"]').trigger('click')
   expect(wrapper.find('#sign-in-code').exists()).toBe(false)
-  expect(wrapper.find('#login-password').exists()).toBe(true)
-  await wrapper.get('[data-testid="otp-send"]').trigger('click')
+  expect(wrapper.find('#login-password').exists()).toBe(false)
+  expect(wrapper.get('[data-testid="otp-send"]').attributes('disabled')).toBeDefined()
+  await vi.advanceTimersByTimeAsync(30000)
+  await wrapper.get('form').trigger('submit')
   await flushPromises()
   await wrapper.get('[data-testid="use-password"]').trigger('click')
   expect(wrapper.find('#login-password').exists()).toBe(true)
 })
 it('locks recovery cancel while pending and ignores a result after unmount', async () => {
   const { wrapper } = await loginPage('/saved')
+  await wrapper.get('[data-testid="use-password"]').trigger('click')
   await wrapper.get('[data-testid="recovery-open"]').trigger('click')
   await wrapper.get('#recovery-email').setValue('person@example.test')
   const request = deferred()
@@ -196,15 +228,16 @@ it.each(['disabled', 'unavailable'])(
     expect(wrapper.text()).not.toContain('private projection failure')
   },
 )
-it('characterization: generic send errors keep password available and allow a deliberate retry', async () => {
+it('generic send errors keep the password alternative available and allow a deliberate retry', async () => {
   sdk.send.mockResolvedValueOnce({ error: { status: 400, message: 'private account details' } })
   const { wrapper } = await loginPage('/')
   await wrapper.get('#login-email').setValue('person@example.test')
-  await wrapper.get('[data-testid="otp-send"]').trigger('click')
+  await wrapper.get('form').trigger('submit')
   await flushPromises()
   expect(wrapper.get('[role="alert"]').text()).toBe('Code could not be sent. Please try again.')
-  expect(wrapper.find('#login-password').exists()).toBe(true)
-  await wrapper.get('[data-testid="otp-send"]').trigger('click')
+  expect(wrapper.find('#login-password').exists()).toBe(false)
+  expect(wrapper.find('[data-testid="use-password"]').exists()).toBe(true)
+  await wrapper.get('form').trigger('submit')
   await flushPromises()
   expect(wrapper.find('#sign-in-code').exists()).toBe(true)
 })
@@ -212,6 +245,7 @@ it('locks the normal-login mailbox during password sign-in and completes the req
   const pending = deferred()
   sdk.password.mockReturnValue(pending.promise)
   const { wrapper, router } = await loginPage('/saved')
+  await wrapper.get('[data-testid="use-password"]').trigger('click')
   await wrapper.get('#login-email').setValue('person@example.test')
   await wrapper.get('#login-password').setValue('synthetic-password')
   await wrapper.get('form').trigger('submit')
@@ -228,7 +262,7 @@ it('locks the normal-login mailbox during password sign-in and completes the req
 it('characterization: does not emit a code success received after unmount', async () => {
   const { wrapper } = await loginPage('/')
   await wrapper.get('#login-email').setValue('person@example.test')
-  await wrapper.get('[data-testid="otp-send"]').trigger('click')
+  await wrapper.get('form').trigger('submit')
   await flushPromises()
   const pending = deferred()
   sdk.redeem.mockReturnValue(pending.promise)
@@ -244,6 +278,7 @@ it('moves focus to recovery email and back to sign-in email on cancel', async ()
   const wrapper = mount(SharedSignIn, { attachTo: document.body })
   wrappers.push(wrapper)
   await flushPromises()
+  await wrapper.get('[data-testid="use-password"]').trigger('click')
   await wrapper.get('[data-testid="recovery-open"]').trigger('click')
   await flushPromises()
   expect(document.activeElement).toBe(wrapper.get('#recovery-email').element)
@@ -256,7 +291,7 @@ it('moves keyboard focus into the dedicated code step after the pending send unl
   wrappers.push(wrapper)
   await flushPromises()
   await wrapper.get('#admin-email').setValue('person@example.test')
-  await wrapper.get('[data-testid="otp-send"]').trigger('click')
+  await wrapper.get('form').trigger('submit')
   await flushPromises()
   expect(document.activeElement).toBe(wrapper.get('#sign-in-code').element)
 })

@@ -26,6 +26,7 @@ const code = ref('')
 const issuedEmail = ref('')
 const cooldown = ref(0)
 const emailInput = ref<HTMLInputElement>()
+const passwordInput = ref<HTMLInputElement>()
 const codeInput = ref<HTMLInputElement>()
 const errorMessage = ref<HTMLElement>()
 const touched = ref(false)
@@ -35,6 +36,8 @@ const emailError = computed(() => !email.value.trim() ? 'Enter your email addres
 const timer = setInterval(() => { if (cooldown.value > 0) cooldown.value-- }, 1000)
 const methods = ref<AuthMethodsResponse | null>(null)
 const methodsUnavailable = ref(false)
+const method = ref<'code' | 'password'>('code')
+const passwordMode = computed(() => method.value === 'password' || methodsUnavailable.value || methods.value?.emailOtp === false)
 let generation = 0
 let alive = true
 watch(email, () => { generation++; password.value = ''; code.value = ''; issuedEmail.value = ''; error.value = ''; notice.value = ''; cooldown.value = 0 }, { flush: 'sync' })
@@ -121,11 +124,14 @@ const redeemCode = async () => {
   } catch { if (alive && current === generation) error.value = 'Code sign-in could not be completed. Please try again.' }
   finally { code.value = ''; password.value = ''; if (alive) pending.value = false }
 }
-const returnToPassword = async () => {
+const switchMethod = async (next: 'code' | 'password', focusEmail = false) => {
   if (pending.value) return
-  generation++; issuedEmail.value = ''; code.value = ''; password.value = ''; error.value = ''; cooldown.value = 0
+  generation++; method.value = next; issuedEmail.value = ''; code.value = ''; password.value = ''; error.value = ''; notice.value = ''
   await nextTick()
-  if (alive) emailInput.value?.focus()
+  if (alive) {
+    const input = !focusEmail && next === 'password' && email.value.trim() ? passwordInput.value : emailInput.value
+    input?.focus()
+  }
 }
 const recovered = () => { recovery.value = false; notice.value = 'Password reset. Sign in again with your new password.' }
 </script>
@@ -142,23 +148,25 @@ const recovered = () => { recovery.value = false; notice.value = 'Password reset
       <p v-if="notice" role="status" class="auth-notice">{{ notice }}</p>
       <p v-if="error" id="sign-in-error" ref="errorMessage" role="alert" tabindex="-1" class="auth-error">{{ error }}</p>
       <template v-if="!issuedEmail">
-        <form novalidate @submit.prevent="signIn" :aria-busy="pending" class="auth-form">
+        <form novalidate @submit.prevent="passwordMode ? signIn() : sendCode()" :aria-busy="pending" class="auth-form">
           <div>
             <label :for="emailId" class="form-label">Email</label>
             <input :id="emailId" ref="emailInput" v-model="email" type="email" autocomplete="username" class="form-control" :disabled="context === 'account' && pending" :aria-invalid="touched && !!emailError" :aria-describedby="touched && emailError ? 'sign-in-email-error' : undefined" required @blur="touched = true" />
             <p v-if="touched && emailError" id="sign-in-email-error" class="auth-field-error">{{ emailError }}</p>
           </div>
-          <div>
+          <div v-if="passwordMode">
             <div class="auth-label-row">
               <label :for="passwordId" class="form-label">Password</label>
               <button v-if="methods?.passwordRecovery" data-testid="recovery-open" type="button" class="auth-link" :disabled="pending" @click="recovery = true">Forgot password?</button>
               <slot v-else name="forgot" />
             </div>
-            <input :id="passwordId" v-model="password" type="password" autocomplete="current-password" class="form-control" :disabled="pending" required />
+            <input :id="passwordId" ref="passwordInput" v-model="password" type="password" autocomplete="current-password" class="form-control" :disabled="pending" required />
           </div>
-          <button class="btn auth-primary" type="submit" :disabled="pending || !password">{{ pending ? 'Signing in…' : context === 'account' ? 'Log in' : 'Sign in' }}</button>
-          <button v-if="methods?.emailOtp" data-testid="otp-send" type="button" class="btn auth-secondary" :disabled="pending" @click="sendCode">{{ pending ? 'Please wait…' : 'Email me a sign-in code' }}</button>
+          <button v-if="passwordMode" class="btn auth-primary" type="submit" :disabled="pending || !password">{{ pending ? 'Signing in…' : context === 'account' ? 'Log in' : 'Sign in' }}</button>
+          <button v-else data-testid="otp-send" type="submit" class="btn auth-primary" :disabled="pending || !methods?.emailOtp || cooldown > 0">{{ pending ? 'Sending code…' : cooldown ? `Resend in ${cooldown}s` : methods ? 'Email me a sign-in code' : 'Checking sign-in options…' }}</button>
         </form>
+        <button v-if="!passwordMode" data-testid="use-password" type="button" class="auth-link auth-back" :disabled="pending" @click="switchMethod('password')">Use password instead</button>
+        <button v-else-if="methods?.emailOtp" data-testid="use-code" type="button" class="auth-link auth-back" :disabled="pending" @click="switchMethod('code')">Use an email code instead</button>
         <template v-if="methods?.google">
           <div class="auth-divider"><span>or continue with</span></div>
           <button data-testid="google-sign-in" type="button" class="btn auth-secondary auth-google" :disabled="pending" @click="google">
@@ -168,7 +176,7 @@ const recovered = () => { recovery.value = false; notice.value = 'Password reset
         </template>
       </template>
       <template v-else>
-        <div class="auth-mailbox"><span>{{ issuedEmail }}</span><button data-testid="change-email" type="button" class="auth-link" :disabled="pending" @click="returnToPassword">Change email</button></div>
+        <div class="auth-mailbox"><span>{{ issuedEmail }}</span><button data-testid="change-email" type="button" class="auth-link" :disabled="pending" @click="switchMethod('code', true)">Change email</button></div>
         <form data-testid="otp-form" @submit.prevent="redeemCode" :aria-busy="pending" class="auth-form">
           <div>
             <label for="sign-in-code" class="form-label">Sign-in code</label>
@@ -178,7 +186,7 @@ const recovered = () => { recovery.value = false; notice.value = 'Password reset
           <button type="submit" class="btn auth-primary" :disabled="pending || !/^\d{6}$/.test(code)">{{ pending ? 'Signing in…' : 'Sign in with code' }}</button>
         </form>
         <div class="auth-resend" aria-live="polite"><span>Didn't get a code?</span><button data-testid="otp-resend" type="button" class="auth-link" :disabled="pending || cooldown > 0" @click="sendCode">{{ cooldown ? `Resend in ${cooldown}s` : 'Resend sign-in code' }}</button></div>
-        <button data-testid="use-password" type="button" class="auth-link auth-back" :disabled="pending" @click="returnToPassword">Use my password instead</button>
+        <button data-testid="use-password" type="button" class="auth-link auth-back" :disabled="pending" @click="switchMethod('password')">Use password instead</button>
       </template>
       <details v-if="methods?.emailOtp" class="auth-method-note"><summary>About code sign-in</summary><p>For an existing unverified account, first code sign-in can remove previous sign-in links, password and sessions. Use password recovery to set a new password. This does not grant a role.</p></details>
       <p v-if="context === 'admin'" class="auth-role-note">Signing in does not grant an administrator or merchant role.</p>
