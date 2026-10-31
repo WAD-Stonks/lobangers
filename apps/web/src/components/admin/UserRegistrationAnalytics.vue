@@ -37,7 +37,7 @@ onUnmounted(() => fence.dispose())
 </script>
 
 <template>
-  <section class="card p-3 registration-analytics" aria-labelledby="registration-title" :aria-busy="loading">
+  <section class="card registration-analytics" aria-labelledby="registration-title" :aria-busy="loading">
     <div class="registration-heading">
       <div>
         <h2 id="registration-title">User registrations</h2>
@@ -71,6 +71,7 @@ onUnmounted(() => fence.dispose())
 </template>
 
 <style scoped>
+.registration-analytics { padding: 24px; }
 .registration-heading { display: flex; align-items: start; flex-wrap: wrap; justify-content: space-between; gap: 16px; }
 .registration-heading > div { flex: 1 1 300px; }
 .registration-heading h2 { letter-spacing: -0.02em; }

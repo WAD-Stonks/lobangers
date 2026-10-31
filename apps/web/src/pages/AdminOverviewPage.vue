@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { AdminOverviewResponse } from '@broke-oclock/contracts/platform-admin'
-import AdminShell from '@web/components/admin/AdminShell.vue'
 import AdminIcon from '@web/components/admin/AdminIcon.vue'
+import AdminShell from '@web/components/admin/AdminShell.vue'
 import UserRegistrationAnalytics from '@web/components/admin/UserRegistrationAnalytics.vue'
 import SharedSignIn from '@web/components/auth/SharedSignIn.vue'
 import { confirmAdminIdentity } from '@web/lib/admin-recovery'
@@ -123,7 +123,7 @@ onUnmounted(() => { fence.dispose(); nativeFence.dispose() })
       </section>
       <UserRegistrationAnalytics class="overview-registrations" @denied="analyticsDenied" />
       <div class="overview-next-steps">
-        <section class="card p-3 overview-attention" aria-labelledby="attention-title">
+        <section class="card overview-attention" aria-labelledby="attention-title">
           <h2 id="attention-title">Attention needed</h2>
           <p class="small text-secondary">Open work in the current snapshot.</p>
           <ul v-if="attentionItems.length" class="overview-attention-list">
@@ -134,7 +134,7 @@ onUnmounted(() => { fence.dispose(); nativeFence.dispose() })
           </ul>
           <p v-else class="overview-queue-clear mb-0">No pending merchant requests, imported drafts or failed imported posts in this snapshot.</p>
         </section>
-        <nav class="card p-3 overview-shortcuts" aria-labelledby="quick-actions-title">
+        <nav class="card overview-shortcuts" aria-labelledby="quick-actions-title">
           <h2 id="quick-actions-title">Quick actions</h2>
           <ul class="overview-shortcut-list">
             <li v-for="action in quickActions" :key="action.href">
@@ -143,7 +143,7 @@ onUnmounted(() => { fence.dispose(); nativeFence.dispose() })
           </ul>
         </nav>
       </div>
-      <section class="card p-3 overview-import-chart" aria-labelledby="import-chart-title">
+      <section class="card overview-import-chart" aria-labelledby="import-chart-title">
         <div class="overview-chart-heading">
           <div>
             <h2 id="import-chart-title">Latest import runs</h2>
@@ -176,7 +176,7 @@ onUnmounted(() => { fence.dispose(); nativeFence.dispose() })
           </ol>
         </template>
       </section>
-      <section class="card p-3 mb-3 admin-runs-panel" aria-labelledby="overview-runs-title">
+      <section class="card admin-runs-panel" aria-labelledby="overview-runs-title">
         <h2 id="overview-runs-title" class="h4">Recent ingestion runs</h2>
         <p><a href="/admin/ingestion#runs-title">View ingestion run history</a></p>
         <p v-if="!overview.recentRuns.length" class="text-secondary mb-0">No ingestion runs yet.</p>
@@ -197,7 +197,7 @@ onUnmounted(() => { fence.dispose(); nativeFence.dispose() })
           </table>
         </section>
       </section>
-      <section class="card p-3 mb-3 admin-readiness" aria-labelledby="readiness-title">
+      <section class="card admin-readiness" aria-labelledby="readiness-title">
         <h2 id="readiness-title" class="h4">Configuration readiness</h2>
         <p>Configured and wired does not establish live provider acceptance.</p>
         <dl>
@@ -245,7 +245,7 @@ onUnmounted(() => { fence.dispose(); nativeFence.dispose() })
   box-shadow: 0 3px 14px #20242b04;
 }
 .overview-panels > :where(.card),
-.overview-next-steps > :where(.card) { padding: 24px !important; margin-bottom: 0 !important; }
+.overview-next-steps > :where(.card) { padding: 24px; margin-bottom: 0; }
 .overview-panels :where(h2) { margin-bottom: 8px; letter-spacing: -0.02em; }
 .overview-panels :where(h2)::before {
   display: inline-block;
@@ -348,7 +348,7 @@ onUnmounted(() => { fence.dispose(); nativeFence.dispose() })
 .overview-card-hint { width: 100%; padding-top: 12px; margin-top: auto; border-top: 1px solid #edf0f3; }
 .overview-runs-table { min-width: 700px; }
 .overview-runs-table :where(tbody tr:hover) { --bs-table-bg: #fffdf6; }
-.overview-runs-table :where(th, td) { padding-block: 16px !important; }
+.overview-runs-table.table > :not(caption) > * > * { padding-block: 16px; }
 .overview-runs-scroll { margin-top: 20px; }
 .overview-runs-table td { font-variant-numeric: tabular-nums; }
 .overview-source,
@@ -385,7 +385,7 @@ onUnmounted(() => { fence.dispose(); nativeFence.dispose() })
   .overview-next-steps { grid-template-columns: minmax(0, 1fr); }
   .overview-summary { grid-template-columns: minmax(0, 1fr); }
   .overview-metric-label { flex-wrap: nowrap; }
-  .overview-panels > :where(.card), .overview-next-steps > :where(.card) { padding: 20px !important; }
+  .overview-panels > :where(.card), .overview-next-steps > :where(.card) { padding: 20px; }
 }
 @media (max-width: 575.98px) {
   .overview-chart-run { grid-template-columns: minmax(0, 1fr); gap: 12px; }
