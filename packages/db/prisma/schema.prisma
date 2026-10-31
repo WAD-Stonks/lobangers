@@ -130,6 +130,9 @@ enum PlatformAuditAction {
   ACCOUNT_REINSTATED
   SESSION_REVOKED
   SESSIONS_REVOKED
+  FLASH_DROP_APPROVED
+  FLASH_DROP_SENT_BACK
+  FLASH_DROP_STOPPED
 }
 
 enum AdminSubjectType {
@@ -142,6 +145,7 @@ enum AdminSubjectType {
   COMMENT_REPORT
   IMPORTED_POST
   INGESTION_RECOVERY
+  FLASH_DROP
 }
 
 // Append-only through the application. No edit/delete procedure is exposed.
@@ -756,4 +760,55 @@ enum RunStatus {
   SUCCEEDED
   PARTIAL
   FAILED
+}
+
+// Flash Drop: a merchant's short, limited-code drop of one of their own deals at one outlet.
+// Every drop is reviewed by an admin before it goes live; the window and code count are fixed
+// once approved. `demo` marks fake drops created for demonstrations; they are labelled as such.
+enum FlashDropStatus {
+  PENDING
+  APPROVED
+  SENT_BACK
+  STOPPED
+  ENDED_EARLY
+}
+
+model FlashDrop {
+  id              String          @id @default(auto()) @map("_id") @db.ObjectId
+  dealId          String          @db.ObjectId
+  venueId         String          @db.ObjectId
+  merchantUserId  String          @db.ObjectId
+  flashPriceMinor Int
+  startsAt        DateTime
+  endsAt          DateTime
+  radiusMetres    Int
+  codeLimit       Int
+  claimedCount    Int             @default(0)
+  status          FlashDropStatus @default(PENDING)
+  reviewNote      String?
+  reviewedById    String?         @db.ObjectId
+  reviewedAt      DateTime?
+  version         Int             @default(1)
+  demo            Boolean         @default(false)
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  claims          FlashDropClaim[]
+
+  @@index([status, startsAt])
+  @@index([status, endsAt])
+  @@index([merchantUserId, createdAt])
+  @@index([venueId, startsAt])
+}
+
+// One code per person per drop; the code is what they show at the counter.
+model FlashDropClaim {
+  id        String    @id @default(auto()) @map("_id") @db.ObjectId
+  dropId    String    @db.ObjectId
+  drop      FlashDrop @relation(fields: [dropId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  userId    String    @db.ObjectId
+  code      String    @unique
+  createdAt DateTime  @default(now())
+
+  @@unique([dropId, userId])
+  @@index([userId, createdAt])
 }

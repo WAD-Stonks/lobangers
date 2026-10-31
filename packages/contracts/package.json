@@ -25,7 +25,8 @@
     "./venues": "./src/venues.ts",
     "./account": "./src/account.ts",
     "./community": "./src/community.ts",
-    "./community-policy": "./src/community-policy.ts"
+    "./community-policy": "./src/community-policy.ts",
+    "./flash-drops": "./src/flash-drops.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit -p tsconfig.json"
