@@ -1,5 +1,6 @@
 import { type AuthenticatedActor, activeAccount } from '@api/modules/account/security-access'
 import { DomainError } from '@api/modules/domain-error'
+import { syncRoleAdminEmail } from '@api/modules/platform-admin/admin-emails'
 import { invalidatePendingRequests } from '@api/modules/platform-admin/invalidation'
 import {
   accessTransaction,
@@ -36,6 +37,7 @@ export const changeRole = (
       (await tx.user.count({ where: { role: 'ADMIN', ...activeAccount } })) <= 1
     )
       throw new DomainError('PRECONDITION_FAILED', 'At least one administrator must remain')
+    await syncRoleAdminEmail(tx, target, input.role, actorId, input.note)
     await invalidatePendingRequests(
       tx,
       actor,

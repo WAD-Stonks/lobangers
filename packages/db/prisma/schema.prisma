@@ -59,6 +59,48 @@ model StallGrant {
   @@index([venueId])
 }
 
+enum AdminEmailAction {
+  APPROVED
+  REVOKED
+  PROVISIONED
+}
+
+enum AdminEmailSource {
+  OPERATOR
+  ADMIN_ROLE_CHANGE
+  NATIVE_AUTH
+}
+
+// Authorization intent only; never email ownership or runtime role authority.
+model AdminEmail {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  email     String   @unique
+  active    Boolean  @default(true)
+  version   Int      @default(1)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// Append-only through supported application writers; no fabricated system actor.
+model AdminEmailEvent {
+  id                      String           @id @default(auto()) @map("_id") @db.ObjectId
+  approvalId              String           @db.ObjectId
+  action                  AdminEmailAction
+  source                  AdminEmailSource
+  actorUserId             String?          @db.ObjectId
+  operatorLabel           String?
+  targetUserId            String?          @db.ObjectId
+  reason                  String
+  approvalVersion         Int
+  roleBefore              UserRole?
+  roleAfter               UserRole?
+  invalidatedRequestCount Int?
+  createdAt               DateTime         @default(now())
+
+  @@index([approvalId, id])
+  @@index([targetUserId, id])
+}
+
 model PlatformAccessFence {
   id      String @id @map("_id")
   version Int    @default(0)
