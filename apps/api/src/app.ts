@@ -30,7 +30,7 @@ export const createApp = (
   })
   // These same-origin resources reject unsupported methods before global CORS preflight.
   // Preserve preflight behavior on the existing native SDK and REST routes.
-  app.options(['/api/auth-methods', '/api/admin/overview'], methodNotAllowed('GET'))
+  app.options(['/api/auth-methods', '/api/admin/overview', '/api/admin/analytics/users'], methodNotAllowed('GET'))
   app.options('/api/ingestion/drafts/:dealId/outlet', methodNotAllowed('PATCH'))
   app.use(createAdminOptionsRouter())
   app.use(

@@ -10,10 +10,13 @@ import { getAdminOverview } from '@api/rest/routers/platform-admin/overview'
 import { reviewMerchantRequest } from '@api/rest/routers/platform-admin/review-merchant-request'
 import { deleteStallGrant } from '@api/rest/routers/platform-admin/revoke-stall'
 import { listAdminVenues } from '@api/rest/routers/platform-admin/venues'
+import { getAdminUserAnalytics } from '@api/rest/routers/platform-admin/user-analytics'
 import { Router } from 'express'
 
 export const createPlatformAdminRouter = (dependencies: RestDependencies) => {
   const router = Router()
+  router.get('/admin/analytics/users', getAdminUserAnalytics(dependencies))
+  router.all('/admin/analytics/users', methodNotAllowed('GET'))
   router.get('/admin/overview', getAdminOverview(dependencies))
   router.all('/admin/overview', methodNotAllowed('GET'))
   router.get('/admin/accounts', listAdminAccounts(dependencies))
