@@ -30,7 +30,7 @@ defineExpose({ focusAllFilters: () => chips.value?.focusAllFilters() })
 <template>
   <header class="shell-header" data-testid="shell-header">
     <BrandMenu />
-    <SearchField :value="filters.q" @search="onSearch" />
+    <SearchField class="shell-header__search" :value="filters.q" @search="onSearch" />
     <QuickChips
       ref="chips"
       class="shell-header__chips"
@@ -51,8 +51,9 @@ defineExpose({ focusAllFilters: () => chips.value?.focusAllFilters() })
   left: var(--shell-gutter);
   z-index: 30;
   display: grid;
+  --header-gap: 10px;
   grid-template-columns: auto minmax(0, 1fr);
-  gap: 10px;
+  gap: var(--header-gap);
   align-items: center;
   width: var(--header-w);
   pointer-events: none;
@@ -64,5 +65,11 @@ defineExpose({ focusAllFilters: () => chips.value?.focusAllFilters() })
 
 .shell-header__chips {
   grid-column: 1 / -1;
+}
+
+@media (min-width: 992px) {
+  .shell-header__search {
+    margin-right: var(--header-gap);
+  }
 }
 </style>

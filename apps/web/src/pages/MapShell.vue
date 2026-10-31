@@ -351,7 +351,7 @@ onBeforeUnmount(() => document.documentElement.classList.remove('is-canvas'))
   /* Desktop, as on the Prototype board: the header floats top left, the panel is a card on the
      right, and the map controls and pills centre on the part of the map left of the panel. */
   --panel-w: 380px; /* fallback; use-shell-layout.ts sets the live value inline */
-  --header-w: min(31rem, calc(100% - 2 * var(--shell-gutter)));
+  --header-w: max-content;
   --map-centre-x: calc((100% - var(--panel-w) - 2 * var(--shell-gutter)) / 2);
   --toast-bottom: 84px;
   position: relative;
