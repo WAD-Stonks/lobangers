@@ -7,6 +7,7 @@ import {
   isReviewReady,
 } from '@api/modules/ingestion/review-policy'
 import { sourceFromRecord } from '@api/modules/ingestion/source'
+import { normalizeVersion } from '@api/modules/platform-admin/operation-version'
 import { activeRecord } from '@api/modules/platform-admin/venues'
 import { createRestHandler, type RestDependencies, requireAdmin } from '@api/rest/context'
 import { parseRestInput } from '@api/rest/validation'
@@ -52,8 +53,10 @@ export const getIngestionDrafts = (dependencies: RestDependencies): RequestHandl
         },
         reviewStatus: true,
         contentVersion: true,
+        operationVersion: true,
         reviewNote: true,
         priceMinor: true,
+        currency: true,
         discountPercent: true,
         sources: {
           take: 1,
@@ -152,6 +155,9 @@ export const getIngestionDrafts = (dependencies: RestDependencies): RequestHandl
         terms: row.terms,
         category: row.category,
         offerType: row.offerType,
+        priceMinor: row.priceMinor,
+        currency: row.currency,
+        discountPercent: row.discountPercent,
         validFrom: row.validFrom?.toISOString() ?? null,
         validUntil: row.validUntil?.toISOString() ?? null,
         rawValidityText: row.rawValidityText,
@@ -176,6 +182,7 @@ export const getIngestionDrafts = (dependencies: RestDependencies): RequestHandl
         })),
         reviewStatus: row.reviewStatus,
         contentVersion: row.contentVersion,
+        operationVersion: normalizeVersion(row.operationVersion),
         sourceUrl: row.sources[0]?.sourceUrl ?? '',
         sourceName: row.sources[0]?.importedPost.source.name ?? '',
         images: row.sources

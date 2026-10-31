@@ -1,3 +1,4 @@
+import { adminVersionSchema } from '@contracts/admin-common'
 import { dealCategorySchema } from '@contracts/deal-categories'
 import { boundedQueryInteger } from '@contracts/query'
 import { z } from 'zod'
@@ -71,11 +72,13 @@ export const ingestionOutletSchema = z.strictObject({
 })
 export const ingestionOutletAssociationParamsSchema = z.strictObject({ dealId: objectIdSchema })
 export const ingestionOutletAssociationRequestSchema = z.strictObject({
+  expectedOperationVersion: adminVersionSchema.default(0),
   expectedContentVersion: z.number().int().min(1).max(2_147_483_646),
   venueId: objectIdSchema,
 })
 export const ingestionOutletAssociationResponseSchema = z.strictObject({
   id: objectIdSchema,
+  operationVersion: adminVersionSchema.optional(),
   contentVersion: z.number().int().min(1).max(2_147_483_647),
   reviewStatus: z.literal('PENDING'),
   applicability: z.literal('SELECTED_OUTLETS'),
@@ -83,7 +86,7 @@ export const ingestionOutletAssociationResponseSchema = z.strictObject({
   outlet: ingestionOutletSchema,
 })
 export type IngestionOutlet = z.infer<typeof ingestionOutletSchema>
-export type IngestionOutletAssociationRequest = z.infer<
+export type IngestionOutletAssociationRequest = z.input<
   typeof ingestionOutletAssociationRequestSchema
 >
 export type IngestionOutletAssociationResponse = z.infer<
@@ -93,16 +96,18 @@ export type IngestionOutletAssociationResponse = z.infer<
 // Reviewers correct the importer's guessed category on a pending draft at a known version.
 export const ingestionCategoryParamsSchema = z.strictObject({ dealId: objectIdSchema })
 export const ingestionCategoryRequestSchema = z.strictObject({
+  expectedOperationVersion: adminVersionSchema.default(0),
   expectedContentVersion: z.number().int().min(1).max(2_147_483_646),
   category: dealCategorySchema,
 })
 export const ingestionCategoryResponseSchema = z.strictObject({
   id: objectIdSchema,
+  operationVersion: adminVersionSchema.optional(),
   contentVersion: z.number().int().min(1).max(2_147_483_647),
   reviewStatus: z.literal('PENDING'),
   category: dealCategorySchema,
 })
-export type IngestionCategoryRequest = z.infer<typeof ingestionCategoryRequestSchema>
+export type IngestionCategoryRequest = z.input<typeof ingestionCategoryRequestSchema>
 export type IngestionCategoryResponse = z.infer<typeof ingestionCategoryResponseSchema>
 
 export const ingestionDraftSchema = z
@@ -113,6 +118,9 @@ export const ingestionDraftSchema = z
     terms: z.string().nullable(),
     category: z.string(),
     offerType: z.string(),
+    priceMinor: z.number().int().nullable().optional(),
+    currency: z.string().nullable().optional(),
+    discountPercent: z.number().int().nullable().optional(),
     validFrom: z.string().nullable(),
     validUntil: z.string().nullable(),
     rawValidityText: z.string().nullable(),
@@ -123,6 +131,7 @@ export const ingestionDraftSchema = z
     outletCount: z.number().int().nonnegative().optional(),
     outletsTruncated: z.boolean().optional(),
     reviewStatus: z.string(),
+    operationVersion: adminVersionSchema.optional(),
     contentVersion: z.number().int(),
     sourceUrl: z.string(),
     sourceName: z.string(),
@@ -153,13 +162,18 @@ export const ingestionDraftsResponseSchema = z
   .strict()
 export const ingestionReviewRequestSchema = z
   .object({
+    expectedOperationVersion: adminVersionSchema.default(0),
     expectedContentVersion: z.number().int().min(1),
     decision: z.enum(['APPROVE', 'REJECT']),
     note: z.string().trim().min(1).max(1000),
   })
   .strict()
 export const ingestionReviewResponseSchema = z
-  .object({ id: objectIdSchema, reviewStatus: z.string() })
+  .object({
+    id: objectIdSchema,
+    reviewStatus: z.string(),
+    operationVersion: adminVersionSchema.optional(),
+  })
   .strict()
 
 export const ingestionAccountsQuerySchema = z
@@ -210,7 +224,7 @@ export type IngestionRunsResponse = z.infer<typeof ingestionRunsResponseSchema>
 export type IngestionDraftsQuery = z.infer<typeof ingestionDraftsQuerySchema>
 export type IngestionDraft = z.infer<typeof ingestionDraftSchema>
 export type IngestionDraftsResponse = z.infer<typeof ingestionDraftsResponseSchema>
-export type IngestionReviewRequest = z.infer<typeof ingestionReviewRequestSchema>
+export type IngestionReviewRequest = z.input<typeof ingestionReviewRequestSchema>
 export type IngestionReviewResponse = z.infer<typeof ingestionReviewResponseSchema>
 export type IngestionAccountsQuery = z.infer<typeof ingestionAccountsQuerySchema>
 export type IngestionAccountsResponse = z.infer<typeof ingestionAccountsResponseSchema>

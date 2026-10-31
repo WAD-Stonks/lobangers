@@ -131,7 +131,7 @@ const clearAll = () => {
 
     <div class="browse-list__cta">
       <span>Know a deal that isn't here?</span>
-      <RouterLink class="lb-btn lb-btn--primary" :to="{ name: 'add-deal' }">Add a deal</RouterLink>
+      <RouterLink class="lb-btn lb-btn--primary" :to="{ name: 'submit-deal' }">Add a deal</RouterLink>
     </div>
   </PanelFrame>
 </template>

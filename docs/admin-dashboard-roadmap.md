@@ -2,7 +2,7 @@
 
 Date: 10 October 2026. Source baseline: `941973b0acdc9f5d6c52a507d1135e994fb7dc28`.
 
-Owner: Noah. Reviewer: Kang En. Kang En retains normal-user account flows; Noah owns the approved shared infrastructure and admin integration. This roadmap separates that local implementation from remaining researched proposals. Final acceptance is tracked in [the task ledger](../tasks/plan.md), and P1 security controls remain unapproved policy proposals. Retain the existing ownership and assessment boundaries.
+Owner: Noah. Reviewer: Kang En. Kang En retains normal-user account flows; Noah owns the approved shared infrastructure and admin integration. This dated roadmap retains its original research context and ownership boundaries. The [28 October admin operations contract](admin-operations.md) supersedes its older implementation/proposal classifications for Deals, Catalogue, Moderation, ingestion evidence/recovery, audit filters and approved account-security controls. MFA, staff provisioning, live-provider acceptance, schema application and deployment are not supplied by that completion.
 
 Read the [shared authentication standard](shared-authentication.md) first. It defines Google/OTP, canonical identities, linking, logout/recovery and the administrator assurance gap.
 

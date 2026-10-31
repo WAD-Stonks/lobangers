@@ -87,7 +87,7 @@ describe('site header pill', () => {
       '/',
       '/browse',
       '/deals',
-      '/submit-deal',
+      '/add',
       '/getting-started',
     ])
     expect(menu.get('a[href="/browse"]').attributes('aria-current')).toBe('page')

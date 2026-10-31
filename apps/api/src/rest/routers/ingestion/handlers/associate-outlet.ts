@@ -1,5 +1,10 @@
 import { associateDraftOutlet } from '@api/modules/ingestion/associate-outlet'
-import { createRestHandler, type RestDependencies, requireAdmin } from '@api/rest/context'
+import {
+  authenticatedActor,
+  createRestHandler,
+  type RestDependencies,
+  requireAdmin,
+} from '@api/rest/context'
 import { requireTrustedOrigin } from '@api/rest/policy'
 import { parseRestInput } from '@api/rest/validation'
 import {
@@ -17,7 +22,7 @@ export const patchIngestionDraftOutlet = (dependencies: RestDependencies): Reque
     const input = parseRestInput(ingestionOutletAssociationRequestSchema, request.body)
     const result = await associateDraftOutlet(
       context.db,
-      session.user.id,
+      authenticatedActor(session),
       dealId,
       input,
       context.ingestion?.now() ?? new Date(),

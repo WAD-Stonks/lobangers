@@ -1,8 +1,10 @@
 import { createHash, randomUUID } from 'node:crypto'
+import type { AuthenticatedActor } from '@api/modules/account/security-access'
 import { DomainError } from '@api/modules/domain-error'
 import { moneyDigestPostSchema } from '@api/modules/ingestion/parser'
 import { promotionIdentity } from '@api/modules/ingestion/promotion-identity'
 import type { IngestionRuntime, SourceRuntime } from '@api/modules/ingestion/runtime'
+import { captureEnvelope } from '@api/modules/ingestion/snapshot'
 import {
   MONEYDIGEST_SOURCE,
   type SourceDefinition,
@@ -15,6 +17,12 @@ import {
   imageLinks,
 } from '@api/modules/ingestion/source-images'
 import { parseSourceIdentity, parseSourcePost } from '@api/modules/ingestion/source-post'
+import { legacyVersionWhere, normalizeVersion } from '@api/modules/platform-admin/operation-version'
+import {
+  type AccessTransaction,
+  fencePlatformAccess,
+  requireCurrentAdmin,
+} from '@api/modules/platform-admin/transaction'
 import type { db } from '@broke-oclock/db'
 import { z } from 'zod'
 
@@ -30,6 +38,16 @@ const retryWrite = async <T>(operation: () => Promise<T>): Promise<T> => {
       if (attempt >= 4 || (code !== 'P2002' && code !== 'P2034')) throw error
       await new Promise((resolve) => setTimeout(resolve, 10 * 2 ** attempt))
     }
+  }
+}
+const retryAdmission = async <T>(operation: () => Promise<T>): Promise<T> => {
+  try {
+    return await retryWrite(operation)
+  } catch (error) {
+    const code = typeof error === 'object' && error && 'code' in error ? error.code : null
+    if (['P2002', 'P2034', 'P2025'].includes(String(code)))
+      throw new DomainError('CONFLICT', 'Source admission changed; refresh before trying again')
+    throw error
   }
 }
 const safeErrorCode = (error: unknown) => {
@@ -49,49 +67,90 @@ export const acquireLease = async (
   db: Database,
   now: Date,
   definition: SourceDefinition = { kind: 'moneydigest', ...MONEYDIGEST_SOURCE },
+  actor?: AuthenticatedActor,
 ) => {
+  // Bootstrap remains durable even when the default source is disabled. Manual
+  // admission authorizes this write too; no actorless seed is made on its behalf.
   const { kind: _, ...identity } = definition
-  const source = await db.importSource.upsert({
-    where: sourceKey(definition),
-    create: { ...identity, enabled: false },
-    update: {},
-  })
+  const source = await retryAdmission(() =>
+    db.$transaction(async (tx) => {
+      if (actor) {
+        await fencePlatformAccess(tx)
+        await requireCurrentAdmin(tx, actor)
+      }
+      return tx.importSource.upsert({
+        where: sourceKey(definition),
+        create: { ...identity, enabled: false },
+        update: {},
+      })
+    }),
+  )
   if (!source.enabled || source.url !== definition.url)
     throw new DomainError('PRECONDITION_FAILED', 'Approved source is disabled')
-  const token = randomUUID()
-  const lease = await db.importSource.updateMany({
-    where: {
-      id: source.id,
-      enabled: true,
-      url: definition.url,
-      OR: [
-        { leaseExpiresAt: null },
-        { leaseExpiresAt: { isSet: false } },
-        { leaseExpiresAt: { lte: now } },
-      ],
-    },
-    data: { leaseToken: token, leaseExpiresAt: new Date(now.getTime() + LEASE_MS) },
-  })
-  if (lease.count !== 1) throw new DomainError('CONFLICT', 'Source is busy')
-  try {
-    const recent = await db.ingestionRun.findFirst({
-      where: { sourceId: source.id },
-      orderBy: { startedAt: 'desc' },
-      select: { startedAt: true },
-    })
-    if (recent && now.getTime() - recent.startedAt.getTime() < COOLDOWN_MS)
-      throw new DomainError('TOO_MANY_REQUESTS', 'Source request cooldown')
-    const run = await db.ingestionRun.create({
-      data: { source: { connect: { id: source.id } }, startedAt: now, status: 'RUNNING' },
-    })
-    return { sourceId: source.id, token, run, definition, cursor: source.cursor }
-  } catch (error) {
-    await releaseLease(db, source.id, token)
-    throw error
-  }
+  return retryAdmission(() =>
+    db.$transaction(async (tx) => {
+      if (actor) {
+        await fencePlatformAccess(tx)
+        await requireCurrentAdmin(tx, actor)
+      }
+      const current = await tx.importSource.findUniqueOrThrow({ where: { id: source.id } })
+      const token = randomUUID()
+      const lease = await tx.importSource.updateMany({
+        where: {
+          id: source.id,
+          enabled: true,
+          url: definition.url,
+          OR: [
+            { leaseExpiresAt: null },
+            { leaseExpiresAt: { isSet: false } },
+            { leaseExpiresAt: { lte: now } },
+          ],
+        },
+        data: { leaseToken: token, leaseExpiresAt: new Date(now.getTime() + LEASE_MS) },
+      })
+      if (lease.count !== 1) throw new DomainError('CONFLICT', 'Source is busy')
+      const recent = await tx.ingestionRun.findFirst({
+        where: { sourceId: source.id },
+        orderBy: { startedAt: 'desc' },
+        select: { startedAt: true },
+      })
+      if (recent && now.getTime() - recent.startedAt.getTime() < COOLDOWN_MS)
+        throw new DomainError('TOO_MANY_REQUESTS', 'Source request cooldown')
+      const run = await tx.ingestionRun.create({
+        data: { source: { connect: { id: source.id } }, startedAt: now, status: 'RUNNING' },
+      })
+      return { sourceId: source.id, token, run, definition, cursor: current.cursor }
+    }),
+  )
 }
-type Lease = Awaited<ReturnType<typeof acquireLease>>
-const processPost = async (
+export type PostLease = Awaited<ReturnType<typeof acquireLease>> & { actor?: AuthenticatedActor }
+type Lease = PostLease
+export const guardPostLease = async (
+  tx: AccessTransaction,
+  runtime: IngestionRuntime,
+  lease: Lease,
+) => {
+  if (runtime.deadline && runtime.now() >= runtime.deadline)
+    throw new DomainError('CONFLICT', 'Recovery budget exhausted')
+  if (lease.actor) {
+    await fencePlatformAccess(tx)
+    await requireCurrentAdmin(tx, lease.actor)
+  }
+  const fence = await tx.importSource.updateMany({
+    where: {
+      id: lease.sourceId,
+      enabled: true,
+      provider: lease.definition.provider,
+      externalId: lease.definition.externalId,
+      url: lease.definition.url,
+      leaseToken: lease.token,
+      leaseExpiresAt: { gt: runtime.now() },
+    },
+    data: { leaseToken: lease.token },
+  })
+  if (fence.count !== 1) throw new DomainError('CONFLICT', 'Source lease expired or disabled')
+}
+export const processPost = async (
   db: Database,
   runtime: IngestionRuntime,
   lease: Lease,
@@ -100,9 +159,10 @@ const processPost = async (
 ) => {
   const parsed = parseSourcePost(input, lease.definition)
   const { post, draft } = parsed
-  const snapshot = JSON.stringify(parsed.snapshot)
+  const snapshot = captureEnvelope(input, lease.definition).latestSnapshot
   const contentHash = createHash('sha256').update(snapshot).digest('hex')
   return db.$transaction(async (tx) => {
+    await guardPostLease(tx, runtime, lease)
     const fence = await tx.importSource.updateMany({
       where: {
         id: lease.sourceId,
@@ -131,7 +191,10 @@ const processPost = async (
       : undefined
     const pending =
       previous?.deals.filter(
-        (link) => link.deal.reviewStatus === 'PENDING' && link.deal._count.sources === 1,
+        (link) =>
+          link.deal.reviewStatus === 'PENDING' &&
+          !link.deal.deletedAt &&
+          link.deal._count.sources === 1,
       ) ?? []
     const protectedContent =
       previous?.deals.some((link) => link.deal.reviewStatus === 'APPROVED') ?? false
@@ -147,9 +210,15 @@ const processPost = async (
       status: sourceChanged ? ('NEEDS_REVIEW' as const) : parsed.status,
       processedContentHash: contentHash,
       processedAt: runtime.now(),
+      failureStage: null,
+      lastRunId: lease.run.id,
       fetchedAt: runtime.now(),
       errorCode:
-        !unchangedPromotion && (protectedContent || sourceChanged) ? 'SOURCE_CHANGED' : null,
+        previous?.errorCode === 'SOURCE_CHANGED'
+          ? 'SOURCE_CHANGED'
+          : !unchangedPromotion && (protectedContent || sourceChanged)
+            ? 'SOURCE_CHANGED'
+            : null,
     }
     const imported = await tx.importedPost.upsert({
       where: { sourceId_externalId: { sourceId: lease.sourceId, externalId: String(post.id) } },
@@ -164,7 +233,21 @@ const processPost = async (
     if (canonical) {
       const deal = await tx.deal.findUnique({ where: { id: canonical.dealId } })
       if (deal && !deal.deletedAt) {
-        if (!unchangedPromotion)
+        if (!unchangedPromotion) {
+          const version = normalizeVersion(deal.operationVersion)
+          const parent = await tx.deal.updateMany({
+            where: {
+              id: deal.id,
+              reviewStatus: deal.reviewStatus,
+              contentVersion: deal.contentVersion,
+              AND: [
+                legacyVersionWhere('operationVersion', version),
+                { OR: [{ deletedAt: null }, { deletedAt: { isSet: false } }] },
+              ],
+            },
+            data: { operationVersion: version + 1 },
+          })
+          if (parent.count !== 1) throw new DomainError('CONFLICT', 'Canonical promotion changed')
           await tx.dealSource.create({
             data: {
               dealId: deal.id,
@@ -175,6 +258,7 @@ const processPost = async (
               images: imageLinks(images),
             },
           })
+        }
         return 'linked'
       }
       throw new DomainError('CONFLICT', 'Canonical promotion is unavailable')
@@ -189,9 +273,14 @@ const processPost = async (
           id: link.dealId,
           reviewStatus: 'PENDING',
           contentVersion: link.deal.contentVersion,
+          AND: [
+            legacyVersionWhere('operationVersion', normalizeVersion(link.deal.operationVersion)),
+            { OR: [{ deletedAt: null }, { deletedAt: { isSet: false } }] },
+          ],
         },
         data: {
           reviewStatus: 'REJECTED',
+          operationVersion: normalizeVersion(link.deal.operationVersion) + 1,
           contentVersion: { increment: 1 },
           reviewNote: 'Superseded by source revision',
           reviewedVersion: null,
@@ -205,6 +294,7 @@ const processPost = async (
     const created = await tx.deal.create({
       data: {
         ...draft,
+        operationVersion: 0,
         origin: 'IMPORTED',
         reviewStatus: 'PENDING',
         contentVersion,
@@ -224,12 +314,13 @@ const processPost = async (
     return replacePending ? 'updated' : 'created'
   })
 }
-const recordPostFailure = async (
+export const recordPostFailure = async (
   db: Database,
   runtime: IngestionRuntime,
   lease: Lease,
   input: unknown,
   errorCode: string,
+  failureStage = 'PARSE',
 ) => {
   let identity: { id: string | number; link: string }
   try {
@@ -241,6 +332,7 @@ const recordPostFailure = async (
     return
   }
   await db.$transaction(async (tx) => {
+    await guardPostLease(tx, runtime, lease)
     const fence = await tx.importSource.updateMany({
       where: {
         id: lease.sourceId,
@@ -253,6 +345,13 @@ const recordPostFailure = async (
     })
     if (fence.count !== 1) return
     const { id, link } = identity
+    // Read and preserve the blocker under the same source/actor write fence as
+    // the failure update. A new attempt is not a successful processing receipt.
+    const previous = await tx.importedPost.findUnique({
+      where: { sourceId_externalId: { sourceId: lease.sourceId, externalId: String(id) } },
+      select: { errorCode: true },
+    })
+    const sourceChanged = previous?.errorCode === 'SOURCE_CHANGED'
     await tx.importedPost.upsert({
       where: { sourceId_externalId: { sourceId: lease.sourceId, externalId: String(id) } },
       create: {
@@ -263,23 +362,121 @@ const recordPostFailure = async (
         contentHash: createHash('sha256').update(`failed:${id}`).digest('hex'),
         status: 'FAILED',
         errorCode,
+        failureStage,
+        lastRunId: lease.run.id,
         fetchedAt: runtime.now(),
       },
       update: {
         status: 'FAILED',
-        errorCode,
-        processedContentHash: null,
-        processedAt: null,
+        errorCode: sourceChanged ? 'SOURCE_CHANGED' : errorCode,
+        failureStage,
+        ...(sourceChanged ? {} : { processedContentHash: null, processedAt: null }),
+        lastRunId: lease.run.id,
         fetchedAt: runtime.now(),
       },
     })
   })
 }
-const runSource = async (db: Database, runtime: IngestionRuntime, provider?: SourceRuntime) => {
+export const capturePostEnvelope = async (
+  db: Database,
+  runtime: IngestionRuntime,
+  lease: Lease,
+  input: unknown,
+) => {
+  const envelope = captureEnvelope(input, lease.definition)
+  const identity =
+    envelope.snapshotFormat === 'moneydigest-v1'
+      ? moneyDigestPostSchema.pick({ id: true, link: true }).parse(input)
+      : parseSourceIdentity(input, lease.definition)
+  await db.$transaction(async (tx) => {
+    await guardPostLease(tx, runtime, lease)
+    const fence = await tx.importSource.updateMany({
+      where: {
+        id: lease.sourceId,
+        enabled: true,
+        url: lease.definition.url,
+        leaseToken: lease.token,
+        leaseExpiresAt: { gt: runtime.now() },
+      },
+      data: { leaseToken: lease.token },
+    })
+    if (fence.count !== 1) throw new DomainError('CONFLICT', 'Source lease expired')
+    const metadata = { ...envelope, fetchedAt: runtime.now(), lastRunId: lease.run.id }
+    await tx.importedPost.upsert({
+      where: { sourceId_externalId: { sourceId: lease.sourceId, externalId: String(identity.id) } },
+      create: {
+        sourceId: lease.sourceId,
+        externalId: String(identity.id),
+        url: identity.link,
+        rawContent: '',
+        contentHash: envelope.latestSnapshotHash,
+        ...metadata,
+      },
+      update: metadata,
+    })
+  })
+}
+// Media storage may pause at a provider promise. Fence each local write in its
+// own transaction, never keep a database transaction open across remote I/O.
+const controlledMediaDatabase = (db: Database, runtime: IngestionRuntime, lease: Lease): Database =>
+  new Proxy(db, {
+    get(target, key, receiver) {
+      if (key !== 'importedImage') return Reflect.get(target, key, receiver)
+      return new Proxy(target.importedImage, {
+        get(delegate, method, delegateReceiver) {
+          const original: unknown = Reflect.get(delegate, method, delegateReceiver)
+          if (method === 'create' || method === 'updateMany')
+            return (...args: unknown[]) =>
+              retryWrite(() =>
+                db.$transaction(async (tx) => {
+                  await guardPostLease(tx, runtime, lease)
+                  return Reflect.apply(tx.importedImage[method], tx.importedImage, args)
+                }),
+              )
+          return typeof original === 'function' ? original.bind(delegate) : original
+        },
+      })
+    },
+  })
+export const capturePostImages = async (
+  db: Database,
+  runtime: IngestionRuntime,
+  lease: Lease,
+  images: Parameters<typeof captureSourceImages>[3],
+) => {
+  const mediaFence = () =>
+    retryWrite(() => db.$transaction((tx) => guardPostLease(tx, runtime, lease)))
+  const imageStorage = runtime.imageStorage
+  const mediaRuntime: IngestionRuntime = {
+    ...runtime,
+    ...(imageStorage
+      ? {
+          imageStorage: {
+            upload: async (image, customId) => {
+              await mediaFence()
+              return imageStorage.upload(image, customId)
+            },
+            resolve: async (customId) => {
+              await mediaFence()
+              return imageStorage.resolve(customId)
+            },
+          },
+        }
+      : {}),
+  }
+  const mediaDatabase = controlledMediaDatabase(db, runtime, lease)
+  return captureSourceImages(mediaDatabase, mediaRuntime, lease.definition, images, mediaFence)
+}
+const runSource = async (
+  db: Database,
+  runtime: IngestionRuntime,
+  provider?: SourceRuntime,
+  actor?: AuthenticatedActor,
+) => {
   if (!runtime.enabled || !runtime.reuseApproved)
     throw new DomainError('PRECONDITION_FAILED', 'Ingestion and source reuse approval are required')
   const definition = provider?.source ?? { kind: 'moneydigest' as const, ...MONEYDIGEST_SOURCE }
-  const lease = await acquireLease(db, runtime.now(), definition)
+  const lease: Lease = { ...(await acquireLease(db, runtime.now(), definition, actor)), actor }
   let fetchedCount = 0
   let createdCount = 0
   let updatedCount = 0
@@ -298,6 +495,7 @@ const runSource = async (db: Database, runtime: IngestionRuntime, provider?: Sou
         throw new DomainError('CONFLICT', 'Run budget exhausted')
       const requestedAt = runtime.now()
       await db.$transaction(async (tx) => {
+        await guardPostLease(tx, runtime, lease)
         const fence = await tx.importSource.updateMany({
           where: {
             id: lease.sourceId,
@@ -340,10 +538,12 @@ const runSource = async (db: Database, runtime: IngestionRuntime, provider?: Sou
     const posts = [...page.posts, ...(history?.posts ?? [])]
     fetchedCount = posts.length
     for (const input of posts) {
+      let failureStage = 'PARSE'
       try {
+        await capturePostEnvelope(db, runtime, lease, input)
         const parsed = parseSourcePost(input, lease.definition)
         const contentHash = createHash('sha256')
-          .update(JSON.stringify(parsed.snapshot))
+          .update(captureEnvelope(input, lease.definition).latestSnapshot)
           .digest('hex')
         const previous = await db.importedPost.findUnique({
           where: {
@@ -351,25 +551,12 @@ const runSource = async (db: Database, runtime: IngestionRuntime, provider?: Sou
           },
           select: { processedContentHash: true },
         })
+        failureStage = 'MEDIA'
         const images =
           previous?.processedContentHash === contentHash
             ? []
-            : await captureSourceImages(db, runtime, lease.definition, parsed.images, async () => {
-                if (runtime.deadline && runtime.now() >= runtime.deadline)
-                  throw new DomainError('CONFLICT', 'Run budget exhausted')
-                const fence = await db.importSource.updateMany({
-                  where: {
-                    id: lease.sourceId,
-                    enabled: true,
-                    url: lease.definition.url,
-                    leaseToken: lease.token,
-                    leaseExpiresAt: { gt: runtime.now() },
-                  },
-                  data: { leaseToken: lease.token },
-                })
-                if (fence.count !== 1)
-                  throw new DomainError('CONFLICT', 'Source lease expired or disabled')
-              })
+            : await capturePostImages(db, runtime, lease, parsed.images)
+        failureStage = 'PERSIST'
         const outcome = await retryWrite(() => processPost(db, runtime, lease, input, images))
         if (outcome === 'created') createdCount++
         if (outcome === 'updated') updatedCount++
@@ -377,23 +564,33 @@ const runSource = async (db: Database, runtime: IngestionRuntime, provider?: Sou
         failedCount++
         errorCode = safeErrorCode(error)
         await retryWrite(() =>
-          recordPostFailure(db, runtime, lease, input, errorCode ?? 'INGESTION_FAILED'),
+          recordPostFailure(
+            db,
+            runtime,
+            lease,
+            input,
+            errorCode ?? 'INGESTION_FAILED',
+            failureStage,
+          ),
         )
       }
     }
     if (provider) {
-      const advanced = await db.importSource.updateMany({
-        where: {
-          id: lease.sourceId,
-          enabled: true,
-          url: definition.url,
-          leaseToken: lease.token,
-          leaseExpiresAt: { gt: runtime.now() },
-        },
-        data: { cursor: history ? history.nextCursor : page.nextCursor },
+      await db.$transaction(async (tx) => {
+        await guardPostLease(tx, runtime, lease)
+        const advanced = await tx.importSource.updateMany({
+          where: {
+            id: lease.sourceId,
+            enabled: true,
+            url: definition.url,
+            leaseToken: lease.token,
+            leaseExpiresAt: { gt: runtime.now() },
+          },
+          data: { cursor: history ? history.nextCursor : page.nextCursor },
+        })
+        if (advanced.count !== 1)
+          throw new DomainError('CONFLICT', 'Source lease expired or disabled')
       })
-      if (advanced.count !== 1)
-        throw new DomainError('CONFLICT', 'Source lease expired or disabled')
     }
   } catch (error) {
     providerFailed = true
@@ -424,7 +621,11 @@ const runSource = async (db: Database, runtime: IngestionRuntime, provider?: Sou
 
 // Manual and scheduled callers share this service, durable source leases and IDs.
 // One bounded page per source per invocation; run history retains each outcome.
-export const runIngestion = async (db: Database, runtime: IngestionRuntime) => {
+export const runIngestion = async (
+  db: Database,
+  runtime: IngestionRuntime,
+  actor?: AuthenticatedActor,
+) => {
   if (!runtime.enabled) throw new DomainError('PRECONDITION_FAILED', 'Ingestion is disabled')
   runtime = { ...runtime, deadline: new Date(runtime.now().getTime() + 90_000) }
   let providers = runtime.sources
@@ -450,7 +651,7 @@ export const runIngestion = async (db: Database, runtime: IngestionRuntime) => {
       })
       .slice(0, 10)
   }
-  if (!providers) return runSource(db, runtime)
+  if (!providers) return runSource(db, runtime, undefined, actor)
   const results: Awaited<ReturnType<typeof runSource>>[] = []
   let blocked = 0
   for (const [index, provider] of providers.entries()) {
@@ -461,7 +662,7 @@ export const runIngestion = async (db: Database, runtime: IngestionRuntime) => {
     if (!provider.reuseApproved) continue
     try {
       results.push(
-        await runSource(db, { ...runtime, reuseApproved: provider.reuseApproved }, provider),
+        await runSource(db, { ...runtime, reuseApproved: provider.reuseApproved }, provider, actor),
       )
     } catch (error) {
       if (error instanceof DomainError && error.code === 'PRECONDITION_FAILED') continue

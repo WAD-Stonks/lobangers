@@ -2,268 +2,239 @@ import { enableAutoUnmount, mount } from '@vue/test-utils'
 import SubmissionForm from '@web/pages/SubmissionForm.vue'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+const addDealApi = vi.hoisted(() => ({ submitDeal: vi.fn(), searchStalls: vi.fn() }))
+
+vi.mock('@web/modules/add-deal/add-deal-api', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@web/modules/add-deal/add-deal-api')>()),
+  submitDeal: addDealApi.submitDeal,
+  searchStalls: addDealApi.searchStalls,
+}))
+
 enableAutoUnmount(afterEach)
 
-const fetchMock = vi.fn()
 const createObjectURL = vi.fn(() => 'blob:synthetic-deal-preview')
 
 beforeEach(() => {
-  localStorage.clear()
-  vi.stubGlobal('fetch', fetchMock)
-  vi.stubGlobal('URL', { createObjectURL })
+  Object.defineProperty(URL, 'createObjectURL', { configurable: true, value: createObjectURL })
+  addDealApi.searchStalls.mockResolvedValue([stall])
+  addDealApi.submitDeal.mockResolvedValue(undefined)
 })
 
 afterEach(() => {
-  vi.restoreAllMocks()
-  vi.unstubAllGlobals()
   vi.clearAllMocks()
-  localStorage.clear()
 })
 
-const mountForm = () => mount(SubmissionForm)
-type FormWrapper = ReturnType<typeof mountForm>
-
-async function fillValidForm(wrapper: FormWrapper) {
-  await wrapper.get('#merchantName').setValue('  Campus cafe  ')
-  await wrapper.get('#dealTitle').setValue('  Student lunch  ')
-  await wrapper.get('#description').setValue('  Bring a student card.  ')
-  await wrapper.get('#cuisine').setValue('Chinese')
-  await wrapper.get('#originalPrice').setValue('10')
-  await wrapper.get('#promotionalPrice').setValue('5')
-  await wrapper.get('#location').setValue('  Stamford Road  ')
+const stall = {
+  id: 'stall-1',
+  name: 'Campus Chicken Rice',
+  merchantName: 'Campus Chicken Rice',
+  address: '1 Stamford Rd',
 }
 
+// Renders the pop-up inline so its title and message can be read without a teleport.
+const BModalStub = {
+  props: ['modelValue', 'title'],
+  template: '<div v-if="modelValue" class="popup-stub"><h5>{{ title }}</h5><slot /></div>',
+}
+
+const mountForm = () => mount(SubmissionForm, { global: { stubs: { BModal: BModalStub } } })
+type FormWrapper = ReturnType<typeof mountForm>
+
+const flush = () => new Promise((resolve) => setTimeout(resolve))
+
 async function selectPhoto(wrapper: FormWrapper, file: File | null) {
-  const input = wrapper.get<HTMLInputElement>('#photo')
+  const input = wrapper.get<HTMLInputElement>('#deal-photo')
   Object.defineProperty(input.element, 'files', { configurable: true, value: file ? [file] : [] })
   await input.trigger('change')
 }
 
-function savedEntries(): unknown {
-  const entries: unknown = JSON.parse(localStorage.getItem('student_deals') ?? 'null')
-  return entries
+async function addStall(wrapper: FormWrapper) {
+  await wrapper.get('#stall-search').setValue('chicken')
+  await wrapper.get('#stall-search').trigger('keydown.enter')
+  await flush()
+  const add = wrapper.findAll('button').find((button) => button.text() === 'Add')
+  await add?.trigger('click')
 }
 
-const validPreview = {
-  merchantName: 'Campus cafe',
-  title: 'Student lunch',
-  description: 'Bring a student card.',
-  cuisine: 'Chinese',
-  originalPrice: 10,
-  promotionalPrice: 5,
-  location: 'Stamford Road',
-  status: 'local-preview',
-  photo: null,
+async function fillValidForm(wrapper: FormWrapper) {
+  await wrapper.get('#deal-title').setValue('  1-for-1 chicken rice  ')
+  await wrapper.get('#deal-description').setValue('  Two plates for one.  ')
+  await wrapper.get('#deal-category').setValue('FOOD')
+  await wrapper.get('#deal-cuisine').setValue('CHINESE')
+  await wrapper.get('#deal-offer').setValue('BUY_ONE_GET_ONE')
+  await addStall(wrapper)
+  await wrapper.get('#deal-start').setValue('2099-01-01')
+  await wrapper.get('#deal-end').setValue('2099-01-31')
+  await wrapper.get('#deal-terms').setValue('  Dine-in only  ')
+  await selectPhoto(wrapper, new File(['image'], 'lunch.png', { type: 'image/png' }))
 }
 
-describe('student local-only submission prototype', () => {
-  it('keeps its warning, labels, cuisine choices and unconnected location notice', () => {
+const errorTexts = (wrapper: FormWrapper) =>
+  wrapper
+    .findAll('.invalid-feedback, .text-danger')
+    .map((error) => error.text())
+    .filter(Boolean)
+
+describe('add a deal form', () => {
+  it('shows its heading, sample-mode notice and field labels', () => {
     const wrapper = mountForm()
-    expect(wrapper.get('h1').text()).toBe('Add a Deal')
-    expect(wrapper.text()).toContain(
-      'Prototype only: deals are saved in this browser and are not submitted to a server.',
-    )
-    expect(wrapper.text()).toContain('OneMap suggestions are not connected yet.')
+    expect(wrapper.get('h1').text()).toBe('Add a deal')
+    expect(wrapper.text()).toContain('Sample mode')
     expect(wrapper.findAll('label').map((label) => label.text())).toEqual([
-      'Merchant name *',
-      'Deal title *',
+      'Title',
       'Description',
-      'Cuisine *',
-      'Original price (S$) *',
-      'Promo price (S$) *',
-      'Deal photo',
-      'Search or add location *',
+      'Category',
+      'Cuisine',
+      'Offer type',
+      'Find the stall',
+      'Start date',
+      'Last day',
+      'Terms & conditions',
+      'Photo of the deal (JPEG, PNG or WebP, up to 4 MB)',
     ])
-    expect(wrapper.findAll('#cuisine option').map((option) => option.text())).toEqual([
-      'Select cuisine',
-      'Chinese',
-      'Japanese',
-      'Korean',
-      'Western',
-      'Indian',
-      'Thai',
-      'Malay',
-      'Cafe & Desserts',
-      'Other',
+    expect(wrapper.get('#deal-cuisine').text()).toContain('No specific cuisine')
+    expect(wrapper.get('#deal-photo').attributes('accept')).toBe('image/jpeg,image/png,image/webp')
+  })
+
+  it('lists every problem and sends nothing when submitted empty', async () => {
+    const wrapper = mountForm()
+    await wrapper.get('form').trigger('submit')
+    expect(errorTexts(wrapper)).toEqual([
+      'Please give the deal a title.',
+      'Please describe the deal.',
+      'Please choose a category.',
+      'Please choose a cuisine, or "No specific cuisine".',
+      'Please choose the type of offer.',
+      'Please add at least one stall.',
+      'Please choose a start date.',
+      'Please choose the last day.',
+      'Please add the terms & conditions.',
+      'Please add a photo of the deal.',
     ])
-    expect(wrapper.get('#photo').attributes('accept')).toBe('image/*')
-    expect(wrapper.findAll('button').map((button) => button.text())).toEqual([
-      'Save draft',
-      'Save local preview',
-    ])
+    expect(wrapper.get('[role="alert"]').text()).toBe('Please fix the highlighted fields.')
+    expect(addDealApi.submitDeal).not.toHaveBeenCalled()
   })
 
-  it('saves an incomplete local draft without preview validation or network requests', async () => {
-    const wrapper = mountForm()
-    await wrapper.get('button[type="button"]').trigger('click')
-    expect(savedEntries()).toEqual([
-      {
-        merchantName: '',
-        title: '',
-        description: '',
-        cuisine: '',
-        originalPrice: null,
-        promotionalPrice: null,
-        location: '',
-        status: 'draft',
-        photo: null,
-      },
-    ])
-    expect(wrapper.get('[role="status"]').text()).toBe('Local draft saved!')
-    expect(wrapper.find('.is-invalid').exists()).toBe(false)
-    expect(fetchMock).not.toHaveBeenCalled()
-  })
-
-  it('validates the original required fields before storing a local preview', async () => {
-    const wrapper = mountForm()
-    await wrapper.get('form').trigger('submit')
-    expect(wrapper.findAll('.invalid-feedback').map((error) => error.text())).toEqual([
-      'Enter a merchant name.',
-      'Enter a deal title.',
-      'Choose a cuisine.',
-      'Enter a valid original price.',
-      'Promo price must be below the original price.',
-      'Enter a location.',
-    ])
-    expect(wrapper.get('#merchantName').attributes('aria-invalid')).toBe('true')
-    expect(wrapper.get('#merchantName').attributes('aria-describedby')).toBe('merchantNameError')
-    expect(localStorage.getItem('student_deals')).toBeNull()
-  })
-
-  it('trims text and stores numeric prices as an explicitly local preview', async () => {
+  it.each([
+    ['', 'The discount must be between 1 and 100 percent.'],
+    ['0', 'The discount must be between 1 and 100 percent.'],
+    ['101', 'The discount must be between 1 and 100 percent.'],
+  ])('rejects a %j percent discount', async (percent, message) => {
     const wrapper = mountForm()
     await fillValidForm(wrapper)
+    await wrapper.get('#deal-offer').setValue('PERCENT_OFF')
+    await wrapper.get('#deal-discount').setValue(percent)
     await wrapper.get('form').trigger('submit')
-    expect(savedEntries()).toEqual([validPreview])
-    expect(wrapper.get('[role="status"]').text()).toBe(
-      'Local preview saved! This deal has not been submitted to the community.',
-    )
-    expect(wrapper.get('#dealTitle').element).toHaveProperty('value', '  Student lunch  ')
-    expect(fetchMock).not.toHaveBeenCalled()
+    expect(errorTexts(wrapper)).toEqual([message])
+    expect(addDealApi.submitDeal).not.toHaveBeenCalled()
   })
 
-  it.each(['', '0', '-1'])('rejects original price %j for a preview', async (price) => {
+  it('asks for a price on a fixed-price offer', async () => {
     const wrapper = mountForm()
     await fillValidForm(wrapper)
-    await wrapper.get('#originalPrice').setValue(price)
+    await wrapper.get('#deal-offer').setValue('FIXED_PRICE')
     await wrapper.get('form').trigger('submit')
-    expect(wrapper.get('#originalPriceError').text()).toBe('Enter a valid original price.')
-    expect(localStorage.getItem('student_deals')).toBeNull()
+    expect(errorTexts(wrapper)).toEqual(['Please enter the price.'])
   })
 
-  it.each(['', '-1', '10', '11'])('rejects promotional price %j for a preview', async (price) => {
+  it('rejects a last day before the start date or in the past', async () => {
     const wrapper = mountForm()
     await fillValidForm(wrapper)
-    await wrapper.get('#promotionalPrice').setValue(price)
+    await wrapper.get('#deal-end').setValue('2098-12-31')
     await wrapper.get('form').trigger('submit')
-    expect(wrapper.get('#promoPriceError').text()).toBe(
-      'Promo price must be below the original price.',
-    )
-    expect(localStorage.getItem('student_deals')).toBeNull()
-  })
+    expect(errorTexts(wrapper)).toEqual(['The last day cannot be before the start date.'])
 
-  it('accepts a zero promotional price', async () => {
-    const wrapper = mountForm()
-    await fillValidForm(wrapper)
-    await wrapper.get('#promotionalPrice').setValue('0')
+    await wrapper.get('#deal-end').setValue('2000-01-01')
     await wrapper.get('form').trigger('submit')
-    expect(savedEntries()).toEqual([{ ...validPreview, promotionalPrice: 0 }])
+    expect(errorTexts(wrapper)).toEqual(['The last day cannot be in the past.'])
   })
 
-  it('preserves every existing array entry without imposing a new storage schema', async () => {
-    const existing = [null, 'legacy', { title: 'Previous draft', extra: true }]
-    localStorage.setItem('student_deals', JSON.stringify(existing))
+  it('rejects photos of the wrong type or over 4 MB without a preview', async () => {
     const wrapper = mountForm()
-    await fillValidForm(wrapper)
-    await wrapper.get('form').trigger('submit')
-    expect(savedEntries()).toEqual([...existing, validPreview])
-  })
+    await selectPhoto(wrapper, new File(['gif'], 'deal.gif', { type: 'image/gif' }))
+    expect(errorTexts(wrapper)).toEqual(['Please choose a JPEG, PNG or WebP image.'])
 
-  it('resets valid JSON that is not an array with the original message', () => {
-    localStorage.setItem('student_deals', '{"title":"not a list"}')
-    const wrapper = mountForm()
-    expect(savedEntries()).toEqual([])
-    expect(wrapper.get('[role="status"]').text()).toBe(
-      'Saved deals were invalid. Starting with an empty list.',
-    )
-  })
-
-  it('recovers from malformed stored JSON with the original message', () => {
-    localStorage.setItem('student_deals', 'invalid JSON')
-    const wrapper = mountForm()
-    expect(savedEntries()).toEqual([])
-    expect(wrapper.get('[role="status"]').text()).toBe(
-      'Unable to load saved deals. Starting with an empty list.',
-    )
-  })
-
-  it('keeps fields and restores buttons after a storage write fails', async () => {
-    const wrapper = mountForm()
-    await fillValidForm(wrapper)
-    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
-    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
-      throw new Error('Synthetic quota failure')
-    })
-    await wrapper.get('form').trigger('submit')
-    expect(wrapper.get('[role="status"]').text()).toBe('Unable to save the deal locally.')
-    expect(wrapper.get('#dealTitle').element).toHaveProperty('value', '  Student lunch  ')
-    expect(
-      wrapper.findAll<HTMLButtonElement>('button').every((button) => !button.element.disabled),
-    ).toBe(true)
-    expect(consoleError).toHaveBeenCalledOnce()
-    expect(fetchMock).not.toHaveBeenCalled()
-  })
-
-  it('ignores an empty photo selection', async () => {
-    const wrapper = mountForm()
-    await selectPhoto(wrapper, null)
+    const large = new File(['image'], 'large.png', { type: 'image/png' })
+    Object.defineProperty(large, 'size', { value: 4 * 1024 * 1024 + 1 })
+    await selectPhoto(wrapper, large)
+    expect(errorTexts(wrapper)).toEqual(['The image must be 4 MB or smaller.'])
     expect(wrapper.find('img').exists()).toBe(false)
     expect(createObjectURL).not.toHaveBeenCalled()
   })
 
-  it('rejects non-image photos without creating a preview', async () => {
+  it('previews an accepted photo', async () => {
     const wrapper = mountForm()
-    await selectPhoto(wrapper, new File(['text'], 'notes.txt', { type: 'text/plain' }))
-    expect(wrapper.get('#photoError').text()).toBe('Please select an image.')
-    expect(wrapper.find('img').exists()).toBe(false)
-    expect(createObjectURL).not.toHaveBeenCalled()
-  })
-
-  it('rejects photos larger than 5 MB', async () => {
-    const wrapper = mountForm()
-    const file = new File(['image'], 'too-large.png', { type: 'image/png' })
-    Object.defineProperty(file, 'size', { value: 5 * 1024 * 1024 + 1 })
+    const file = new File(['image'], 'lunch.webp', { type: 'image/webp' })
+    Object.defineProperty(file, 'size', { value: 4 * 1024 * 1024 })
     await selectPhoto(wrapper, file)
-    expect(wrapper.get('#photoError').text()).toBe('Image must be smaller than 5 MB.')
-    expect(createObjectURL).not.toHaveBeenCalled()
-  })
-
-  it('accepts a 5 MB image, clears its error and stores only its filename', async () => {
-    const wrapper = mountForm()
-    await fillValidForm(wrapper)
-    await selectPhoto(wrapper, new File(['text'], 'notes.txt', { type: 'text/plain' }))
-    const file = new File(['image'], 'lunch.png', { type: 'image/png' })
-    Object.defineProperty(file, 'size', { value: 5 * 1024 * 1024 })
-    await selectPhoto(wrapper, file)
-    expect(wrapper.find('#photoError').exists()).toBe(false)
-    expect(wrapper.get('img').attributes()).toMatchObject({
-      src: 'blob:synthetic-deal-preview',
-      alt: 'Deal preview',
-    })
+    expect(errorTexts(wrapper)).toEqual([])
+    expect(wrapper.get('img').attributes('src')).toBe('blob:synthetic-deal-preview')
     expect(createObjectURL).toHaveBeenCalledWith(file)
-    await wrapper.get('form').trigger('submit')
-    expect(savedEntries()).toEqual([{ ...validPreview, photo: 'lunch.png' }])
-    expect(fetchMock).not.toHaveBeenCalled()
   })
 
-  it('preserves the previous valid photo after an invalid replacement', async () => {
+  it('searches stalls, adds one once and removes it again', async () => {
+    const wrapper = mountForm()
+    await addStall(wrapper)
+    expect(addDealApi.searchStalls).toHaveBeenCalledWith('chicken')
+    expect(wrapper.findAll('button').map((button) => button.text())).toContain('Added')
+    expect(wrapper.text()).not.toContain('No stalls added yet.')
+
+    const remove = wrapper.findAll('button').find((button) => button.text() === 'Remove')
+    await remove?.trigger('click')
+    expect(wrapper.text()).toContain('No stalls added yet.')
+  })
+
+  it('says when a stall search finds nothing', async () => {
+    addDealApi.searchStalls.mockResolvedValue([])
+    const wrapper = mountForm()
+    await wrapper.get('#stall-search').setValue('nothing')
+    await wrapper.get('#stall-search').trigger('keydown.enter')
+    await flush()
+    expect(wrapper.text()).toContain('No stalls found. Try other words.')
+  })
+
+  it('submits a trimmed deal with its photo, shows a pop-up and clears the form', async () => {
     const wrapper = mountForm()
     await fillValidForm(wrapper)
-    await selectPhoto(wrapper, new File(['image'], 'first.png', { type: 'image/png' }))
-    await selectPhoto(wrapper, new File(['text'], 'notes.txt', { type: 'text/plain' }))
-    expect(wrapper.get('#photoError').text()).toBe('Please select an image.')
+    await wrapper.get('#deal-cuisine').setValue('NONE')
+    await wrapper.get('#deal-offer').setValue('FIXED_PRICE')
+    await wrapper.get('#deal-price').setValue('4.5')
     await wrapper.get('form').trigger('submit')
-    expect(savedEntries()).toEqual([{ ...validPreview, photo: 'first.png' }])
-    expect(wrapper.find('#photoError').exists()).toBe(false)
+    await flush()
+
+    expect(addDealApi.submitDeal).toHaveBeenCalledOnce()
+    const [deal, photo] = addDealApi.submitDeal.mock.calls[0] ?? []
+    expect(deal).toEqual({
+      title: '1-for-1 chicken rice',
+      description: 'Two plates for one.',
+      category: 'FOOD',
+      cuisine: null,
+      offerType: 'FIXED_PRICE',
+      discountPercent: null,
+      priceCents: 450,
+      stallIds: ['stall-1'],
+      startDate: '2099-01-01',
+      endDate: '2099-01-31',
+      terms: 'Dine-in only',
+    })
+    expect(photo).toBeInstanceOf(File)
+    expect(wrapper.get('.popup-stub').text()).toContain('Deal submitted')
+    expect(wrapper.get('#deal-title').element).toHaveProperty('value', '')
+    expect(wrapper.find('img').exists()).toBe(false)
+  })
+
+  it('keeps the fields and explains the problem when submitting fails', async () => {
+    addDealApi.submitDeal.mockRejectedValue(new Error('PHOTO_UPLOAD_FAILED'))
+    const wrapper = mountForm()
+    await fillValidForm(wrapper)
+    await wrapper.get('form').trigger('submit')
+    await flush()
+
+    expect(wrapper.get('.popup-stub').text()).toContain('Could not submit')
+    expect(wrapper.get('.popup-stub').text()).toContain(
+      'Could not upload the photo. Please try again.',
+    )
+    expect(wrapper.get('#deal-title').element).toHaveProperty('value', '  1-for-1 chicken rice  ')
+    expect(wrapper.get('button[type="submit"]').element).toHaveProperty('disabled', false)
   })
 })

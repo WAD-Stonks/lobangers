@@ -1,9 +1,20 @@
+import { confirmAdminIdentity, onAdminIdentityEnd } from '@web/lib/admin-recovery'
 import { authClient } from '@web/lib/auth-client'
 import { ref, shallowRef } from 'vue'
 
 // Exact SPA destinations only. Query strings, fragments and arbitrary origins are not redirects.
 export const safeAuthDestination = (destination: string, origin: string): string => {
-  const allowed = ['/', '/getting-started', '/admin', '/admin/accounts', '/admin/ingestion']
+  const allowed = [
+    '/',
+    '/getting-started',
+    '/admin',
+    '/admin/accounts',
+    '/admin/ingestion',
+    '/admin/deals',
+    '/admin/catalogue',
+    '/admin/moderation',
+    '/admin/audit',
+  ]
   return new URL(allowed.includes(destination) ? destination : '/', origin).href
 }
 
@@ -53,9 +64,32 @@ export const createAdminSession = (
   const loading = ref(false)
   const pending = ref(false)
   const uncertain = ref(false)
+  const accessRequired = ref(false)
   const notice = ref('')
   let generation = 0
   let alive = true
+  let observing = false
+  let confirmingAbsence = false
+  const unsubscribe = onAdminIdentityEnd(() => {
+    if (observing && confirmingAbsence) return
+    if (!observing) generation++
+    loading.value = false
+    pending.value = false
+    uncertain.value = false
+    session.value = null
+    accessRequired.value = true
+    events.closing()
+  })
+  const confirm = (identity: typeof session.value) => {
+    observing = true
+    confirmingAbsence = identity === null
+    try {
+      confirmAdminIdentity(identity)
+    } finally {
+      observing = false
+      confirmingAbsence = false
+    }
+  }
   const refresh = async () => {
     if (!alive || pending.value) return
     const current = ++generation
@@ -72,22 +106,33 @@ export const createAdminSession = (
       if (!alive || current !== generation) return
       if (result.error || !result.data?.user) {
         events.closing()
+        if (result.error) accessRequired.value = true
         notice.value = result.error
           ? 'The current session could not be confirmed. Access remains closed.'
           : 'No active session was found.'
         // Confirmed anonymous is distinct from an unknown/failed session probe.
         // Native renewal can finish after the page probe; restore its sign-in UI.
-        if (!result.error) events.signedOut()
+        if (!result.error) {
+          confirm(null)
+          uncertain.value = false
+          accessRequired.value = false
+          events.signedOut()
+        }
       } else {
+        confirm(result.data)
         session.value = result.data
         if (uncertain.value)
           notice.value =
             'Your session is still active. Access remains closed until you deliberately reload access.'
-        else notice.value = ''
+        else
+          notice.value = accessRequired.value
+            ? 'Session confirmed. Deliberately reload access to check current server permissions. No action was replayed.'
+            : ''
       }
     } catch {
       if (alive && current === generation) {
         events.closing()
+        accessRequired.value = true
         notice.value = 'The current session could not be confirmed. Access remains closed.'
       }
     } finally {
@@ -107,6 +152,8 @@ export const createAdminSession = (
       const result = await authClient.signOut()
       if (!alive || current !== generation) return
       if (result.error || result.data?.success !== true) throw new Error('Unconfirmed')
+      confirm(null)
+      accessRequired.value = false
       notice.value = 'Signed out.'
       events.signedOut()
     } catch {
@@ -120,11 +167,18 @@ export const createAdminSession = (
     }
   }
   const requestAccessReload = () => {
-    if (alive && uncertain.value && session.value && !pending.value && !loading.value)
+    if (
+      alive &&
+      (uncertain.value || accessRequired.value) &&
+      session.value &&
+      !pending.value &&
+      !loading.value
+    )
       events.accessReload()
   }
   const dispose = () => {
     alive = false
+    unsubscribe()
     generation++
     session.value = null
   }
@@ -133,6 +187,7 @@ export const createAdminSession = (
     loading,
     pending,
     uncertain,
+    accessRequired,
     notice,
     refresh,
     signOut,

@@ -1,5 +1,10 @@
 import { reportCommunityContent } from '@api/modules/community/writes'
-import { createRestHandler, type RestDependencies, requireSession } from '@api/rest/context'
+import {
+  authenticatedActor,
+  createRestHandler,
+  type RestDependencies,
+  requireSession,
+} from '@api/rest/context'
 import { requireTrustedOrigin } from '@api/rest/policy'
 import { parseRestInput } from '@api/rest/validation'
 import {
@@ -13,12 +18,12 @@ export const reportDeal = (dependencies: RestDependencies) =>
   createRestHandler(dependencies, async (request, response, context) => {
     requireTrustedOrigin(request.get('Origin'), dependencies.config.webOrigin)
     parseRestInput(communityEmptySchema, request.query)
-    const userId = requireSession(context).user.id
+    const actor = authenticatedActor(requireSession(context))
     const { dealId } = parseRestInput(communityDealParamsSchema, request.params)
     const body = parseRestInput(reportBodySchema, request.body)
     response.json(
       communityOkSchema.parse(
-        await reportCommunityContent(context.db, dealId, userId, body, 'deal'),
+        await reportCommunityContent(context.db, dealId, actor, body, 'deal'),
       ),
     )
   })

@@ -1,4 +1,57 @@
+import { commentsResponseSchema, communitySummarySchema } from '@broke-oclock/contracts/community'
 import { expect, type Page, test } from '@playwright/test'
+
+// Evidence only: observe actual Chromium output without replacing SPA or browser behavior.
+const browserObservations = new WeakMap<
+  Page,
+  {
+    console: string[]
+    pageErrors: string[]
+    resources: { url: string; status?: number; error?: string }[]
+  }
+>()
+test.beforeEach(async ({ page }) => {
+  const observed = {
+    console: [] as string[],
+    pageErrors: [] as string[],
+    resources: [] as { url: string; status?: number; error?: string }[],
+  }
+  browserObservations.set(page, observed)
+  page.on('console', (message) => observed.console.push(`${message.type()}: ${message.text()}`))
+  page.on('pageerror', (error) => observed.pageErrors.push(error.message))
+  page.on('response', (response) =>
+    observed.resources.push({ url: response.url(), status: response.status() }),
+  )
+  page.on('requestfailed', (request) =>
+    observed.resources.push({ url: request.url(), error: request.failure()?.errorText }),
+  )
+})
+test.afterEach(async ({ page }, info) => {
+  await info.attach('actual-browser-observations', {
+    body: JSON.stringify(
+      {
+        ...browserObservations.get(page),
+        layout: await page.evaluate(() => ({
+          url: location.href,
+          fonts: document.fonts.status,
+          splash: Boolean(document.querySelector('[data-testid="splash-screen"]')),
+          width: document.documentElement.clientWidth,
+          scroll: document.documentElement.scrollWidth,
+          alerts: [...document.querySelectorAll('[role="alert"]')].map((el) => el.textContent),
+          buttons: [...document.querySelectorAll('button')].map((el) => ({
+            name: el.getAttribute('aria-label') ?? el.textContent,
+            width: el.getBoundingClientRect().width,
+            height: el.getBoundingClientRect().height,
+            minHeight: getComputedStyle(el).minHeight,
+          })),
+        })),
+      },
+      null,
+      2,
+    ),
+    contentType: 'application/json',
+  })
+})
 
 // Every shell route at every test width: no horizontal scroll, nothing sticking out past the
 // viewport, 44px touch targets below 992px, and no runtime errors. The API is mocked with
@@ -50,6 +103,26 @@ const ROUTES = [
 const TOUCH_MAX_WIDTH = 992
 const MIN_TARGET_PX = 44
 
+// Measure native layout only after the covering splash, fonts and finite motion settle.
+const settled = async (page: Page) => {
+  await expect(page.getByTestId('splash-screen')).toHaveCount(0)
+  await page.evaluate(async () => {
+    await document.fonts.ready
+    await Promise.all(
+      document
+        .getAnimations()
+        .filter((animation) => {
+          const end = animation.effect?.getComputedTiming().endTime
+          return typeof end === 'number' && Number.isFinite(end)
+        })
+        .map((animation) => animation.finished.catch(() => {})),
+    )
+    await new Promise<void>((resolve) =>
+      requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+    )
+  })
+}
+
 const mockApi = async (page: Page) => {
   await page.route(/basemaps\.cartocdn\.com|onemap\.gov\.sg/, (route) => route.abort())
   await page.route('**/api/auth/get-session*', (route) =>
@@ -59,6 +132,47 @@ const mockApi = async (page: Page) => {
     route.fulfill({ json: { items: DEALS, categories: ['FOOD'] } }),
   )
   await page.route(`**/api/venues/${VENUE.id}`, (route) => route.fulfill({ json: VENUE_DETAIL }))
+  await page.route(`**/api/deals/${DEALS[0]?.id}/community`, (route) => {
+    expect(route.request().method()).toBe('GET')
+    return route.fulfill({
+      json: communitySummarySchema.parse({
+        alive: DEALS[0]?.votes.alive,
+        dead: DEALS[0]?.votes.dead,
+        status: 'LIKELY_STILL_ON',
+        myVote: null,
+        myVoteIsRecent: false,
+        lastReportedAt: null,
+        asOf: '2026-10-28T00:00:00.000Z',
+        commentCount: DEALS[0]?.commentCount,
+        policy: { minAlive: 3, positivePercent: 80, windowHours: 24 },
+      }),
+    })
+  })
+  await page.route(`**/api/deals/${DEALS[0]?.id}/comments*`, (route) => {
+    expect(route.request().method()).toBe('GET')
+    expect(Object.fromEntries(new URL(route.request().url()).searchParams)).toEqual({ limit: '3' })
+    return route.fulfill({
+      json: commentsResponseSchema.parse({
+        items: [
+          {
+            id: '3'.repeat(24),
+            body: 'Synthetic outlet detail.',
+            authorName: 'Synthetic visitor A',
+            createdAt: '2026-10-28T00:00:00.000Z',
+            canDelete: false,
+          },
+          {
+            id: '4'.repeat(24),
+            body: 'Synthetic redemption tip.',
+            authorName: 'Synthetic visitor B',
+            createdAt: '2026-10-27T00:00:00.000Z',
+            canDelete: false,
+          },
+        ],
+        nextCursor: null,
+      }),
+    })
+  })
 }
 
 for (const width of WIDTHS) {
@@ -70,6 +184,13 @@ for (const width of WIDTHS) {
       await mockApi(page)
       await page.goto(route)
       await expect(page.getByTestId('shell-panel').locator('[data-panel-heading]')).toBeVisible()
+      await settled(page)
+      if (route.startsWith('/deals/')) {
+        const community = page.getByTestId('deal-community')
+        await expect(community.locator('.deal-community-status')).toHaveText('Likely still on')
+        await expect(community.locator('.deal-community-comments > li')).toHaveCount(2)
+        await expect(community.getByRole('alert')).toHaveCount(0)
+      }
 
       // 1. No horizontal page scroll.
       expect(

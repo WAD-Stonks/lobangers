@@ -2,6 +2,7 @@
 import type { AdminOverviewResponse } from '@broke-oclock/contracts/platform-admin'
 import AdminShell from '@web/components/admin/AdminShell.vue'
 import SharedSignIn from '@web/components/auth/SharedSignIn.vue'
+import { confirmAdminIdentity } from '@web/lib/admin-recovery'
 import { createAdminReadFence } from '@web/lib/admin-session'
 import { api } from '@web/lib/api-client'
 import { authClient } from '@web/lib/auth-client'
@@ -27,7 +28,7 @@ const reload = async () => {
     const identity = await authClient.getSession({ query: { disableCookieCache: true } })
     if (!nativeFence.current(probe)) return
     if (identity.error) { close(); return }
-    if (!identity.data?.user) { if (access.value === 'closed' || access.value === 'loading') anonymous(); return }
+    if (!identity.data?.user) { confirmAdminIdentity(null); if (access.value === 'closed' || access.value === 'loading') anonymous(); return }
     if (!fence.current(ticket)) return
     const data = await api.platformAdmin.overview()
     if (!fence.current(ticket)) return

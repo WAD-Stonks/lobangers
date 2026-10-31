@@ -6,8 +6,15 @@ import {
   isReviewReady,
   requireSelectedOutletAuthority,
 } from '@api/modules/ingestion/review-policy'
+import { appendAdminAudit } from '@api/modules/platform-admin/audit'
+import { legacyVersionWhere, normalizeVersion } from '@api/modules/platform-admin/operation-version'
 import { accessTransaction, requireCurrentAdmin } from '@api/modules/platform-admin/transaction'
-import { createRestHandler, type RestDependencies, requireAdmin } from '@api/rest/context'
+import {
+  authenticatedActor,
+  createRestHandler,
+  type RestDependencies,
+  requireAdmin,
+} from '@api/rest/context'
 import { requireTrustedOrigin } from '@api/rest/policy'
 import { parseRestInput } from '@api/rest/validation'
 import {
@@ -26,13 +33,17 @@ export const postIngestionDraftReview = (dependencies: RestDependencies): Reques
     const { dealId } = parseRestInput(reviewPathSchema, request.params)
     const input = parseRestInput(ingestionReviewRequestSchema, request.body)
     const result = await accessTransaction(context.db, async (tx) => {
-      await requireCurrentAdmin(tx, session.user.id)
+      const admin = await requireCurrentAdmin(tx, authenticatedActor(session))
       const deal = await tx.deal.findFirst({
         where: { ...importedDealScope, id: dealId },
         include: { sources: { include: { importedPost: true } }, venues: true },
       })
       if (!deal) throw new ApiErrorException('NOT_FOUND', 'NOT_FOUND')
-      if (deal.reviewStatus !== 'PENDING' || deal.contentVersion !== input.expectedContentVersion)
+      if (
+        deal.reviewStatus !== 'PENDING' ||
+        deal.contentVersion !== input.expectedContentVersion ||
+        normalizeVersion(deal.operationVersion) !== input.expectedOperationVersion
+      )
         throw new ApiErrorException('CONFLICT', 'Draft changed or already reviewed')
       const now = context.ingestion?.now() ?? new Date()
       if (input.decision === 'APPROVE' && !isReviewReady(deal, now))
@@ -56,12 +67,14 @@ export const postIngestionDraftReview = (dependencies: RestDependencies): Reques
           ...importedDealScope,
           id: deal.id,
           contentVersion: input.expectedContentVersion,
+          AND: [legacyVersionWhere('operationVersion', input.expectedOperationVersion)],
           reviewStatus: 'PENDING',
         },
         data: {
           reviewStatus,
+          operationVersion: input.expectedOperationVersion + 1,
           reviewNote: input.note,
-          reviewedById: session.user.id,
+          reviewedById: admin.id,
           reviewedAt: now,
           reviewedVersion: input.expectedContentVersion,
           publishedAt: input.decision === 'APPROVE' && hasCurrentSourceScope(deal) ? now : null,
@@ -69,7 +82,22 @@ export const postIngestionDraftReview = (dependencies: RestDependencies): Reques
       })
       if (changed.count !== 1)
         throw new ApiErrorException('CONFLICT', 'Draft changed or already reviewed')
-      return { id: deal.id, reviewStatus }
+      await appendAdminAudit(tx, admin, {
+        action: input.decision === 'APPROVE' ? 'DEAL_APPROVED' : 'DEAL_REJECTED',
+        subjectType: 'DEAL',
+        subjectId: deal.id,
+        note: input.note,
+        details: {
+          operationVersionBefore: input.expectedOperationVersion,
+          operationVersionAfter: input.expectedOperationVersion + 1,
+          contentVersionBefore: deal.contentVersion,
+          contentVersionAfter: deal.contentVersion,
+          previousStatus: deal.reviewStatus,
+          newStatus: reviewStatus,
+          changedFields: ['reviewStatus'],
+        },
+      })
+      return { id: deal.id, reviewStatus, operationVersion: input.expectedOperationVersion + 1 }
     })
     response.json(ingestionReviewResponseSchema.parse(result))
   })

@@ -1,4 +1,5 @@
 import { ApiErrorException } from '@api/errors'
+import type { AuthenticatedActor } from '@api/modules/account/security-access'
 import {
   communityTransaction,
   type Database,
@@ -6,18 +7,20 @@ import {
   summaryFor,
   visibleComment,
 } from '@api/modules/community/data'
+import { normalizeVersion } from '@api/modules/platform-admin/operation-version'
 import type { CommunityPolicy } from '@broke-oclock/contracts/community-policy'
 
 export const setCommunityVote = (
   database: Database,
   dealId: string,
-  userId: string,
+  actor: AuthenticatedActor,
   value: 'ALIVE' | 'DEAD' | null,
   policy: CommunityPolicy,
 ) =>
   communityTransaction(database, async (tx) => {
+    const userId = actor.userId
     const now = new Date()
-    const deal = await lockCommunityWrite(tx, dealId, userId, now)
+    const deal = await lockCommunityWrite(tx, dealId, actor, now)
     if (
       value &&
       ((deal.validUntil && deal.validUntil <= now) || (deal.validFrom && deal.validFrom > now))
@@ -43,12 +46,13 @@ export const setCommunityVote = (
 export const addCommunityComment = (
   database: Database,
   dealId: string,
-  userId: string,
+  actor: AuthenticatedActor,
   body: string,
 ) =>
   communityTransaction(database, async (tx) => {
+    const userId = actor.userId
     const now = new Date()
-    await lockCommunityWrite(tx, dealId, userId, now)
+    await lockCommunityWrite(tx, dealId, actor, now)
     const [minute, hour] = await Promise.all([
       tx.comment.count({
         where: { authorId: userId, createdAt: { gt: new Date(now.getTime() - 60000) } },
@@ -75,13 +79,24 @@ export const addCommunityComment = (
     }
   })
 
-export const deleteCommunityComment = (database: Database, commentId: string, userId: string) =>
+export const deleteCommunityComment = (
+  database: Database,
+  commentId: string,
+  actor: AuthenticatedActor,
+) =>
   communityTransaction(database, async (tx) => {
+    const userId = actor.userId
     const row = await tx.comment.findUnique({ where: { id: commentId } })
     if (!row || row.deletedAt || row.hiddenAt) throw new ApiErrorException('NOT_FOUND')
     if (row.authorId !== userId) throw new ApiErrorException('FORBIDDEN')
-    await lockCommunityWrite(tx, row.dealId, userId, new Date())
-    await tx.comment.update({ where: { id: commentId }, data: { deletedAt: new Date() } })
+    await lockCommunityWrite(tx, row.dealId, actor, new Date())
+    await tx.comment.update({
+      where: { id: commentId },
+      data: {
+        deletedAt: new Date(),
+        moderationVersion: normalizeVersion(row.moderationVersion) + 1,
+      },
+    })
     return { ok: true as const }
   })
 
@@ -89,18 +104,19 @@ type Report = { reason: 'SPAM' | 'MISLEADING' | 'INAPPROPRIATE' | 'OTHER'; detai
 export const reportCommunityContent = (
   database: Database,
   targetId: string,
-  userId: string,
+  actor: AuthenticatedActor,
   report: Report,
   target: 'deal' | 'comment',
 ) =>
   communityTransaction(database, async (tx) => {
+    const userId = actor.userId
     const now = new Date()
     const comment =
       target === 'comment'
         ? await tx.comment.findFirst({ where: { id: targetId, ...visibleComment } })
         : null
     if (target === 'comment' && !comment) throw new ApiErrorException('NOT_FOUND')
-    await lockCommunityWrite(tx, comment?.dealId ?? targetId, userId, now)
+    await lockCommunityWrite(tx, comment?.dealId ?? targetId, actor, now)
     const existing =
       target === 'comment'
         ? await tx.commentReport.findUnique({

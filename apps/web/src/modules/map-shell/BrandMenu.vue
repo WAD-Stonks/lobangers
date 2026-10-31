@@ -109,7 +109,7 @@ const logOut = async () => {
           <RouterLink class="lb-btn" :to="{ name: 'register', query: authQuery }">Sign up</RouterLink>
         </div>
 
-        <RouterLink class="lb-btn lb-btn--primary lb-btn--block" :to="{ name: 'add-deal' }">
+        <RouterLink class="lb-btn lb-btn--primary lb-btn--block" :to="{ name: 'submit-deal' }">
           <ShellIcon name="plus" :size="18" />Add a deal
         </RouterLink>
 

@@ -1,5 +1,10 @@
 import { setDraftCategory } from '@api/modules/ingestion/set-category'
-import { createRestHandler, type RestDependencies, requireAdmin } from '@api/rest/context'
+import {
+  authenticatedActor,
+  createRestHandler,
+  type RestDependencies,
+  requireAdmin,
+} from '@api/rest/context'
 import { requireTrustedOrigin } from '@api/rest/policy'
 import { parseRestInput } from '@api/rest/validation'
 import {
@@ -17,7 +22,7 @@ export const patchIngestionDraftCategory = (dependencies: RestDependencies): Req
     const input = parseRestInput(ingestionCategoryRequestSchema, request.body)
     const result = await setDraftCategory(
       context.db,
-      session.user.id,
+      authenticatedActor(session),
       dealId,
       input,
       context.ingestion?.now() ?? new Date(),
