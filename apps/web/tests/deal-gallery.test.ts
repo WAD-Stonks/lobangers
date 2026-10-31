@@ -99,3 +99,27 @@ describe('DealGallery', () => {
     expect(wrapper.emitted('showing')?.at(-1)).toEqual([false])
   })
 })
+
+describe('DealGallery photo viewer', () => {
+  const viewerImage = (wrapper: ReturnType<typeof mountGallery>) =>
+    wrapper.find('[data-testid="photo-viewer"] img')
+
+  it('opens the tapped photo full size and steps through the others', async () => {
+    const wrapper = mountGallery([image('one', 'Front'), image('two', 'Back')])
+    expect(viewerImage(wrapper).exists()).toBe(false)
+    await wrapper.findAll('[data-testid="open-photo"]')[1]?.trigger('click')
+    expect(viewerImage(wrapper).attributes('alt')).toBe('Back')
+    await wrapper.get('[data-testid="viewer-next"]').trigger('click')
+    expect(viewerImage(wrapper).attributes('alt')).toBe('Front')
+    await wrapper.get('[data-testid="photo-viewer"]').trigger('keydown', { key: 'ArrowLeft' })
+    expect(viewerImage(wrapper).attributes('alt')).toBe('Back')
+  })
+
+  it('clears the photo when the dialog closes by button, Escape or backdrop', async () => {
+    const wrapper = mountGallery([image('one', 'Front')])
+    await wrapper.get('[data-testid="open-photo"]').trigger('click')
+    expect(wrapper.find('[data-testid="viewer-next"]').exists()).toBe(false)
+    await wrapper.get('[data-testid="photo-viewer"]').trigger('close')
+    expect(viewerImage(wrapper).exists()).toBe(false)
+  })
+})

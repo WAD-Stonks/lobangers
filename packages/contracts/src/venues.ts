@@ -20,6 +20,8 @@ export const venueDealSummarySchema = z.object({
   discountPercent: z.number().int().nullable(),
   validUntil: z.string().datetime().nullable(),
   rawValidityText: z.string().nullable(),
+  limitedTime: z.boolean().optional(),
+  outletUnconfirmed: z.boolean().optional(),
   imageUrl: z.string().url().nullable(),
   imageAltText: z.string().nullable().optional(),
 })

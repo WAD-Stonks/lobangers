@@ -2,8 +2,8 @@
 import DealImage from '@web/components/DealImage.vue'
 import { walkMinutesFor } from '@web/modules/browse-map/apply-filters'
 import CategoryBubble from '@web/modules/browse-map/CategoryBubble.vue'
-import { dealFreshness, formatMoreOutlets, priceText } from '@web/modules/browse-map/deal-format'
-import { OFFER_TYPE_LABELS } from '@web/modules/browse-map/filters'
+import { dealNoticeTags, formatMoreOutlets, OUTLET_NOT_CONFIRMED, offerTypeTag, priceText } from '@web/modules/browse-map/deal-format'
+import FreshnessTag from '@web/modules/browse-map/FreshnessTag.vue'
 import type { DealRow } from '@web/modules/browse-map/types'
 import ShellIcon from '@web/modules/map-shell/ShellIcon.vue'
 import { ref } from 'vue'
@@ -66,10 +66,12 @@ const isHot = (row: DealRow) => {
             <span v-if="formatMoreOutlets(row.outletCount)" class="deal-rows__outlets" data-testid="more-outlets">
               {{ formatMoreOutlets(row.outletCount) }}
             </span>
+            <span v-if="row.deal.outletUnconfirmed" class="deal-rows__unsure">{{ OUTLET_NOT_CONFIRMED }}</span>
           </span>
           <span class="deal-rows__tags">
-            <span class="lb-tag" :class="`lb-tag--${dealFreshness(row.deal).tone}`">{{ dealFreshness(row.deal).label }}</span>
-            <span class="lb-tag lb-tag--new">{{ OFFER_TYPE_LABELS[row.deal.offerType] }}</span>
+            <FreshnessTag :deal="row.deal" />
+            <span v-if="offerTypeTag(row.deal.offerType)" class="lb-tag lb-tag--new">{{ offerTypeTag(row.deal.offerType) }}</span>
+            <span v-for="notice in dealNoticeTags(row.deal)" :key="notice.label" class="lb-tag" :class="`lb-tag--${notice.tone}`">{{ notice.label }}</span>
           </span>
         </span>
         <span v-if="priceText(row.deal)" class="lb-price deal-rows__price">{{ priceText(row.deal) }}</span>
@@ -176,6 +178,11 @@ const isHot = (row: DealRow) => {
 .deal-rows__outlets {
   font-weight: 600;
   color: var(--ink);
+  white-space: nowrap;
+}
+
+.deal-rows__unsure {
+  color: var(--ink-muted);
   white-space: nowrap;
 }
 

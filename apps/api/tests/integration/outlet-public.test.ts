@@ -112,6 +112,9 @@ beforeEach(async () => {
   await db.stallGrant.deleteMany()
   await db.bookmark.deleteMany()
   await db.dealVenue.deleteMany()
+  await db.dealSource.deleteMany()
+  await db.importedPost.deleteMany()
+  await db.importSource.deleteMany()
   await db.deal.deleteMany()
   await db.venue.deleteMany()
   await db.merchant.deleteMany()
@@ -194,12 +197,22 @@ const dealFixture = async (venue: OutletPolicyVenue, confirmed = true) => {
   })
 }
 
-it('map withholds unknown scope without changing approved content', async () => {
+it('map pins unknown scope at possible outlets, flagged, minus outlets its terms exclude', async () => {
   const venue = await venueFixture()
+  const unverified = await venueFixture(venue.merchantId, false)
+  const excluded = await venueFixture(venue.merchantId, false)
+  await db.venue.update({ where: { id: excluded.id }, data: { name: 'Synthetic Sentosa' } })
   const unknown = await dealFixture(venue, false)
+  await db.deal.update({ where: { id: unknown.id }, data: { terms: 'Not at Sentosa.' } })
   const control = await dealFixture(venue)
-  const body = await get('/deals')
-  expect(body.items.map((row: { id: string }) => row.id)).toEqual([control.id])
+  type Pin = { id: string; outletUnconfirmed?: boolean; venues: { id: string }[] }
+  const items: Pin[] = (await get('/deals')).items
+  const unknownPin = items.find((row) => row.id === unknown.id)
+  expect(unknownPin?.outletUnconfirmed).toBe(true)
+  expect(unknownPin?.venues.map((row) => row.id).sort()).toEqual([venue.id, unverified.id].sort())
+  const controlPin = items.find((row) => row.id === control.id)
+  expect(controlPin?.outletUnconfirmed).toBeUndefined()
+  expect(controlPin?.venues.map((row) => row.id)).toEqual([venue.id])
   expect(await db.deal.findUniqueOrThrow({ where: { id: unknown.id } })).toMatchObject({
     reviewStatus: 'APPROVED',
     contentVersion: 1,
@@ -212,6 +225,12 @@ it('categories require actual public pins while remaining independent of visitor
   const venue = await venueFixture()
   const unknown = await dealFixture(venue, false)
   await db.deal.update({ where: { id: unknown.id }, data: { category: 'UNKNOWN' } })
+  // Excluding its only outlet leaves this unconfirmed deal with nowhere to pin.
+  const nowhere = await dealFixture(venue, false)
+  await db.deal.update({
+    where: { id: nowhere.id },
+    data: { category: 'NOWHERE', terms: 'Not at Synthetic outlet.' },
+  })
   const stale = await dealFixture(venue)
   await db.deal.update({ where: { id: stale.id }, data: { category: 'STALE', reviewedVersion: 0 } })
   const unverified = await dealFixture(await venueFixture(undefined, false))
@@ -223,25 +242,23 @@ it('categories require actual public pins while remaining independent of visitor
   })
   const body = await get('/deals?category=ABSENT&priceMaxMinor=0&validNow=true')
   expect(body.items).toEqual([])
-  expect(body.categories).toEqual(['EXPIRED'])
+  expect(body.categories).toEqual(['EXPIRED', 'UNKNOWN', 'UNVERIFIED'])
 })
 
-it('venue ongoing and past feeds withhold campaigns with unknown scope', async () => {
-  const venue = await venueFixture()
+it('venue ongoing and past feeds list unknown-scope campaigns flagged as unconfirmed', async () => {
+  const venue = await venueFixture(undefined, false)
   const unknown = await dealFixture(venue, false)
   const unknownPast = await dealFixture(venue, false)
   await db.deal.update({ where: { id: unknownPast.id }, data: { validUntil: new Date(0) } })
-  const current = await dealFixture(venue)
-  const past = await dealFixture(venue)
-  await db.deal.update({ where: { id: past.id }, data: { validUntil: new Date(0) } })
+  const excluded = await dealFixture(venue, false)
+  await db.deal.update({ where: { id: excluded.id }, data: { terms: 'Not at Synthetic outlet.' } })
   const body = await get(`/venues/${venue.id}`)
-  expect(body.deals.map((row: { id: string }) => row.id)).toEqual([current.id])
-  expect(body.pastDeals.map((row: { id: string }) => row.id)).toEqual([past.id])
-  expect(JSON.stringify(body)).not.toContain(unknown.id)
-  expect(JSON.stringify(body)).not.toContain(unknownPast.id)
+  expect(body.deals).toEqual([expect.objectContaining({ id: unknown.id, outletUnconfirmed: true })])
+  expect(body.pastDeals.map((row: { id: string }) => row.id)).toEqual([unknownPast.id])
+  expect(JSON.stringify(body)).not.toContain(excluded.id)
 })
 
-it('imported current claims require both known bounds without changing user open-ended policy', async () => {
+it('imported current claims need a known start, and a missing end is a limited promotion', async () => {
   const venue = await venueFixture()
   const unknown = await dealFixture(venue)
   await db.deal.update({
@@ -276,20 +293,78 @@ it('imported current claims require both known bounds without changing user open
   await db.deal.update({ where: { id: known.id }, data: { origin: 'IMPORTED' } })
   const user = await dealFixture(venue)
   await db.deal.update({ where: { id: user.id }, data: { validFrom: null, validUntil: null } })
-  const expected = [known.id, user.id].sort()
-  expect(
-    (await get('/deals?validNow=true')).items.map((row: { id: string }) => row.id).sort(),
-  ).toEqual(expected)
+  const expected = [known.id, missingEnd.id, user.id].sort()
+  const current = (await get('/deals?validNow=true')).items
+  expect(current.map((row: { id: string }) => row.id).sort()).toEqual(expected)
+  // Only imported open-ended claims are labelled; their 60-day cut-off is never exposed.
+  const limited = current.filter((row: { limitedTime?: boolean }) => row.limitedTime)
+  expect(limited.map((row: { id: string }) => row.id)).toEqual([missingEnd.id])
+  expect(limited[0].validUntil).toBeNull()
 
-  expect(
-    (await get(`/venues/${venue.id}`)).deals.map((row: { id: string }) => row.id).sort(),
-  ).toEqual(expected)
+  const venueDeals = (await get(`/venues/${venue.id}`)).deals
+  expect(venueDeals.map((row: { id: string }) => row.id).sort()).toEqual(expected)
+  expect(venueDeals.find((row: { id: string }) => row.id === missingEnd.id).limitedTime).toBe(true)
   expect((await get('/deals?validNow=false')).items).toHaveLength(7)
 })
 
-it('bookmarks retain shells but redact unknown campaign content', async () => {
+const sourcePostFixture = async (dealId: string, publishedAt: Date) => {
+  const tag = randomUUID()
+  const source = await db.importSource.create({
+    data: { provider: 'WORDPRESS', externalId: tag, name: 'Synthetic', url: 'https://example.com' },
+  })
+  const post = await db.importedPost.create({
+    data: {
+      sourceId: source.id,
+      externalId: tag,
+      url: `https://example.com/${tag}`,
+      rawContent: 'Synthetic post',
+      contentHash: tag,
+      publishedAt,
+    },
+  })
+  await db.dealSource.create({
+    data: {
+      dealId,
+      importedPostId: post.id,
+      sourceContentHash: tag,
+      sourceContentSnapshot: 'Synthetic post',
+      sourceUrl: post.url,
+    },
+  })
+}
+
+it('imported open-ended claims stay current for 60 days from their start or source post', async () => {
+  const { findPublicDeals } = await import('@api/modules/deals/public-deals')
+  const venue = await venueFixture()
+  const now = new Date('2030-01-31T12:00:00.000Z')
+  const daysAgo = (days: number) => new Date(now.getTime() - days * 86_400_000)
+  const openEnded = async (validFrom: Date | null) => {
+    const deal = await dealFixture(venue)
+    return db.deal.update({
+      where: { id: deal.id },
+      data: { origin: 'IMPORTED', validFrom, validUntil: null },
+    })
+  }
+  const recentStart = await openEnded(daysAgo(59))
+  const recentPost = await openEnded(null)
+  await sourcePostFixture(recentPost.id, daysAgo(47))
+  // Hidden: a stale start, a future start, a stale post, and no date at all.
+  await openEnded(daysAgo(61))
+  await openEnded(new Date(now.getTime() + 60_000))
+  await sourcePostFixture((await openEnded(null)).id, daysAgo(70))
+  await openEnded(null)
+  // A known start outranks the post date, so an old start stays hidden after a fresh repost.
+  await sourcePostFixture((await openEnded(daysAgo(75))).id, daysAgo(1))
+
+  expect(
+    (await findPublicDeals(db, { validNow: 'true' }, now)).map((row) => row.id).sort(),
+  ).toEqual([recentStart.id, recentPost.id].sort())
+})
+
+it('bookmarks retain shells but redact campaigns with nowhere to pin', async () => {
   const venue = await venueFixture()
   const unknown = await dealFixture(venue, false)
+  await db.deal.update({ where: { id: unknown.id }, data: { terms: 'Not at Synthetic outlet.' } })
   const control = await dealFixture(venue)
   for (const deal of [unknown, control])
     await db.bookmark.create({ data: { userId: user.id, dealId: deal.id } })
@@ -403,6 +478,25 @@ it('legacy receipts retain exact outlets without enrolling a new branch or lendi
 })
 
 // Characterization coverage of the now-shared policy. These cases are not new feature REDs.
+// Missing outlet proof no longer hides a deal from the map; it is pinned and flagged instead.
+const PINNED_UNCONFIRMED = new Set([
+  'scope missing',
+  'scope null',
+  'scope UNCONFIRMED',
+  'scope stale version',
+  'scope stale hash',
+  'geography missing',
+  'geography null',
+  'geography UNVERIFIED',
+  'geography stale hash',
+  'occupancy missing',
+  'occupancy null',
+  'occupancy ONEMAP',
+  'occupancy GOOGLE_PLACES',
+  'occupancy stale hash',
+  'identity address drift',
+])
+
 const selectedFixture = async () => {
   const venue = await venueFixture()
   const initial = await dealFixture(venue, false)
@@ -597,10 +691,18 @@ it.each([
       }
     }
     await db.bookmark.create({ data: { userId: user.id, dealId: deal.id } })
+    const pinned = PINNED_UNCONFIRMED.has(failure)
     const map = await get('/deals?validNow=false')
-    expect(map.items).toEqual([])
-    expect(map.categories).toEqual([])
+    if (pinned) {
+      expect(map.items).toEqual([expect.objectContaining({ id: deal.id, outletUnconfirmed: true })])
+      expect(map.categories).toEqual(['FOOD'])
+    } else {
+      expect(map.items).toEqual([])
+      expect(map.categories).toEqual([])
+    }
+    // A pinned outlet keeps its page, listing the flagged deal, exactly as the map does.
     const expectedVenueStatus =
+      pinned ||
       failure.startsWith('scope ') ||
       failure.startsWith('approval ') ||
       ['publication null', 'deal deleted', 'merchant mismatch'].includes(failure)
@@ -610,18 +712,26 @@ it.each([
     expect(page.status).toBe(expectedVenueStatus)
     if (page.status === 200) {
       const body = await page.json()
-      expect(body.deals).toEqual([])
+      expect(body.deals).toEqual(
+        pinned ? [expect.objectContaining({ id: deal.id, outletUnconfirmed: true })] : [],
+      )
       expect(body.pastDeals).toEqual([])
     }
     // The past path must independently apply the same publication policy.
     await db.deal.update({ where: { id: deal.id }, data: { validUntil: new Date(0) } })
     const past = await fetch(`${baseURL}/api/venues/${venue.id}`)
     expect(past.status).toBe(expectedVenueStatus)
-    if (past.status === 200) expect((await past.json()).pastDeals).toEqual([])
+    if (past.status === 200)
+      expect((await past.json()).pastDeals.map((row: { id: string }) => row.id)).toEqual(
+        pinned ? [deal.id] : [],
+      )
     const bookmarks = await (await accountCall('GET', '/account/bookmarks')).json()
     expect(bookmarks.items).toHaveLength(1)
-    expect(bookmarks.items[0]).toMatchObject({ dealId: deal.id, deal: null })
-    expect((await accountCall('PUT', `/account/bookmarks/${deal.id}`)).status).toBe(404)
+    if (pinned) expect(bookmarks.items[0].deal).toMatchObject({ title: deal.title })
+    else expect(bookmarks.items[0]).toMatchObject({ dealId: deal.id, deal: null })
+    expect((await accountCall('PUT', `/account/bookmarks/${deal.id}`)).status).toBe(
+      pinned ? 200 : 404,
+    )
     expect(await db.bookmark.count({ where: { dealId: deal.id, userId: user.id } })).toBe(1)
   },
 )
@@ -631,9 +741,11 @@ it('characterization: selected scope hashes include deleted edges before filteri
   const closed = await venueFixture(venue.merchantId)
   await db.venue.update({ where: { id: closed.id }, data: { deletedAt: new Date() } })
   await db.dealVenue.create({ data: { dealId: deal.id, venueId: closed.id } })
-  // The unchanged receipt must be invalidated even though this edge can never draw a pin.
-  expect((await get('/deals?validNow=false')).items).toEqual([])
-  expect((await accountCall('PUT', `/account/bookmarks/${deal.id}`)).status).toBe(404)
+  // The unchanged receipt must be invalidated even though this edge can never draw a pin, so
+  // the deal falls back to an unconfirmed pin at its live selected outlet only.
+  const held = (await get('/deals?validNow=false')).items
+  expect(held).toEqual([expect.objectContaining({ id: deal.id, outletUnconfirmed: true })])
+  expect(held[0].venues.map((row: { id: string }) => row.id)).toEqual([venue.id])
   await db.deal.update({
     where: { id: deal.id },
     data: {
@@ -645,6 +757,7 @@ it('characterization: selected scope hashes include deleted edges before filteri
   })
   const map = await get('/deals?validNow=false')
   expect(map.items).toHaveLength(1)
+  expect(map.items[0].outletUnconfirmed).toBeUndefined()
   expect(map.items[0].venues.map((row: { id: string }) => row.id)).toEqual([venue.id])
   expect(map.categories).toEqual(['FOOD'])
   expect((await get(`/venues/${venue.id}`)).deals.map((row: { id: string }) => row.id)).toEqual([
@@ -681,7 +794,10 @@ it('characterization: imported finite window includes its start and excludes its
 it('characterization: public holds preserve private submissions and existing grant history', async () => {
   const venue = await venueFixture(undefined, false)
   const deal = await dealFixture(venue, false)
-  await db.deal.update({ where: { id: deal.id }, data: { submittedById: user.id } })
+  await db.deal.update({
+    where: { id: deal.id },
+    data: { submittedById: user.id, terms: 'Not at Synthetic outlet.' },
+  })
   const grant = await db.stallGrant.create({ data: { userId: user.id, venueId: venue.id } })
   const before = await db.deal.findUniqueOrThrow({ where: { id: deal.id } })
   expect((await get('/deals')).items).toEqual([])

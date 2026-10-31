@@ -78,12 +78,15 @@ const currentProof = (
 ): evidence is OutletVerificationEvidence =>
   !!evidence && evidence.subjectHash === subjectHash && nonemptyReceipt(evidence.reference)
 
-// General geographic validity, deliberately not Singapore-only evidence matching.
-const hasUsablePoint = (venue: OutletPolicyVenue): boolean =>
+const hasCoordinates = (venue: OutletPolicyVenue): boolean =>
   Number.isFinite(venue.latitude) &&
   Math.abs(venue.latitude) <= 90 &&
   Number.isFinite(venue.longitude) &&
-  Math.abs(venue.longitude) <= 180 &&
+  Math.abs(venue.longitude) <= 180
+
+// General geographic validity, deliberately not Singapore-only evidence matching.
+const hasUsablePoint = (venue: OutletPolicyVenue): boolean =>
+  hasCoordinates(venue) &&
   (venue.geographyPrecision === 'PROPERTY' || venue.geographyPrecision === 'OUTLET')
 
 export const hasVerifiedGeography = (venue: OutletPolicyVenue): boolean => {
@@ -214,6 +217,37 @@ export const eligibleVenuesForScope = <Venue extends OutletPolicyVenue>(
       )
         return false
     } else if (!hasVerifiedGeography(venue) || !hasVerifiedOccupancy(venue)) return false
+    seen.add(venue.id)
+    return true
+  })
+}
+
+/**
+ * Map fallback for a deal whose outlets are unconfirmed: every live outlet it could cover, at
+ * its stored coordinates, without proof. Callers must flag the result as unconfirmed.
+ */
+export const possibleVenuesForScope = <Venue extends OutletPolicyVenue>(
+  deal: OutletScopeDeal,
+  candidateVenues: readonly Venue[],
+  merchantActive: boolean,
+): Venue[] => {
+  if (
+    !merchantActive ||
+    !nonemptyReceipt(deal.merchantId) ||
+    (deal.applicability !== 'SELECTED_OUTLETS' && deal.applicability !== 'ALL_MERCHANT_OUTLETS')
+  )
+    return []
+  const selected = new Set(deal.selectedVenueIds)
+  const seen = new Set<string>()
+  return candidateVenues.filter((venue) => {
+    if (
+      seen.has(venue.id) ||
+      venue.deletedAt != null ||
+      venue.merchantId !== deal.merchantId ||
+      (deal.applicability === 'SELECTED_OUTLETS' && !selected.has(venue.id)) ||
+      !hasCoordinates(venue)
+    )
+      return false
     seen.add(venue.id)
     return true
   })

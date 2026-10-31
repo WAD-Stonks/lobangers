@@ -5,6 +5,7 @@ import DealCardGrid from '@web/modules/browse-map/DealCardGrid.vue'
 import DealRowList from '@web/modules/browse-map/DealRowList.vue'
 import { activeFilterTokens } from '@web/modules/browse-map/filter-tokens'
 import { createDefaultFilters } from '@web/modules/browse-map/filters'
+import { resultsTitle } from '@web/modules/browse-map/results-title'
 import type { DealRow } from '@web/modules/browse-map/types'
 import PanelFrame from '@web/modules/map-shell/PanelFrame.vue'
 import ShellIcon from '@web/modules/map-shell/ShellIcon.vue'
@@ -26,13 +27,15 @@ const SORT_OPTIONS: readonly { value: SortKey; label: string }[] = [
 const SKELETON_ROWS = 3
 
 const count = computed(() => shell.dealCount.value)
-const located = computed(() => shell.position.value !== null)
-const title = computed(() => {
-  if (shell.status.value === 'loading' && shell.deals.value.length === 0) return 'Finding deals'
-  const noun = count.value === 1 ? 'deal' : 'deals'
-  if (shell.area.value) return `${count.value} ${noun} in this area`
-  return located.value ? `${count.value} ${noun} nearby` : `${count.value} ${noun}`
-})
+const firstLoad = computed(() => shell.status.value === 'loading' && shell.deals.value.length === 0)
+const title = computed(() =>
+  resultsTitle({
+    count: firstLoad.value ? 0 : count.value,
+    loading: firstLoad.value,
+    inArea: shell.area.value !== null,
+    walkFiltered: shell.filters.value.walkMinutes !== null && shell.position.value !== null,
+  }),
+)
 const tokens = computed(() => activeFilterTokens(shell.filters.value))
 const hasNarrowing = computed(() => tokens.value.length > 0 || shell.area.value !== null)
 const showSkeleton = computed(() => shell.status.value === 'loading' && shell.deals.value.length === 0)

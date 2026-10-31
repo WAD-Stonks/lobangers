@@ -1,9 +1,9 @@
 import { hasConfirmedOutletScope } from '@api/modules/deals/outlet-eligibility'
 import {
   isCurrentApproval,
+  mapVenuesFor,
   type PublicOutletScopeRow,
   publicOutletScopeSelect,
-  publicVenuesFor,
 } from '@api/modules/deals/public-deals'
 
 export const publicDealVisibilitySelect = {
@@ -12,6 +12,7 @@ export const publicDealVisibilitySelect = {
   deletedAt: true,
   publishedAt: true,
   reviewedVersion: true,
+  terms: true,
 } as const
 
 // Single definition of "a signed-in user may see this deal's content".
@@ -21,6 +22,7 @@ export type DealVisibilityFields = PublicOutletScopeRow & {
   publishedAt: Date | null
   contentVersion: number
   reviewedVersion: number | null
+  terms?: string | null
 }
 
 // A deal is public only when ALL of these are true (see docs/database-schema.md).
@@ -38,5 +40,6 @@ export const isPubliclyVisible = (deal: DealVisibilityFields): boolean => {
       })
     )
   }
-  return publicVenuesFor(deal).length > 0
+  // Same rule as the map, so any deal a visitor can see there can also be bookmarked.
+  return mapVenuesFor(deal).venues.length > 0
 }
