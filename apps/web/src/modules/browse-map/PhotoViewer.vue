@@ -101,6 +101,17 @@ const onClick = (event: MouseEvent) => {
   background: rgb(0 0 0 / 0.85);
 }
 
+/* Occasional modal: a short fade so the photo does not snap in over the page. */
+.photo-viewer[open],
+.photo-viewer[open]::backdrop {
+  opacity: 1;
+  transition: opacity 180ms cubic-bezier(0.23, 1, 0.32, 1);
+
+  @starting-style {
+    opacity: 0;
+  }
+}
+
 .photo-viewer__image {
   max-width: 100%;
   max-height: 100%;
@@ -122,6 +133,14 @@ const onClick = (event: MouseEvent) => {
   box-shadow: var(--shadow-pill);
 }
 
+.photo-viewer__button {
+  transition: scale 120ms ease-out;
+}
+
+.photo-viewer__button:active {
+  scale: 0.95;
+}
+
 .photo-viewer__close {
   top: 12px;
   right: 12px;
@@ -131,6 +150,14 @@ const onClick = (event: MouseEvent) => {
 .photo-viewer__next {
   top: 50%;
   transform: translateY(-50%);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .photo-viewer[open],
+  .photo-viewer[open]::backdrop,
+  .photo-viewer__button {
+    transition: none;
+  }
 }
 
 .photo-viewer__prev {

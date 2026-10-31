@@ -287,13 +287,19 @@ for (const mode of ['manual refresh', 'minute poll']) {
       await community.getByRole('button', { name: 'Refresh', exact: true }).click()
     else await page.clock.fastForward(60_000)
     await expect(community.locator('.deal-community-status')).toHaveText('No recent reports')
-    await expect(page.locator('.deal-panel__tags')).toContainText('Unverified')
+    await expect(
+      page.locator('.deal-panel__tags').getByRole('img', { name: /^Unverified/ }),
+    ).toBeVisible()
     await expect(page.locator('.deal-map-pin__flag--verified')).toHaveCount(0)
     expect(dealReads).toBeGreaterThan(before)
     await page.getByRole('link', { name: 'Back to results', exact: true }).click()
     await expect(
-      page.getByRole('complementary', { name: 'Results' }).getByRole('list'),
-    ).toContainText('Unverified')
+      page
+        .getByRole('complementary', { name: 'Results' })
+        .getByRole('list')
+        .getByRole('img', { name: /^Unverified/ })
+        .first(),
+    ).toBeVisible()
     await expect(
       page.getByRole('complementary', { name: 'Results' }).getByRole('list'),
     ).not.toContainText('Likely still on')

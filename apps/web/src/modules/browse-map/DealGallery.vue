@@ -63,6 +63,12 @@ const goTo = (index: number) => {
   el?.scrollTo?.({ left: target * el.clientWidth, behavior: prefersReducedMotion() ? 'auto' : 'smooth' })
 }
 
+// Stepping in the full-size viewer moves the gallery behind it, so closing lands on the same photo.
+const viewPhoto = (index: number) => {
+  viewing.value = index
+  goTo(index)
+}
+
 const altFor = (image: DealImage, index: number) => image.alt?.trim() || `${props.title}, photo ${index + 1}`
 </script>
 
@@ -112,7 +118,7 @@ const altFor = (image: DealImage, index: number) => image.alt?.trim() || `${prop
         {{ Math.min(active + 1, shown.length) }}/{{ shown.length }}
       </span>
     </template>
-    <PhotoViewer :images="shown" :index="viewing" :alt-for="altFor" @select="viewing = $event" @close="viewing = null" />
+    <PhotoViewer :images="shown" :index="viewing" :alt-for="altFor" @select="viewPhoto" @close="viewing = null" />
   </div>
   <slot v-else name="fallback" />
 </template>
