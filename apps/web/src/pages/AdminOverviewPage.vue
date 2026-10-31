@@ -15,6 +15,8 @@ import { computed, onMounted, onUnmounted, ref } from 'vue'
 const access = ref('loading')
 const overview = ref<AdminOverviewResponse | null>(null)
 const sessionRefreshKey = ref(0)
+const runsExpanded = ref(false)
+const readinessExpanded = ref(false)
 const attentionItems = computed(() => {
   if (!overview.value) return []
   const counts = overview.value.counts
@@ -178,11 +180,17 @@ onUnmounted(() => { fence.dispose(); nativeFence.dispose() })
         </template>
       </section>
       <section class="card admin-runs-panel" aria-labelledby="overview-runs-title">
-        <h2 id="overview-runs-title" class="h4">Recent ingestion runs</h2>
+        <header class="overview-collapse-heading">
+          <h2 id="overview-runs-title" class="h4">Recent ingestion runs</h2>
+          <button type="button" class="btn btn-outline-secondary overview-collapse-toggle" :aria-label="`${runsExpanded ? 'Collapse' : 'Expand'} recent ingestion runs`" :aria-expanded="runsExpanded" aria-controls="overview-runs-content" @click="runsExpanded = !runsExpanded">
+            {{ runsExpanded ? 'Hide details' : 'Show details' }}<AdminIcon name="chevron" />
+          </button>
+        </header>
+        <p class="small text-secondary mb-0">{{ overview.recentRuns.length ? `${overview.recentRuns.length} recent runs available. Expand for timestamps, status and post counts.` : 'No ingestion runs yet.' }}</p>
+        <div id="overview-runs-content" :hidden="!runsExpanded" class="overview-collapse-content">
         <p><a href="/admin/ingestion#runs-title">View ingestion run history</a></p>
-        <p v-if="!overview.recentRuns.length" class="text-secondary mb-0">No ingestion runs yet.</p>
         <!-- biome-ignore lint/a11y/noNoninteractiveTabindex: Keyboard users need to focus and horizontally scroll the table on small screens. -->
-        <section v-else class="table-responsive overview-runs-scroll" aria-label="Recent ingestion runs table" tabindex="0">
+        <section v-if="overview.recentRuns.length" class="table-responsive overview-runs-scroll" aria-label="Recent ingestion runs table" tabindex="0">
           <table class="table mb-0 overview-runs-table">
             <caption class="visually-hidden">Latest {{ overview.recentRuns.length }} ingestion runs. Dates are in Singapore time (SGT). Results count imported posts.</caption>
             <thead><tr><th scope="col">Source / run</th><th scope="col">Status</th><th scope="col">Started (SGT)</th><th scope="col">Finished (SGT)</th><th scope="col">Results</th></tr></thead>
@@ -197,11 +205,18 @@ onUnmounted(() => { fence.dispose(); nativeFence.dispose() })
             </tbody>
           </table>
         </section>
+        </div>
       </section>
       <RecentAdminActivity class="overview-activity" @denied="protectedSectionDenied" />
       <section class="card admin-readiness" aria-labelledby="readiness-title">
-        <h2 id="readiness-title" class="h4">Configuration readiness</h2>
-        <p>Configured and wired does not establish live provider acceptance.</p>
+        <header class="overview-collapse-heading">
+          <h2 id="readiness-title" class="h4">Configuration readiness</h2>
+          <button type="button" class="btn btn-outline-secondary overview-collapse-toggle" :aria-label="`${readinessExpanded ? 'Collapse' : 'Expand'} configuration readiness`" :aria-expanded="readinessExpanded" aria-controls="overview-readiness-content" @click="readinessExpanded = !readinessExpanded">
+            {{ readinessExpanded ? 'Hide details' : 'Show details' }}<AdminIcon name="chevron" />
+          </button>
+        </header>
+        <p class="mb-0">Configured and wired does not establish live provider acceptance.</p>
+        <div id="overview-readiness-content" :hidden="!readinessExpanded" class="overview-collapse-content">
         <dl>
           <dt>Google sign-in</dt><dd>{{ overview.readiness.googleConfigured ? 'Configured and wired' : 'Not configured' }}</dd>
           <dt>Email authentication</dt><dd>{{ overview.readiness.emailConfigured ? 'Configured and wired' : 'Not configured' }}</dd>
@@ -213,6 +228,7 @@ onUnmounted(() => { fence.dispose(); nativeFence.dispose() })
           <dt>Import gate</dt><dd>{{ overview.readiness.importAllowed ? 'Allowed by configuration gates' : 'Blocked by configuration gates' }}</dd>
           <dt>Live provider acceptance</dt><dd>{{ overview.readiness.liveProviderAcceptance }}</dd>
         </dl>
+        </div>
       </section>
       </div>
     </template>
@@ -262,6 +278,11 @@ onUnmounted(() => { fence.dispose(); nativeFence.dispose() })
 .admin-work-panel > .small { color: var(--admin-muted); }
 .overview-registrations { grid-area: registrations; }
 .overview-activity { grid-area: activity; }
+.overview-collapse-heading { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
+.overview-collapse-heading h2 { margin: 0; }
+.overview-collapse-toggle { display: inline-flex; align-items: center; gap: 8px; }
+.overview-collapse-toggle[aria-expanded="true"] :deep(.admin-icon) { transform: rotate(180deg); }
+.overview-collapse-content { margin-top: 20px; }
 .overview-next-steps {
   grid-area: next;
   display: grid;
