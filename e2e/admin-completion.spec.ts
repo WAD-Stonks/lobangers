@@ -139,6 +139,13 @@ for (const width of [320, 390, 1280]) {
     await page.setViewportSize({ width, height: 850 })
     await page.goto('/admin')
     await expect(page.getByRole('heading', { name: 'Admin overview', exact: true })).toBeVisible()
+    const readinessToggle = page.getByRole('button', {
+      name: 'Expand configuration readiness',
+      exact: true,
+    })
+    await expect(readinessToggle).toHaveAttribute('aria-expanded', 'false')
+    await readinessToggle.focus()
+    await readinessToggle.press('Enter')
     await expect(page.getByText('Live provider acceptance', { exact: true })).toBeVisible()
     await expect(page.getByText('NOT_ESTABLISHED', { exact: true })).toBeVisible()
     const requestLink = page.locator(
