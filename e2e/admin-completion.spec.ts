@@ -103,6 +103,18 @@ async function boundary(page: Page) {
     } else if (url.pathname === '/api/auth-methods')
       body = { password: true, google: false, emailOtp: false, passwordRecovery: false }
     else if (url.pathname === '/api/admin/overview') body = overview
+    else if (url.pathname === '/api/admin/analytics/users')
+      body = {
+        generatedAt: overview.generatedAt,
+        timeZone: 'Asia/Singapore',
+        totalUsers: 0,
+        newUsersThisWeek: 0,
+        weeks: Array.from({ length: 8 }, (_, index) => ({
+          weekStart: new Date(Date.parse('2026-08-16T16:00:00Z') + index * 604800000).toISOString(),
+          weekEnd: new Date(Date.parse('2026-08-23T16:00:00Z') + index * 604800000).toISOString(),
+          newUsers: 0,
+        })),
+      }
     else if (url.pathname === '/api/ingestion/dashboard')
       body = {
         source: {
@@ -139,10 +151,17 @@ for (const width of [320, 390, 1280]) {
     await page.setViewportSize({ width, height: 850 })
     await page.goto('/admin')
     await expect(page.getByRole('heading', { name: 'Admin overview', exact: true })).toBeVisible()
+    const readinessToggle = page.getByRole('button', {
+      name: 'Expand configuration readiness',
+      exact: true,
+    })
+    await expect(readinessToggle).toHaveAttribute('aria-expanded', 'false')
+    await readinessToggle.focus()
+    await readinessToggle.press('Enter')
     await expect(page.getByText('Live provider acceptance', { exact: true })).toBeVisible()
     await expect(page.getByText('NOT_ESTABLISHED', { exact: true })).toBeVisible()
     const requestLink = page.locator(
-      'a[href="/admin/accounts?requestStatus=PENDING#merchant-requests"]',
+      '.overview-summary a[href="/admin/accounts?requestStatus=PENDING#merchant-requests"]',
     )
     await expect(requestLink).toContainText('2')
     expect(
@@ -162,10 +181,13 @@ for (const width of [320, 390, 1280]) {
       ),
     ).toBe(true)
     await page.goto('/admin')
-    await page.locator('a[href="/admin/ingestion?status=PENDING#queue-title"]').click()
+    await page
+      .locator('.overview-summary a[href="/admin/ingestion?status=PENDING#queue-title"]')
+      .click()
     await expect(page.locator('#queue-status')).toHaveValue('PENDING')
     await expect(page.locator('#queue-title')).toBeVisible()
     await page.goto('/admin')
+    await page.getByRole('button', { name: 'Expand recent ingestion runs', exact: true }).click()
     await page.locator('a[href="/admin/ingestion#runs-title"]').click()
     await expect(page.locator('#runs-title')).toBeVisible()
     expect(
@@ -178,7 +200,9 @@ test('synthetic native logout removes operational evidence before sign-in', asyn
   await boundary(page)
   await page.goto('/admin')
   await expect(
-    page.locator('a[href="/admin/accounts?requestStatus=PENDING#merchant-requests"]'),
+    page.locator(
+      '.overview-summary a[href="/admin/accounts?requestStatus=PENDING#merchant-requests"]',
+    ),
   ).toBeVisible()
   await openAdminAccount(page)
   await page.getByTestId('admin-sign-out').click()
@@ -263,8 +287,8 @@ for (const width of [320, 390, 768, 1024, 1440]) {
         navWeight: '650',
         navRows: 7,
         surface: 'rgb(255, 255, 255)',
-        canvas: 'rgb(248, 249, 251)',
-        radius: '8px',
+        canvas: path === '/admin' ? 'rgb(247, 248, 250)' : 'rgb(248, 249, 251)',
+        radius: path === '/admin' ? '14px' : '8px',
         fits: true,
         viewport: width,
       })

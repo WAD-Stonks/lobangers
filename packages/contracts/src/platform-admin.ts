@@ -181,6 +181,24 @@ export const adminOverviewResponseSchema = z.strictObject({
 })
 export type AdminOverviewResponse = z.infer<typeof adminOverviewResponseSchema>
 
+export const adminUserAnalyticsQuerySchema = z.strictObject({})
+export const adminUserAnalyticsResponseSchema = z.strictObject({
+  generatedAt: z.iso.datetime(),
+  timeZone: z.literal('Asia/Singapore'),
+  totalUsers: z.number().int().nonnegative(),
+  newUsersThisWeek: z.number().int().nonnegative(),
+  weeks: z
+    .array(
+      z.strictObject({
+        weekStart: z.iso.datetime(),
+        weekEnd: z.iso.datetime(),
+        newUsers: z.number().int().nonnegative(),
+      }),
+    )
+    .length(8),
+})
+export type AdminUserAnalyticsResponse = z.infer<typeof adminUserAnalyticsResponseSchema>
+
 export type PlatformAccountsQuery = z.input<typeof platformAccountsQuerySchema>
 export type PlatformAccountSummary = z.infer<typeof platformAccountSummarySchema>
 export type PlatformRole = z.infer<typeof platformRoleSchema>

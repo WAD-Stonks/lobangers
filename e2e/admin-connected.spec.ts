@@ -110,11 +110,18 @@ const overview = async (page: Page) => {
   await expect(page.getByRole('heading', { name: 'Admin overview', exact: true })).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Work awaiting review' })).toBeVisible()
   await expect(
-    page.locator('a[href="/admin/accounts?requestStatus=PENDING#merchant-requests"]'),
-  ).toHaveText('Pending merchant requests: 1')
-  await expect(page.locator('a[href="/admin/ingestion?status=PENDING#queue-title"]')).toHaveText(
-    'Pending imported drafts: 0',
-  )
+    page.locator(
+      '.overview-summary a[href="/admin/accounts?requestStatus=PENDING#merchant-requests"]',
+    ),
+  ).toContainText('Pending merchant requests: 1')
+  await expect(
+    page.locator('.overview-summary a[href="/admin/ingestion?status=PENDING#queue-title"]'),
+  ).toContainText('Pending imported drafts: 0')
+  const readiness = page.getByRole('button', {
+    name: 'Expand configuration readiness',
+    exact: true,
+  })
+  if (await readiness.isVisible()) await readiness.click()
   await expect(page.getByText('NOT_ESTABLISHED', { exact: true })).toBeVisible()
   expect(new URL(page.url()).origin === webURL).toBe(true)
   expect((await page.title()).length > 0).toBe(true)
@@ -561,12 +568,16 @@ test('connected password admin reaches counts and deep links then loses permissi
   await page.getByRole('button', { name: 'Sign in', exact: true }).click()
   await overview(page)
   expect(await identity(page)).toEqual({ id: passwordAdmin.id, role: 'ADMIN', verified: true })
-  await page.locator('a[href="/admin/accounts?requestStatus=PENDING#merchant-requests"]').click()
+  await page
+    .locator('.overview-summary a[href="/admin/accounts?requestStatus=PENDING#merchant-requests"]')
+    .click()
   await expect(page.locator('#request-status')).toHaveValue('PENDING')
   await expect(page.locator('#merchant-requests')).toBeVisible()
   await page.goto(`${webURL}/admin`)
   await overview(page)
-  await page.locator('a[href="/admin/ingestion?status=PENDING#queue-title"]').click()
+  await page
+    .locator('.overview-summary a[href="/admin/ingestion?status=PENDING#queue-title"]')
+    .click()
   await expect(page.locator('#queue-status')).toHaveValue('PENDING')
   await expect(page.locator('#queue-title')).toBeVisible()
   await page.goto(`${webURL}/admin`)

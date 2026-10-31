@@ -14,6 +14,23 @@ The workspace uses the existing native Better Auth identity and the shared admin
 
 Shared sign-in, native logout and recovery remain available from the same shell. Navigation does not grant authorization. Public responses are explicit projections, not raw auth/database records.
 
+### Registration analytics
+
+The overview independently loads `GET /api/admin/analytics/users`. This no-store,
+admin-only endpoint returns total registered users, new users this week and eight
+weekly registration buckets, ordered oldest first. Counts include all stored roles
+and suspended accounts. The snapshot excludes records created at or after
+`generatedAt`. Each week starts Monday at 00:00 in Asia/Singapore (UTC+8), with an
+inclusive start and exclusive end; the current bucket stops at the snapshot and
+is labelled “so far”. Empty weeks are returned as zero.
+
+The endpoint performs nine count reads and returns no user identities. It does
+not create, update or delete records, renew sessions, apply a schema, add indexes
+or call providers. Counts are separate reads rather than a transactional snapshot;
+concurrent registrations can briefly make separately read totals differ. Analytics
+have their own refresh/retry and error state; authorization loss closes the parent
+overview. No new environment settings or database push are required.
+
 ## Deal correction and publication
 
 `api.adminDeals` uses `/api/admin/deals` for list/detail reads, `PATCH /:dealId/content`, `PATCH /:dealId/scope`, and confirmed `POST` actions for review, unpublish, reopen and scope evidence. Every write captures the displayed `expectedContentVersion` and `expectedOperationVersion` with a required reason.

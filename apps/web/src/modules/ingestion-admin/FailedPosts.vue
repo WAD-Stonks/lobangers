@@ -22,7 +22,7 @@ onMounted(() => load()); onBeforeUnmount(() => { closed = true; generation++ })
 </script>
 
 <template>
- <section aria-label="Failed post investigation" class="card p-4 mb-4">
+ <section id="failed-posts" aria-label="Failed post investigation" class="card p-4 mb-4">
   <h2 class="h4">Failed posts and source investigation</h2>
   <form @submit.prevent="load()"><label>Status<select v-model="status"><option v-for="value in ['FAILED','NEW','PARSED','NEEDS_REVIEW','IGNORED']" :key="value">{{ value }}</option></select></label><label>Source ID<input v-model="sourceId" maxlength="24"></label><label>Error code<input v-model="code" maxlength="80"></label><BButton type="submit" :disabled="pending">Load matching posts</BButton></form>
   <p v-if="pending" role="status">Loading posts…</p><p v-if="error" role="alert">{{ error }}</p><p v-if="!pending && !error && !items.length">No posts on this page. A bounded page can exclude unsupported sources.</p>
