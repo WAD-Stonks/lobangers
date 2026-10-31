@@ -429,7 +429,8 @@ defineExpose({
   border: 0;
 }
 
-/* Bubble centred on the outlet, badge hanging just below it. */
+/* A dark oval on a stem; the dot at its foot sits exactly on the outlet. The 3D food stands out
+   of the oval's top-left corner, so the oval leaves room above it. */
 .deal-map :deep(.deal-map-pin__stack) {
   position: absolute;
   top: 0;
@@ -437,45 +438,42 @@ defineExpose({
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 2px;
-  transform: translate(-50%, -50%);
+  transform: translate(-50%, calc(-100% + 5.5px));
+  transform-origin: 50% 100%;
   transition:
     transform 200ms var(--ease-out),
     opacity 200ms ease;
 }
 
-/* The 3D food stands on a soft contact shadow; no disc behind it, so the model is the pin. */
 .deal-map :deep(.deal-map-pin__bubble) {
   position: relative;
-  display: grid;
-  place-items: center;
-  width: 52px;
-  height: 52px;
-  border-radius: 50%;
-  transition: filter 200ms ease;
-}
-
-.deal-map :deep(.deal-map-pin__bubble::before) {
-  position: absolute;
-  bottom: 2px;
-  left: 50%;
-  width: 30px;
-  height: 8px;
-  content: '';
-  background: radial-gradient(closest-side, rgba(60, 45, 25, 0.28), rgba(60, 45, 25, 0));
-  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 36px;
+  margin-top: 22px;
+  padding: 0 6px 0 40px;
+  white-space: nowrap;
+  color: var(--paper-white);
+  background: rgba(29, 29, 34, 0.94);
+  border-radius: var(--radius-pill);
+  box-shadow: 0 8px 20px rgba(27, 27, 31, 0.26);
+  transition: background-color 150ms ease;
 }
 
 .deal-map :deep(.deal-map-pin__bubble .food-sprite) {
-  position: relative;
+  position: absolute;
+  top: -24px;
+  left: -14px;
   width: 52px;
   height: 52px;
+  filter: drop-shadow(0 4px 4px rgba(27, 27, 31, 0.25));
 }
 
 .deal-map :deep(.deal-map-pin__flag) {
   position: absolute;
-  top: -5px;
-  right: -7px;
+  top: -26px;
+  left: 26px;
   display: grid;
   place-items: center;
   box-sizing: border-box;
@@ -500,42 +498,68 @@ defineExpose({
 }
 
 .deal-map :deep(.deal-map-pin__badge) {
-  padding: 2px 9px;
   font-family: var(--font-display);
-  font-size: var(--text-xs);
+  font-size: var(--text-sm);
   font-weight: 600;
-  line-height: 1.3;
-  white-space: nowrap;
-  color: var(--paper-white);
-  background: var(--ink-strong);
-  border-radius: var(--radius-pill);
-  box-shadow: var(--shadow-pill);
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.deal-map :deep(.deal-map-pin__badge:last-child) {
+  padding-right: 8px;
+}
+
+.deal-map :deep(.deal-map-pin__tag) {
+  padding: 5px 7px;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--ink);
+  border-radius: 8px;
+}
+
+.deal-map :deep(.deal-map-pin__tag--promo) {
+  background: var(--sunny);
+}
+
+.deal-map :deep(.deal-map-pin__tag--plain) {
+  background: var(--paper-white);
+}
+
+.deal-map :deep(.deal-map-pin__stem) {
+  width: 2px;
+  height: 12px;
+  background: rgba(29, 29, 34, 0.85);
+}
+
+.deal-map :deep(.deal-map-pin__dot) {
+  box-sizing: border-box;
+  width: 11px;
+  height: 11px;
+  background: var(--paper-white);
+  border: 3px solid var(--ink-strong);
+  border-radius: 50%;
+  box-shadow: 0 2px 4px rgba(27, 27, 31, 0.25);
 }
 
 .deal-map :deep(.deal-map-pin.is-hot .deal-map-pin__stack) {
-  transform: translate(-50%, -50%) translateY(-6px) scale(1.1);
+  transform: translate(-50%, calc(-100% + 5.5px)) translateY(-4px) scale(1.06);
 }
 
-.deal-map :deep(.deal-map-pin.is-hot .deal-map-pin__badge),
-.deal-map :deep(.deal-map-pin.is-selected .deal-map-pin__badge) {
+.deal-map :deep(.deal-map-pin.is-hot .deal-map-pin__bubble),
+.deal-map :deep(.deal-map-pin.is-selected .deal-map-pin__bubble),
+.deal-map-region--framed :deep(.deal-map-pin__bubble) {
   background: var(--coral);
 }
 
-.deal-map :deep(.deal-map-pin.is-selected .deal-map-pin__bubble) {
-  filter: drop-shadow(0 0 4px var(--coral));
+.deal-map :deep(.deal-map-pin.is-selected .deal-map-pin__dot),
+.deal-map-region--framed :deep(.deal-map-pin__dot) {
+  border-color: var(--coral);
 }
 
 .deal-map :deep(.deal-map-pin.is-selected .deal-map-pin__stack) {
-  transform: translate(-50%, -50%) translateY(-4px) scale(1.15);
+  transform: translate(-50%, calc(-100% + 5.5px)) scale(1.1);
   animation: pin-bounce 220ms var(--ease-out);
-}
-
-.deal-map-region--framed :deep(.deal-map-pin__badge) {
-  background: var(--coral);
-}
-
-.deal-map-region--framed :deep(.deal-map-pin__bubble) {
-  filter: drop-shadow(0 0 4px var(--coral));
 }
 
 /* Other pins stay at full strength while a deal is open, so the next one is easy to find; the
@@ -543,7 +567,7 @@ defineExpose({
 
 @media (hover: hover) and (pointer: fine) {
   .deal-map :deep(.deal-map-pin:hover .deal-map-pin__stack) {
-    transform: translate(-50%, -50%) translateY(-4px);
+    transform: translate(-50%, calc(-100% + 5.5px)) translateY(-3px);
   }
 }
 
@@ -552,12 +576,15 @@ defineExpose({
 }
 
 .deal-map :deep(.deal-map-pin:focus-visible .deal-map-pin__bubble) {
-  box-shadow: 0 0 0 3px var(--sunny-ring);
+  box-shadow:
+    0 0 0 3px var(--sunny-ring),
+    0 8px 20px rgba(27, 27, 31, 0.26);
 }
 
-/* Groups: one sunny pill holding the area name and, on a white inset, the deal count. "Near
-   you" is sky blue like the visitor's dot; regions are a size up; a crowded group shrinks to a
-   count dot. The icon is a zero-size anchor, so the pill centres itself on the point. */
+/* Groups: the same dark oval as a pin, holding up to three of the group's foods, the area name
+   and "n deals · from $x". "Near you" is sky blue like the visitor's dot; regions are a size up;
+   a crowded group shrinks to one food and a count. The icon is a zero-size anchor, so the oval
+   centres itself on the point. */
 .deal-map :deep(.deal-map-cluster) {
   background: transparent;
   border: 0;
@@ -569,14 +596,14 @@ defineExpose({
   top: 0;
   display: flex;
   align-items: center;
-  gap: 7px;
-  max-width: 180px;
-  padding: 5px 5px 5px 12px;
+  gap: 8px;
+  max-width: 240px;
+  padding: 5px 16px 5px 8px;
   white-space: nowrap;
-  background: var(--sunny);
-  border: 2px solid var(--paper-white);
+  color: var(--paper-white);
+  background: rgba(29, 29, 34, 0.94);
   border-radius: var(--radius-pill);
-  box-shadow: var(--shadow-pill);
+  box-shadow: 0 8px 20px rgba(27, 27, 31, 0.26);
   transform: translate(-50%, -50%);
   transition:
     transform 160ms ease-out,
@@ -589,13 +616,8 @@ defineExpose({
   background: var(--sky-strong);
 }
 
-.deal-map :deep(.deal-map-cluster__chip--near .deal-map-cluster__name) {
-  color: var(--paper-white);
-}
-
 .deal-map :deep(.deal-map-cluster__chip--region) {
-  padding: 7px 7px 7px 16px;
-  gap: 9px;
+  padding: 7px 18px 7px 10px;
 }
 
 .deal-map :deep(.deal-map-cluster__chip--region .deal-map-cluster__name) {
@@ -603,7 +625,8 @@ defineExpose({
 }
 
 .deal-map :deep(.deal-map-cluster__chip--compact) {
-  padding: 3px;
+  gap: 4px;
+  padding: 4px 11px 4px 5px;
 }
 
 .deal-map :deep(.deal-map-cluster__chip:active) {
@@ -612,12 +635,36 @@ defineExpose({
 
 @media (hover: hover) and (pointer: fine) {
   .deal-map :deep(.deal-map-cluster__chip:hover) {
-    background: var(--sunny-deep);
+    background: var(--ink-strong-hover);
   }
 
   .deal-map :deep(.deal-map-cluster__chip--near:hover) {
     background: var(--sky-strong-hover);
   }
+}
+
+/* Foods overlap a little, like a hand of cards, so three still fit in a short oval. */
+.deal-map :deep(.deal-map-cluster__fan) {
+  display: flex;
+  flex: none;
+}
+
+.deal-map :deep(.deal-map-cluster__fan .food-sprite) {
+  width: 30px;
+  height: 30px;
+  margin-left: -12px;
+  filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.3));
+}
+
+.deal-map :deep(.deal-map-cluster__fan .food-sprite:first-child) {
+  margin-left: 0;
+}
+
+.deal-map :deep(.deal-map-cluster__text) {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
 }
 
 .deal-map :deep(.deal-map-cluster__name) {
@@ -626,23 +673,21 @@ defineExpose({
   font-family: var(--font-display);
   font-size: var(--text-sm);
   font-weight: 600;
-  line-height: 1;
-  color: var(--ink);
+  line-height: 1.1;
 }
 
 .deal-map :deep(.deal-map-cluster__count) {
-  flex: none;
-  min-width: 24px;
-  box-sizing: border-box;
-  padding: 4px 7px;
-  font-family: var(--font-display);
-  font-size: var(--text-xs);
+  font-size: 11px;
   font-weight: 600;
-  line-height: 1;
-  text-align: center;
-  color: var(--ink);
-  background: var(--paper-white);
-  border-radius: var(--radius-pill);
+  line-height: 1.2;
+  color: rgba(255, 255, 255, 0.78);
+  font-variant-numeric: tabular-nums;
+}
+
+.deal-map :deep(.deal-map-cluster__chip--compact .deal-map-cluster__count) {
+  font-family: var(--font-display);
+  font-size: var(--text-sm);
+  color: var(--paper-white);
 }
 
 /* Outlets sharing one spot (a food court) before they spread out at the closest zoom. */
@@ -737,11 +782,11 @@ defineExpose({
 
 @keyframes pin-bounce {
   40% {
-    transform: translate(-50%, -50%) translateY(-6px) scale(1.25);
+    transform: translate(-50%, calc(-100% + 5.5px)) translateY(-4px) scale(1.16);
   }
 
   to {
-    transform: translate(-50%, -50%) translateY(-4px) scale(1.15);
+    transform: translate(-50%, calc(-100% + 5.5px)) scale(1.1);
   }
 }
 
@@ -759,7 +804,7 @@ defineExpose({
   }
 
   .deal-map :deep(.deal-map-pin.is-hot .deal-map-pin__stack) {
-    transform: translate(-50%, -50%);
+    transform: translate(-50%, calc(-100% + 5.5px));
   }
 }
 </style>

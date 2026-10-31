@@ -41,7 +41,7 @@ describe('declutter', () => {
   })
 
   it('shrinks the smaller of two overlapping pills to a count dot', () => {
-    const placed = declutter([group('Bugis', 90, 0, 3), group('Orchard', 0, 0, 9)], project)
+    const placed = declutter([group('Bugis', 150, 0, 3), group('Orchard', 0, 0, 9)], project)
     const bugis = placed.find((item) => item.label === 'Bugis')
 
     expect(placed.find((item) => item.label === 'Orchard')?.compact).toBe(false)
@@ -67,24 +67,24 @@ describe('declutter', () => {
     expect(placed).toHaveLength(2)
     expect(placed.find((item) => item.kind === 'near')?.dealCount).toBe(2)
     expect(central?.compact).toBe(false)
-    expect(central?.offset).toEqual({ x: 0, y: -42 })
+    expect(central?.offset).toEqual({ x: 0, y: -52 })
   })
 
   it('tries below "Near you" when above is taken', () => {
     const placed = declutter(
-      [group('Near you', 0, 0, 2, 'near'), group('Orchard', 0, -42, 9), group('Outram', 4, 0, 6)],
+      [group('Near you', 0, 0, 2, 'near'), group('Orchard', 0, -52, 9), group('Outram', 4, 0, 6)],
       project,
     )
 
-    expect(placed.find((item) => item.label === 'Outram')?.offset).toEqual({ x: 0, y: 42 })
+    expect(placed.find((item) => item.label === 'Outram')?.offset).toEqual({ x: 0, y: 52 })
   })
 
   it('never folds far-away deals into "Near you"', () => {
     const placed = declutter(
       [
         group('Near you', 0, 0, 2, 'near'),
-        group('Orchard', 0, -42, 9),
-        group('Tiong Bahru', 0, 42, 8),
+        group('Orchard', 0, -52, 9),
+        group('Tiong Bahru', 0, 52, 8),
         group('Outram', 4, 0, 6),
       ],
       project,
