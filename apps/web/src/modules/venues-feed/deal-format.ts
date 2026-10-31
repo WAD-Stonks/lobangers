@@ -1,4 +1,5 @@
 import type { VenueDealSummary, VenuePastDealSummary } from '@broke-oclock/contracts/venues'
+import { LIMITED_PROMOTION } from '@web/modules/browse-map/deal-format'
 
 const dateFormat = new Intl.DateTimeFormat('en-SG', {
   day: 'numeric',
@@ -24,9 +25,10 @@ const lastValidDate = (validUntil: string) =>
   dateFormat.format(new Date(new Date(validUntil).getTime() - 1))
 
 export const validityLabel = (
-  deal: Pick<VenueDealSummary, 'validUntil' | 'rawValidityText'>,
+  deal: Pick<VenueDealSummary, 'validUntil' | 'rawValidityText' | 'limitedTime'>,
 ): string => {
   if (deal.validUntil) return `Until ${lastValidDate(deal.validUntil)}`
+  if (deal.limitedTime) return LIMITED_PROMOTION
   return deal.rawValidityText ?? 'No end date listed'
 }
 

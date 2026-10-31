@@ -8,13 +8,15 @@ import DealGallery from '@web/modules/browse-map/DealGallery.vue'
 import DealOutlets from '@web/modules/browse-map/DealOutlets.vue'
 import DealRowList from '@web/modules/browse-map/DealRowList.vue'
 import {
-  dealFreshness,
+  dealNoticeTags,
   formatCategory,
   formatValidity,
+  OUTLET_NOT_CONFIRMED_NOTE,
+  offerTypeTag,
   priceText,
   termsList,
 } from '@web/modules/browse-map/deal-format'
-import { OFFER_TYPE_LABELS } from '@web/modules/browse-map/filters'
+import FreshnessTag from '@web/modules/browse-map/FreshnessTag.vue'
 import type { DealRow } from '@web/modules/browse-map/types'
 import DealCommunity from '@web/modules/community/DealCommunity.vue'
 import { errorCode } from '@web/modules/ingestion-admin/errors'
@@ -64,7 +66,6 @@ const photos = computed(() => {
     ? [{ url: deal.imageUrl, alt: deal.imageAltText ?? null }]
     : []
 })
-const freshness = computed(() => (selected.value ? dealFreshness(selected.value.deal) : null))
 const walkLabel = computed(() =>
   selected.value?.distanceMetres == null ? null : `${walkMinutesFor(selected.value.distanceMetres)} min walk`,
 )
@@ -172,20 +173,23 @@ const toggleSave = async () => {
       <template v-if="photosShown">
         <span v-for="tag in heroTags" :key="tag" class="lb-tag">{{ tag }}</span>
       </template>
-      <span v-if="freshness" class="lb-tag" :class="`lb-tag--${freshness.tone}`">{{ freshness.label }}</span>
-      <span class="lb-tag lb-tag--new">{{ OFFER_TYPE_LABELS[selected.deal.offerType] }}</span>
+      <FreshnessTag :deal="selected.deal" />
+      <span v-if="offerTypeTag(selected.deal.offerType)" class="lb-tag lb-tag--new">{{ offerTypeTag(selected.deal.offerType) }}</span>
+      <span v-for="notice in dealNoticeTags(selected.deal)" :key="notice.label" class="lb-tag" :class="`lb-tag--${notice.tone}`">{{ notice.label }}</span>
     </div>
+
+    <p v-if="selected.deal.outletUnconfirmed" class="deal-panel__outlet-note lb-meta">{{ OUTLET_NOT_CONFIRMED_NOTE }}</p>
 
     <p v-if="selected.deal.description" class="deal-panel__description lb-text-wrap">{{ selected.deal.description }}</p>
 
     <dl class="deal-panel__facts">
       <div>
         <dt class="lb-meta">Valid</dt>
-        <dd>{{ formatValidity(selected.deal.validUntil, selected.deal.rawValidityText) }}</dd>
+        <dd>{{ formatValidity(selected.deal.validUntil, selected.deal.rawValidityText, selected.deal.limitedTime) }}</dd>
       </div>
-      <div>
+      <div v-if="offerTypeTag(selected.deal.offerType)">
         <dt class="lb-meta">Deal type</dt>
-        <dd>{{ OFFER_TYPE_LABELS[selected.deal.offerType] }}</dd>
+        <dd>{{ offerTypeTag(selected.deal.offerType) }}</dd>
       </div>
       <div v-if="terms.length" class="deal-panel__fact-wide">
         <dt class="lb-meta">Terms</dt>
@@ -312,6 +316,10 @@ const toggleSave = async () => {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
+}
+
+.deal-panel__outlet-note {
+  margin: 0;
 }
 
 .deal-panel__description {

@@ -3,7 +3,8 @@ import { walkMinutesFor } from '@web/modules/browse-map/apply-filters'
 import { categoryStyle } from '@web/modules/browse-map/category-style'
 import DealPhoto from '@web/modules/browse-map/DealPhoto.vue'
 import { clampPhotoRatio } from '@web/modules/browse-map/deal-columns'
-import { dealFreshness, formatEnding, formatMoreOutlets, priceText } from '@web/modules/browse-map/deal-format'
+import { formatEnding, formatMoreOutlets, priceText } from '@web/modules/browse-map/deal-format'
+import FreshnessTag from '@web/modules/browse-map/FreshnessTag.vue'
 import type { DealRow } from '@web/modules/browse-map/types'
 import { computed, ref } from 'vue'
 import type { RouteLocationRaw } from 'vue-router'
@@ -42,7 +43,7 @@ const moreOutlets = computed(() => formatMoreOutlets(props.row.outletCount))
         @ratio="ratio = $event"
         @error="failed = true"
       />
-      <span class="lb-tag lb-tag--paper">{{ dealFreshness(props.row.deal).label }}</span>
+      <FreshnessTag :deal="props.row.deal" paper />
       <span v-if="price" class="deal-cards__price">{{ price }}</span>
     </span>
     <span class="deal-cards__body">
@@ -53,7 +54,7 @@ const moreOutlets = computed(() => formatMoreOutlets(props.row.outletCount))
     <span class="deal-cards__perf" aria-hidden="true" />
     <span class="deal-cards__foot lb-meta">
       <span>{{ props.row.distanceMetres === null ? '' : `${walkMinutesFor(props.row.distanceMetres)} min walk` }}</span>
-      <span>{{ formatEnding(props.row.deal.validUntil) }}</span>
+      <span>{{ formatEnding(props.row.deal.validUntil, new Date(), props.row.deal.limitedTime) }}</span>
     </span>
   </RouterLink>
 </template>

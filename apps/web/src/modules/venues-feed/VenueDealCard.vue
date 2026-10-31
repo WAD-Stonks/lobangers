@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { VenueDealSummary } from '@broke-oclock/contracts/venues'
 import DealImage from '@web/components/DealImage.vue'
+import { OUTLET_NOT_CONFIRMED_NOTE } from '@web/modules/browse-map/deal-format'
 import { offerLabel, validityLabel } from '@web/modules/venues-feed/deal-format'
 import { computed } from 'vue'
 
@@ -18,6 +19,7 @@ const validity = computed(() => validityLabel(props.deal))
       <slot name="meta" />
       <p v-if="offer" class="lb-price venue-deal-card__offer">{{ offer }}</p>
       <p class="lb-meta venue-deal-card__validity">{{ validity }}</p>
+      <p v-if="deal.outletUnconfirmed" class="lb-meta venue-deal-card__outlet-note">{{ OUTLET_NOT_CONFIRMED_NOTE }}</p>
     </div>
   </article>
 </template>
@@ -87,5 +89,9 @@ const validity = computed(() => validityLabel(props.deal))
 
 .venue-deal-card__validity {
   margin: auto 0 0;
+}
+
+.venue-deal-card__outlet-note {
+  margin: 4px 0 0;
 }
 </style>

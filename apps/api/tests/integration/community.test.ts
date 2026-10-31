@@ -392,10 +392,13 @@ describe('community REST with real cookies and disposable MongoDB', () => {
       data: { applicability: 'ALL_MERCHANT_OUTLETS', merchantId: merchant.id },
     })
     const client = createApiClient(`${baseURL}/api`)
-    expect((await client.deals.list()).items.map((item) => item.id)).not.toContain(deal.id)
+    const pinFor = async () => (await client.deals.list()).items.find((item) => item.id === deal.id)
+    // Without outlet proof the deal is pinned but flagged; proof removes the flag.
+    expect((await pinFor())?.outletUnconfirmed).toBe(true)
     await seedSyntheticOutletProof(db, venue.id)
     await seedSyntheticScope(db, deal.id, 'SOURCE_ALL')
-    expect((await client.deals.list()).items.map((item) => item.id)).toContain(deal.id)
+    expect(await pinFor()).toBeDefined()
+    expect((await pinFor())?.outletUnconfirmed).toBeUndefined()
     client.http.defaults.headers.common.Origin = origin
     client.http.defaults.headers.common.Cookie = alice.cookies
     expect(await client.community.vote(deal.id, 'ALIVE')).toMatchObject({

@@ -51,6 +51,10 @@ export const dealPinSchema = z.strictObject({
   // ISO timestamp of the exclusive end, or null when the deal has no known end date.
   validUntil: z.string().datetime().nullable(),
   rawValidityText: z.string().nullable(),
+  // An imported offer with no published end; shown as a limited promotion, never with a date.
+  limitedTime: z.boolean().optional(),
+  // No outlet is confirmed, so the pins are the merchant's outlets the deal may cover.
+  outletUnconfirmed: z.boolean().optional(),
   votes: dealVoteSummarySchema,
   commentCount: z.number().int().min(0),
   images: z.array(dealImageSchema),

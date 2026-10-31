@@ -91,7 +91,7 @@ const open = () => {
         <strong class="hot-hero__deal">{{ current.deal.title }}</strong>
         <span class="hot-hero__venue">{{ current.venue.name }}</span>
         <span class="hot-hero__chips">
-          <span class="hot-hero__chip hot-hero__chip--ends">{{ formatEnding(current.deal.validUntil) }}</span>
+          <span class="hot-hero__chip hot-hero__chip--ends">{{ formatEnding(current.deal.validUntil, new Date(), current.deal.limitedTime) }}</span>
           <span v-if="price" class="hot-hero__chip lb-price">{{ price }}</span>
         </span>
       </button>
