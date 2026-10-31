@@ -82,7 +82,14 @@ it('renders protected operational counts and exact actionable links without live
   const w = await open()
   expect(w.get('h1').text()).toBe('Admin overview')
   expect(w.findAll('.admin-overview-panels h2').map((heading) => heading.attributes('id'))).toEqual(
-    ['work-title', 'overview-runs-title', 'readiness-title'],
+    [
+      'work-title',
+      'attention-title',
+      'quick-actions-title',
+      'import-chart-title',
+      'overview-runs-title',
+      'readiness-title',
+    ],
   )
   expect(
     w.get('a[href="/admin/accounts?requestStatus=PENDING#merchant-requests"]').text(),
@@ -100,6 +107,108 @@ it('shows sign-in on confirmed absent native identity without a protected read',
   const w = await open()
   expect(w.text()).toContain('Sign in to view administration')
   expect(rest.overview).not.toHaveBeenCalled()
+  w.unmount()
+})
+it('shows only nonempty attention queues and links quick actions to existing admin destinations', async () => {
+  rest.overview.mockResolvedValueOnce({
+    ...overview,
+    counts: { pendingMerchantRequests: 0, pendingImportedDrafts: 5, failedImportedPosts: 0 },
+  })
+  const w = await open()
+  const attention = w.get('.overview-attention')
+  expect(attention.findAll('li')).toHaveLength(1)
+  expect(attention.get('a').attributes('href')).toBe('/admin/ingestion?status=PENDING#queue-title')
+  expect(attention.text()).toContain('5 Imported drafts await review')
+  expect(
+    w
+      .get('.overview-shortcuts')
+      .findAll('a')
+      .map((link) => link.attributes('href')),
+  ).toEqual(['/admin/deals', '/admin/accounts', '/admin/moderation'])
+  expect(w.get('.overview-import-chart').text()).toContain(
+    'Import results will appear here after a run is recorded',
+  )
+  expect(w.find('[data-testid="import-chart-metric"]').exists()).toBe(false)
+  rest.overview.mockResolvedValueOnce({
+    ...overview,
+    counts: { pendingMerchantRequests: 0, pendingImportedDrafts: 0, failedImportedPosts: 0 },
+  })
+  await w.get('[data-testid="overview-refresh"]').trigger('click')
+  await flushPromises()
+  expect(w.get('.overview-attention').findAll('li')).toHaveLength(0)
+  expect(w.get('.overview-attention').text()).toContain(
+    'No pending merchant requests, imported drafts or failed imported posts in this snapshot',
+  )
+  w.unmount()
+})
+it('compares recent runs on one shared scale and filters series without fetching more data', async () => {
+  const run = {
+    id: 'run-a',
+    sourceName: 'Source A',
+    status: 'PARTIAL',
+    startedAt: '2026-10-31T04:30:00Z',
+    finishedAt: null,
+    fetchedCount: 7,
+    createdCount: 4,
+    updatedCount: 2,
+    failedCount: 1,
+    errorCode: null,
+  }
+  rest.overview.mockResolvedValueOnce({
+    ...overview,
+    recentRuns: [
+      run,
+      {
+        ...run,
+        id: 'run-b',
+        sourceName: 'Source B',
+        createdCount: 8,
+        updatedCount: 0,
+        failedCount: 0,
+      },
+    ],
+  })
+  const w = await open()
+  const chart = w.get('.overview-import-chart')
+  expect(chart.findAll('.overview-chart-run')).toHaveLength(2)
+  expect(chart.text()).toContain('Each full-width bar represents 8 posts')
+  expect(
+    chart.findAll('[data-series="created"].overview-chart-bar')[0]?.attributes('style'),
+  ).toContain('width: 50%')
+  expect(
+    chart.findAll('[data-series="created"].overview-chart-bar')[1]?.attributes('style'),
+  ).toContain('width: 100%')
+  await w.get('[data-testid="import-chart-metric"]').setValue('failedCount')
+  expect(chart.findAll('.overview-chart-bar')).toHaveLength(2)
+  expect(chart.find('[data-series="created"]').exists()).toBe(false)
+  expect(chart.findAll('.overview-chart-bar')[0]?.attributes('style')).toContain('width: 100%')
+  expect(chart.findAll('.overview-chart-bar')[1]?.attributes('style')).toContain('width: 0%')
+  expect(rest.overview).toHaveBeenCalledTimes(1)
+  w.unmount()
+})
+it('renders zero-result runs with zero-length bars and clears every new panel on access loss', async () => {
+  const run = {
+    id: 'empty-run',
+    sourceName: 'Empty source',
+    status: 'SUCCEEDED',
+    startedAt: '2026-10-31T04:30:00Z',
+    finishedAt: '2026-10-31T04:31:00Z',
+    fetchedCount: 0,
+    createdCount: 0,
+    updatedCount: 0,
+    failedCount: 0,
+    errorCode: null,
+  }
+  rest.overview.mockResolvedValueOnce({ ...overview, recentRuns: [run] })
+  const w = await open()
+  for (const bar of w.findAll('.overview-chart-bar'))
+    expect(bar.attributes('style')).toContain('width: 0%')
+  rest.overview.mockRejectedValueOnce(new ApiClientError('FORBIDDEN', 403, 'Forbidden'))
+  await w.get('[data-testid="overview-refresh"]').trigger('click')
+  await flushPromises()
+  expect(w.find('.overview-import-chart').exists()).toBe(false)
+  expect(w.find('.overview-attention').exists()).toBe(false)
+  expect(w.find('.overview-shortcuts').exists()).toBe(false)
   w.unmount()
 })
 it('refreshes through a fresh identity check, disables duplicate refresh and replaces the snapshot', async () => {

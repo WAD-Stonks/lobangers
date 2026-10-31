@@ -7,11 +7,34 @@ import { createAdminReadFence } from '@web/lib/admin-session'
 import { api } from '@web/lib/api-client'
 import { authClient } from '@web/lib/auth-client'
 import { errorCode } from '@web/modules/ingestion-admin/errors'
-import { onMounted, onUnmounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 
 const access = ref('loading')
 const overview = ref<AdminOverviewResponse | null>(null)
 const sessionRefreshKey = ref(0)
+const attentionItems = computed(() => {
+  if (!overview.value) return []
+  const counts = overview.value.counts
+  return [
+    { count: counts.failedImportedPosts, label: 'Imported posts need investigation', href: '/admin/ingestion#failed-posts', action: 'Investigate posts' },
+    { count: counts.pendingMerchantRequests, label: 'Merchant requests await a decision', href: '/admin/accounts?requestStatus=PENDING#merchant-requests', action: 'Review requests' },
+    { count: counts.pendingImportedDrafts, label: 'Imported drafts await review', href: '/admin/ingestion?status=PENDING#queue-title', action: 'Review drafts' },
+  ].filter(item => item.count > 0)
+})
+const quickActions = [
+  { href: '/admin/deals', label: 'Manage deals', description: 'Review and correct deal listings.' },
+  { href: '/admin/accounts', label: 'Manage accounts', description: 'Review roles and merchant access.' },
+  { href: '/admin/moderation', label: 'Review reports', description: 'Investigate deal and comment reports.' },
+]
+const chartSeries = [
+  { key: 'createdCount', label: 'Created', tone: 'created' },
+  { key: 'updatedCount', label: 'Updated', tone: 'updated' },
+  { key: 'failedCount', label: 'Failed posts', tone: 'failed' },
+] as const
+const chartMetric = ref<'all' | typeof chartSeries[number]['key']>('all')
+const visibleSeries = computed(() => chartSeries.filter(series => chartMetric.value === 'all' || series.key === chartMetric.value))
+const chartMaximum = computed(() => Math.max(1, ...(overview.value?.recentRuns ?? []).flatMap(run => visibleSeries.value.map(series => run[series.key]))))
+const barWidth = (count: number) => `${Math.max(0, count) / chartMaximum.value * 100}%`
 const fence = createAdminReadFence()
 const nativeFence = createAdminReadFence()
 const dateFormatter = new Intl.DateTimeFormat('en-SG', {
@@ -89,6 +112,60 @@ onUnmounted(() => { fence.dispose(); nativeFence.dispose() })
         </ul>
         <p class="small mb-0">Failures count imported posts, not ingestion runs.</p>
       </section>
+      <div class="overview-next-steps">
+        <section class="card p-3 overview-attention" aria-labelledby="attention-title">
+          <h2 id="attention-title">Attention needed</h2>
+          <p class="small text-secondary">Open work in the current snapshot.</p>
+          <ul v-if="attentionItems.length" class="overview-attention-list">
+            <li v-for="item in attentionItems" :key="item.href">
+              <div><strong>{{ item.count }}</strong> {{ item.label }}</div>
+              <a :href="item.href">{{ item.action }} →</a>
+            </li>
+          </ul>
+          <p v-else class="overview-queue-clear mb-0">No pending merchant requests, imported drafts or failed imported posts in this snapshot.</p>
+        </section>
+        <nav class="card p-3 overview-shortcuts" aria-labelledby="quick-actions-title">
+          <h2 id="quick-actions-title">Quick actions</h2>
+          <ul class="overview-shortcut-list">
+            <li v-for="action in quickActions" :key="action.href">
+              <a :href="action.href"><strong>{{ action.label }} →</strong><span>{{ action.description }}</span></a>
+            </li>
+          </ul>
+        </nav>
+      </div>
+      <section class="card p-3 overview-import-chart" aria-labelledby="import-chart-title">
+        <div class="overview-chart-heading">
+          <div>
+            <h2 id="import-chart-title">Latest import runs</h2>
+            <p class="small text-secondary mb-0">Created, updated and failed post counts from up to 10 recent runs, newest first. This is a run comparison, not a daily trend.</p>
+          </div>
+          <label v-if="overview.recentRuns.length" class="overview-chart-filter">Show results
+            <select v-model="chartMetric" class="form-select" data-testid="import-chart-metric">
+              <option value="all">All results</option>
+              <option v-for="series in chartSeries" :key="series.key" :value="series.key">{{ series.label }}</option>
+            </select>
+          </label>
+        </div>
+        <p v-if="!overview.recentRuns.length" class="text-secondary mt-3 mb-0">Import results will appear here after a run is recorded.</p>
+        <template v-else>
+          <ul class="overview-chart-legend" aria-label="Chart legend">
+            <li v-for="series in visibleSeries" :key="series.key"><span class="overview-chart-swatch" :data-series="series.tone" aria-hidden="true"></span>{{ series.label }}</li>
+          </ul>
+          <p class="small text-secondary">Each full-width bar represents {{ chartMaximum }} posts. All displayed bars share this scale. Dates are in SGT.</p>
+          <ol class="overview-chart-runs">
+            <li v-for="run in overview.recentRuns" :key="run.id" class="overview-chart-run">
+              <div class="overview-chart-run-label"><strong>{{ run.sourceName }}</strong><time :datetime="run.startedAt">{{ formatDate(run.startedAt) }}</time><small>{{ run.id }}</small></div>
+              <div class="overview-chart-series">
+                <div v-for="series in visibleSeries" :key="series.key" class="overview-chart-bar-row">
+                  <span class="overview-chart-bar-label">{{ series.label }}</span>
+                  <div class="overview-chart-track" aria-hidden="true"><span class="overview-chart-bar" :data-series="series.tone" :style="{ width: barWidth(run[series.key]) }"></span></div>
+                  <strong class="overview-chart-count">{{ run[series.key] }}</strong>
+                </div>
+              </div>
+            </li>
+          </ol>
+        </template>
+      </section>
       <section class="card p-3 mb-3 admin-runs-panel" aria-labelledby="overview-runs-title">
         <h2 id="overview-runs-title" class="h4">Recent ingestion runs</h2>
         <p><a href="/admin/ingestion#runs-title">View ingestion run history</a></p>
@@ -141,8 +218,54 @@ onUnmounted(() => { fence.dispose(); nativeFence.dispose() })
 }
 .admin-overview-panels.overview-panels {
   grid-template-columns: minmax(0, 1fr);
-  grid-template-areas: "work" "runs" "readiness";
+  grid-template-areas: "work" "next" "chart" "runs" "readiness";
 }
+.overview-next-steps {
+  grid-area: next;
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+.overview-attention-list,
+.overview-shortcut-list,
+.overview-chart-legend,
+.overview-chart-runs { list-style: none; padding: 0; margin: 0; }
+.overview-attention-list li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+  padding-block: 12px;
+  border-top: 1px solid var(--admin-border);
+}
+.overview-attention-list strong { font-variant-numeric: tabular-nums; }
+.overview-attention-list a { font-size: 12px; }
+.overview-queue-clear { color: #285c3b; }
+.overview-shortcut-list :where(li + li) { border-top: 1px solid var(--admin-border); }
+.overview-shortcut-list a { display: block; padding: 12px 0; text-decoration: none; }
+.overview-shortcut-list a:hover { text-decoration: underline; }
+.overview-shortcut-list span { display: block; margin-top: 4px; color: var(--admin-muted); font-size: 12px; }
+.overview-import-chart { grid-area: chart; }
+.overview-chart-heading { display: flex; flex-wrap: wrap; gap: 16px; justify-content: space-between; }
+.overview-chart-heading > div { flex: 1 1 300px; }
+.overview-chart-filter { display: grid; gap: 4px; font-size: 12px; }
+.overview-chart-legend { display: flex; flex-wrap: wrap; gap: 16px; margin: 20px 0 12px; }
+.overview-chart-legend li { display: flex; align-items: center; gap: 6px; font-size: 12px; }
+.overview-chart-swatch { width: 10px; height: 10px; border-radius: 2px; }
+[data-series="created"] { background: #39764e; }
+[data-series="updated"] { background: #4668a1; }
+[data-series="failed"] { background: #b64538; }
+.overview-chart-run { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 3fr); gap: 16px; padding: 16px 0; border-top: 1px solid var(--admin-border); }
+.overview-chart-run-label { display: grid; align-content: start; gap: 4px; }
+.overview-chart-run-label time,
+.overview-chart-run-label small { font-size: 12px; color: var(--admin-muted); overflow-wrap: anywhere; }
+.overview-chart-series { display: grid; align-content: center; gap: 8px; }
+.overview-chart-bar-row { display: grid; grid-template-columns: 78px minmax(0, 1fr) 44px; align-items: center; gap: 8px; font-size: 12px; }
+.overview-chart-track { height: 12px; background: #f0f1f4; border-radius: 3px; overflow: hidden; }
+.overview-chart-bar { display: block; height: 100%; border-radius: 3px; }
+.overview-chart-count { text-align: right; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
 .overview-summary {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -196,5 +319,9 @@ onUnmounted(() => { fence.dispose(); nativeFence.dispose() })
 .overview-runs-scroll:focus-visible { outline: 2px solid #465c82; outline-offset: 3px; }
 @media (max-width: 991.98px) {
   .overview-summary { grid-template-columns: minmax(0, 1fr); }
+  .overview-next-steps { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 575.98px) {
+  .overview-chart-run { grid-template-columns: minmax(0, 1fr); gap: 12px; }
 }
 </style>
