@@ -98,6 +98,52 @@ defineExpose({ focusAllFilters: () => allButton.value?.focus() })
   fill: var(--coral);
 }
 
+.quick-chips__lobbie:not(.is-on) .quick-chips__lobbie-icon {
+  animation: lobbie-twinkle 5s var(--ease-out) 1.5s infinite;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .quick-chips__lobbie:not(.is-on):hover .quick-chips__lobbie-icon {
+    animation: lobbie-spin 700ms var(--ease-out);
+  }
+}
+
+@keyframes lobbie-twinkle {
+  0% {
+    transform: rotate(0) scale(1);
+  }
+
+  8% {
+    transform: rotate(45deg) scale(1.35);
+  }
+
+  16%,
+  100% {
+    transform: rotate(90deg) scale(1);
+  }
+}
+
+@keyframes lobbie-spin {
+  from {
+    transform: rotate(0) scale(1);
+  }
+
+  50% {
+    transform: rotate(90deg) scale(1.3);
+  }
+
+  to {
+    transform: rotate(180deg) scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .quick-chips__lobbie:not(.is-on) .quick-chips__lobbie-icon,
+  .quick-chips__lobbie:not(.is-on):hover .quick-chips__lobbie-icon {
+    animation: none;
+  }
+}
+
 @media (max-width: 767.98px) {
   .quick-chips__optional {
     display: none;
