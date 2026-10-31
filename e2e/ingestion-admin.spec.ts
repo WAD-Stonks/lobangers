@@ -77,6 +77,7 @@ const installSyntheticBoundary = async (page: Page) => {
         outlet: null,
         reviewStatus: 'PENDING',
         contentVersion: 7,
+        operationVersion: 0,
         sourceUrl: 'https://example.test/source/1',
         sourceName: 'Synthetic source fixture',
         reviewNote: null,
@@ -101,6 +102,19 @@ const installSyntheticBoundary = async (page: Page) => {
     let path: string
     let input: Record<string, unknown>
     let dealId: string | undefined
+    if (
+      method === 'GET' &&
+      (pathname === '/api/ingestion/posts' ||
+        pathname === '/api/ingestion/sources' ||
+        /^\/api\/ingestion\/drafts\/[a-f0-9]{24}\/evidence$/u.test(pathname))
+    ) {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ items: [], nextCursor: null }),
+      })
+      return
+    }
     if (pathname === '/api/ingestion/dashboard' && method === 'GET') {
       path = 'ingestion.dashboard'
       input = {}
@@ -227,12 +241,31 @@ const installSyntheticBoundary = async (page: Page) => {
   return state
 }
 
-test('admin navigation reaches anonymous sign-in rather than fabricated data', async ({ page }) => {
+test('admin deep link reaches anonymous sign-in while the public menu hides administration', async ({
+  page,
+}) => {
   const fixture = await installSyntheticBoundary(page)
   fixture.access = 'UNAUTHORIZED'
-  await page.goto('/')
+  // This anonymous-navigation case also mounts the public map. Keep its unrelated
+  // reads synthetic rather than falling through to an ambient localhost API.
+  await page.route('**/api/deals?**', (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ items: [], categories: [] }),
+    }),
+  )
+  await page.route('**/api/account/bookmarks?**', (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ items: [], nextCursor: null }),
+    }),
+  )
+  await page.goto('/browse')
   await page.getByTestId('nav-toggle').click()
-  await page.getByRole('link', { name: 'Ingestion admin', exact: true }).click()
+  await expect(page.getByRole('link', { name: 'Ingestion admin', exact: true })).toHaveCount(0)
+  await page.goto('/admin/ingestion')
   await expect(page).toHaveURL('/admin/ingestion')
   await expect(page.getByRole('heading', { name: 'Sign in to review ingestion' })).toBeVisible()
   await expect(page.getByLabel('Email', { exact: true })).toBeVisible()
@@ -299,6 +332,7 @@ for (const width of [320, 390, 1280]) {
         input: {
           dealId: '111111111111111111111111',
           expectedContentVersion: 7,
+          expectedOperationVersion: 0,
           decision: 'REJECT',
           note: 'Cannot establish dates from this synthetic fixture',
         },
@@ -424,6 +458,7 @@ test('pagination preserves stale-review conflict until reloading the current dra
   fixture.drafts = fixture.drafts.map((draft) => ({
     ...draft,
     contentVersion: 8,
+    operationVersion: 1,
     description: 'Current synthetic content',
   }))
   fixture.draftNextCursor = null
@@ -446,12 +481,14 @@ test('pagination preserves stale-review conflict until reloading the current dra
     {
       dealId: '111111111111111111111111',
       expectedContentVersion: 7,
+      expectedOperationVersion: 0,
       decision: 'APPROVE',
       note: 'Review of version seven',
     },
     {
       dealId: '111111111111111111111111',
       expectedContentVersion: 8,
+      expectedOperationVersion: 1,
       decision: 'APPROVE',
       note: 'Review of current version eight',
     },
@@ -476,6 +513,7 @@ test('reload drops a superseded second-page draft and requires selection of its 
     title: 'Replacement draft',
     description: 'Revised source evidence',
     contentVersion: 8,
+    operationVersion: 1,
   }
   fixture.drafts = [other]
   fixture.draftNextCursor = other.id
@@ -492,6 +530,7 @@ test('reload drops a superseded second-page draft and requires selection of its 
     {
       ...old,
       contentVersion: 8,
+      operationVersion: 1,
       reviewStatus: 'REJECTED',
       reviewNote: 'Superseded by source revision',
     },
@@ -530,12 +569,14 @@ test('reload drops a superseded second-page draft and requires selection of its 
     {
       dealId: old.id,
       expectedContentVersion: 7,
+      expectedOperationVersion: 0,
       decision: 'APPROVE',
       note: 'Review of old source revision',
     },
     {
       dealId: replacement.id,
       expectedContentVersion: 8,
+      expectedOperationVersion: 1,
       decision: 'APPROVE',
       note: 'Review of replacement source evidence',
     },

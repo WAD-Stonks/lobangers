@@ -14,7 +14,7 @@ test('shared auth client reads the same-origin session endpoint', async ({ page 
   const menuFetch = page.waitForResponse((response) =>
     response.url().includes('/api/auth/get-session'),
   )
-  await page.goto('/')
+  await page.goto('/browse')
   await page.getByTestId('nav-toggle').click()
   await menuFetch
   await page.waitForLoadState('networkidle')

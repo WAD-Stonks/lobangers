@@ -6,12 +6,21 @@ import { describe, expect, it, vi } from 'vitest'
 import { ref } from 'vue'
 import { createMemoryHistory, createRouter } from 'vue-router'
 
+const identity = vi.hoisted(() => ({ role: null as string | null }))
+
 // Synthetic signed-out session: these tests cover the shell, not authentication.
 vi.mock('@web/lib/api-client', () => ({
   api: { deals: { list: vi.fn().mockResolvedValue({ items: [], categories: [] }) } },
 }))
 vi.mock('@web/lib/auth-client', () => ({
-  authClient: { useSession: () => ref({ data: null, isPending: false }), signOut: vi.fn() },
+  authClient: {
+    useSession: () =>
+      ref({
+        data: identity.role ? { user: { role: identity.role, name: 'Test user' } } : null,
+        isPending: false,
+      }),
+    signOut: vi.fn(),
+  },
 }))
 
 const NAV = '[data-testid="primary-nav"]'
@@ -45,8 +54,8 @@ async function mountAt(path: string) {
 }
 
 describe('site header pill', () => {
-  it('shows the Lobangers logo linking home and keeps the menu collapsed', async () => {
-    const { wrapper } = await mountAt('/browse')
+  it('shows the Lobangers logo linking home on pages outside the map', async () => {
+    const { wrapper } = await mountAt('/getting-started')
 
     const brand = wrapper.get(`${NAV} a[href="/"]`)
     expect(brand.get('img').attributes('alt')).toBe('Lobangers')
@@ -59,8 +68,8 @@ describe('site header pill', () => {
     wrapper.unmount()
   })
 
-  it('reveals every destination and the sign-in links behind the hamburger', async () => {
-    const { wrapper } = await mountAt('/')
+  it('reveals public destinations and sign-in links without administration', async () => {
+    const { wrapper } = await mountAt('/browse')
 
     await wrapper.get(TOGGLE).trigger('click')
 
@@ -69,24 +78,24 @@ describe('site header pill', () => {
     expect(toggle.attributes('aria-label')).toBe('Close menu')
     const menu = wrapper.get(MENU)
     expect(menu.attributes('id')).toBe('site-menu')
+    expect(menu.attributes('aria-label')).toBe('Site')
     const hrefs = menu.findAll('a').map((link) => link.attributes('href'))
     expect(hrefs).toEqual([
+      '/login?redirect=/browse',
+      '/register?redirect=/browse',
+      '/add',
       '/',
+      '/browse',
       '/deals',
-      '/submit-deal',
+      '/add',
       '/getting-started',
-      '/admin',
-      '/admin/accounts',
-      '/admin/ingestion',
-      '/login',
-      '/register',
     ])
-    expect(menu.get('a[href="/"]').attributes('aria-current')).toBe('page')
+    expect(menu.get('a[href="/browse"]').attributes('aria-current')).toBe('page')
     wrapper.unmount()
   })
 
   it('navigates from a menu link and collapses afterwards', async () => {
-    const { router, wrapper } = await mountAt('/')
+    const { router, wrapper } = await mountAt('/browse')
 
     await wrapper.get(TOGGLE).trigger('click')
     await wrapper.get(`${MENU} a[href="/getting-started"]`).trigger('click')
@@ -99,7 +108,7 @@ describe('site header pill', () => {
   })
 
   it('closes on Escape and returns focus to the toggle', async () => {
-    const { wrapper } = await mountAt('/')
+    const { wrapper } = await mountAt('/browse')
 
     await wrapper.get(TOGGLE).trigger('click')
     expect(wrapper.find(MENU).exists()).toBe(true)
@@ -112,7 +121,7 @@ describe('site header pill', () => {
   })
 
   it('closes when clicking outside the pill', async () => {
-    const { wrapper } = await mountAt('/')
+    const { wrapper } = await mountAt('/browse')
 
     await wrapper.get(TOGGLE).trigger('click')
     expect(wrapper.find(MENU).exists()).toBe(true)
@@ -123,4 +132,15 @@ describe('site header pill', () => {
     expect(wrapper.find(MENU).exists()).toBe(false)
     wrapper.unmount()
   })
+})
+
+it('shows administration destinations only for an administrator', async () => {
+  identity.role = 'ADMIN'
+  const { wrapper } = await mountAt('/browse')
+  await wrapper.get(TOGGLE).trigger('click')
+  expect(wrapper.find(`${MENU} a[href="/admin"]`).exists()).toBe(true)
+  expect(wrapper.find(`${MENU} a[href="/admin/accounts"]`).exists()).toBe(true)
+  expect(wrapper.find(`${MENU} a[href="/admin/ingestion"]`).exists()).toBe(true)
+  identity.role = null
+  wrapper.unmount()
 })

@@ -1,43 +1,81 @@
 <script setup lang="ts">
+import DealImage from '@web/components/DealImage.vue'
+import { walkMinutesFor } from '@web/modules/browse-map/apply-filters'
 import CategoryBubble from '@web/modules/browse-map/CategoryBubble.vue'
-import { formatDistance } from '@web/modules/browse-map/distance'
+import { dealNoticeTags, formatMoreOutlets, OUTLET_NOT_CONFIRMED, offerTypeTag, priceText } from '@web/modules/browse-map/deal-format'
+import FreshnessTag from '@web/modules/browse-map/FreshnessTag.vue'
 import type { DealRow } from '@web/modules/browse-map/types'
+import ShellIcon from '@web/modules/map-shell/ShellIcon.vue'
+import { ref } from 'vue'
+import type { RouteLocationRaw } from 'vue-router'
+import { RouterLink } from 'vue-router'
 
-// Rows of deals: category bubble, title, outlet and distance, with the price on the right.
-// Used for the main list, an outlet's deals and "more at this outlet" under a deal.
-withDefaults(
+// Price-first deal rows. Each row links to its deal; hovering or focusing a row lights up its
+// pin on the map (and the shell lights the row when its pin is hovered).
+const props = withDefaults(
   defineProps<{
     rows: readonly DealRow[]
+    to: (row: DealRow) => RouteLocationRaw
+    hotVenueId?: string | null
     currentKey?: string | null
     testId?: string
   }>(),
-  { currentKey: null, testId: 'deal-rows' },
+  { hotVenueId: null, currentKey: null, testId: 'deal-rows' },
 )
-const emit = defineEmits<{ select: [dealId: string, venueId: string] }>()
-
-const metaText = (row: DealRow) =>
-  row.distanceMetres === null
-    ? row.venue.name
-    : `${row.venue.name} · ${formatDistance(row.distanceMetres)} away`
+const emit = defineEmits<{ hover: [venueId: string | null] }>()
+const pointedKey = ref<string | null>(null)
+const point = (row: DealRow | null) => {
+  pointedKey.value = row?.key ?? null
+  emit('hover', row?.venue.id ?? null)
+}
+const isHot = (row: DealRow) => {
+  const pointed = props.rows.find((candidate) => candidate.key === pointedKey.value)
+  if (pointed && pointed.venue.id === props.hotVenueId) return row.key === pointed.key
+  return row.venue.id === props.hotVenueId
+}
 </script>
 
 <template>
   <ol class="deal-rows" :data-testid="testId">
-    <li
-      v-for="row in rows"
-      :key="row.key"
-      class="deal-rows__item"
-      :class="{ 'is-current': row.key === currentKey }"
-      :aria-current="row.key === currentKey ? 'true' : undefined"
-    >
-      <button type="button" class="deal-rows__button" @click="emit('select', row.deal.id, row.venue.id)">
-        <CategoryBubble :category="row.deal.category" size="md" />
+    <li v-for="(row, index) in rows" :key="row.key" :style="{ '--i': Math.min(index, 8) }">
+      <RouterLink
+        :to="to(row)"
+        class="deal-rows__row"
+        :class="{ 'is-hot': isHot(row), 'is-current': row.key === currentKey }"
+        :aria-current="row.key === currentKey ? 'true' : undefined"
+        @mouseenter="point(row)"
+        @mouseleave="point(null)"
+        @focus="point(row)"
+        @blur="point(null)"
+      >
+        <DealImage v-if="row.deal.imageUrl" :key="row.deal.id" class="deal-rows__image" :url="row.deal.imageUrl" :alt="row.deal.imageAltText?.trim() || row.deal.title" />
+        <CategoryBubble
+          v-else
+          :category="row.deal.category"
+          :title="row.deal.title"
+          :venue="row.venue.name"
+          size="md"
+        />
         <span class="deal-rows__text">
-          <span class="deal-rows__title">{{ row.deal.title }}</span>
-          <span class="deal-rows__meta">{{ metaText(row) }}</span>
+          <strong class="deal-rows__title" :title="row.deal.title">{{ row.deal.title }}</strong>
+          <span class="deal-rows__where">
+            <span class="deal-rows__venue">{{ row.venue.name }}</span>
+            <span v-if="row.distanceMetres !== null" class="deal-rows__walk">
+              <ShellIcon name="walk" :size="14" />{{ walkMinutesFor(row.distanceMetres) }} min
+            </span>
+            <span v-if="formatMoreOutlets(row.outletCount)" class="deal-rows__outlets" data-testid="more-outlets">
+              {{ formatMoreOutlets(row.outletCount) }}
+            </span>
+            <span v-if="row.deal.outletUnconfirmed" class="deal-rows__unsure">{{ OUTLET_NOT_CONFIRMED }}</span>
+          </span>
+          <span class="deal-rows__tags">
+            <FreshnessTag :deal="row.deal" />
+            <span v-if="offerTypeTag(row.deal.offerType)" class="lb-tag lb-tag--new">{{ offerTypeTag(row.deal.offerType) }}</span>
+            <span v-for="notice in dealNoticeTags(row.deal)" :key="notice.label" class="lb-tag" :class="`lb-tag--${notice.tone}`">{{ notice.label }}</span>
+          </span>
         </span>
-        <span class="deal-rows__price">{{ row.deal.label }}</span>
-      </button>
+        <span v-if="priceText(row.deal)" class="lb-price deal-rows__price">{{ priceText(row.deal) }}</span>
+      </RouterLink>
     </li>
   </ol>
 </template>
@@ -46,59 +84,126 @@ const metaText = (row: DealRow) =>
 .deal-rows {
   display: flex;
   flex-direction: column;
-  gap: var(--space-1);
-  margin: 0;
+  margin: 0 -8px;
   padding: 0;
   list-style: none;
 }
 
-.deal-rows__button {
-  display: flex;
-  align-items: center;
+.deal-rows__row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
   gap: var(--space-3);
-  width: 100%;
-  padding: var(--space-2) var(--space-3);
-  font: inherit;
-  text-align: left;
+  align-items: center;
+  padding: 12px 8px;
   color: var(--ink);
-  background: transparent;
-  border: 0;
-  border-radius: var(--radius-control);
-  cursor: pointer;
-  transition: background-color 160ms ease;
+  text-decoration: none;
+  border-radius: 16px;
+  transition:
+    transform var(--dur-press) var(--ease-out),
+    background-color 150ms ease;
 }
 
-.deal-rows__button:hover,
-.deal-rows__button:focus-visible,
-.is-current .deal-rows__button {
-  background: var(--paper);
+.deal-rows__row:active {
+  transform: scale(0.98);
+}
+
+.deal-rows__row.is-hot,
+.deal-rows__row.is-current {
+  background: var(--sunny-wash);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .deal-rows__row:hover {
+    color: var(--ink);
+    background: var(--paper-hover);
+  }
+
+  .deal-rows__row.is-hot:hover {
+    background: var(--sunny-wash);
+  }
+}
+
+.deal-rows__row:focus-visible {
+  outline: 3px solid var(--sunny-ring);
+  outline-offset: -2px;
+}
+
+.deal-rows__image {
+  flex: 0 0 3.5rem;
+  width: 3.5rem;
+  aspect-ratio: 1;
+  font-size: var(--text-xs);
+  text-align: center;
 }
 
 .deal-rows__text {
   display: flex;
-  flex: 1 1 auto;
   flex-direction: column;
+  gap: 4px;
   min-width: 0;
 }
 
+/* Two lines at most; the full title is in the tooltip and on the deal panel. */
 .deal-rows__title {
-  font-family: var(--font-display);
-  font-size: var(--text-md);
-  font-weight: 600;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  font-size: 0.9375rem;
   line-height: 1.3;
+  overflow-wrap: anywhere;
 }
 
-.deal-rows__meta {
+.deal-rows__where {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  align-items: center;
   font-size: var(--text-xs);
-  line-height: 1.4;
   color: var(--ink-muted);
 }
 
-.deal-rows__price {
-  flex: 0 0 auto;
-  font-family: var(--font-display);
-  font-size: var(--text-md);
-  font-weight: 700;
+.deal-rows__venue {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.deal-rows__walk {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   white-space: nowrap;
+}
+
+.deal-rows__outlets {
+  font-weight: 600;
+  color: var(--ink);
+  white-space: nowrap;
+}
+
+.deal-rows__unsure {
+  color: var(--ink-muted);
+  white-space: nowrap;
+}
+
+.deal-rows__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+/* Never truncated: a long label wraps, capped at two fifths of the row. */
+.deal-rows__price {
+  max-width: 9rem;
+  font-size: 1.375rem;
+  text-align: right;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .deal-rows__row:active {
+    transform: none;
+  }
 }
 </style>

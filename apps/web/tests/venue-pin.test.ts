@@ -1,5 +1,10 @@
 import { DEAL_PIN_CLASS, DEAL_PIN_LABEL_MAX_CHARS } from '@web/modules/browse-map/map-config'
-import { createVenuePinIcon, pinBadgeText, pinLabel } from '@web/modules/browse-map/venue-pin'
+import {
+  createVenuePinIcon,
+  pinBadgeText,
+  pinFlag,
+  pinLabel,
+} from '@web/modules/browse-map/venue-pin'
 import { describe, expect, it } from 'vitest'
 
 describe('pinLabel', () => {
@@ -32,10 +37,16 @@ describe('pinBadgeText', () => {
 })
 
 describe('createVenuePinIcon', () => {
-  it('builds a tinted category bubble with an icon and a badge, never parsing HTML', () => {
+  it('builds an animated 3D food and a badge, never parsing HTML', () => {
     const icon = createVenuePinIcon({
       deals: [
-        { title: '<img src=x onerror=alert(1)>', label: '<b>$12</b>', category: 'DRINKS' },
+        {
+          title: '<img src=x onerror=alert(1)>',
+          label: '<b>$12</b>',
+          category: 'DRINKS',
+          validUntil: null,
+          votes: { alive: 0, dead: 0 },
+        },
       ] as never,
     })
     const element = icon.createIcon()
@@ -43,10 +54,54 @@ describe('createVenuePinIcon', () => {
     expect(icon.options.className).toBe(DEAL_PIN_CLASS)
     expect(icon.options.iconSize).toEqual([0, 0])
     const bubble = element.querySelector(`.${DEAL_PIN_CLASS}__bubble`) as HTMLElement
-    expect(bubble.style.getPropertyValue('--pin-tint')).toBe('var(--tint-drinks)')
-    expect(bubble.querySelector('svg path')).not.toBeNull()
+    const food = bubble.querySelector('.food-sprite') as HTMLElement
+    expect(food.style.backgroundImage).toContain('/food-anim/drinks-128.webp')
+    expect(food.classList.contains('food-sprite--still')).toBe(false)
     expect(element.querySelector(`.${DEAL_PIN_CLASS}__badge`)?.textContent).toBe('<b>$12</b>')
     expect(element.querySelector('b')).toBeNull()
     expect(element.querySelector('img')).toBeNull()
+  })
+})
+
+describe('pin food', () => {
+  it('shows the dish the deal names, not just its category', () => {
+    const icon = createVenuePinIcon({
+      name: 'PastaMania City Square',
+      deals: [
+        {
+          title: 'PastaMania: second main at half price',
+          label: '1-for-1',
+          category: 'FOOD',
+          validUntil: null,
+          votes: { alive: 0, dead: 0 },
+        },
+      ] as never,
+    })
+    const food = icon.createIcon().querySelector('.food-sprite') as HTMLElement
+    expect(food.style.backgroundImage).toContain('/food-anim/pasta-128.webp')
+  })
+})
+
+describe('pin flags and state', () => {
+  const NOW = new Date('2026-10-20T02:00:00.000Z')
+  const quiet = { validUntil: null, votes: { alive: 0, dead: 0 } }
+  const verified = { validUntil: null, votes: { alive: 3, dead: 0 } }
+  const endingToday = { validUntil: '2026-10-20T10:00:00.000Z', votes: { alive: 0, dead: 0 } }
+
+  it('flags ending-today outlets first, then verified ones', () => {
+    expect(pinFlag([quiet], NOW)).toBeNull()
+    expect(pinFlag([verified], NOW)).toBe('verified')
+    expect(pinFlag([verified, endingToday], NOW)).toBe('ending')
+  })
+
+  it('draws the flag and carries selected, dimmed and hot classes', () => {
+    const icon = createVenuePinIcon(
+      { deals: [{ title: 'Kopi', label: '$1', category: 'DRINKS', ...verified }] as never },
+      { selected: true, hot: true },
+      NOW,
+    )
+    const element = icon.createIcon()
+    expect(icon.options.className).toBe(`${DEAL_PIN_CLASS} is-selected is-hot`)
+    expect(element.querySelector(`.${DEAL_PIN_CLASS}__flag--verified`)).not.toBeNull()
   })
 })

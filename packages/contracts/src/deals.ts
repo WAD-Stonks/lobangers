@@ -25,23 +25,39 @@ export const offerTypeSchema = z.enum(['FIXED_PRICE', 'PERCENT_OFF', 'BUY_ONE_GE
 export const dealVoteSummarySchema = z.strictObject({
   alive: z.number().int().min(0),
   dead: z.number().int().min(0),
+  status: z.enum(['NO_RECENT_REPORTS', 'UNCERTAIN', 'LIKELY_STILL_ON', 'EXPIRED']).optional(),
+})
+
+// A deal photo already re-hosted on our storage; alt is null when the source gave none.
+export const dealImageSchema = z.strictObject({
+  url: z.string().url().startsWith('https://'),
+  alt: z.string().nullable(),
 })
 
 export const dealPinSchema = z.strictObject({
   id: objectIdSchema,
   title: z.string(),
   category: z.string(),
+  // One of DEAL_CUISINES (see deal-cuisines.ts), or null when no cuisine applies.
+  cuisine: z.string().nullable(),
   label: z.string(),
   description: z.string(),
   offerType: offerTypeSchema,
   priceMinor: z.number().int().min(0).nullable(),
   discountPercent: z.number().int().min(0).max(100).nullable(),
   terms: z.string().nullable(),
+  imageUrl: z.string().url().nullable().optional(),
+  imageAltText: z.string().nullable().optional(),
   // ISO timestamp of the exclusive end, or null when the deal has no known end date.
   validUntil: z.string().datetime().nullable(),
   rawValidityText: z.string().nullable(),
+  // An imported offer with no published end; shown as a limited promotion, never with a date.
+  limitedTime: z.boolean().optional(),
+  // No outlet is confirmed, so the pins are the merchant's outlets the deal may cover.
+  outletUnconfirmed: z.boolean().optional(),
   votes: dealVoteSummarySchema,
   commentCount: z.number().int().min(0),
+  images: z.array(dealImageSchema),
   venues: z.array(dealVenuePinSchema),
 })
 
@@ -53,5 +69,6 @@ export const dealsResponseSchema = z.strictObject({
 export type DealsQuery = z.infer<typeof dealsQuerySchema>
 export type DealVenuePin = z.infer<typeof dealVenuePinSchema>
 export type DealVoteSummary = z.infer<typeof dealVoteSummarySchema>
+export type DealImage = z.infer<typeof dealImageSchema>
 export type DealPin = z.infer<typeof dealPinSchema>
 export type DealsResponse = z.infer<typeof dealsResponseSchema>

@@ -5,11 +5,27 @@
   "type": "module",
   "exports": {
     "./api": "./src/api.ts",
+    "./assistant": "./src/assistant.ts",
     "./ingestion": "./src/ingestion.ts",
+    "./ingestion-sources": "./src/ingestion-sources.ts",
+    "./admin-common": "./src/admin-common.ts",
+    "./admin-deals": "./src/admin-deals.ts",
+    "./admin-catalogue": "./src/admin-catalogue.ts",
+    "./admin-moderation": "./src/admin-moderation.ts",
+    "./ingestion-evidence": "./src/ingestion-evidence.ts",
+    "./ingestion-recovery": "./src/ingestion-recovery.ts",
     "./platform-admin": "./src/platform-admin.ts",
+    "./platform-security": "./src/platform-security.ts",
     "./deals": "./src/deals.ts",
+    "./deal-categories": "./src/deal-categories.ts",
+    "./deal-copy": "./src/deal-copy.ts",
+    "./deal-cuisines": "./src/deal-cuisines.ts",
+    "./deal-forms": "./src/deal-forms.ts",
+    "./merchant": "./src/merchant.ts",
     "./venues": "./src/venues.ts",
-    "./account": "./src/account.ts"
+    "./account": "./src/account.ts",
+    "./community": "./src/community.ts",
+    "./community-policy": "./src/community-policy.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit -p tsconfig.json"

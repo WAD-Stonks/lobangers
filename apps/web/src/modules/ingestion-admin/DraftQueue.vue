@@ -1,12 +1,18 @@
 <script setup lang="ts">
+import { DEAL_CATEGORIES, type DealCategory, dealCategorySchema } from '@broke-oclock/contracts/deal-categories'
 import type { IngestionDraft, IngestionDraftsQuery, IngestionReviewRequest } from '@broke-oclock/contracts/ingestion'
 import type { PlatformVenue } from '@broke-oclock/contracts/platform-admin'
 import { BButton } from '@broke-oclock/ui'
 import { api } from '@web/lib/api-client'
+import DraftEvidence from '@web/modules/ingestion-admin/DraftEvidence.vue'
+import DraftImages from '@web/modules/ingestion-admin/DraftImages.vue'
 import { approvalBlockReason } from '@web/modules/ingestion-admin/draft-validity'
 import { errorCode } from '@web/modules/ingestion-admin/errors'
+import PostInvestigation from '@web/modules/ingestion-admin/PostInvestigation.vue'
+import { clearRecoveryWorkspace, useRecoveryWorkspace } from '@web/modules/ingestion-admin/recovery-workspace'
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 
+const workspace = useRecoveryWorkspace()
 type Draft = IngestionDraft
 const props = defineProps<{ revision: number; initialStatus?: 'PENDING' | 'APPROVED' | 'REJECTED' }>()
 const emit = defineEmits<{ changed: []; denied: [code: string] }>()
@@ -14,6 +20,7 @@ const status = ref<IngestionDraftsQuery['status']>(['PENDING', 'APPROVED', 'REJE
 const items = ref<Draft[] | null>(null)
 const selectedId = ref<string | null>(null)
 const selected = computed(() => items.value?.find(item => item.id === selectedId.value))
+const investigationId = ref<string | null>(null)
 const pending = ref(false)
 const nextCursor = ref<string | null>(null)
 const error = ref('')
@@ -29,9 +36,12 @@ const venueCursor = ref<string | null>(null)
 const venuePending = ref(false)
 const associationPending = ref(false)
 const outletError = ref('')
-const busy = computed(() => reviewPending.value || associationPending.value)
+const category = ref('')
+const categoryPending = ref(false)
+const categoryError = ref('')
+const busy = computed(() => reviewPending.value || associationPending.value || categoryPending.value)
 // Identity guards survive selection, filter and pagination changes.
-const locks = ref(new Map<string, { version: number; after: number }>())
+const locks = ref(new Map<string, { version: number; operationVersion: number; after: number }>())
 const highest = new Map<string, Draft>()
 const activeWrites = new Set<string>()
 const conflict = computed(() => selectedId.value !== null && locks.value.has(selectedId.value))
@@ -42,8 +52,8 @@ let venueRequest = 0
 let evidenceClock = 0
 let closed = false
 const live = (epoch: number) => !closed && epoch === generation
-const lock = (id: string, version: number) => {
-  locks.value.set(id, { version: Math.max(version, locks.value.get(id)?.version ?? 0, highest.get(id)?.contentVersion ?? 0), after: ++evidenceClock })
+const lock = (id: string, version: number, operationVersion = highest.get(id)?.operationVersion ?? 0) => {
+  locks.value.set(id, { version: Math.max(version, locks.value.get(id)?.version ?? 0, highest.get(id)?.contentVersion ?? 0), operationVersion: Math.max(operationVersion, locks.value.get(id)?.operationVersion ?? 0, highest.get(id)?.operationVersion ?? 0), after: ++evidenceClock })
 }
 const clearOutlets = () => {
   ++venueRequest; venuePending.value = false
@@ -52,15 +62,15 @@ const clearOutlets = () => {
 }
 const close = () => {
   closed = true; ++generation; ++request; clearOutlets()
-  items.value = null; selectedId.value = null; note.value = ''; nextCursor.value = null
-  pending.value = false; reviewPending.value = false; associationPending.value = false
-  error.value = ''; reviewError.value = ''; success.value = ''
+  items.value = null; selectedId.value = null; investigationId.value = null; note.value = ''; nextCursor.value = null
+  pending.value = false; reviewPending.value = false; associationPending.value = false; categoryPending.value = false
+  error.value = ''; reviewError.value = ''; success.value = ''; categoryError.value = ''; category.value = ''
   locks.value.clear(); highest.clear(); activeWrites.clear()
 }
 const denied = (failure: unknown) => {
   const code = errorCode(failure)
   if (code !== 'UNAUTHORIZED' && code !== 'FORBIDDEN') return false
-  close(); emit('denied', code); return true
+  clearRecoveryWorkspace(workspace); close(); emit('denied', code); return true
 }
 onBeforeUnmount(close)
 const sourceLink = computed(() => {
@@ -72,7 +82,9 @@ const sourceLink = computed(() => {
 })
 const approvalReason = computed(() => approvalBlockReason(selected.value))
 const canReview = computed(() => !closed && selected.value?.reviewStatus === 'PENDING' && note.value.trim().length > 0 && note.value.trim().length <= 1000 && !busy.value && !venuePending.value && !pending.value && !error.value && !conflict.value)
-const associationAllowed = computed(() => selected.value?.reviewStatus === 'PENDING' && ['NO_FIXED_LOCATION', 'SELECTED_OUTLETS'].includes(selected.value.applicability))
+const categoryAllowed = computed(() => selected.value?.reviewStatus === 'PENDING')
+const canSetCategory = computed(() => !closed && categoryAllowed.value && dealCategorySchema.safeParse(category.value).success && category.value !== selected.value?.category && !busy.value && !pending.value && !venuePending.value && !error.value && !conflict.value)
+const associationAllowed = computed(() => selected.value?.reviewStatus === 'PENDING' && (selected.value.outletCount ?? selected.value.outlets?.length ?? 0) <= 1 && ['NO_FIXED_LOCATION', 'SELECTED_OUTLETS'].includes(selected.value.applicability))
 const chosenVenue = computed(() => venues.value?.find(item => item.id === venueId.value))
 const canAssociate = computed(() => !closed && associationAllowed.value && chosenVenue.value && chosenVenue.value.id !== selected.value?.outlet?.id && confirmed.value && !busy.value && !pending.value && !venuePending.value && !error.value && !conflict.value)
 const load = async (cursor?: string) => {
@@ -89,16 +101,16 @@ const load = async (cursor?: string) => {
     const wasConflicted = conflict.value
     const accepted = result.items.map(draft => {
       const known = highest.get(draft.id)
-      if (known && draft.contentVersion < known.contentVersion) return known
+      if (known && (draft.contentVersion < known.contentVersion || (draft.operationVersion ?? 0) < (known.operationVersion ?? 0))) return known
       highest.set(draft.id, draft)
       const guard = locks.value.get(draft.id)
-      if (guard && draft.contentVersion >= guard.version && started > guard.after && !activeWrites.has(draft.id)) locks.value.delete(draft.id)
+      if (guard && draft.contentVersion >= guard.version && (draft.operationVersion ?? 0) >= guard.operationVersion && started > guard.after && !activeWrites.has(draft.id)) locks.value.delete(draft.id)
       return draft
     })
     items.value = [...new Map([...(cursor ? items.value ?? [] : []), ...accepted].map(item => [item.id, item])).values()]
     nextCursor.value = result.nextCursor === cursor ? null : result.nextCursor
     if (!cursor && selectedId.value && !selected.value) { selectedId.value = null; note.value = ''; clearOutlets() }
-    if (previous && selected.value && (previous.contentVersion !== selected.value.contentVersion || (wasConflicted && !conflict.value))) {
+    if (previous && selected.value && (previous.contentVersion !== selected.value.contentVersion || previous.operationVersion !== selected.value.operationVersion || (wasConflicted && !conflict.value))) {
       note.value = ''; clearOutlets()
       reviewError.value = 'Draft content changed. Read it again and enter a new review note.'
     } else if (conflict.value) reviewError.value = conflictMessage
@@ -111,7 +123,8 @@ const load = async (cursor?: string) => {
 }
 const select = (draft: Draft) => {
   if (closed || busy.value || pending.value || error.value || (conflict.value && selectedId.value === draft.id)) return
-  clearOutlets(); selectedId.value = draft.id; note.value = ''
+  clearOutlets(); investigationId.value = null; selectedId.value = draft.id; note.value = ''
+  category.value = draft.category; categoryError.value = ''
   reviewError.value = conflict.value ? conflictMessage : ''; success.value = ''
 }
 const searchOutlets = async (cursor?: string) => {
@@ -120,9 +133,10 @@ const searchOutlets = async (cursor?: string) => {
   const epoch = generation
   const id = selected.value.id
   const version = selected.value.contentVersion
+  const operationVersion = selected.value.operationVersion ?? 0
   venuePending.value = true; outletError.value = ''; venueId.value = ''; confirmed.value = false
   if (!cursor) { venues.value = null; venueCursor.value = null }
-  const valid = () => live(epoch) && current === venueRequest && selected.value?.id === id && selected.value.contentVersion === version
+  const valid = () => live(epoch) && current === venueRequest && selected.value?.id === id && selected.value.contentVersion === version && (selected.value.operationVersion ?? 0) === operationVersion
   try {
     const result = await api.platformAdmin.venues({ search: outletQuery.value.trim(), limit: 20, ...(cursor ? { cursor } : {}) })
     if (!valid()) return
@@ -139,14 +153,15 @@ const associate = async () => {
   if (!canAssociate.value || !selected.value || !chosenVenue.value) return
   const id = selected.value.id
   const expectedContentVersion = selected.value.contentVersion
+  const expectedOperationVersion = selected.value.operationVersion ?? 0
   const targetVenueId = chosenVenue.value.id
   const epoch = generation
   activeWrites.add(id); lock(id, expectedContentVersion)
   associationPending.value = true; outletError.value = ''; success.value = ''
   try {
-    const result = await api.ingestion.associateDraftOutlet(id, { expectedContentVersion, venueId: targetVenueId })
+    const result = await api.ingestion.associateDraftOutlet(id, { expectedContentVersion, expectedOperationVersion, venueId: targetVenueId })
     if (closed) return
-    lock(id, Math.max(expectedContentVersion + 1, result.contentVersion))
+    lock(id, Math.max(expectedContentVersion + 1, result.contentVersion), Math.max(expectedOperationVersion + 1, result.operationVersion ?? 0))
     if (!live(epoch) || selectedId.value !== id) return
     note.value = ''; clearOutlets(); reviewError.value = conflictMessage
     success.value = 'Outlet associated. The draft remains pending. Reload and review the new version.'
@@ -165,6 +180,37 @@ const associate = async () => {
     if (live(epoch)) associationPending.value = false
   }
 }
+const setCategory = async () => {
+  if (!canSetCategory.value || !selected.value) return
+  const id = selected.value.id
+  const expectedContentVersion = selected.value.contentVersion
+  const expectedOperationVersion = selected.value.operationVersion ?? 0
+  const chosen = category.value as DealCategory
+  const epoch = generation
+  activeWrites.add(id); lock(id, expectedContentVersion)
+  categoryPending.value = true; categoryError.value = ''; success.value = ''
+  try {
+    const result = await api.ingestion.setDraftCategory(id, { expectedContentVersion, expectedOperationVersion, category: chosen })
+    if (closed) return
+    lock(id, Math.max(expectedContentVersion + 1, result.contentVersion), Math.max(expectedOperationVersion + 1, result.operationVersion ?? 0))
+    if (!live(epoch) || selectedId.value !== id) return
+    note.value = ''; clearOutlets(); reviewError.value = conflictMessage
+    success.value = 'Category updated. The draft remains pending. Reload and review the new version.'
+    emit('changed')
+  } catch (failure) {
+    if (closed) return
+    lock(id, expectedContentVersion)
+    if (!live(epoch)) return
+    if (denied(failure)) return
+    if (selectedId.value === id) {
+      note.value = ''; clearOutlets(); reviewError.value = conflictMessage
+      categoryError.value = 'Unable to update the category. Reload fresh draft evidence before retrying.'
+    }
+  } finally {
+    activeWrites.delete(id)
+    if (live(epoch)) categoryPending.value = false
+  }
+}
 const review = async (decision: IngestionReviewRequest['decision']) => {
   if (!canReview.value || !selected.value) return
   if (decision === 'APPROVE') {
@@ -173,12 +219,13 @@ const review = async (decision: IngestionReviewRequest['decision']) => {
   }
   const id = selected.value.id
   const expectedContentVersion = selected.value.contentVersion
+  const expectedOperationVersion = selected.value.operationVersion ?? 0
   const reviewNote = note.value.trim()
   const epoch = generation
   activeWrites.add(id)
   reviewPending.value = true; reviewError.value = ''; success.value = ''
   try {
-    await api.ingestion.reviewDraft(id, { expectedContentVersion, decision, note: reviewNote })
+    await api.ingestion.reviewDraft(id, { expectedContentVersion, expectedOperationVersion, decision, note: reviewNote })
     if (closed) return
     if (!live(epoch)) { lock(id, expectedContentVersion); return }
     if (selectedId.value !== id) return
@@ -202,7 +249,7 @@ watch([() => props.revision, status], (_value, previous) => {
   ++generation; ++request; clearOutlets(); note.value = ''
   // A context shift makes an in-flight review outcome uncertain for its old target.
   for (const id of activeWrites) lock(id, highest.get(id)?.contentVersion ?? 1)
-  reviewPending.value = false; associationPending.value = false
+  reviewPending.value = false; associationPending.value = false; categoryPending.value = false
   if (previous && previous[1] !== status.value) { selectedId.value = null; note.value = ''; items.value = null; reviewError.value = ''; success.value = '' }
   void load()
 }, { immediate: true, flush: 'sync' })
@@ -222,6 +269,7 @@ watch([() => props.revision, status], (_value, previous) => {
     <ul v-if="items?.length" class="list-unstyled">
       <li v-for="draft in items" :key="draft.id" class="border-top py-3">
         <h3 class="h6 text-break">{{ draft.title }}</h3>
+        <p>{{ draft.priceMinor ?? 'Unknown' }} minor units · {{ draft.currency ?? 'Unknown currency' }} · {{ draft.discountPercent ?? 'Unknown' }}% discount</p>
         <p class="small text-break">{{ draft.sourceName }} · {{ draft.reviewStatus }} · Version {{ draft.contentVersion }}</p>
         <BButton :data-testid="`view-${draft.id}`" :disabled="busy || pending || Boolean(error) || (conflict && selectedId === draft.id)" :aria-label="`View details: ${draft.title}`" @click="select(draft)">View details</BButton>
       </li>
@@ -230,17 +278,36 @@ watch([() => props.revision, status], (_value, previous) => {
     <article v-if="selected" aria-labelledby="draft-title" class="border-top pt-4 text-break">
       <h3 id="draft-title" class="h5">{{ selected.title }}</h3>
       <p class="draft-text">{{ selected.description }}</p>
+      <DraftImages :key="`${selected.id}:${selected.contentVersion}`" :images="selected.images" :title="selected.title" />
       <dl>
+        <dt>Numeric offer</dt><dd>{{ selected.priceMinor ?? 'Unknown' }} minor units · {{ selected.currency ?? 'Unknown currency' }} · {{ selected.discountPercent ?? 'Unknown' }}% discount</dd>
         <dt>Terms</dt><dd class="draft-text">{{ selected.terms ?? 'Not supplied' }}</dd>
         <dt>Category / offer type</dt><dd>{{ selected.category }} / {{ selected.offerType }}</dd>
         <dt>Validity</dt><dd>{{ selected.validFrom ?? 'Unknown start' }} to {{ selected.validUntil ?? 'Unknown end' }}</dd>
         <dt>Original validity text</dt><dd>{{ selected.rawValidityText ?? 'Not supplied' }}</dd>
         <dt>Content version</dt><dd>Version {{ selected.contentVersion }}</dd>
-        <dt>Current outlet</dt><dd v-if="selected.outlet">{{ selected.outlet.name }} · {{ selected.outlet.address }} · {{ selected.outlet.merchantName }}</dd><dd v-else>No existing outlet associated</dd>
+        <dt>Current outlet</dt>
+        <dd v-if="selected.outlets?.length">
+          <ul><li v-for="outlet in selected.outlets" :key="outlet.id">{{ outlet.name }} · {{ outlet.address }} · {{ outlet.merchantName }}</li></ul>
+          <p v-if="selected.outletsTruncated">Showing {{ selected.outlets.length }} of {{ selected.outletCount }} associated outlets. Display is truncated; approval checks the complete set.</p>
+          <p v-else>{{ selected.outletCount ?? selected.outlets.length }} associated outlet(s). Association alone does not confirm campaign participation.</p>
+        </dd>
+        <dd v-else-if="selected.outlet">{{ selected.outlet.name }} · {{ selected.outlet.address }} · {{ selected.outlet.merchantName }}</dd>
+        <dd v-else-if="(selected.outletCount ?? 0) > 0">{{ selected.outletCount }} associated outlets; details unavailable.</dd>
+        <dd v-else>No existing outlet associated</dd>
         <dt>Applicability</dt><dd>{{ selected.applicability }}</dd>
+        <dt>Content review</dt><dd>{{ selected.reviewReady ? 'Content reviewable; scope and publication are separate checks.' : 'Source, offer or validity clarification required.' }}</dd>
+        <dt>Scope / physical eligibility</dt>
+        <dd v-if="selected.scopeStatus === 'SOURCE_CONFIRMED' && selected.physicalEligibilityReady">Source-confirmed physical scope. Public visibility still requires current approval and publication.</dd>
+        <dd v-else-if="selected.scopeStatus === 'SOURCE_CONFIRMED' && ['ONLINE', 'NO_FIXED_LOCATION'].includes(selected.applicability)">Source-confirmed nonspatial scope. No map points.</dd>
+        <dd v-else-if="selected.scopeStatus === 'SOURCE_CONFIRMED'">Scope confirmed, but current physical outlet proof is incomplete. Not ready for physical approval.</dd>
+        <dd v-else-if="selected.scopeStatus === 'LEGACY_RETAINED'">Exact historical scope retained; not fresh verification or authority for new outlet associations.</dd>
+        <dd v-else>Scope unconfirmed. Content approval does not establish public or map eligibility.</dd>
         <dt>Source</dt><dd>{{ selected.sourceName }} · <a v-if="sourceLink" data-testid="draft-source" :href="sourceLink" target="_blank" rel="noopener noreferrer">Open original source</a><span v-else>Source link unavailable (unsafe or invalid URL).</span></dd>
         <dt>Previous review note</dt><dd>{{ selected.reviewNote ?? 'No previous note' }}</dd>
       </dl>
+      <DraftEvidence :key="`${selected.id}:${selected.contentVersion}`" :deal-id="selected.id" :content-version="selected.contentVersion" @denied="code => { clearRecoveryWorkspace(workspace); close(); emit('denied', code) }" @investigate="investigationId = $event" />
+      <PostInvestigation v-if="investigationId" :post-id="investigationId" @denied="code => { clearRecoveryWorkspace(workspace); close(); emit('denied', code) }" />
       <form @submit.prevent="review('APPROVE')" :aria-busy="reviewPending">
         <label for="review-note" class="form-label">Review note (required)</label>
         <textarea id="review-note" v-model="note" class="form-control mb-3" rows="3" maxlength="1000" required :disabled="busy || pending || selected.reviewStatus !== 'PENDING'" />
@@ -253,6 +320,18 @@ watch([() => props.revision, status], (_value, previous) => {
           <BButton data-testid="reject-draft" type="button" variant="outline-danger" :disabled="!canReview" @click="review('REJECT')">{{ reviewPending ? 'Submitting…' : 'Reject draft' }}</BButton>
         </div>
       </form>
+      <section v-if="categoryAllowed" aria-labelledby="category-title" class="mb-4">
+        <h4 id="category-title" class="h6">Correct the category</h4>
+        <p id="category-help">The importer guesses the category from the post text. Fix it here when the guess is wrong. This does not approve or publish the draft.</p>
+        <form data-testid="category-form" @submit.prevent="setCategory" :aria-busy="categoryPending">
+          <label for="draft-category" class="form-label">Category</label>
+          <select id="draft-category" v-model="category" class="form-select mb-2" :disabled="busy || pending || venuePending || conflict" aria-describedby="category-help">
+            <option v-for="option in DEAL_CATEGORIES" :key="option" :value="option">{{ option }}</option>
+          </select>
+          <p v-if="categoryError" role="alert">{{ categoryError }}</p>
+          <BButton data-testid="save-category" type="submit" :disabled="!canSetCategory">{{ categoryPending ? 'Saving…' : 'Save category' }}</BButton>
+        </form>
+      </section>
       <section v-if="associationAllowed" aria-labelledby="outlet-title" class="admin-outlet-association mb-4">
         <h4 id="outlet-title" class="h6">Associate an existing outlet</h4>
         <p id="outlet-help">Choose only an existing active outlet supported by the named source evidence. This does not approve or publish the draft. OneMap candidates are not outlet records.</p>
@@ -262,7 +341,8 @@ watch([() => props.revision, status], (_value, previous) => {
           <BButton type="submit" :disabled="busy || pending || venuePending || conflict || outletQuery.trim().length > 100">Search outlets</BButton>
         </form>
         <p v-if="venuePending" role="status">Loading existing outlets…</p>
-        <p v-if="venues?.length === 0">No matching active outlet records. Association requires an existing merchant and outlet. This screen cannot create them; ask the responsible administrator to maintain canonical records.</p>
+        <p v-if="venues?.length === 0 && venueCursor">No selectable verified outlets on this page. More catalogue rows remain; load more.</p>
+        <p v-else-if="venues?.length === 0">No matching verified outlet records. Association requires an existing merchant and outlet. This screen cannot create or verify them; ask the responsible administrator to maintain canonical records.</p>
         <BButton v-if="venueCursor" data-testid="more-outlets" :disabled="busy || venuePending || pending || conflict" @click="searchOutlets(venueCursor)">Load more outlets</BButton>
         <form data-testid="outlet-association" @submit.prevent="associate" :aria-busy="associationPending">
           <label for="outlet-choice" class="form-label">Existing outlet</label>

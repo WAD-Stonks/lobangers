@@ -1,0 +1,1126 @@
+/* Shared control roles and readable text across the live and illustrative sections. */
+.lobangers-landing
+:is(
+  .landing-button,
+  .landing-card-primary,
+  .hero-deal-action,
+  .community-signup,
+  .community-explore
+) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 48px;
+  padding: 12px 18px;
+  border-radius: var(--landing-control-radius);
+  font: 700 14px / 1.4 var(--font-sans);
+  transition:
+    background-color 150ms ease,
+    box-shadow 150ms ease;
+}
+.lobangers-landing
+  :is(.landing-button.primary, .landing-card-primary, .hero-deal-action, .community-signup) {
+  background: var(--landing-yellow);
+  border: 1px solid var(--sunny-deep, #e8c440);
+  color: var(--landing-ink);
+}
+.lobangers-landing
+  :is(.landing-button.primary, .landing-card-primary, .hero-deal-action, .community-signup):is(
+    :hover,
+    :focus-visible
+  ) {
+  background: var(--sunny-deep, #f0cb44);
+  border-color: var(--sunny-deep, #e8c440);
+  color: var(--landing-ink);
+}
+.lobangers-landing .hero-live-card:hover .hero-deal-action {
+  background: var(--landing-yellow);
+}
+.lobangers-landing .hero-live-card .hero-deal-action:is(:hover, :focus-visible) {
+  background: var(--sunny-deep, #f0cb44);
+}
+.lobangers-landing .hero-copy > .landing-button:is(:hover, :focus-visible, :active) {
+  translate: none;
+  scale: 1;
+  transform: none;
+}
+.lobangers-landing .hero-copy > .landing-button {
+  border-radius: 20px;
+}
+@media (min-width: 1151px) {
+  .lobangers-landing .hero-copy > .landing-button {
+    min-height: 60px;
+    padding: 15px 26px;
+    gap: 14px;
+    font-size: clamp(18px, 1.2vw, 22px);
+  }
+}
+.lobangers-landing .landing-button.dark {
+  background: var(--landing-ink);
+  color: white;
+}
+.lobangers-landing .landing-button.dark:hover {
+  background: var(--ink-strong-hover, #343a30);
+}
+.lobangers-landing :is(.community-intro h2 em, .cuisine-heading-offer) {
+  color: var(--landing-coral-ink);
+}
+.lobangers-landing .hero-restaurant-link {
+  display: block;
+  border-radius: 4px;
+}
+.lobangers-landing .hero-restaurant-link:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.lobangers-landing .landing-card-heading .landing-venue-link {
+  display: block;
+  width: auto;
+  height: auto;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  color: inherit;
+  font: inherit;
+  line-height: 1.4;
+  text-align: left;
+}
+.lobangers-landing .landing-card-heading > h3 {
+  margin-bottom: 4px;
+  color: var(--landing-ink);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+.lobangers-landing .landing-deal-title {
+  color: var(--landing-coral-ink);
+  font-size: 20px;
+  font-weight: 800;
+  line-height: 1.4;
+}
+.lobangers-landing .landing-venue-link:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.lobangers-landing .landing-food-content {
+  gap: 10px;
+  padding: 18px;
+}
+.lobangers-landing .landing-outlet-summary {
+  display: flex;
+  flex-direction: column;
+  align-items: start;
+  gap: 4px;
+}
+.lobangers-landing .landing-card-location {
+  white-space: normal;
+  margin: 0;
+  font-size: 14px;
+  color: var(--landing-muted);
+}
+.lobangers-landing .landing-outlet-button {
+  color: var(--landing-coral-ink);
+  font-size: 14px;
+}
+.lobangers-landing .landing-verification-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: var(--tag-ok-bg, #e2f0e6);
+  color: var(--tag-ok-ink, #1d5531);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.5;
+}
+.lobangers-landing .hero-deal-copy .landing-verification-badge {
+  margin-top: 8px;
+  color: var(--tag-ok-ink, #1d5531);
+  font-size: 12px;
+}
+.lobangers-landing .hero-live-card .hero-promotion-period,
+.lobangers-landing .hero-live-card .hero-outlet-location {
+  font-size: 14px;
+}
+.lobangers-landing .hero-card-topline,
+.lobangers-landing .hero-live-card .hero-deal-copy > small {
+  font-size: 12px;
+}
+.lobangers-landing .landing-carousel-controls {
+  position: static;
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-top: 20px;
+}
+.lobangers-landing .landing-carousel-controls button {
+  position: static;
+  inset: auto;
+  transform: none;
+  width: 48px;
+  height: 48px;
+  flex: none;
+  border-radius: var(--landing-control-radius);
+  box-shadow: none;
+}
+.lobangers-landing .landing-carousel-controls button:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+.lobangers-landing .landing-carousel-status {
+  margin: 0;
+  font-size: 14px;
+  text-align: center;
+}
+.lobangers-landing .story-top-actions {
+  gap: 12px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+.lobangers-landing .cinematic-story .story-topline {
+  top: var(--landing-nav-clearance);
+}
+@media (max-width: 800px) {
+  .lobangers-landing .cinematic-story .story-copy {
+    top: calc(var(--landing-nav-clearance) + 60px);
+  }
+}
+
+.lobangers-landing .community-explore {
+  color: #4b4b4b;
+}
+
+.lobangers-landing .story-playback-toggle,
+.lobangers-landing .cinematic-story .story-top-actions > a {
+  font-size: 14px;
+  line-height: 1.5;
+  min-height: 44px;
+  padding: 8px 12px;
+  letter-spacing: 0;
+  border-radius: var(--landing-control-radius);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #ddd7bf;
+  background: #fffdf5;
+  color: #4b4b4b;
+  font-weight: 700;
+  text-decoration: none;
+  white-space: nowrap;
+  box-shadow: 0 4px 10px #8270390a;
+}
+.lobangers-landing .story-playback-toggle:is(:hover, :focus-visible),
+.lobangers-landing .cinematic-story .story-top-actions > a:is(:hover, :focus-visible) {
+  background: #f7f0d6;
+}
+.lobangers-landing .cinematic-story .story-sample-note {
+  font-size: 12px;
+  line-height: 1.5;
+}
+.lobangers-landing
+  :is(
+    .community-eyebrow,
+    .report-age-note,
+    .community-report small,
+    .community-pulse-label,
+    .community-pulse p,
+    .members-can-vote,
+    .community-voting-preview p,
+    .mobile-older-reports
+  ) {
+  font-size: 12px;
+  line-height: 1.5;
+}
+.lobangers-landing .community-report p {
+  font-size: 14px;
+  line-height: 1.5;
+}
+.lobangers-landing .community-pulse > strong {
+  font-size: 16px;
+}
+.lobangers-landing summary:focus-visible {
+  outline: 3px solid var(--landing-coral-ink);
+  outline-offset: 3px;
+}
+@media (max-width: 600px) {
+  .lobangers-landing .landing-food-content {
+    padding: 16px;
+    gap: 8px;
+  }
+  .lobangers-landing .landing-food-photo {
+    aspect-ratio: 3 / 2;
+  }
+  .lobangers-landing .landing-card-actions {
+    padding-top: 12px;
+  }
+  .lobangers-landing .landing-carousel-controls {
+    gap: 10px;
+  }
+  .lobangers-landing .story-topline {
+    left: 16px;
+    right: 16px;
+  }
+  .lobangers-landing .story-top-actions {
+    gap: 8px;
+  }
+  .lobangers-landing .story-playback-toggle,
+  .lobangers-landing .cinematic-story .story-top-actions > a {
+    padding-inline: 8px;
+    font-size: 14px;
+  }
+  .lobangers-landing .story-bottom > span:first-child {
+    display: none;
+  }
+  .lobangers-landing .story-bottom {
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .lobangers-landing
+    :is(
+      .landing-button,
+      .landing-card-primary,
+      .hero-deal-action,
+      .community-signup,
+      .community-explore
+    ) {
+    transition: none;
+  }
+}
+
+.lobangers-landing .landing-card-location {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  white-space: normal;
+  min-height: 2.9em;
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.45;
+}
+.lobangers-landing .landing-card-location svg {
+  width: 20px;
+  height: 20px;
+  flex: none;
+}
+.lobangers-landing .landing-card-location > span {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+.lobangers-landing .deal-grid-toolbar .landing-view-all {
+  grid-area: all;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 8px 0;
+  margin-left: auto;
+  color: var(--landing-coral-ink);
+  font-size: 14px;
+  font-weight: 700;
+  text-decoration: none;
+}
+.lobangers-landing .landing-view-all > span:first-child {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.lobangers-landing .deal-grid-toolbar {
+  display: grid;
+  grid-template-areas: "count filters all";
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px 12px;
+  margin-bottom: 16px;
+}
+.lobangers-landing .deal-grid-toolbar > p {
+  grid-area: count;
+}
+.lobangers-landing .deal-grid-toolbar > div {
+  grid-area: filters;
+  margin-left: 0;
+  gap: 8px;
+}
+.lobangers-landing .deal-grid-toolbar select {
+  appearance: none;
+  padding: 10px 44px 10px 16px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23252a20' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 16px center;
+  background-size: 16px 16px;
+}
+.landing-skeleton {
+  display: block;
+  min-height: 18px;
+  border-radius: 6px;
+  background: #e8e7df;
+}
+.landing-skeleton-card .landing-food-content {
+  display: grid;
+  gap: 16px;
+  min-height: 250px;
+}
+.landing-skeleton-card .landing-food-content > span {
+  height: 18px;
+}
+.hero-loading-card .hero-card-region i {
+  background: #e8e7df;
+}
+.hero-loading-card .hero-loading-region {
+  width: 64px;
+  min-height: 12px;
+}
+.hero-loading-card .hero-loading-eyebrow {
+  width: 100px;
+  min-height: 12px;
+}
+.hero-loading-card .hero-card-photo > .landing-skeleton {
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+}
+.hero-loading-card .hero-loading-content {
+  display: grid;
+  align-content: start;
+  gap: 10px;
+  min-width: 0;
+  padding: 0;
+}
+.hero-loading-card .hero-loading-cuisine {
+  width: 62px;
+  min-height: 11px;
+  margin-bottom: 2px;
+}
+.hero-loading-card .hero-loading-title {
+  width: min(100%, 240px);
+  min-height: 22px;
+}
+.hero-loading-card .hero-loading-restaurant {
+  width: min(78%, 190px);
+  min-height: 18px;
+}
+.hero-loading-card .hero-loading-period {
+  width: min(92%, 220px);
+  min-height: 14px;
+  margin-top: 4px;
+}
+.hero-loading-card .hero-loading-location {
+  width: 100%;
+  min-height: 38px;
+}
+.hero-loading-card .hero-loading-action {
+  width: 100%;
+  min-height: 44px;
+  border-radius: 10px;
+}
+.landing-deals-error {
+  padding-block: 24px;
+}
+.lobangers-landing .landing-deals-error > p {
+  margin-bottom: 16px;
+}
+.lobangers-landing .cuisine-discovery .landing-deals-error > a {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  margin: 8px 12px;
+  text-decoration: underline;
+}
+@media (max-width: 800px) {
+  .lobangers-landing .deal-grid-toolbar {
+    grid-template-areas:
+      "count all"
+      "filters filters";
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px;
+  }
+  .lobangers-landing .deal-grid-toolbar > div {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+  .lobangers-landing .deal-grid-toolbar select {
+    width: 100%;
+    min-width: 0;
+    max-width: none;
+    padding-inline: 12px 36px;
+    background-position: right 12px center;
+  }
+}
+
+/* Enclosed promotion cards with the offer above the venue and a compact footer. */
+.lobangers-landing .cuisine-discovery .landing-food-card {
+  border: 1px solid #ccc9c1;
+  border-radius: 28px;
+  overflow: hidden;
+  background: #fff;
+  box-shadow: none;
+  transform: none;
+}
+.lobangers-landing .cuisine-discovery .landing-food-photo {
+  aspect-ratio: 5 / 6;
+  border-radius: 0;
+}
+.landing-photo-link {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.landing-photo-link > img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.landing-photo-badge {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  max-width: calc(100% - 32px);
+  padding: 5px 12px;
+  border-radius: 24px;
+  background: #fff;
+  color: var(--landing-ink);
+  font-size: 13px;
+  font-weight: 700;
+  pointer-events: none;
+}
+.lobangers-landing .cuisine-discovery .landing-food-content {
+  padding: 18px;
+  gap: 10px;
+}
+.lobangers-landing .cuisine-discovery .landing-deal-title {
+  margin: 0 0 6px;
+  color: var(--landing-coral-ink);
+  font-size: 20px;
+  line-height: 1.35;
+  -webkit-line-clamp: 2;
+}
+.lobangers-landing .landing-food-content .landing-offer-link {
+  display: block;
+  font: inherit;
+  width: auto;
+  height: auto;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  text-align: left;
+}
+.lobangers-landing .landing-offer-link:hover {
+  text-decoration: underline;
+}
+.lobangers-landing .cuisine-discovery .landing-restaurant-name {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 400;
+  color: var(--landing-ink);
+}
+.lobangers-landing .cuisine-discovery .landing-outlet-button {
+  min-height: 32px;
+  padding: 3px 12px;
+  border-radius: 24px;
+  background: #f0eeea;
+  color: var(--landing-ink);
+  font-size: 14px;
+  font-weight: 700;
+  text-decoration: none;
+}
+.lobangers-landing .cuisine-discovery .landing-outlet-button:hover {
+  background: #e5e2dc;
+}
+.lobangers-landing .cuisine-discovery .landing-card-meta {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+  margin-top: auto;
+  padding-top: 14px;
+  border-top: 2px dashed #e5e2dc;
+  color: #77767d;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.lobangers-landing .landing-card-meta > span {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  text-align: left;
+}
+
+/* Let the original hero card adapt to its available width. */
+.lobangers-landing .hero-map-area > .hero-live-card {
+  container: hero-deal / inline-size;
+  max-width: 100%;
+  min-width: 0;
+  padding: clamp(12px, 1.3vw, 18px);
+  grid-template-columns: minmax(0, 1fr);
+}
+.lobangers-landing .hero-live-card .hero-card-main {
+  min-width: 0;
+  min-height: 0;
+  grid-template-columns: clamp(72px, 23cqw, 110px) minmax(0, 1fr);
+  gap: clamp(10px, 3cqw, 16px);
+}
+.lobangers-landing .hero-live-card .hero-card-photo {
+  height: auto;
+  aspect-ratio: 4 / 5;
+}
+.lobangers-landing .hero-live-card .hero-restaurant-name {
+  margin: 6px 0 0;
+  color: var(--landing-ink);
+  font-size: clamp(14px, 4cqw, 16px);
+  font-weight: 600;
+}
+.lobangers-landing .hero-live-card .hero-promotion-title {
+  color: var(--landing-coral-ink);
+  font-size: clamp(16px, 5cqw, 19px);
+  font-weight: 800;
+}
+.lobangers-landing .hero-live-card .hero-card-topline {
+  flex-wrap: wrap;
+  gap: 4px 12px;
+}
+.lobangers-landing .hero-live-card .hero-card-footer {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-column: 1 / -1;
+  align-items: center;
+  min-width: 0;
+  gap: 16px;
+  padding: 14px 0 0;
+  border-left: 0;
+  border-top: 1px solid #eeece3;
+}
+.lobangers-landing .hero-live-card .hero-outlet-location {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.lobangers-landing .hero-live-card .hero-outlet-location > svg {
+  flex-shrink: 0;
+}
+@container hero-deal (max-width: 400px) {
+  .lobangers-landing .hero-live-card .hero-card-main {
+    grid-column: 1 / -1;
+  }
+  .lobangers-landing .hero-live-card .hero-card-footer {
+    grid-column: 1 / -1;
+    flex-direction: row;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 0 0;
+    border-left: 0;
+    border-top: 1px solid #eeece3;
+  }
+  .lobangers-landing .hero-live-card .hero-outlet-location {
+    flex: 1;
+    min-width: 0;
+  }
+}
+@container hero-deal (max-width: 290px) {
+  .lobangers-landing .hero-live-card .hero-card-footer {
+    grid-template-columns: minmax(0, 1fr);
+    align-items: stretch;
+  }
+}
+
+/* Keep the preview inside its grid column; only the artwork may bleed out. */
+.lobangers-landing .hero-map-area {
+  container: hero-map / inline-size;
+  width: 100%;
+  min-width: 0;
+  margin-inline: 0;
+}
+.lobangers-landing .hero-map-area.hero-map-docked {
+  padding-bottom: 290px;
+}
+.lobangers-landing .hero-copy {
+  min-width: 0;
+}
+.lobangers-landing .hero-subtitle {
+  white-space: normal;
+}
+@media (min-width: 801px) {
+  .lobangers-landing .landing-hero {
+    grid-template-columns: minmax(0, 44fr) minmax(0, 56fr);
+    column-gap: clamp(24px, 3vw, 48px);
+  }
+  .lobangers-landing .hero-map-scene {
+    width: 124%;
+    margin-left: -8%;
+  }
+}
+.lobangers-landing .hero-map-area > .hero-live-card {
+  position: absolute;
+  top: 40%;
+  left: 50%;
+  display: grid;
+  width: min(440px, 94%);
+  margin: 0;
+  transform: translate(-50%, -50%);
+}
+.lobangers-landing .hero-map-area > .hero-live-card.hero-card-no-entry {
+  animation: none;
+  transition: none;
+}
+.lobangers-landing .hero-map-area > .hero-live-card.hero-card-pop {
+  animation: hero-featured-pop 460ms cubic-bezier(0.16, 1.25, 0.3, 1) both;
+}
+.lobangers-landing .hero-map-area > .hero-live-card.hero-card-docked.hero-card-pop {
+  animation-name: hero-featured-pop-docked;
+}
+.lobangers-landing .hero-empty-card .hero-deal-copy > a {
+  display: inline-flex;
+  margin-top: 8px;
+  color: var(--landing-coral);
+  font-weight: 750;
+}
+@keyframes hero-featured-pop {
+  0% {
+    opacity: 0.75;
+    transform: translate(-50%, -50%) scale(0.92);
+  }
+  72% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1.025);
+  }
+  100% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
+@keyframes hero-featured-pop-docked {
+  0% {
+    opacity: 0.75;
+    transform: translateX(-50%) scale(0.92);
+  }
+  72% {
+    opacity: 1;
+    transform: translateX(-50%) scale(1.025);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(-50%) scale(1);
+  }
+}
+.lobangers-landing .hero-map-area > .hero-live-card:hover {
+  transform: translate(-50%, -50%) translateY(-3px);
+}
+
+/* Overlap the shoreline when no clear position fits between the pins. */
+.lobangers-landing .hero-map-area > .hero-live-card.hero-card-docked {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  width: min(440px, 94%);
+  margin: 0;
+  border-radius: 28px;
+  background: #fff;
+  box-shadow: 0 22px 48px #4733211c;
+  transform: translateX(-50%);
+}
+.lobangers-landing .hero-map-area > .hero-live-card.hero-card-docked:hover {
+  transform: translateX(-50%) translateY(-3px);
+}
+@container hero-map (max-width: 680px) {
+  .lobangers-landing .hero-live-card .hero-card-footer {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 16px 0 0;
+    border-left: 0;
+    border-top: 1px solid #eeece3;
+  }
+  .lobangers-landing .hero-live-card .hero-outlet-location {
+    flex: 1;
+    min-width: 0;
+  }
+  .lobangers-landing .hero-live-card .hero-deal-action {
+    background: #ffda3e;
+    border-radius: 16px;
+  }
+  .lobangers-landing .hero-live-card .hero-deal-action:is(:hover, :focus-visible) {
+    background: #f5cc27;
+  }
+}
+@container hero-map (max-width: 480px) {
+  .lobangers-landing .hero-map-area.hero-map-docked {
+    padding-bottom: 380px;
+  }
+}
+@container hero-map (max-width: 340px) {
+  .lobangers-landing .hero-map-area.hero-map-docked {
+    padding-bottom: 430px;
+  }
+  .lobangers-landing .hero-live-card .hero-card-footer {
+    grid-template-columns: minmax(0, 1fr);
+    align-items: stretch;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .lobangers-landing .hero-map-area > .hero-live-card.hero-card-pop {
+    animation: none;
+  }
+  .lobangers-landing .hero-map-area > .hero-live-card:hover {
+    transform: translate(-50%, -50%);
+  }
+  .lobangers-landing .hero-map-area > .hero-live-card.hero-card-docked:hover {
+    transform: none;
+  }
+}
+
+/* Render the f and i separately instead of the font's joined fi glyph. */
+.landing-photo-badge {
+  font-variant-ligatures: none;
+  font-feature-settings:
+    "liga" 0,
+    "clig" 0;
+}
+
+/* A native link covers the card; secondary actions remain above it. */
+.lobangers-landing .cuisine-discovery .landing-food-card {
+  position: relative;
+  isolation: isolate;
+  transition:
+    transform 0.22s ease,
+    box-shadow 0.22s ease,
+    border-color 0.22s ease;
+}
+.lobangers-landing .landing-card-link {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  border-radius: inherit;
+  cursor: pointer;
+}
+.lobangers-landing
+  :is(.landing-venue-link, .landing-outlet-button, .hero-restaurant-link, .hero-deal-action) {
+  position: relative;
+  z-index: 2;
+}
+.lobangers-landing .landing-card-link:focus-visible {
+  outline: 3px solid var(--landing-coral-ink);
+  outline-offset: -4px;
+}
+.lobangers-landing .landing-photo-link > img {
+  transition: transform 0.3s ease;
+}
+@media (hover: hover) and (pointer: fine) {
+  .lobangers-landing .cuisine-discovery article.landing-food-card:hover {
+    transform: translateY(-5px);
+    border-color: #b9b5aa;
+    box-shadow: 0 14px 30px #47332120;
+  }
+  .lobangers-landing .landing-food-card:hover .landing-photo-link > img {
+    transform: scale(1.035);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .lobangers-landing .cuisine-discovery article.landing-food-card,
+  .lobangers-landing .landing-photo-link > img {
+    transition: none;
+  }
+  .lobangers-landing .cuisine-discovery article.landing-food-card:hover,
+  .lobangers-landing .landing-food-card:hover .landing-photo-link > img {
+    transform: none;
+  }
+}
+
+@media (max-width: 600px) {
+  .lobangers-landing .cuisine-discovery .landing-deal-grid {
+    gap: 10px;
+  }
+  .lobangers-landing .cuisine-discovery .landing-food-card {
+    border-radius: 18px;
+  }
+  .lobangers-landing .cuisine-discovery .landing-food-photo {
+    aspect-ratio: 1;
+  }
+  .lobangers-landing .landing-photo-badge {
+    top: 8px;
+    left: 8px;
+    max-width: calc(100% - 16px);
+    padding: 4px 7px;
+    font-size: 10px;
+    line-height: 1.3;
+  }
+  .lobangers-landing .cuisine-discovery .landing-food-content {
+    padding: 10px;
+    gap: 6px;
+  }
+  .lobangers-landing .cuisine-discovery .landing-deal-title {
+    font-size: 14px;
+    line-height: 1.35;
+    margin-bottom: 4px;
+  }
+  .lobangers-landing .cuisine-discovery .landing-restaurant-name {
+    font-size: 12px;
+  }
+  .lobangers-landing .cuisine-discovery .landing-outlet-button {
+    max-width: 100%;
+    min-height: 32px;
+    padding: 4px 8px;
+    font-size: 11px;
+    white-space: normal;
+  }
+  .lobangers-landing .cuisine-discovery .landing-card-meta {
+    padding-top: 8px;
+    font-size: 11px;
+  }
+  .lobangers-landing .landing-carousel-status {
+    font-size: 12px;
+  }
+}
+
+/* Match the SVG's 80×106 view box and anchor at its ground dot (40, 96).
+   The percentage coordinates then stay attached to the same raster pixels. */
+.lobangers-landing .hero-map-scene .island-marker {
+  width: clamp(32px, 3vw, 48px);
+  height: auto;
+  min-width: 0;
+  min-height: 0;
+  aspect-ratio: 80 / 106;
+  margin: 0;
+  transform: translate(-50%, -90.566%);
+  transform-origin: 50% 90.566%;
+}
+.lobangers-landing .hero-map-scene :is(.pin-selection, .hero-food-pin) {
+  transform-origin: 50% 90.566%;
+}
+.lobangers-landing .hero-map-scene .island-marker:is(:hover, :focus-visible) .hero-food-pin {
+  transform: scale(1.1);
+}
+@media (prefers-reduced-motion: reduce) {
+  .lobangers-landing .hero-map-scene .island-marker:is(:hover, :focus-visible) .hero-food-pin {
+    transform: none;
+  }
+}
+
+@media (max-width: 1100px), (pointer: coarse) {
+  .lobangers-landing .hero-map-scene .island-marker {
+    width: clamp(48px, 6vw, 56px);
+  }
+  .lobangers-landing .hero-map-scene .island-marker::after {
+    min-width: 48px;
+    min-height: 48px;
+  }
+}
+
+/* Reserve a separate row for story controls above the mobile headings. */
+@media (max-width: 800px) {
+  .lobangers-landing .story-topline > .story-top-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    width: 50%;
+    margin-left: auto;
+    gap: 6px;
+  }
+  .lobangers-landing .story-top-actions > .story-playback-toggle,
+  .lobangers-landing .cinematic-story .story-top-actions > a {
+    min-width: 0;
+    min-height: 44px;
+    padding: 8px;
+    font-size: 14px;
+    line-height: 1.35;
+    white-space: normal;
+    text-align: center;
+  }
+  .lobangers-landing .cinematic-story:not(.story-reduced) .story-copy,
+  .lobangers-landing .cinematic-story:not(.story-reduced) .community-intro {
+    top: calc(var(--landing-nav-clearance) + 76px);
+  }
+  .lobangers-landing .cinematic-story .community-intro h2 {
+    font-size: clamp(26px, 7vw, 32px);
+    line-height: 1.15;
+  }
+}
+
+/* Keep the introduction readable without a scroll reveal on phones and tablets. */
+@media (max-width: 1100px) {
+  .lobangers-landing .story-intro[data-reveal] {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+  .lobangers-landing .story-intro .story-intro-copy > span {
+    opacity: 1;
+    transition: none;
+  }
+}
+
+@media (max-width: 800px) {
+  .lobangers-landing .story-intro > .story-intro-copy {
+    max-width: 18ch;
+    letter-spacing: 0;
+    line-height: 1.08;
+    text-wrap: balance;
+    animation: mobile-intro-fade 650ms ease-out both;
+  }
+  .lobangers-landing .story-intro .story-intro-copy > span {
+    display: inline-block;
+    letter-spacing: 0;
+    animation: mobile-intro-fade 650ms ease-out 180ms both;
+  }
+}
+@keyframes mobile-intro-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .lobangers-landing .story-intro > .story-intro-copy,
+  .lobangers-landing .story-intro .story-intro-copy > span {
+    animation: none;
+    opacity: 1;
+  }
+}
+
+@media (max-width: 800px) {
+  .lobangers-landing .community-freshness:not(.is-static) .community-join-position {
+    top: auto;
+    right: auto;
+    bottom: 6%;
+    left: 6%;
+    width: 88%;
+    max-width: 540px;
+    margin: 0;
+    text-align: left;
+  }
+  .lobangers-landing .community-freshness:not(.is-static) .community-cta-actions {
+    justify-content: flex-start;
+  }
+}
+
+@media (max-width: 800px) {
+  .lobangers-landing .cinematic-story .portal-food-copy {
+    top: calc(160px + min(42vw, 20svh, 240px) + 24px);
+  }
+}
+
+@media (max-width: 600px) {
+  .lobangers-landing .community-freshness:not(.is-static) .pulse-ring {
+    width: 82px;
+    height: 82px;
+  }
+}
+
+@media (min-width: 801px) and (max-width: 1100px) {
+  .lobangers-landing .cinematic-story:not(.story-reduced) .community-intro {
+    top: calc(var(--landing-nav-clearance) + 16px);
+    left: 6%;
+    width: 40%;
+    text-align: left;
+  }
+  .lobangers-landing .cinematic-story .community-intro h2 {
+    font-size: clamp(30px, 3.5vw, 40px);
+    line-height: 1.1;
+  }
+  .lobangers-landing .cinematic-story .community-intro p {
+    margin-inline: 0;
+  }
+  .lobangers-landing .cinematic-story .community-chapter-dots {
+    justify-content: flex-start;
+  }
+}
+
+@media (max-width: 1100px) {
+  .lobangers-landing .join-community h3 {
+    font-size: clamp(30px, 3.5vw, 38px);
+    line-height: 1.15;
+  }
+  .lobangers-landing .join-community > p {
+    max-width: 560px;
+    font-size: 17px;
+    line-height: 1.5;
+  }
+  .lobangers-landing .community-cta-actions a {
+    min-height: 48px;
+    font-size: 15px;
+    line-height: 1.3;
+  }
+}
+@media (max-width: 600px) {
+  .lobangers-landing .join-community h3 {
+    font-size: 28px;
+  }
+  .lobangers-landing .join-community > p {
+    font-size: 16px;
+  }
+  .lobangers-landing .community-cta-actions a {
+    font-size: 14px;
+  }
+}
+
+@media (min-width: 601px) and (max-width: 1100px) {
+  .lobangers-landing .cuisine-discovery .landing-food-photo {
+    aspect-ratio: 4 / 3;
+  }
+}
+
+/* Four tablet deals fit between the filters and pagination in one view. */
+@media (min-width: 601px) and (max-width: 1100px) {
+  .lobangers-landing .cuisine-discovery .landing-deal-grid {
+    gap: 14px;
+  }
+  .lobangers-landing .cuisine-discovery .landing-food-card {
+    display: grid;
+    grid-template-columns: 38% minmax(0, 1fr);
+    min-height: 176px;
+    border-radius: 20px;
+  }
+  .lobangers-landing .cuisine-discovery .landing-food-photo {
+    height: 100%;
+    min-height: 0;
+    aspect-ratio: auto;
+  }
+  .lobangers-landing .cuisine-discovery .landing-photo-link > img {
+    object-fit: contain;
+  }
+  .lobangers-landing .cuisine-discovery .landing-photo-badge {
+    top: 8px;
+    left: 8px;
+    padding: 4px 7px;
+    font-size: 10px;
+  }
+  .lobangers-landing .cuisine-discovery .landing-food-content {
+    padding: 12px;
+    gap: 6px;
+  }
+  .lobangers-landing .cuisine-discovery .landing-deal-title {
+    font-size: 16px;
+    margin-bottom: 3px;
+  }
+  .lobangers-landing .cuisine-discovery .landing-restaurant-name {
+    font-size: 13px;
+  }
+  .lobangers-landing .cuisine-discovery .landing-outlet-button {
+    max-width: 100%;
+    padding: 4px 8px;
+    font-size: 11px;
+    white-space: normal;
+  }
+  .lobangers-landing .cuisine-discovery .landing-card-meta {
+    padding-top: 8px;
+    font-size: 11px;
+  }
+}
+@media (max-width: 600px) {
+  .lobangers-landing .cuisine-discovery .landing-food-photo {
+    aspect-ratio: 4 / 3;
+  }
+}

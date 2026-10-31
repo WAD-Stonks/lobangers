@@ -1,3 +1,10 @@
+import { createAdminAuditClient } from '@api-client/admin-audit'
+import { createAdminCatalogueClient } from '@api-client/admin-catalogue'
+import { createAdminDealsClient } from '@api-client/admin-deals'
+import { createAdminModerationClient } from '@api-client/admin-moderation'
+import { createIngestionInvestigationClient } from '@api-client/ingestion-investigation'
+import { createPlatformSecurityClient } from '@api-client/platform-security'
+import { type QueryInput, request, type SchemaInput, validateInput } from '@api-client/transport'
 import {
   accountPageQuerySchema,
   accountProfileSchema,
@@ -11,18 +18,33 @@ import {
   submissionsResponseSchema,
 } from '@broke-oclock/contracts/account'
 import {
-  type ApiErrorCode,
-  apiErrorSchema,
   authMethodsResponseSchema,
   currentUserResponseSchema,
-  currentUserUnauthorizedResponseSchema,
   healthResponseSchema,
 } from '@broke-oclock/contracts/api'
+import {
+  assistantChatBodySchema,
+  assistantChatResponseSchema,
+} from '@broke-oclock/contracts/assistant'
+import {
+  commentBodySchema,
+  commentParamsSchema,
+  commentsQuerySchema,
+  commentsResponseSchema,
+  communityCommentSchema,
+  communityDealParamsSchema,
+  communityOkSchema,
+  communitySummarySchema,
+  reportBodySchema,
+  voteBodySchema,
+} from '@broke-oclock/contracts/community'
 import { dealsQuerySchema, dealsResponseSchema } from '@broke-oclock/contracts/deals'
-
 import {
   ingestionAccountsQuerySchema,
   ingestionAccountsResponseSchema,
+  ingestionCategoryParamsSchema,
+  ingestionCategoryRequestSchema,
+  ingestionCategoryResponseSchema,
   ingestionDashboardResponseSchema,
   ingestionDraftsQuerySchema,
   ingestionDraftsResponseSchema,
@@ -38,7 +60,16 @@ import {
   ingestionRunsResponseSchema,
 } from '@broke-oclock/contracts/ingestion'
 import {
+  ingestionAddSourceRequestSchema,
+  ingestionSetSourceEnabledRequestSchema,
+  ingestionSourceParamsSchema,
+  ingestionSourceSchema,
+  ingestionSourcesQuerySchema,
+  ingestionSourcesResponseSchema,
+} from '@broke-oclock/contracts/ingestion-sources'
+import {
   adminOverviewResponseSchema,
+  adminUserAnalyticsResponseSchema,
   changePlatformRoleBodySchema,
   grantParamsSchema,
   grantStallBodySchema,
@@ -60,80 +91,9 @@ import {
   revokeStallBodySchema,
 } from '@broke-oclock/contracts/platform-admin'
 import { venueDetailResponseSchema, venueParamsSchema } from '@broke-oclock/contracts/venues'
-import axios, { type AxiosResponse } from 'axios'
+import axios from 'axios'
 
-export type ApiClientErrorCode = ApiErrorCode
-
-type RuntimeSchema<Input = unknown, Output = unknown> = {
-  _input: Input
-  _output: Output
-  safeParse: (input: unknown) => { success: true; data: Output } | { success: false }
-}
-type SchemaInput<Schema extends RuntimeSchema> = Schema['_input']
-type SchemaOutput<Schema extends RuntimeSchema> = Schema['_output']
-type QueryInput<Schema extends RuntimeSchema> = Partial<SchemaInput<Schema>>
-
-export class ApiClientError extends Error {
-  constructor(
-    readonly code: ApiClientErrorCode,
-    readonly status: number,
-    message: string,
-  ) {
-    super(message)
-    this.name = 'ApiClientError'
-  }
-}
-
-export const toApiClientError = (error: unknown): ApiClientError => {
-  if (axios.isAxiosError(error)) {
-    if (
-      error.config?.url === '/me' &&
-      error.response?.status === 401 &&
-      currentUserUnauthorizedResponseSchema.safeParse(error.response.data).success
-    ) {
-      return new ApiClientError('UNAUTHORIZED', 401, 'Unauthorized')
-    }
-    const parsed = apiErrorSchema.safeParse(error.response?.data)
-    if (parsed.success) {
-      return new ApiClientError(
-        parsed.data.error.code,
-        error.response?.status ?? 500,
-        parsed.data.error.message,
-      )
-    }
-    return new ApiClientError(
-      'INTERNAL_SERVER_ERROR',
-      error.response?.status ?? 500,
-      'API request failed',
-    )
-  }
-  return new ApiClientError('INTERNAL_SERVER_ERROR', 500, 'API request failed')
-}
-
-const validateInput = <Schema extends RuntimeSchema>(
-  schema: Schema,
-  input: unknown,
-): SchemaOutput<Schema> => {
-  const result = schema.safeParse(input)
-  if (!result.success) throw new ApiClientError('BAD_REQUEST', 400, 'Invalid request')
-  return result.data
-}
-
-const request = async <Schema extends RuntimeSchema>(
-  httpCall: Promise<AxiosResponse<unknown>>,
-  responseSchema: Schema,
-): Promise<SchemaOutput<Schema>> => {
-  try {
-    const response = await httpCall
-    const parsed = responseSchema.safeParse(response.data)
-    if (!parsed.success)
-      throw new ApiClientError('INTERNAL_SERVER_ERROR', 500, 'Unexpected API response')
-    return parsed.data
-  } catch (error) {
-    if (error instanceof ApiClientError) throw error
-    throw toApiClientError(error)
-  }
-}
+export { ApiClientError, type ApiClientErrorCode, toApiClientError } from '@api-client/transport'
 
 export const createApiClient = (baseURL = '/api') => {
   const http = axios.create({
@@ -152,12 +112,80 @@ export const createApiClient = (baseURL = '/api') => {
 
   return {
     http,
+    adminAudit: createAdminAuditClient(http),
+    adminCatalogue: createAdminCatalogueClient(http),
+    adminDeals: createAdminDealsClient(http),
+    adminModeration: createAdminModerationClient(http),
+    ingestionInvestigation: createIngestionInvestigationClient(http),
+    platformSecurity: createPlatformSecurityClient(http),
+    community: {
+      summary: (dealId: string) => {
+        const { dealId: id } = validateInput(communityDealParamsSchema, { dealId })
+        return request(http.get(`/deals/${id}/community`), communitySummarySchema)
+      },
+      vote: (dealId: string, value: 'ALIVE' | 'DEAD') => {
+        const { dealId: id } = validateInput(communityDealParamsSchema, { dealId })
+        const body = validateInput(voteBodySchema, { value })
+        return request(http.put(`/deals/${id}/vote`, body), communitySummarySchema)
+      },
+      removeVote: (dealId: string) => {
+        const { dealId: id } = validateInput(communityDealParamsSchema, { dealId })
+        return request(http.delete(`/deals/${id}/vote`), communitySummarySchema)
+      },
+      comments: (dealId: string, input: QueryInput<typeof commentsQuerySchema> = {}) => {
+        const { dealId: id } = validateInput(communityDealParamsSchema, { dealId })
+        const query = validateInput(commentsQuerySchema, input)
+        return request(http.get(`/deals/${id}/comments`, { params: query }), commentsResponseSchema)
+      },
+      addComment: (dealId: string, body: string) => {
+        const { dealId: id } = validateInput(communityDealParamsSchema, { dealId })
+        const input = validateInput(commentBodySchema, { body })
+        return request(http.post(`/deals/${id}/comments`, input), communityCommentSchema)
+      },
+      deleteComment: (commentId: string) => {
+        const { commentId: id } = validateInput(commentParamsSchema, { commentId })
+        return request(http.delete(`/comments/${id}`), communityOkSchema)
+      },
+      reportDeal: (dealId: string, input: SchemaInput<typeof reportBodySchema>) => {
+        const { dealId: id } = validateInput(communityDealParamsSchema, { dealId })
+        return request(
+          http.post(`/deals/${id}/reports`, validateInput(reportBodySchema, input)),
+          communityOkSchema,
+        )
+      },
+      reportComment: (commentId: string, input: SchemaInput<typeof reportBodySchema>) => {
+        const { commentId: id } = validateInput(commentParamsSchema, { commentId })
+        return request(
+          http.post(`/comments/${id}/reports`, validateInput(reportBodySchema, input)),
+          communityOkSchema,
+        )
+      },
+    },
     infrastructure: {
       health: () => request(http.get('/health'), healthResponseSchema),
       authMethods: () => request(http.get('/auth-methods'), authMethodsResponseSchema),
       me: () => request(http.get('/me'), currentUserResponseSchema),
     },
     ingestion: {
+      sources: (input: QueryInput<typeof ingestionSourcesQuerySchema> = {}) => {
+        const query = validateInput(ingestionSourcesQuerySchema, input)
+        return request(
+          http.get('/ingestion/sources', { params: query }),
+          ingestionSourcesResponseSchema,
+        )
+      },
+      addSource: (input: SchemaInput<typeof ingestionAddSourceRequestSchema>) => {
+        const body = validateInput(ingestionAddSourceRequestSchema, input)
+        return request(http.post('/ingestion/sources', body), ingestionSourceSchema)
+      },
+      setSourceEnabled: (
+        sourceId: string,
+        input: SchemaInput<typeof ingestionSetSourceEnabledRequestSchema>,
+      ) => {
+        const { sourceId: id } = validateInput(ingestionSourceParamsSchema, { sourceId })
+        const body = validateInput(ingestionSetSourceEnabledRequestSchema, input)
+        return request(http.patch(`/ingestion/sources/${id}`, body), ingestionSourceSchema)
+      },
       dashboard: () => request(http.get('/ingestion/dashboard'), ingestionDashboardResponseSchema),
       runs: (input: QueryInput<typeof ingestionRunsQuerySchema> = {}) => {
         const query = validateInput(ingestionRunsQuerySchema, input)
@@ -180,6 +208,17 @@ export const createApiClient = (baseURL = '/api') => {
         return request(
           http.patch(`/ingestion/drafts/${id}/outlet`, body),
           ingestionOutletAssociationResponseSchema,
+        )
+      },
+      setDraftCategory: (
+        dealId: string,
+        input: SchemaInput<typeof ingestionCategoryRequestSchema>,
+      ) => {
+        const { dealId: id } = validateInput(ingestionCategoryParamsSchema, { dealId })
+        const body = validateInput(ingestionCategoryRequestSchema, input)
+        return request(
+          http.patch(`/ingestion/drafts/${id}/category`, body),
+          ingestionCategoryResponseSchema,
         )
       },
       reviewDraft: (dealId: string, input: SchemaInput<typeof ingestionReviewRequestSchema>) => {
@@ -211,7 +250,15 @@ export const createApiClient = (baseURL = '/api') => {
         return request(http.get('/deals', { params: query }), dealsResponseSchema)
       },
     },
+    assistant: {
+      chat: (input: SchemaInput<typeof assistantChatBodySchema>) => {
+        const body = validateInput(assistantChatBodySchema, input)
+        return request(http.post('/assistant/chat', body), assistantChatResponseSchema)
+      },
+    },
     platformAdmin: {
+      userAnalytics: () =>
+        request(http.get('/admin/analytics/users'), adminUserAnalyticsResponseSchema),
       overview: () => request(http.get('/admin/overview'), adminOverviewResponseSchema),
       accounts: (input: QueryInput<typeof platformAccountsQuerySchema> = {}) => {
         const query = validateInput(platformAccountsQuerySchema, input)

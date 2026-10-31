@@ -29,10 +29,13 @@ The canonical schema stays at `packages/db/prisma/schema.prisma`. Auth mapping i
 - **Comment / Bookmark:** deal comments with soft deletion and unique user/deal bookmarks.
 - **DealReport / CommentReport:** separate typed report targets with one report per reporter/target. Resolution metadata is independent of deal expiry or public visibility. Separate models avoid nullable polymorphic unique-index traps in MongoDB.
 - **UploadedFile:** unique UploadThing file key, URL, MIME type, size, uploader and optional attached deal. Unattached uploads can be tracked without a fake deal; provider callbacks/ownership checks and cleanup are not implemented by this schema.
-- **ImportSource:** unique provider/external source identity, original URL, disabled-by-default setting, optional cursor and lease metadata for a future scheduler.
+- **ImportSource:** unique provider/external source identity, original URL, disabled-by-default setting, optional cursor and lease metadata. Manual and scheduled ingestion read this registry; Telegram registration and enablement remain explicit administrator operations.
 - **ImportedPost:** unique source/external post ID, original URL/title/raw content, provider timestamps, fetch time, parse/review state and safe error classification. A source post may contain several deals. Store a content hash and the last successfully processed hash/time to distinguish changed content from completed processing; reset processing state when content changes.
 - **DealSource:** unique deal/imported-post association. One deal can retain several source posts, and one source post can describe several deals. Each association pins the source content hash, raw-content snapshot and original URL used for that deal. Reimports update ImportedPost but must not silently overwrite these citations or moderator-approved deal content. Snapshot text is untrusted and subject to the same size/reuse limits as ImportedPost.
-- **IngestionRun:** source, lifecycle timestamps/state, counters and safe error code. Lease fields and a run record do not themselves implement exclusivity, retries or idempotency.
+- **ImportedImage:** actual byte SHA-256 as a native string `_id`, MIME type, byte count, hosted-state/UploadThing key and URL, plus bounded upload-reservation/error metadata. Image binary/base64 content is not stored in MongoDB. This record does not create a fake uploader or user-owned upload.
+- **DealSourceImage:** immutable image provenance linked to an existing DealSource, unique per citation/image hash. Original attribution and actual final fetch URLs remain distinct. Shared bytes can support several citations without duplicating the hosted file or changing the cited promotion.
+- **PromotionIdentity:** a deterministic strong-evidence key in MongoDB's native unique `_id` index, committed with the canonical deal/citation. This is conservative evidence-based duplicate protection, not semantic similarity or OCR.
+- **IngestionRun:** source, lifecycle timestamps/state, counters and safe error code. Lease fields and a run record do not themselves implement exclusivity, retries or idempotency. The shared service and activation boundaries are documented in [multi-source ingestion](multisource-ingestion.md).
 
 ## Distinct states
 
@@ -45,7 +48,7 @@ The canonical schema stays at `packages/db/prisma/schema.prisma`. Auth mapping i
 
 MongoDB has no foreign keys/check constraints here. Prisma relation metadata is not an authorization system and does not guarantee existence when raw IDs are assigned. Future API mutations must validate and use checked connects/transactions where needed:
 
-- SELECTED_OUTLETS requires at least one DealVenue, all belonging to the deal's merchant. ALL_MERCHANT_OUTLETS requires a merchant and no selected-outlet rows. ONLINE/NO_FIXED_LOCATION have no outlet rows and must not create `(0,0)` markers. Model all-outlet promotions dynamically against that merchant's venues; explain that new venues will also match.
+- SELECTED_OUTLETS requires at least one DealVenue, all belonging to the deal's merchant. ALL_MERCHANT_OUTLETS requires a merchant and no selected-outlet rows. ONLINE/NO_FIXED_LOCATION have no outlet rows and must not create fabricated markers. Applicability alone does not confirm eligibility: the outlet-evidence policy below also requires a current, server-owned scope receipt and usable outlet proofs. Only explicitly confirmed unconditional SOURCE_ALL may expand dynamically to other verified branches. Qualified or exclusion-bearing campaigns need an explicitly reviewed selected roster; unknown and legacy scopes must not automatically enrol new branches.
 - Coordinates must be real and within latitude/longitude ranges. Venue matching needs review, not a unique name/proximity heuristic.
 - USER_SUBMITTED deals require a real submitter; imported deals retain DealSource provenance. Staff sets review status/reviewer/publication fields, never client payloads.
 - Validate date order, category vocabulary, numeric bounds and offer-type/amount consistency. Prices use integer minor units (default currency SGD); MongoDB's Prisma connector does not support Decimal. Percentage discounts are integers; display terms remain available for nonstandard offers.
@@ -80,6 +83,47 @@ Numeric latitude/longitude fields support bounded typed bbox filtering. They are
 `User.platformVersion` tracks access changes. `MerchantAccessRequest` records versioned requests and review snapshots; `StallGrant` is unique per user/venue and preserves revoked rows; `PlatformAudit` is application-level append-only action history; `PlatformAccessFence` serializes permission writes. Existing missing/null account versions are treated as zero. These records do not authorize merchant endpoints unless those endpoints adopt the transactional capability helper.
 
 See [platform administration](platform-admin.md) for invariants, API contracts, audit limitations and the `submitMerchantAccessRequest` / `requireMerchantStall` handoffs. Account deletion remains unavailable. Schema generation and test-owned schema pushes do not apply these changes to a live database.
+
+## Outlet evidence foundation, 21 October 2026
+
+This branch integrates the additive schema, shared policy, public readers and guarded writers. Test evidence is revision-specific; historical focused checks do not establish acceptance of a newer merged tree. Code review, data verification, index application and deployment remain separate stages.
+
+### Stored evidence
+
+`Venue` adds optional `catalogueKey`, `geographyPrecision`, `geographyEvidence` and `occupancyEvidence`. `Deal` adds optional `scopeConfirmation`. These use two embedded MongoDB types, not additional collections. No positive defaults are defined. Missing fields, explicit null, UNVERIFIED and UNCONFIRMED never count as confirmation. `catalogueKey` has a nonunique lookup index: a repeated key, brand name, postcode or coordinate is not sufficient reason to merge outlets.
+
+`OutletVerificationEvidence` stores a required state, provider, receipt reference and subject hash, plus optional source URL/content hash and observed/verified timestamps. The states are UNVERIFIED, VERIFIED and LEGACY_RETAINED. Providers distinguish database snapshots, OneMap, Google Places, official merchants, official properties and explicit administrator evidence. Precision is UNKNOWN, PROPERTY or OUTLET; a mall/property point must not be relabelled as a shop entrance.
+
+Geography and occupancy have separate versioned SHA-256 domains over the exact venue ID, merchant ID, name, address, postcode, coordinates, catalogue key and precision. Changing any tuple member invalidates the matching proof. Permission-fence timestamps and proof fields are excluded from these subject hashes. Null and absent optional tuple values have the same unknown semantics; identifiers are never case-folded or repaired.
+
+VERIFIED geography needs a compatible geographic provider, current subject hash, receipt, valid verification timestamp and usable coordinates/precision. VERIFIED occupancy separately needs official merchant/property or explicit administrator evidence with its occupancy-domain hash. A geocoder discovery or verified point cannot establish occupancy, merchant access or campaign participation. LEGACY_RETAINED records preserve exactly reviewed historical bindings; they are not fresh VERIFIED occupancy.
+
+`OutletScopeConfirmation` records basis, content version, scope hash, evidence reference and an explicit native-ObjectId `retainedVenueIds` array, plus optional source fields, confirmation time and bounded reason code. The bases are UNCONFIRMED, SOURCE_SELECTED, SOURCE_ALL, SOURCE_NONSPATIAL and LEGACY_RETAINED. The hash binds applicability, merchant and the complete sorted unique selected-edge set, including edges to deleted or unverified venues before display filtering. Version equality is checked separately. An absent confirmation timestamp is not invented; the receipt's authority and campaign provenance remain server-writer responsibilities.
+
+### Projection and mutation policy
+
+The server-only `apps/api/src/modules/deals/outlet-eligibility.ts` owns the shared pure policy. Callers must load the complete tuple, proofs, selected edges and current merchant state. General public approval, reviewed-version, publication, deletion and time rules remain separate conditions.
+
+- Source-confirmed physical campaigns require current VERIFIED geography and occupancy for each active same-merchant outlet. SELECTED intersects the complete selected edge set. SOURCE_ALL can represent explicitly unconditional ALL or a separately reviewed selected snapshot, not a qualified campaign inferred from a brand label.
+- Legacy physical projection also intersects the exact `retainedVenueIds` captured by the approved pre-change receipt. A new branch remains excluded even when it has independently verified geography and occupancy. A new source-confirmed campaign cannot borrow legacy-only proof.
+- Explicitly confirmed nonspatial campaigns have no outlet edges or map points. A parser's NO_FIXED_LOCATION default is not that confirmation.
+- New claim/grant/association paths must check current selectable occupancy inside existing authorization/venue/merchant write fences. Filtering a picker alone cannot protect a direct-ID mutation. Existing grant history, revocation and current scoped capability are not globally withdrawn because outlet evidence needs review.
+- Association, applicability, merchant, campaign content and selected-edge edits use normal content-version increments and review invalidation. An administrator choosing an outlet from search does not itself establish campaign participation or authorise client-supplied positive proof.
+- Imported `validNow` and ongoing claims require supported known bounds, `validFrom <= now < validUntil`. Approval or a geographical point cannot fill missing dates. Genuine user-submitted open-ended validity remains a separate existing policy.
+
+### Additive backfill boundary
+
+The initial backfill only annotates existing Venue and Deal records. It must preserve core business fields, current IDs/associations, content and review versions, moderation/publication decisions, immutable citations, raw source content, hosted media, source enablement and grant history. Exact pre-updater full-record/source/merchant/venue/link fingerprints, not creation times or a free-text review note, establish any permitted legacy retention. All other cases receive durable UNVERIFIED/UNCONFIRMED dispositions. Foreign-country addresses, possible duplicate listings and unmatched geographic evidence stay held, not silently deleted, merged or assigned to a campaign.
+
+Generate the client from the pinned schema without connecting to the application database. Optional field expansion does not backfill MongoDB documents. Inventory existing native fields and indexes, then apply only a reviewed metadata manifest and the one nonunique catalogue-key index. Do not run a whole-database push, reset or data-loss flags for this operation. Tests must establish native missing/null behavior, ObjectId arrays/dates, exact before-state CAS, role/source fences, rollback, no-op replay and uncertainty handling on an owned disposable replica. Live application requires fresh readback and durable per-batch receipts; canonical fencing timestamp changes must be tracked separately from immutable evidence preservation.
+
+Readers that predate these guards ignore this metadata. Do not expand the live catalogue until guarded readers are deployed under separate authorization. Local schema generation and tests do not authorize publication, deployment, source activation or a preview restart.
+
+### Operational status, 22 October 2026
+
+The separately approved metadata backfill applied 83 bounded batches covering 1,101 existing Deals and 525 existing Venues. Retained batch readbacks and subsequent native metadata checks match the reviewed metadata. The original final whole-database verification did not retain a successful result or its underlying exception. Later read-only checks found account/community activity and a Deal timestamp difference, so global snapshot verification remains open. Do not rerun completed metadata writes or restore application timestamps to force an old snapshot to match.
+
+The nonunique catalogue-key index has not been applied to the live database. Its fresh baseline, approval and narrow application remain separate from this code PR. Ingestion and deployment are not activated by the backfill or by this branch. Private operational snapshots, auth records and execution journals are not part of the repository.
 
 ## Sources
 

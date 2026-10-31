@@ -1,0 +1,163 @@
+/* Motion for the map shell. Imported once by MapShell.vue. Only transform and opacity move;
+   nothing runs longer than 300ms except the map's own flight. */
+
+/* Panel changes: slide 24px forward or back and fade in. Exits are quicker than entries. */
+.panel-forward-enter-active,
+.panel-back-enter-active,
+.panel-none-enter-active {
+  transition:
+    opacity var(--dur-panel) var(--ease-out),
+    transform var(--dur-panel) var(--ease-out);
+}
+
+.panel-forward-leave-active,
+.panel-back-leave-active,
+.panel-none-leave-active {
+  transition: opacity 120ms ease;
+}
+
+.panel-forward-enter-from {
+  opacity: 0;
+  transform: translateX(24px);
+}
+
+.panel-back-enter-from {
+  opacity: 0;
+  transform: translateX(-24px);
+}
+
+.panel-none-enter-from,
+.panel-forward-leave-to,
+.panel-back-leave-to,
+.panel-none-leave-to {
+  opacity: 0;
+}
+
+/* Brand menu grows from the logo. */
+.shell-menu-enter-active {
+  transition:
+    opacity var(--dur-small) var(--ease-out),
+    transform var(--dur-small) var(--ease-out);
+}
+
+.shell-menu-leave-active {
+  transition: opacity 120ms ease;
+}
+
+.shell-menu-enter-from {
+  opacity: 0;
+  transform: scale(0.96) translateY(-4px);
+}
+
+.shell-menu-leave-to {
+  opacity: 0;
+}
+
+/* Filter sheet: the popover grows from the chips, the tablet dialog from the centre, the phone
+   sheet slides up. Each variant sets its own transform-origin or offset. */
+.shell-sheet-enter-active {
+  transition:
+    opacity 220ms var(--ease-out),
+    transform 220ms var(--ease-out);
+}
+
+.shell-sheet-leave-active {
+  transition: opacity 140ms ease;
+}
+
+.shell-sheet-enter-from {
+  opacity: 0;
+  transform: var(--sheet-enter-transform, scale(0.97));
+}
+
+.shell-sheet-leave-to {
+  opacity: 0;
+}
+
+.shell-fade-enter-active {
+  transition: opacity 180ms ease;
+}
+
+.shell-fade-leave-active {
+  transition: opacity 120ms ease;
+}
+
+.shell-fade-enter-from,
+.shell-fade-leave-to {
+  opacity: 0;
+}
+
+/* Toast and pills: slide up and fade in, fade out. */
+.shell-rise-enter-active {
+  transition:
+    opacity 200ms var(--ease-out),
+    transform 200ms var(--ease-out);
+}
+
+.shell-rise-leave-active {
+  transition: opacity 160ms ease;
+}
+
+.shell-rise-enter-from {
+  opacity: 0;
+  transform: translate(-50%, 8px);
+}
+
+.shell-rise-leave-to {
+  opacity: 0;
+}
+
+/* Hot card swap: a short crossfade through a 2px blur. */
+.hot-swap-enter-active {
+  transition:
+    opacity 240ms ease,
+    filter 240ms ease,
+    transform 240ms ease;
+}
+
+.hot-swap-enter-from {
+  opacity: 0;
+  filter: blur(2px);
+  transform: translateY(6px);
+}
+
+/* Save pop and badge bump. */
+@keyframes shell-pop {
+  40% {
+    transform: scale(1.18);
+  }
+
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* Reduced motion keeps the fades and drops every movement, scale, blur and loop. */
+@media (prefers-reduced-motion: reduce) {
+  .panel-forward-enter-from,
+  .panel-back-enter-from,
+  .shell-menu-enter-from,
+  .shell-sheet-enter-from,
+  .hot-swap-enter-from {
+    filter: none;
+    transform: none;
+  }
+
+  .shell-rise-enter-from {
+    transform: translate(-50%, 0);
+  }
+
+  .lb-btn:active,
+  .lb-chip:active,
+  .lb-ctrl:active {
+    transform: none;
+  }
+
+  .lb-skeleton {
+    animation: none;
+  }
+
+  .lb-chip__check {
+    transition: none;
+  }
+}

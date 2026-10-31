@@ -1,0 +1,337 @@
+/* Primitives shared by the shell and every panel, from the map-shell design. Imported once by
+   MapShell.vue. Components keep their own layout in scoped styles. */
+
+.lb-card {
+  background: var(--paper-white);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
+}
+
+.lb-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  min-height: var(--hit);
+  padding: 0 18px;
+  font: 700 0.875rem / 1.2 var(--font-sans);
+  color: var(--ink);
+  text-decoration: none;
+  white-space: nowrap;
+  background: var(--paper-white);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-pill);
+  cursor: pointer;
+  transition:
+    transform var(--dur-press) var(--ease-out),
+    background-color 150ms ease,
+    color 150ms ease;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.lb-btn:hover {
+  color: var(--ink);
+  background: var(--paper-hover);
+}
+
+.lb-btn:active {
+  transform: scale(0.97);
+}
+
+.lb-btn:disabled {
+  cursor: progress;
+  opacity: 0.6;
+  transform: none;
+}
+
+.lb-btn--primary {
+  background: var(--sunny);
+  border-color: var(--sunny-deep);
+}
+
+.lb-btn--primary:hover {
+  background: var(--sunny-deep);
+}
+
+.lb-btn--ink {
+  color: var(--paper-white);
+  background: var(--ink-strong);
+  border-color: var(--ink-strong);
+}
+
+.lb-btn--ink:hover {
+  color: var(--paper-white);
+  background: var(--ink-strong-hover);
+}
+
+.lb-btn--ghost {
+  background: transparent;
+  border-color: transparent;
+}
+
+.lb-btn--block {
+  width: 100%;
+}
+
+/* Toggle chip: white pill, ink when pressed, with a check that draws itself in. */
+.lb-chip {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 6px;
+  min-height: var(--hit);
+  padding: 0 14px;
+  font: 600 0.8125rem / 1.2 var(--font-sans);
+  color: var(--ink);
+  white-space: nowrap;
+  background: var(--paper-white);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-pill);
+  cursor: pointer;
+  transition:
+    transform var(--dur-press) var(--ease-out),
+    background-color 150ms ease,
+    color 150ms ease,
+    border-color 150ms ease;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.lb-chip:active {
+  transform: scale(0.97);
+}
+
+.lb-chip[aria-pressed="true"],
+.lb-chip.is-on {
+  color: var(--paper-white);
+  background: var(--ink-strong);
+  border-color: var(--ink-strong);
+}
+
+.lb-chip__check {
+  display: inline-flex;
+  width: 0;
+  overflow: hidden;
+  transition: width var(--dur-small) var(--ease-out);
+}
+
+.lb-chip[aria-pressed="true"] .lb-chip__check {
+  width: 14px;
+}
+
+.lb-chip__count {
+  font-weight: 500;
+  opacity: 0.65;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .lb-chip:not([aria-pressed="true"]):hover {
+    border-color: var(--hairline-strong);
+  }
+}
+
+.lb-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 5px;
+  font: 700 0.6875rem / 1 var(--font-sans);
+  color: var(--paper-white);
+  background: var(--coral-deep);
+  border-radius: var(--radius-pill);
+}
+
+/* Square map control: 44px target, white by default, ink for the list/map toggle. */
+.lb-ctrl {
+  display: inline-grid;
+  place-items: center;
+  width: var(--hit);
+  height: var(--hit);
+  padding: 0;
+  color: var(--ink);
+  background: var(--paper-white);
+  border: 1px solid var(--hairline);
+  border-radius: 14px;
+  box-shadow: var(--shadow-pill);
+  cursor: pointer;
+  transition:
+    transform var(--dur-press) var(--ease-out),
+    background-color 150ms ease;
+  /* Quick repeated taps on zoom must not trigger the browser's double-tap zoom. */
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.lb-ctrl:hover {
+  background: var(--paper-hover);
+}
+
+.lb-ctrl:active {
+  transform: scale(0.95);
+}
+
+.lb-ctrl:disabled {
+  cursor: progress;
+  opacity: 0.6;
+}
+
+.lb-ctrl--ink {
+  color: var(--paper-white);
+  background: var(--ink-strong);
+  border-color: var(--ink-strong);
+}
+
+.lb-ctrl--ink:hover {
+  background: var(--ink-strong-hover);
+}
+
+.lb-ctrl--flat {
+  box-shadow: none;
+}
+
+.lb-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 9px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1.5;
+  white-space: nowrap;
+  border-radius: var(--radius-pill);
+}
+
+.lb-tag--ok {
+  color: var(--tag-ok-ink);
+  background: var(--tag-ok-bg);
+}
+
+.lb-tag--end {
+  color: var(--tag-end-ink);
+  background: var(--tag-end-bg);
+}
+
+.lb-tag--new {
+  color: var(--tag-new-ink);
+  background: var(--tag-new-bg);
+}
+
+.lb-tag--info {
+  color: var(--tag-info-ink);
+  background: var(--tag-info-bg);
+}
+
+.lb-tag--build {
+  color: var(--tag-build-ink);
+  background: var(--tag-build-bg);
+}
+
+.lb-tag--paper {
+  color: var(--ink);
+  background: var(--paper-white);
+}
+
+.lb-price {
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  font-weight: 600;
+  line-height: 1.1;
+  color: var(--coral-deep);
+  white-space: nowrap;
+}
+
+.lb-meta {
+  font-size: var(--text-xs);
+  color: var(--ink-muted);
+}
+
+.lb-display {
+  font-family: var(--font-display);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.lb-text-wrap {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.lb-tabs {
+  display: flex;
+  gap: 18px;
+  overflow-x: auto;
+  border-bottom: 1px solid var(--hairline);
+  scrollbar-width: none;
+}
+
+.lb-tab {
+  flex: none;
+  min-height: var(--hit);
+  padding: 10px 0;
+  font: 700 0.875rem / 1.2 var(--font-sans);
+  color: var(--ink-muted);
+  background: transparent;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  transition:
+    color 150ms ease,
+    border-color var(--dur-small) ease;
+}
+
+.lb-tab[aria-selected="true"] {
+  color: var(--ink);
+  border-bottom-color: var(--coral);
+}
+
+/* Panel states: a dashed box for empty, a soft one for errors. */
+.lb-state {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: 22px;
+  border: 1.5px dashed var(--track);
+  border-radius: 22px;
+}
+
+.lb-state__title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.lb-state__body {
+  margin: 0;
+  font-size: var(--text-sm);
+  line-height: 1.55;
+  color: var(--ink-muted);
+}
+
+/* Shimmering placeholder row while deals load. */
+.lb-skeleton {
+  background: linear-gradient(90deg, var(--paper-sunk) 0%, #f8f7f4 50%, var(--paper-sunk) 100%);
+  background-size: 200% 100%;
+  border-radius: 10px;
+  animation: lb-shimmer 1.2s ease-in-out infinite;
+}
+
+.lb-btn:focus-visible,
+.lb-chip:focus-visible,
+.lb-ctrl:focus-visible,
+.lb-tab:focus-visible {
+  outline: 3px solid var(--sunny-ring);
+  outline-offset: 2px;
+}
+
+@keyframes lb-shimmer {
+  from {
+    background-position: 100% 0;
+  }
+
+  to {
+    background-position: -100% 0;
+  }
+}

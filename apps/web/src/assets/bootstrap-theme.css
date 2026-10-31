@@ -1,0 +1,211 @@
+/* Maps Bootstrap (and BootstrapVueNext) variants onto the design tokens in main.css, so a stray
+   `btn-primary`, focus ring or link never shows Bootstrap blue. Loaded after Bootstrap in main.ts.
+   New UI should still prefer the lb-* primitives in modules/map-shell/shell-ui.css. */
+
+:root {
+  --bs-primary: var(--ink-strong);
+  --bs-primary-rgb: 29, 29, 34;
+  --bs-secondary-color: var(--ink-muted);
+  --bs-border-color: var(--hairline);
+  --bs-border-radius: var(--radius-control);
+  --bs-link-color: var(--ink);
+  --bs-link-color-rgb: 27, 27, 31;
+  --bs-link-hover-color: var(--coral-deep);
+  --bs-link-hover-color-rgb: 191, 79, 48;
+  --bs-focus-ring-color: var(--sunny-ring);
+  --bs-form-invalid-color: var(--coral-deep);
+  --bs-form-invalid-border-color: var(--coral-deep);
+  --bs-form-valid-color: var(--ok);
+  --bs-form-valid-border-color: var(--ok);
+}
+
+a {
+  text-underline-offset: 0.18em;
+}
+
+/* Buttons: pill shape, 44px target and press feedback, like .lb-btn. */
+.btn {
+  --bs-btn-font-family: var(--font-sans);
+  --bs-btn-font-weight: 700;
+  --bs-btn-font-size: 0.875rem;
+  --bs-btn-padding-x: 18px;
+  --bs-btn-border-radius: var(--radius-pill);
+  --bs-btn-focus-box-shadow: 0 0 0 3px var(--sunny-ring);
+  --bs-btn-disabled-opacity: 0.6;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  min-height: var(--hit);
+  transition:
+    transform var(--dur-press) var(--ease-out),
+    background-color 150ms ease,
+    border-color 150ms ease,
+    color 150ms ease;
+}
+
+.btn:active {
+  transform: scale(0.97);
+}
+
+.btn-sm {
+  --bs-btn-padding-x: 14px;
+  --bs-btn-font-size: 0.8125rem;
+  min-height: 36px;
+}
+
+/* Primary: sunny yellow with ink text, the app's one call-to-action colour. */
+.btn-primary {
+  --bs-btn-color: var(--ink);
+  --bs-btn-bg: var(--sunny);
+  --bs-btn-border-color: var(--sunny-deep);
+  --bs-btn-hover-color: var(--ink);
+  --bs-btn-hover-bg: var(--sunny-deep);
+  --bs-btn-hover-border-color: var(--sunny-deep);
+  --bs-btn-active-color: var(--ink);
+  --bs-btn-active-bg: var(--sunny-deep);
+  --bs-btn-active-border-color: var(--sunny-deep);
+  --bs-btn-disabled-color: var(--ink);
+  --bs-btn-disabled-bg: var(--sunny);
+  --bs-btn-disabled-border-color: var(--sunny-deep);
+}
+
+/* Outline and secondary: white pill with a hairline border. */
+.btn-outline-primary,
+.btn-secondary,
+.btn-outline-secondary,
+.btn-light,
+.btn-outline-dark {
+  --bs-btn-color: var(--ink);
+  --bs-btn-bg: var(--paper-white);
+  --bs-btn-border-color: var(--hairline);
+  --bs-btn-hover-color: var(--ink);
+  --bs-btn-hover-bg: var(--paper-hover);
+  --bs-btn-hover-border-color: var(--hairline-strong);
+  --bs-btn-active-color: var(--ink);
+  --bs-btn-active-bg: var(--paper-sunk);
+  --bs-btn-active-border-color: var(--hairline-strong);
+  --bs-btn-disabled-color: var(--ink-muted);
+  --bs-btn-disabled-bg: var(--paper-white);
+  --bs-btn-disabled-border-color: var(--hairline);
+}
+
+.btn-dark {
+  --bs-btn-color: var(--paper-white);
+  --bs-btn-bg: var(--ink-strong);
+  --bs-btn-border-color: var(--ink-strong);
+  --bs-btn-hover-color: var(--paper-white);
+  --bs-btn-hover-bg: var(--ink-strong-hover);
+  --bs-btn-hover-border-color: var(--ink-strong-hover);
+  --bs-btn-active-color: var(--paper-white);
+  --bs-btn-active-bg: var(--ink-strong-hover);
+  --bs-btn-active-border-color: var(--ink-strong-hover);
+}
+
+.btn-danger,
+.btn-outline-danger {
+  --bs-btn-color: var(--tag-end-ink);
+  --bs-btn-bg: var(--paper-white);
+  --bs-btn-border-color: var(--tag-end-bg);
+  --bs-btn-hover-color: var(--tag-end-ink);
+  --bs-btn-hover-bg: var(--tag-end-bg);
+  --bs-btn-hover-border-color: var(--tag-end-bg);
+  --bs-btn-active-color: var(--tag-end-ink);
+  --bs-btn-active-bg: var(--tag-end-bg);
+  --bs-btn-active-border-color: var(--tag-end-ink);
+}
+
+.btn-link {
+  --bs-btn-color: var(--ink);
+  --bs-btn-hover-color: var(--coral-deep);
+  --bs-btn-active-color: var(--coral-deep);
+  --bs-btn-disabled-color: var(--ink-muted);
+  text-decoration: underline;
+  text-underline-offset: 0.18em;
+}
+
+/* Form controls: hairline border, sunny focus ring instead of the blue glow. */
+.form-control,
+.form-select {
+  min-height: 46px;
+  color: var(--ink);
+  background-color: var(--paper-white);
+  border-color: var(--hairline-strong);
+  border-radius: 14px;
+}
+
+.form-control:focus,
+.form-select:focus,
+.form-check-input:focus {
+  border-color: var(--sunny-deep);
+  box-shadow: 0 0 0 3px var(--sunny-ring);
+}
+
+.form-check-input:checked {
+  background-color: var(--ink-strong);
+  border-color: var(--ink-strong);
+}
+
+.form-label {
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+.form-text {
+  color: var(--ink-muted);
+}
+
+/* Status colours come from the tag palette. */
+.text-primary {
+  /* biome-ignore lint/complexity/noImportantStyles: Bootstrap's text utilities are !important */
+  color: var(--coral-deep) !important;
+}
+
+.alert {
+  --bs-alert-border-radius: var(--radius-control);
+  --bs-alert-padding-x: var(--space-3);
+  --bs-alert-padding-y: var(--space-3);
+  font-size: var(--text-sm);
+  border: 0;
+}
+
+.alert-danger {
+  --bs-alert-color: var(--tag-end-ink);
+  --bs-alert-bg: var(--tag-end-bg);
+}
+
+.alert-success {
+  --bs-alert-color: var(--tag-ok-ink);
+  --bs-alert-bg: var(--tag-ok-bg);
+}
+
+.alert-primary,
+.alert-info {
+  --bs-alert-color: var(--tag-new-ink);
+  --bs-alert-bg: var(--paper-sunk);
+}
+
+.alert-warning {
+  --bs-alert-color: var(--tag-build-ink);
+  --bs-alert-bg: var(--tag-build-bg);
+}
+
+.badge {
+  font-weight: 600;
+  border-radius: var(--radius-pill);
+}
+
+.text-bg-primary,
+.text-bg-secondary,
+.text-bg-light {
+  /* biome-ignore lint/complexity/noImportantStyles: matches Bootstrap's !important helpers */
+  color: var(--tag-new-ink) !important;
+  /* biome-ignore lint/complexity/noImportantStyles: matches Bootstrap's !important helpers */
+  background-color: var(--tag-new-bg) !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .btn:active {
+    transform: none;
+  }
+}

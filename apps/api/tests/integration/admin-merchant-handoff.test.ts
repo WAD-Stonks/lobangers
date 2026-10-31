@@ -1,8 +1,11 @@
-import { execFile } from 'node:child_process'
 import { randomBytes, randomUUID } from 'node:crypto'
 import { createServer, type Server } from 'node:http'
 import { fileURLToPath } from 'node:url'
-import { promisify } from 'node:util'
+import { pushDisposableSchema } from '@api/../tests/fixtures/disposable-schema'
+import {
+  registerSyntheticOutletFixtureDatabase,
+  seedSyntheticOccupancy,
+} from '@api/../tests/fixtures/outlet-proof'
 import { parseConfig } from '@api/config'
 import { requireMerchantStall } from '@api/modules/platform-admin/capability'
 import { revokeStall } from '@api/modules/platform-admin/grants'
@@ -13,7 +16,7 @@ import { MongoMemoryReplSet } from 'mongodb-memory-server'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 
 const origin = 'http://localhost:5173'
-const root = fileURLToPath(new URL('../../../../', import.meta.url))
+const _root = fileURLToPath(new URL('../../../../', import.meta.url))
 let mongo: MongoMemoryReplSet | undefined
 let server: Server | undefined
 let db: typeof import('@broke-oclock/db').db
@@ -28,18 +31,39 @@ const clientFor = (cookie: string, requestOrigin = origin) => {
   return client
 }
 const signUp = async (name: string) => {
+  const email = `lane-e-${randomUUID()}@example.test`
+  const password = randomBytes(24).toString('base64url')
   const response = await fetch(`${baseURL}/api/auth/sign-up/email`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Origin: origin },
     body: JSON.stringify({
       name,
-      email: `lane-e-${randomUUID()}@example.test`,
-      password: randomBytes(24).toString('base64url'),
+      email,
+      password,
     }),
   })
   expect(response.status).toBe(200)
   const body = await response.json()
-  const cookie = response.headers
+  const signupCookie = response.headers
+    .getSetCookie()
+    .map((value) => value.split(';')[0])
+    .join('; ')
+  expect(
+    (
+      await fetch(`${baseURL}/api/auth/sign-out`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Origin: origin, Cookie: signupCookie },
+        body: '{}',
+      })
+    ).status,
+  ).toBe(200)
+  const signedIn = await fetch(`${baseURL}/api/auth/sign-in/email`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Origin: origin },
+    body: JSON.stringify({ email, password }),
+  })
+  expect(signedIn.status).toBe(200)
+  const cookie = signedIn.headers
     .getSetCookie()
     .map((value) => value.split(';')[0])
     .join('; ')
@@ -57,7 +81,11 @@ const freshIdentity = async (cookie: string) => {
   const session = await response.json()
   expect(session?.user?.id).toBe(identity.id)
   expect(['USER', 'MERCHANT', 'MODERATOR', 'ADMIN']).toContain(session?.user?.role)
-  return { ...identity, role: session.user.role as string }
+  return {
+    ...identity,
+    actor: { userId: identity.id, sessionId: session.session.id as string },
+    role: session.user.role as string,
+  }
 }
 const venueFixture = async (name: string) => {
   const merchant = await db.merchant.create({ data: { name: `Lane E merchant ${name}` } })
@@ -81,7 +109,7 @@ const witness = async (
 ) => {
   const identity = await freshIdentity(cookie)
   return db.$transaction(async (tx) => {
-    await requireMerchantStall(tx, identity.id, venueId)
+    await requireMerchantStall(tx, identity.actor, venueId)
     const now = new Date()
     return tx.verification.create({
       data: {
@@ -105,12 +133,14 @@ const deniedWitness = async (cookie: string, venueId: string, code: string, stat
 const approvedFixture = async (name: string) => {
   await db.user.update({ where: { id: user.id }, data: { role: 'USER' } })
   const fixture = await venueFixture(name)
+  await seedSyntheticOccupancy(db, fixture.venue.id)
   const identity = await freshIdentity(user.cookie)
-  const request = await submitMerchantAccessRequest(db, identity.id, {
+  const request = await submitMerchantAccessRequest(db, identity.actor, {
     venueId: fixture.venue.id,
     message: 'Synthetic ownership request',
   })
   await clientFor(admin.cookie).platformAdmin.reviewRequest(request.id, {
+    confirmed: true as const,
     expectedVersion: request.version,
     decision: 'APPROVE',
     note: 'Synthetic approval',
@@ -128,14 +158,10 @@ beforeAll(async () => {
   const databaseUrl = mongo.getUri(`lane_e_handoff_${randomUUID().replaceAll('-', '')}`)
   vi.stubEnv('DATABASE_URL', databaseUrl)
   vi.stubEnv('NODE_ENV', 'test')
-  await promisify(execFile)('pnpm', ['--dir', 'packages/db', 'run', 'push'], {
-    cwd: root,
-    env: { ...process.env, DATABASE_URL: databaseUrl },
-    encoding: 'utf8',
-    timeout: 60_000,
-  })
+  await pushDisposableSchema(databaseUrl)
   const database = await import('@broke-oclock/db')
   db = database.db
+  registerSyntheticOutletFixtureDatabase(db, databaseUrl)
   competingDb = new database.PrismaClient({ datasourceUrl: databaseUrl })
   const { createApp } = await import('@api/app')
   server = createServer()
@@ -172,19 +198,22 @@ describe('connected native identity -> internal request -> actual admin Axios HT
   it('approves only outlet A, records exact review/version/audit state and revokes through actual HTTP', async () => {
     const a = await venueFixture('A')
     const b = await venueFixture('B')
+    await seedSyntheticOccupancy(db, a.venue.id)
+    await seedSyntheticOccupancy(db, b.venue.id)
     const identity = await freshIdentity(user.cookie)
     const independent = await freshIdentity(admin.cookie)
     expect(identity).toMatchObject({ id: user.id, role: 'USER' })
     expect(independent).toMatchObject({ id: admin.id, role: 'ADMIN' })
     expect(user.cookie).not.toBe(admin.cookie)
     const before = await db.user.findUniqueOrThrow({ where: { id: identity.id } })
-    const request = await submitMerchantAccessRequest(db, identity.id, {
+    const request = await submitMerchantAccessRequest(db, identity.actor, {
       venueId: a.venue.id,
       message: 'Synthetic outlet A request',
     })
     expect(request.status).toBe('PENDING')
     await deniedWitness(user.cookie, a.venue.id, 'FORBIDDEN')
     const input = {
+      confirmed: true as const,
       expectedVersion: request.version,
       decision: 'APPROVE' as const,
       note: 'Synthetic verified outlet A approval',
@@ -266,6 +295,7 @@ describe('connected native identity -> internal request -> actual admin Axios HT
     ).toBe(1)
     expect(
       await client.platformAdmin.revokeStall(grant.id, {
+        confirmed: true as const,
         expectedVersion: grant.version,
         note: 'Synthetic HTTP revocation',
       }),
@@ -288,13 +318,15 @@ describe('connected native identity -> internal request -> actual admin Axios HT
 
   it('does not turn a rejected request into capability', async () => {
     const { venue } = await venueFixture('rejected')
+    await seedSyntheticOccupancy(db, venue.id)
     const identity = await freshIdentity(otherUser.cookie)
-    const request = await submitMerchantAccessRequest(db, identity.id, {
+    const request = await submitMerchantAccessRequest(db, identity.actor, {
       venueId: venue.id,
       message: 'Synthetic rejected request',
     })
     await deniedWitness(otherUser.cookie, venue.id, 'FORBIDDEN')
     await clientFor(admin.cookie).platformAdmin.reviewRequest(request.id, {
+      confirmed: true as const,
       expectedVersion: request.version,
       decision: 'REJECT',
       note: 'Synthetic rejection',
@@ -325,6 +357,7 @@ describe('connected native identity -> internal request -> actual admin Axios HT
     const { venue, grant } = await approvedFixture('demotion')
     const current = await db.user.findUniqueOrThrow({ where: { id: user.id } })
     await clientFor(admin.cookie).platformAdmin.changeRole(user.id, {
+      confirmed: true as const,
       expectedVersion: current.platformVersion ?? 0,
       role: 'USER',
       note: 'Synthetic demotion',
@@ -361,12 +394,14 @@ describe('connected native identity -> internal request -> actual admin Axios HT
       )
       const changing = (
         kind === 'revoke'
-          ? revokeStall(competingDb, admin.id, {
+          ? revokeStall(competingDb, (await freshIdentity(admin.cookie)).actor, {
+              confirmed: true as const,
               grantId: grant.id,
               expectedVersion: grant.version,
               note: 'Synthetic concurrent revoke',
             })
-          : changeRole(competingDb, admin.id, {
+          : changeRole(competingDb, (await freshIdentity(admin.cookie)).actor, {
+              confirmed: true as const,
               userId: user.id,
               expectedVersion: current.platformVersion ?? 0,
               role: 'USER',

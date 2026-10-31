@@ -1,6 +1,13 @@
 import { ApiErrorException } from '@api/errors'
-import { isPubliclyVisible } from '@api/modules/account/visibility'
-import { createRestHandler, type RestDependencies, requireSession } from '@api/rest/context'
+import { requireActiveSessionWrite } from '@api/modules/account/security-access'
+import { isPubliclyVisible, publicDealVisibilitySelect } from '@api/modules/account/visibility'
+import { accessTransaction } from '@api/modules/platform-admin/transaction'
+import {
+  authenticatedActor,
+  createRestHandler,
+  type RestDependencies,
+  requireSession,
+} from '@api/rest/context'
 import { requireTrustedOrigin } from '@api/rest/policy'
 import { parseRestInput } from '@api/rest/validation'
 import { bookmarkParamsSchema } from '@broke-oclock/contracts/account'
@@ -18,17 +25,22 @@ export const saveBookmark = (dependencies: RestDependencies) =>
     const { dealId } = parseRestInput(bookmarkParamsSchema, request.params)
 
     // 4. The deal must exist and be public. Hidden deals get the same "not found" as missing ones.
-    const deal = await context.db.deal.findUnique({ where: { id: dealId } })
-    if (!deal || !isPubliclyVisible(deal)) {
-      throw new ApiErrorException('NOT_FOUND')
-    }
+    await accessTransaction(context.db, async (tx) => {
+      await requireActiveSessionWrite(tx, authenticatedActor(session))
+      const deal = await tx.deal.findUnique({
+        where: { id: dealId },
+        select: publicDealVisibilitySelect,
+      })
+      if (!deal || !isPubliclyVisible(deal)) {
+        throw new ApiErrorException('NOT_FOUND')
+      }
 
-    // 5. upsert = create if missing, do nothing if it already exists, so saving twice is safe.
-    await context.db.bookmark.upsert({
-      where: { userId_dealId: { userId, dealId } },
-      create: { userId, dealId },
-      update: {},
+      // 5. upsert = create if missing, do nothing if it already exists, so saving twice is safe.
+      await tx.bookmark.upsert({
+        where: { userId_dealId: { userId, dealId } },
+        create: { userId, dealId },
+        update: {},
+      })
     })
-
     response.json({ saved: true })
   })

@@ -204,7 +204,10 @@ it('closes synchronously before logout, ignores late session reads and requires 
   const signedOut = vi.fn()
   const accessReload = vi.fn()
   const state = helper.createAdminSession({ closing, signedOut, accessReload })
-  const old = deferred<{ data: { user: { email: string } }; error: null }>()
+  const old = deferred<{
+    data: { user: { id: string; email: string }; session: { id: string } }
+    error: null
+  }>()
   const logout = deferred<{ data: { success: boolean }; error: null }>()
   sdk.session.mockReturnValue(old.promise)
   sdk.signOut.mockReturnValue(logout.promise)
@@ -212,7 +215,13 @@ it('closes synchronously before logout, ignores late session reads and requires 
   const exiting = state.signOut()
   expect(closing).toHaveBeenCalledTimes(1)
   expect(state.session.value).toBeNull()
-  old.resolve({ data: { user: { email: 'late@example.test' } }, error: null })
+  old.resolve({
+    data: {
+      user: { id: 'synthetic-user', email: 'late@example.test' },
+      session: { id: 'synthetic-session' },
+    },
+    error: null,
+  })
   await read
   expect(state.session.value).toBeNull()
   logout.resolve({ data: { success: false }, error: null })
@@ -221,7 +230,10 @@ it('closes synchronously before logout, ignores late session reads and requires 
   expect(accessReload).not.toHaveBeenCalled()
   expect(state.notice.value).toContain('Server sign-out could not be confirmed')
   sdk.session.mockResolvedValue({
-    data: { user: { email: 'active@example.test', name: 'Synthetic identity' } },
+    data: {
+      user: { id: 'synthetic-user', email: 'active@example.test', name: 'Synthetic identity' },
+      session: { id: 'synthetic-session' },
+    },
     error: null,
   })
   await state.refresh()
@@ -256,7 +268,15 @@ it('fails closed on unknown session and invalidates callbacks after disposal', a
 })
 it('renders the shell slot and native identity even for forbidden content, forwarding logout events', async () => {
   sdk.session.mockResolvedValue({
-    data: { user: { name: 'Synthetic staff', email: 'staff@example.test', role: 'USER' } },
+    data: {
+      user: {
+        id: 'synthetic-user',
+        name: 'Synthetic staff',
+        email: 'staff@example.test',
+        role: 'USER',
+      },
+      session: { id: 'synthetic-session' },
+    },
     error: null,
   })
   const logout = deferred<{ data: { success: boolean }; error: null }>()
@@ -272,8 +292,12 @@ it('renders the shell slot and native identity even for forbidden content, forwa
   expect(wrapper.text()).toContain('staff@example.test')
   expect(wrapper.findAll('nav a').map((link) => link.attributes('href'))).toEqual([
     '/admin',
+    '/admin/deals',
+    '/admin/catalogue',
+    '/admin/moderation',
     '/admin/accounts',
     '/admin/ingestion',
+    '/admin/audit',
   ])
   await wrapper.get('[data-testid="admin-sign-out"]').trigger('click')
   await wrapper.get('[data-testid="admin-sign-out"]').trigger('click')
@@ -337,7 +361,10 @@ it('native renewal completes before the fresh identity probe on component mount'
   const renewal = deferred<void>()
   sdk.renew.mockReturnValue(renewal.promise)
   sdk.session.mockResolvedValue({
-    data: { user: { name: 'Fresh identity', email: 'fresh@example.test' } },
+    data: {
+      user: { id: 'synthetic-user', name: 'Fresh identity', email: 'fresh@example.test' },
+      session: { id: 'synthetic-session' },
+    },
     error: null,
   })
   const wrapper = mount(AdminSessionControls)
@@ -353,7 +380,13 @@ it('native renewal completion after confirmed logout cannot probe or reopen iden
   const renewal = deferred<void>()
   sdk.renew.mockReturnValue(renewal.promise)
   sdk.signOut.mockResolvedValue({ data: { success: true }, error: null })
-  sdk.session.mockResolvedValue({ data: { user: { email: 'late@example.test' } }, error: null })
+  sdk.session.mockResolvedValue({
+    data: {
+      user: { id: 'synthetic-user', email: 'late@example.test' },
+      session: { id: 'synthetic-session' },
+    },
+    error: null,
+  })
   const wrapper = mount(AdminSessionControls)
   wrappers.push(wrapper)
   // Wait for the pending native probe's presentation before activating its logout control.
@@ -370,7 +403,13 @@ it('native renewal completion after confirmed logout cannot probe or reopen iden
 it('native renewal completion after unmount cannot start a fresh identity probe', async () => {
   const renewal = deferred<void>()
   sdk.renew.mockReturnValue(renewal.promise)
-  sdk.session.mockResolvedValue({ data: { user: { email: 'late@example.test' } }, error: null })
+  sdk.session.mockResolvedValue({
+    data: {
+      user: { id: 'synthetic-user', email: 'late@example.test' },
+      session: { id: 'synthetic-session' },
+    },
+    error: null,
+  })
   const wrapper = mount(AdminSessionControls)
   wrapper.unmount()
   renewal.resolve(undefined)
@@ -391,7 +430,10 @@ it('native atom error fails closed even when refetch resolves void', async () =>
     sdk.nativeError = new Error('private native failure')
   })
   sdk.session.mockResolvedValue({
-    data: { user: { email: 'not-confirmed@example.test' } },
+    data: {
+      user: { id: 'synthetic-user', email: 'not-confirmed@example.test' },
+      session: { id: 'synthetic-session' },
+    },
     error: null,
   })
   const wrapper = mount(AdminSessionControls)

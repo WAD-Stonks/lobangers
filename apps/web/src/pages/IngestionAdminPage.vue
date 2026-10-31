@@ -2,6 +2,7 @@
 import type { IngestionDashboardResponse, IngestionRunResponse } from '@broke-oclock/contracts/ingestion'
 import { BButton } from '@broke-oclock/ui'
 import AdminShell from '@web/components/admin/AdminShell.vue'
+import { confirmAdminIdentity } from '@web/lib/admin-recovery'
 import { createAdminReadFence } from '@web/lib/admin-session'
 import { api } from '@web/lib/api-client'
 import { authClient } from '@web/lib/auth-client'
@@ -9,8 +10,10 @@ import AccountsPanel from '@web/modules/ingestion-admin/AccountsPanel.vue'
 import AdminSignIn from '@web/modules/ingestion-admin/AdminSignIn.vue'
 import DraftQueue from '@web/modules/ingestion-admin/DraftQueue.vue'
 import { errorCode } from '@web/modules/ingestion-admin/errors'
+import FailedPosts from '@web/modules/ingestion-admin/FailedPosts.vue'
 import IngestionRuns from '@web/modules/ingestion-admin/IngestionRuns.vue'
 import LocationSearch from '@web/modules/ingestion-admin/LocationSearch.vue'
+import SourcesPanel from '@web/modules/ingestion-admin/SourcesPanel.vue'
 import { inject, onMounted, onUnmounted, ref, watch } from 'vue'
 import { routeLocationKey } from 'vue-router'
 
@@ -97,7 +100,7 @@ const reload = async () => {
     const identity = await authClient.getSession({ query: { disableCookieCache: true } })
     if (!nativeFence.current(probe)) return
     if (identity.error) { close(); return }
-    if (!identity.data?.user) { if (access.value === 'closed' || access.value === 'loading') anonymous(); return }
+    if (!identity.data?.user) { confirmAdminIdentity(null); if (access.value === 'closed' || access.value === 'loading') anonymous(); return }
     if (!fence.current(ticket)) return
     await load()
   } catch { if (nativeFence.current(probe) && fence.current(ticket)) close() }
@@ -137,8 +140,10 @@ onUnmounted(() => { fence.dispose(); operationFence.dispose(); nativeFence.dispo
         </div>
       </dl>
       <DraftQueue :key="panelKey" :initial-status="initialStatus" :revision="revision" @changed="refresh" @denied="denied" />
+      <FailedPosts :key="`posts-${panelKey}`" @denied="denied" />
       <IngestionRuns :revision="revision" @denied="denied" />
       <LocationSearch :configured="dashboard.source.onemapConfigured" @denied="denied" />
+      <SourcesPanel @changed="refresh" @denied="denied" />
       <AccountsPanel @denied="denied" />
     </template>
   </section>

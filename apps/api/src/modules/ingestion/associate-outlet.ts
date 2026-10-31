@@ -1,6 +1,10 @@
+import type { AuthenticatedActor } from '@api/modules/account/security-access'
+import { isSelectableCatalogueVenue } from '@api/modules/deals/outlet-eligibility'
 import { DomainError } from '@api/modules/domain-error'
 import { fenceDraftEvidence } from '@api/modules/ingestion/draft-evidence'
 import { importedDealScope } from '@api/modules/ingestion/review-policy'
+import { appendAdminAudit } from '@api/modules/platform-admin/audit'
+import { legacyVersionWhere, normalizeVersion } from '@api/modules/platform-admin/operation-version'
 import {
   accessTransaction,
   type Database,
@@ -11,19 +15,21 @@ import type { IngestionOutletAssociationRequest } from '@broke-oclock/contracts/
 
 export const associateDraftOutlet = async (
   db: Database,
-  actorId: string,
+  actor: AuthenticatedActor,
   dealId: string,
   input: IngestionOutletAssociationRequest,
   now: Date,
 ) =>
   accessTransaction(db, async (tx) => {
-    await requireCurrentAdmin(tx, actorId)
+    const admin = await requireCurrentAdmin(tx, actor)
+    const expectedOperationVersion = input.expectedOperationVersion ?? 0
     const deal = await tx.deal.findFirst({
       where: { ...importedDealScope, id: dealId },
       include: { sources: { include: { importedPost: true } }, venues: true },
     })
     if (!deal) throw new DomainError('NOT_FOUND')
     if (
+      normalizeVersion(deal.operationVersion) !== expectedOperationVersion ||
       deal.reviewStatus !== 'PENDING' ||
       deal.contentVersion !== input.expectedContentVersion ||
       deal.publishedAt
@@ -48,6 +54,8 @@ export const associateDraftOutlet = async (
         throw new DomainError('PRECONDITION_FAILED', 'Outlet selection is unchanged')
     }
     const { venue, merchant } = await activeVenue(tx, input.venueId)
+    if (!isSelectableCatalogueVenue(venue))
+      throw new DomainError('PRECONDITION_FAILED', 'Verified current outlet occupancy required')
     await fenceDraftEvidence(tx, deal.sources, now, true)
     const changed = await tx.deal.updateMany({
       where: {
@@ -55,12 +63,17 @@ export const associateDraftOutlet = async (
         id: deal.id,
         contentVersion: input.expectedContentVersion,
         reviewStatus: 'PENDING',
-        OR: [{ publishedAt: null }, { publishedAt: { isSet: false } }],
+        AND: [
+          legacyVersionWhere('operationVersion', expectedOperationVersion),
+          { OR: [{ publishedAt: null }, { publishedAt: { isSet: false } }] },
+        ],
       },
       data: {
+        operationVersion: expectedOperationVersion + 1,
         merchantId: merchant.id,
         applicability: 'SELECTED_OUTLETS',
         contentVersion: { increment: 1 },
+        scopeConfirmation: { unset: true },
         reviewedVersion: null,
         reviewedById: null,
         reviewedAt: null,
@@ -76,8 +89,22 @@ export const associateDraftOutlet = async (
       if (deleted.count !== 1) throw new DomainError('CONFLICT', 'Outlet association changed')
     }
     await tx.dealVenue.create({ data: { dealId: deal.id, venueId: venue.id } })
+    await appendAdminAudit(tx, admin, {
+      action: 'DEAL_OUTLETS_CHANGED',
+      subjectType: 'DEAL',
+      subjectId: deal.id,
+      note: 'Associate imported draft outlet',
+      details: {
+        operationVersionBefore: expectedOperationVersion,
+        operationVersionAfter: expectedOperationVersion + 1,
+        contentVersionBefore: deal.contentVersion,
+        contentVersionAfter: deal.contentVersion + 1,
+        changedFields: ['applicability', 'merchantId', 'venueIds'],
+      },
+    })
     return {
       id: deal.id,
+      operationVersion: expectedOperationVersion + 1,
       contentVersion: deal.contentVersion + 1,
       reviewStatus: 'PENDING' as const,
       applicability: 'SELECTED_OUTLETS' as const,

@@ -34,6 +34,7 @@ const draft: IngestionDraft = {
   outlet: null,
   reviewStatus: 'PENDING',
   contentVersion: 7,
+  operationVersion: 6,
   sourceUrl: 'https://example.test/source',
   sourceName: 'Named synthetic source',
   reviewNote: null,
@@ -42,6 +43,7 @@ const draft: IngestionDraft = {
 const associated: IngestionOutletAssociationResponse = {
   id,
   contentVersion: 8,
+  operationVersion: 7,
   reviewStatus: 'PENDING',
   applicability: 'SELECTED_OUTLETS',
   merchantId: '444444444444444444444444',
@@ -65,7 +67,10 @@ function setup(
   const previous = api.http.defaults.adapter
   api.http.defaults.adapter = async (config) => {
     calls.push(config)
-    return { data: await handle(config), status: 200, statusText: 'OK', headers: {}, config }
+    const data = /^\/ingestion\/drafts\/[a-f0-9]{24}\/evidence$/u.test(config.url ?? '')
+      ? { items: [], nextCursor: null }
+      : await handle(config)
+    return { data, status: 200, statusText: 'OK', headers: {}, config }
   }
   const wrapper = mount(DraftQueue, {
     props: { revision: 0, ...(initialStatus ? { initialStatus } : {}) },
@@ -122,6 +127,7 @@ it('requires evidence confirmation and captures the exact draft version and exis
   expect(calls.filter((c) => c.method === 'patch')).toHaveLength(1)
   expect(JSON.parse(calls.find((c) => c.method === 'patch')?.data)).toEqual({
     expectedContentVersion: 7,
+    expectedOperationVersion: 6,
     venueId: venue.id,
   })
   expect(wrapper.get('#outlet-query').attributes('disabled')).toBeDefined()
@@ -285,6 +291,7 @@ it('captures review identity/version/note and does not clear a new target after 
   await flushPromises()
   expect(JSON.parse(calls.find((c) => c.method === 'post')?.data)).toEqual({
     expectedContentVersion: 7,
+    expectedOperationVersion: 6,
     decision: 'REJECT',
     note: 'Captured note',
   })
@@ -475,4 +482,33 @@ it('cannot unlock a context-shifted uncertain review with evidence requested bef
   await wrapper.get('#review-note').setValue('Pre-completion read cannot authorize')
   expect(wrapper.get('[data-testid="reject-draft"]').attributes('disabled')).toBeDefined()
   expect(wrapper.find('[data-testid="reload-draft"]').exists()).toBe(true)
+})
+it('invalidates review consent on an operation-only refresh and never accepts a later lower-operation queue', async (ctx) => {
+  let read = 0
+  const { wrapper, calls } = setup(ctx, (config) => {
+    if (config.method === 'post') return { id, reviewStatus: 'REJECTED', operationVersion: 9 }
+    return ++read === 1
+      ? page()
+      : read === 2
+        ? page([{ ...draft, operationVersion: 8 }], otherId)
+        : page([draft])
+  })
+  await flushPromises()
+  await wrapper.get(`[data-testid="view-${id}"]`).trigger('click')
+  await wrapper.get('#review-note').setValue('Before hide and reopen')
+  // Explicit fresh evidence arrives at the same content version but after lifecycle changes.
+  await wrapper.setProps({ revision: 1 })
+  await flushPromises()
+  await wrapper.get('#review-note').setValue('Fresh operation eight')
+  await wrapper.get('[data-testid="more-drafts"]').trigger('click')
+  await flushPromises()
+  expect(wrapper.get('#review-note').element).toHaveProperty('value', 'Fresh operation eight')
+  await wrapper.get('[data-testid="reject-draft"]').trigger('click')
+  await flushPromises()
+  expect(JSON.parse(calls.find((c) => c.method === 'post')?.data)).toEqual({
+    expectedContentVersion: 7,
+    expectedOperationVersion: 8,
+    decision: 'REJECT',
+    note: 'Fresh operation eight',
+  })
 })

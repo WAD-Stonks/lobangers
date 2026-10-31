@@ -1,0 +1,37 @@
+import type { DealPin } from '@broke-oclock/contracts/deals'
+import { areaFor } from '@web/modules/browse-map/cluster-area'
+import { LIMITED_PROMOTION } from '@web/modules/browse-map/deal-format'
+import type { SingaporeRegion } from '@web/modules/browse-map/singapore-areas'
+import { validityLabel } from '@web/modules/venues-feed/deal-format'
+
+export const venuesInRegion = (deal: DealPin, region: SingaporeRegion) =>
+  deal.venues.filter((venue) => areaFor(venue).region === region)
+
+// Choose a deal first, so chains with many outlets get the same chance as a single outlet.
+export const randomRegionalDeal = (
+  deals: DealPin[],
+  region: SingaporeRegion,
+  random = Math.random,
+) => {
+  const candidates = deals.filter((deal) => venuesInRegion(deal, region).length > 0)
+  const deal = candidates[Math.floor(random() * candidates.length)]
+  if (!deal) return null
+  const venue = venuesInRegion(deal, region)[0]
+  return venue ? { deal, venue } : null
+}
+
+export const promotionDates = (deal: DealPin) => {
+  if (!deal.validUntil && deal.limitedTime) return LIMITED_PROMOTION
+  const supplied = deal.rawValidityText?.trim()
+  // Ingestion metadata is not customer-facing promotion copy.
+  if (supplied && !/^Explicit source calendar:/i.test(supplied)) return supplied
+  return deal.validUntil
+    ? validityLabel({ validUntil: deal.validUntil, rawValidityText: null })
+    : 'End date not provided'
+}
+
+// Never infer a recent verification badge from lifetime counts or unknown dates.
+export const isLikelyStillOn = (deal: DealPin) =>
+  deal.votes.status === 'LIKELY_STILL_ON' &&
+  (!deal.validUntil || new Date(deal.validUntil).getTime() > Date.now())
+export const landingDealLink = (deal: DealPin, venueId: string) => `/deals/${deal.id}?at=${venueId}`

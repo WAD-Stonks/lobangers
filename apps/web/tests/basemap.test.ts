@@ -18,6 +18,12 @@ describe('resolveBasemap', () => {
     expect(basemap.attribution).toContain('OpenStreetMap')
   })
 
+  it('caps native tile zoom where each provider stops serving tiles', () => {
+    // CARTO answers 403 above zoom 18; Leaflet must upscale z18 tiles instead of requesting them.
+    expect(resolveBasemap('abc').maxNativeZoom).toBe(18)
+    expect(resolveBasemap(undefined).maxNativeZoom).toBe(19)
+  })
+
   it('falls back to OneMap Grey when the key is missing or a placeholder', () => {
     for (const key of [undefined, '', '   ', 'UNSET', 'unset', 'UNCONFIGURED']) {
       const basemap = resolveBasemap(key)

@@ -1,53 +1,74 @@
 <script setup lang="ts">
-import { CATEGORY_ICON_PATHS, categoryStyle } from '@web/modules/browse-map/category-style'
-import { computed } from 'vue'
+import { categoryStyle } from '@web/modules/browse-map/category-style'
+import { foodKindFor } from '@web/modules/browse-map/food-kind'
+import { applyFoodSprite } from '@web/modules/browse-map/food-sprite'
+import '@web/modules/browse-map/food-sprite.css'
+import { onMounted, ref, watch } from 'vue'
 
-// Tinted circle with the category's outline icon. Decorative: the category is always written
-// out next to it, so the bubble itself is hidden from assistive technology.
-const props = withDefaults(defineProps<{ category: string; size?: 'sm' | 'md' | 'lg' }>(), {
-  size: 'md',
-})
+// Tinted circle holding the category's 3D food, which spills slightly past the rim. Decorative:
+// the category is always written out next to it, so the bubble is hidden from assistive
+// technology. Lists show the still first frame so a long list stays calm; `animated` plays it.
+const props = withDefaults(
+  defineProps<{
+    category: string
+    // The deal's title and venue pick a specific dish (pasta, hotpot…) where one is named.
+    title?: string
+    venue?: string
+    size?: 'sm' | 'md' | 'lg'
+    animated?: boolean
+  }>(),
+  { title: '', venue: '', size: 'md', animated: false },
+)
 
-const style = computed(() => categoryStyle(props.category))
-const paths = computed(() => CATEGORY_ICON_PATHS[style.value.icon])
+const food = ref<HTMLSpanElement | null>(null)
+
+const paint = () => {
+  if (!food.value) return
+  food.value.className = 'category-bubble__food'
+  food.value.removeAttribute('style')
+  applyFoodSprite(food.value, foodKindFor({ category: props.category, title: props.title, venueNames: props.venue ? [props.venue] : [] }), {
+    animated: props.animated,
+    phase: 0,
+  })
+}
+
+onMounted(paint)
+watch(() => [props.category, props.title, props.venue, props.animated], paint)
 </script>
 
 <template>
   <span
     class="category-bubble"
     :class="`category-bubble--${size}`"
-    :style="{ '--bubble-tint': style.tint }"
+    :style="{ '--bubble-tint': categoryStyle(category).tint }"
     aria-hidden="true"
+    data-testid="category-bubble"
   >
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      stroke-width="2"
-      stroke-linecap="round"
-      stroke-linejoin="round"
-      aria-hidden="true"
-    >
-      <path v-for="(d, index) in paths" :key="index" :d="d" />
-    </svg>
+    <span ref="food" class="category-bubble__food" />
   </span>
 </template>
 
 <style scoped>
 .category-bubble {
+  position: relative;
   display: inline-grid;
   flex: 0 0 auto;
   place-items: center;
   width: var(--bubble-size);
   height: var(--bubble-size);
-  color: var(--ink);
   background: var(--bubble-tint);
   border-radius: 50%;
 }
 
-.category-bubble svg {
-  width: calc(var(--bubble-size) * 0.45);
-  height: calc(var(--bubble-size) * 0.45);
+/* The model is a little larger than the circle and sits slightly high, so it reads as standing
+   on the tint rather than being clipped inside it. */
+.category-bubble__food {
+  position: absolute;
+  bottom: 4%;
+  left: 50%;
+  width: calc(var(--bubble-size) * 1.12);
+  height: calc(var(--bubble-size) * 1.12);
+  transform: translateX(-50%);
 }
 
 .category-bubble--sm {

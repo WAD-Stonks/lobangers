@@ -11,6 +11,7 @@ export const uploadPhoto = async (
 ) => {
   const [photo] = await uploadFiles('photoUploader', { ...options, files: [file] })
   if (!photo) throw new Error('No photo was uploaded')
+  if (!photo.serverData) throw new Error('Upload completion not authorized')
   return {
     key: photo.key,
     url: photo.ufsUrl,

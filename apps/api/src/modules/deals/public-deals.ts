@@ -1,15 +1,72 @@
+import { imagesFor } from '@api/modules/deals/deal-images'
+import { excludedPlacesIn, isExcludedVenue } from '@api/modules/deals/excluded-outlets'
+import {
+  eligibleVenuesForScope,
+  type OutletPolicyVenue,
+  type OutletScopeDeal,
+  possibleVenuesForScope,
+} from '@api/modules/deals/outlet-eligibility'
+import { publicImportedImage, publicImportedImageSelect } from '@api/modules/deals/public-images'
+import {
+  type CommunityPolicy,
+  communityStatus,
+  DEFAULT_COMMUNITY_POLICY,
+} from '@broke-oclock/contracts/community-policy'
 import type { DealPin, DealsQuery, DealVoteSummary } from '@broke-oclock/contracts/deals'
 import type { db } from '@broke-oclock/db'
 
 type Database = typeof db
 
 const CENTS_PER_DOLLAR = 100
+const DAY_MS = 86_400_000
+// "While stocks last" and launch offers rarely publish an end, so they get a quiet shelf life.
+export const OPEN_ENDED_IMPORT_DAYS = 60
 
-type DealWhere = NonNullable<Parameters<Database['deal']['findMany']>[0]>['where']
+type DealWhere = NonNullable<NonNullable<Parameters<Database['deal']['findMany']>[0]>['where']>
 
 // On MongoDB a field that was never written is "missing", not null, and Prisma's `null`
 // filter matches only an explicit null. Every optional-date check needs both branches.
 const nullOrMissing = (field: string) => [{ [field]: null }, { [field]: { isSet: false } }]
+
+// An imported claim with no end is a limited promotion, shown for OPEN_ENDED_IMPORT_DAYS from
+// its known start, or from its source post when the start is unknown. The cut-off is never
+// stored or shown as an end date.
+const importedOpenEndedWhere = (now: Date): DealWhere => {
+  const shelfStart = new Date(now.getTime() - OPEN_ENDED_IMPORT_DAYS * DAY_MS)
+  return {
+    origin: 'IMPORTED',
+    OR: nullOrMissing('validUntil'),
+    AND: [
+      {
+        OR: [
+          { validFrom: { gt: shelfStart, lte: now } },
+          {
+            AND: [{ OR: nullOrMissing('validFrom') }],
+            sources: {
+              some: { importedPost: { is: { publishedAt: { gt: shelfStart, lte: now } } } },
+            },
+          },
+        ],
+      },
+    ],
+  }
+}
+
+// Imported current claims need a supported finite window or a recent limited-promotion start.
+// Genuine user open-ended submissions retain their existing policy; no timestamp is invented.
+export const publicCurrentWindowWhere = (now: Date): DealWhere => ({
+  OR: [
+    { origin: 'IMPORTED', validFrom: { not: null, lte: now }, validUntil: { not: null, gt: now } },
+    importedOpenEndedWhere(now),
+    {
+      origin: 'USER_SUBMITTED',
+      AND: [
+        { OR: [...nullOrMissing('validFrom'), { validFrom: { lte: now } }] },
+        { OR: [...nullOrMissing('validUntil'), { validUntil: { gt: now } }] },
+      ],
+    },
+  ],
+})
 
 // Only approved, published, undeleted deals that can be placed on the map.
 const eligibleDealWhere: DealWhere = {
@@ -24,15 +81,44 @@ const visibleCommentWhere = {
   AND: [{ OR: nullOrMissing('deletedAt') }, { OR: nullOrMissing('hiddenAt') }],
 }
 
-const venueSelect = {
+export const publicOutletVenueSelect = {
   id: true,
+  merchantId: true,
   name: true,
+  address: true,
+  postalCode: true,
   latitude: true,
   longitude: true,
+  catalogueKey: true,
+  geographyPrecision: true,
+  geographyEvidence: true,
+  occupancyEvidence: true,
+  deletedAt: true,
+} as const
+
+// Never filter selected edges before hashing: even a deleted outlet is part of the scope.
+export const publicOutletScopeSelect = {
+  id: true,
+  merchantId: true,
+  contentVersion: true,
+  applicability: true,
+  scopeConfirmation: true,
+  venues: { select: { venueId: true, venue: { select: publicOutletVenueSelect } } },
+  merchant: {
+    select: {
+      deletedAt: true,
+      venues: { where: activeVenueWhere, select: publicOutletVenueSelect },
+    },
+  },
 } as const
 
 // Eligible deals narrowed by the visitor's filters, with the outlets needed to draw pins.
-export const findPublicDeals = (database: Database, query: DealsQuery, now: Date) =>
+export const findPublicDeals = (
+  database: Database,
+  query: DealsQuery,
+  now: Date,
+  policy: CommunityPolicy = DEFAULT_COMMUNITY_POLICY,
+) =>
   database.deal.findMany({
     where: {
       ...eligibleDealWhere,
@@ -46,40 +132,38 @@ export const findPublicDeals = (database: Database, query: DealsQuery, now: Date
                 OR: [{ priceMinor: null }, { priceMinor: { lte: query.priceMaxMinor } }],
               },
             ]),
-        ...(query.validNow === 'true'
-          ? [
-              { OR: [...nullOrMissing('validFrom'), { validFrom: { lte: now } }] },
-              // validUntil is an exclusive end, so a deal ending now is already over.
-              { OR: [...nullOrMissing('validUntil'), { validUntil: { gt: now } }] },
-            ]
-          : []),
+        ...(query.validNow === 'true' ? [publicCurrentWindowWhere(now)] : []),
       ],
     },
     orderBy: { publishedAt: 'desc' },
     select: {
+      ...publicOutletScopeSelect,
       id: true,
       title: true,
       category: true,
+      cuisine: true,
       offerType: true,
       priceMinor: true,
       discountPercent: true,
       contentVersion: true,
       reviewedVersion: true,
+      reviewedAt: true,
+      publishedAt: true,
       applicability: true,
       description: true,
       terms: true,
+      origin: true,
       validUntil: true,
       rawValidityText: true,
-      votes: { select: { value: true } },
+      sources: publicImportedImageSelect,
+      votes: {
+        where: {
+          updatedAt: { gt: new Date(now.getTime() - policy.windowHours * 3600000), lte: now },
+        },
+        select: { value: true, updatedAt: true },
+      },
       // Only comments that are neither deleted by their author nor hidden by moderation.
       _count: { select: { comments: { where: visibleCommentWhere } } },
-      venues: {
-        where: { venue: activeVenueWhere },
-        select: { venue: { select: venueSelect } },
-      },
-      merchant: {
-        select: { venues: { where: activeVenueWhere, select: venueSelect } },
-      },
     },
   })
 
@@ -87,11 +171,16 @@ export const findPublicDeals = (database: Database, query: DealsQuery, now: Date
 export const findEligibleCategories = async (database: Database): Promise<string[]> => {
   const rows = await database.deal.findMany({
     where: eligibleDealWhere,
-    distinct: ['category'],
-    orderBy: { category: 'asc' },
-    select: { category: true },
+    select: { ...publicOutletScopeSelect, reviewedVersion: true, category: true, terms: true },
   })
-  return rows.map((row) => row.category)
+  return [
+    ...new Set(
+      rows
+        .filter(isCurrentApproval)
+        .filter((row) => mapVenuesFor(row).venues.length > 0)
+        .map((row) => row.category),
+    ),
+  ].sort()
 }
 
 type PublicDealRow = Awaited<ReturnType<typeof findPublicDeals>>[number]
@@ -111,13 +200,45 @@ export const pinLabelFor = (deal: PublicDealRow): string => {
   return deal.title
 }
 
-const venuesFor = (deal: PublicDealRow) =>
-  deal.applicability === 'ALL_MERCHANT_OUTLETS'
-    ? (deal.merchant?.venues ?? [])
-    : deal.venues.map((link) => link.venue)
+export type PublicOutletScopeRow = Omit<OutletScopeDeal, 'selectedVenueIds'> & {
+  venues: readonly { venueId: string; venue: OutletPolicyVenue }[]
+  merchant: { deletedAt: Date | null; venues: readonly OutletPolicyVenue[] } | null
+}
 
-export const isCurrentApproval = (deal: PublicDealRow): boolean =>
-  deal.reviewedVersion === deal.contentVersion
+const scopeArgs = (deal: PublicOutletScopeRow) =>
+  [
+    { ...deal, selectedVenueIds: deal.venues.map((link) => link.venueId) },
+    deal.applicability === 'ALL_MERCHANT_OUTLETS'
+      ? (deal.merchant?.venues ?? [])
+      : deal.venues.map((link) => link.venue),
+    !!deal.merchant && deal.merchant.deletedAt == null,
+  ] as const
+
+export const publicVenuesFor = (deal: PublicOutletScopeRow) =>
+  eligibleVenuesForScope(...scopeArgs(deal))
+
+// Confirmed outlets when there are any. Otherwise every outlet the deal could cover, except
+// those its terms rule out, flagged so the visitor knows the deal may not apply there.
+export const mapVenuesFor = (deal: PublicOutletScopeRow & { terms?: string | null }) => {
+  const confirmed = publicVenuesFor(deal)
+  if (confirmed.length > 0) return { venues: confirmed, outletUnconfirmed: false }
+  const excluded = excludedPlacesIn(deal.terms)
+  const venues = possibleVenuesForScope(...scopeArgs(deal)).filter(
+    (venue) => !isExcludedVenue(venue, excluded),
+  )
+  return { venues, outletUnconfirmed: true }
+}
+
+// Labels an imported offer with no published end, without revealing its shelf-life cut-off.
+export const isLimitedTime = (deal: {
+  origin: 'IMPORTED' | 'USER_SUBMITTED'
+  validUntil: Date | null
+}): boolean => deal.origin === 'IMPORTED' && deal.validUntil === null
+
+export const isCurrentApproval = (deal: {
+  contentVersion: number
+  reviewedVersion: number | null
+}): boolean => deal.reviewedVersion === deal.contentVersion
 
 // Deal-wide tallies of the current votes; each user holds at most one vote per deal.
 export const countVotes = (votes: readonly { value: 'ALIVE' | 'DEAD' }[]): DealVoteSummary => ({
@@ -125,24 +246,60 @@ export const countVotes = (votes: readonly { value: 'ALIVE' | 'DEAD' }[]): DealV
   dead: votes.filter((vote) => vote.value === 'DEAD').length,
 })
 
-export const toDealPin = (deal: PublicDealRow): DealPin => ({
-  id: deal.id,
-  title: deal.title,
-  category: deal.category,
-  label: pinLabelFor(deal),
-  description: deal.description,
-  offerType: deal.offerType,
-  priceMinor: deal.priceMinor,
-  discountPercent: deal.discountPercent,
-  terms: deal.terms,
-  validUntil: deal.validUntil?.toISOString() ?? null,
-  rawValidityText: deal.rawValidityText,
-  votes: countVotes(deal.votes),
-  commentCount: deal._count.comments,
-  venues: venuesFor(deal).map((venue) => ({
-    id: venue.id,
-    name: venue.name,
-    lat: venue.latitude,
-    lng: venue.longitude,
-  })),
-})
+const currentVotes = (deal: PublicDealRow) => {
+  const publication = deal.reviewedAt ?? deal.publishedAt ?? new Date(0)
+  return countVotes(deal.votes.filter((vote) => vote.updatedAt >= publication))
+}
+
+export const findPublicDealPins = async (
+  database: Database,
+  query: DealsQuery,
+  now: Date,
+  policy: CommunityPolicy = DEFAULT_COMMUNITY_POLICY,
+): Promise<DealPin[]> =>
+  (await findPublicDeals(database, query, now, policy))
+    .filter(isCurrentApproval)
+    .map((row) => toDealPin(row, policy, now))
+    .filter((deal) => deal.venues.length > 0)
+
+export const toDealPin = (
+  deal: PublicDealRow,
+  policy: CommunityPolicy = DEFAULT_COMMUNITY_POLICY,
+  now = new Date(),
+): DealPin => {
+  const outlets = mapVenuesFor(deal)
+  return {
+    id: deal.id,
+    title: deal.title,
+    category: deal.category,
+    cuisine: deal.cuisine,
+    label: pinLabelFor(deal),
+    description: deal.description,
+    offerType: deal.offerType,
+    priceMinor: deal.priceMinor,
+    discountPercent: deal.discountPercent,
+    terms: deal.terms,
+    ...publicImportedImage(deal),
+    images: imagesFor(deal),
+    validUntil: deal.validUntil?.toISOString() ?? null,
+    rawValidityText: deal.rawValidityText,
+    ...(isLimitedTime(deal) ? { limitedTime: true } : {}),
+    ...(outlets.outletUnconfirmed ? { outletUnconfirmed: true } : {}),
+    votes: {
+      ...currentVotes(deal),
+      status: communityStatus(
+        currentVotes(deal),
+        deal.validUntil?.toISOString() ?? null,
+        now,
+        policy,
+      ),
+    },
+    commentCount: deal._count.comments,
+    venues: outlets.venues.map((venue) => ({
+      id: venue.id,
+      name: venue.name,
+      lat: venue.latitude,
+      lng: venue.longitude,
+    })),
+  }
+}

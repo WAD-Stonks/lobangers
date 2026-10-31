@@ -1,4 +1,13 @@
 import { ApiErrorException } from '@api/errors'
+import { hasVerifiedGeography, hasVerifiedOccupancy } from '@api/modules/deals/outlet-eligibility'
+import {
+  isLimitedTime,
+  mapVenuesFor,
+  publicCurrentWindowWhere,
+  publicOutletScopeSelect,
+  publicOutletVenueSelect,
+} from '@api/modules/deals/public-deals'
+import { publicImportedImage, publicImportedImageSelect } from '@api/modules/deals/public-images'
 import { activeRecord } from '@api/modules/platform-admin/venues'
 import type { RestDependencies } from '@api/rest/context'
 import { createRestHandler } from '@api/rest/context'
@@ -14,6 +23,7 @@ export const getVenue = (dependencies: RestDependencies) =>
     const venue = await context.db.venue.findFirst({
       where: { id: venueId, ...activeRecord, merchant: { is: activeRecord } },
       select: {
+        ...publicOutletVenueSelect,
         id: true,
         name: true,
         address: true,
@@ -42,27 +52,26 @@ export const getVenue = (dependencies: RestDependencies) =>
       },
     ]
 
+    if (!hasVerifiedGeography(venue) || !hasVerifiedOccupancy(venue)) {
+      // An unproven outlet has a page only while some public deal is pinned here, by legacy
+      // retention or as an unconfirmed outlet, matching the map. A point alone never does.
+      const retained = await context.db.deal.findMany({
+        where: { ...publicAtVenue, AND: activeAtVenue },
+        select: { ...publicOutletScopeSelect, terms: true },
+      })
+      if (!retained.some((deal) => mapVenuesFor(deal).venues.some((item) => item.id === venue.id)))
+        throw new ApiErrorException('NOT_FOUND', 'Venue not found')
+    }
+
     // ongoing deals have started and have not yet reached validUntil
     const ongoing = context.db.deal.findMany({
       where: {
         ...publicAtVenue,
-        AND: [
-          ...activeAtVenue,
-          {
-            OR: [{ validFrom: null }, { validFrom: { isSet: false } }, { validFrom: { lte: now } }],
-          },
-          {
-            OR: [
-              { validUntil: null },
-              { validUntil: { isSet: false } },
-              { validUntil: { gt: now } },
-            ],
-          },
-        ],
+        AND: [...activeAtVenue, publicCurrentWindowWhere(now)],
       },
       orderBy: { publishedAt: 'desc' },
-      take: maxDeals,
       select: {
+        ...publicOutletScopeSelect,
         id: true,
         title: true,
         category: true,
@@ -70,8 +79,11 @@ export const getVenue = (dependencies: RestDependencies) =>
         priceMinor: true,
         currency: true,
         discountPercent: true,
+        origin: true,
+        terms: true,
         validUntil: true,
         rawValidityText: true,
+        sources: publicImportedImageSelect,
         images: {
           where: activeRecord,
           orderBy: { createdAt: 'asc' },
@@ -81,23 +93,30 @@ export const getVenue = (dependencies: RestDependencies) =>
       },
     })
 
-    // past deals that have exclusive validUntil over
+    // past deals that have exclusive validUntil over. On Mongo, Prisma orders a null date
+    // before every real one, so an open-ended deal (validUntil null) needs excluding outright.
     const past = context.db.deal.findMany({
-      where: { ...publicAtVenue, validUntil: { lte: now }, AND: activeAtVenue },
+      where: { ...publicAtVenue, validUntil: { not: null, lte: now }, AND: activeAtVenue },
       orderBy: { validUntil: 'desc' },
-      take: maxPastDeals,
       select: {
+        ...publicOutletScopeSelect,
         id: true,
         title: true,
         offerType: true,
         priceMinor: true,
         currency: true,
         discountPercent: true,
+        terms: true,
         validUntil: true,
       },
     })
 
-    const [deals, pastDeals] = await Promise.all([ongoing, past])
+    const [ongoingRows, pastRows] = await Promise.all([ongoing, past])
+    const atVenue = (deal: Parameters<typeof mapVenuesFor>[0]) =>
+      mapVenuesFor(deal).venues.some((candidate) => candidate.id === venue.id)
+    // Apply limits after proof filtering so held rows cannot crowd out eligible campaigns.
+    const deals = ongoingRows.filter(atVenue).slice(0, maxDeals)
+    const pastDeals = pastRows.filter(atVenue).slice(0, maxPastDeals)
 
     response.json(
       venueDetailResponseSchema.parse({
@@ -119,7 +138,9 @@ export const getVenue = (dependencies: RestDependencies) =>
           discountPercent: deal.discountPercent ?? null,
           validUntil: deal.validUntil?.toISOString() ?? null,
           rawValidityText: deal.rawValidityText ?? null,
-          imageUrl: deal.images[0]?.url ?? null,
+          ...(isLimitedTime(deal) ? { limitedTime: true } : {}),
+          ...(mapVenuesFor(deal).outletUnconfirmed ? { outletUnconfirmed: true } : {}),
+          ...(deal.images[0] ? { imageUrl: deal.images[0].url } : publicImportedImage(deal)),
         })),
         pastDeals: pastDeals.map((deal) => ({
           id: deal.id,

@@ -17,17 +17,19 @@ enum UserRole {
 }
 
 model User {
-  id            String    @id @default(auto()) @map("_id") @db.ObjectId
-  name          String
-  email         String    @unique
-  emailVerified Boolean
-  image         String?
-  role          UserRole  @default(USER)
+  id              String    @id @default(auto()) @map("_id") @db.ObjectId
+  name            String
+  email           String    @unique
+  emailVerified   Boolean
+  image           String?
+  role            UserRole  @default(USER)
   platformVersion Int?
-  createdAt     DateTime
-  updatedAt     DateTime
-  sessions      Session[]
-  accounts      Account[]
+  suspendedAt     DateTime?
+  authVersion     Int?
+  createdAt       DateTime
+  updatedAt       DateTime
+  sessions        Session[]
+  accounts        Account[]
 
   submissions            Deal[]          @relation("DealSubmitter")
   reviewedDeals          Deal[]          @relation("DealReviewer")
@@ -45,21 +47,21 @@ model User {
 // This is a coordination record, never an administrator bootstrap.
 // One retained row per account/outlet; revocation never deletes identity/history.
 model StallGrant {
-  id String @id @default(auto()) @map("_id") @db.ObjectId
-  userId String @db.ObjectId
-  venueId String @db.ObjectId
-  version Int @default(1)
+  id        String    @id @default(auto()) @map("_id") @db.ObjectId
+  userId    String    @db.ObjectId
+  venueId   String    @db.ObjectId
+  version   Int       @default(1)
   revokedAt DateTime?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
 
   @@unique([userId, venueId])
   @@index([venueId])
 }
 
 model PlatformAccessFence {
-  id String @id @map("_id")
-  version Int @default(0)
+  id      String @id @map("_id")
+  version Int    @default(0)
 }
 
 enum MerchantRequestStatus {
@@ -71,20 +73,20 @@ enum MerchantRequestStatus {
 // Re-submission creates a new record; prior decisions/messages remain history.
 // All submissions and decisions take PlatformAccessFence before checking pending.
 model MerchantAccessRequest {
-  id String @id @default(auto()) @map("_id") @db.ObjectId
-  userId String @db.ObjectId
-  venueId String @db.ObjectId
-  userName String
-  userEmail String
-  venueName String
+  id           String                @id @default(auto()) @map("_id") @db.ObjectId
+  userId       String                @db.ObjectId
+  venueId      String                @db.ObjectId
+  userName     String
+  userEmail    String
+  venueName    String
   merchantName String
-  message String
-  status MerchantRequestStatus @default(PENDING)
-  version Int @default(1)
-  reviewNote String?
-  reviewedById String? @db.ObjectId
-  reviewedAt DateTime?
-  createdAt DateTime @default(now())
+  message      String
+  status       MerchantRequestStatus @default(PENDING)
+  version      Int                   @default(1)
+  reviewNote   String?
+  reviewedById String?               @db.ObjectId
+  reviewedAt   DateTime?
+  createdAt    DateTime              @default(now())
 
   @@index([status, id])
   @@index([userId, venueId, status])
@@ -97,35 +99,120 @@ enum PlatformAuditAction {
   REQUEST_SUBMITTED
   REQUEST_APPROVED
   REQUEST_REJECTED
+  DEAL_UPDATED
+  DEAL_APPROVED
+  DEAL_REJECTED
+  DEAL_HIDDEN
+  DEAL_RESTORED
+  DEAL_ARCHIVED
+  DEAL_OUTLETS_CHANGED
+  DEAL_SCOPE_CONFIRMED
+  MERCHANT_CREATED
+  MERCHANT_UPDATED
+  MERCHANT_ARCHIVED
+  MERCHANT_RESTORED
+  VENUE_CREATED
+  VENUE_UPDATED
+  VENUE_ARCHIVED
+  VENUE_RESTORED
+  EVIDENCE_RECORDED
+  COMMENT_HIDDEN
+  COMMENT_RESTORED
+  DEAL_REPORT_RESOLVED
+  DEAL_REPORT_DISMISSED
+  COMMENT_REPORT_RESOLVED
+  COMMENT_REPORT_DISMISSED
+  INGESTION_RECOVERY_REQUESTED
+  INGESTION_RECOVERY_SUCCEEDED
+  INGESTION_RECOVERY_FAILED
+  INGESTION_RECOVERY_FINISHED
+  ACCOUNT_SUSPENDED
+  ACCOUNT_REINSTATED
+  SESSION_REVOKED
+  SESSIONS_REVOKED
+}
+
+enum AdminSubjectType {
+  USER
+  DEAL
+  MERCHANT
+  VENUE
+  COMMENT
+  DEAL_REPORT
+  COMMENT_REPORT
+  IMPORTED_POST
+  INGESTION_RECOVERY
 }
 
 // Append-only through the application. No edit/delete procedure is exposed.
 // Snapshot names and allowlisted facts, never auth Account/Session/secret payloads.
 model PlatformAudit {
-  id String @id @default(auto()) @map("_id") @db.ObjectId
-  actorId String @db.ObjectId
-  actorName String
-  action PlatformAuditAction
-  targetUserId String @db.ObjectId
-  venueId String? @db.ObjectId
-  note String
-  roleBefore UserRole?
-  roleAfter UserRole?
-  createdAt DateTime @default(now())
+  id           String              @id @default(auto()) @map("_id") @db.ObjectId
+  actorId      String              @db.ObjectId
+  actorName    String
+  action       PlatformAuditAction
+  targetUserId String?             @db.ObjectId
+  subjectType  AdminSubjectType?
+  subjectId    String?             @db.ObjectId
+  detailsJson  Json?
+  venueId      String?             @db.ObjectId
+  note         String
+  roleBefore   UserRole?
+  roleAfter    UserRole?
+  createdAt    DateTime            @default(now())
 
   @@index([targetUserId, id])
+  @@index([actorId, id])
+  @@index([action, id])
+  @@index([createdAt, id])
+  @@index([subjectType, subjectId, id])
+}
+
+enum AdminEvidenceKind {
+  GEOGRAPHY
+  OCCUPANCY
+  SCOPE
+}
+
+// Append-only facts. No update/delete API; evidence does not itself confer proof authority.
+model AdminEvidence {
+  id                String                  @id @default(auto()) @map("_id") @db.ObjectId
+  actorId           String                  @db.ObjectId
+  actorName         String
+  subjectType       AdminSubjectType
+  subjectId         String                  @db.ObjectId
+  kind              AdminEvidenceKind
+  contentVersion    Int?
+  catalogueVersion  Int?
+  subjectHash       String
+  provider          OutletEvidenceProvider?
+  basis             OutletScopeBasis?
+  reference         String
+  sourceUrl         String?
+  statement         String
+  citationId        String?                 @db.ObjectId
+  sourceContentHash String?
+  observedAt        DateTime?
+  recordedAt        DateTime                @default(now())
+
+  @@index([subjectType, subjectId, recordedAt])
+  @@index([actorId, recordedAt])
 }
 
 model Session {
-  id        String   @id @default(auto()) @map("_id") @db.ObjectId
-  expiresAt DateTime
-  token     String   @unique
-  createdAt DateTime
-  updatedAt DateTime
-  ipAddress String?
-  userAgent String?
-  userId    String   @db.ObjectId
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id          String    @id @default(auto()) @map("_id") @db.ObjectId
+  expiresAt   DateTime
+  token       String    @unique
+  createdAt   DateTime
+  updatedAt   DateTime
+  ipAddress   String?
+  userAgent   String?
+  userId      String    @db.ObjectId
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  authVersion Int?
+  loginAt     DateTime?
+
+  @@index([userId, id])
 }
 
 model Account {
@@ -161,77 +248,143 @@ model Verification {
 // Read docs/database-schema.md before adding product mutations.
 // MongoDB has no foreign keys/check constraints: validate cross-model invariants in the API.
 model Merchant {
-  id        String    @id @default(auto()) @map("_id") @db.ObjectId
-  name      String
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  deletedAt DateTime?
-  venues    Venue[]
-  deals     Deal[]
+  catalogueVersion Int?
+  id               String    @id @default(auto()) @map("_id") @db.ObjectId
+  name             String
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  deletedAt        DateTime?
+  venues           Venue[]
+  deals            Deal[]
 
   @@index([name])
 }
 
-model Venue {
-  id         String      @id @default(auto()) @map("_id") @db.ObjectId
-  merchantId String      @db.ObjectId
-  merchant   Merchant    @relation(fields: [merchantId], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  name       String
-  address    String
-  imageUrl   String?
-  area       String?
-  postalCode String?
-  latitude   Float
-  longitude  Float
-  createdAt  DateTime    @default(now())
-  updatedAt  DateTime    @updatedAt
-  deletedAt  DateTime?
-  deals      DealVenue[]
+enum OutletVerificationState {
+  UNVERIFIED
+  VERIFIED
+  LEGACY_RETAINED
+}
 
+enum OutletEvidenceProvider {
+  DATABASE_SNAPSHOT
+  ONEMAP
+  GOOGLE_PLACES
+  OFFICIAL_MERCHANT
+  OFFICIAL_PROPERTY
+  ADMIN
+}
+
+enum OutletGeographyPrecision {
+  UNKNOWN
+  PROPERTY
+  OUTLET
+}
+
+enum OutletScopeBasis {
+  UNCONFIRMED
+  SOURCE_SELECTED
+  SOURCE_ALL
+  SOURCE_NONSPATIAL
+  LEGACY_RETAINED
+}
+
+// No positive defaults: missing evidence is unknown, never inferred verification.
+type OutletVerificationEvidence {
+  state             OutletVerificationState
+  provider          OutletEvidenceProvider
+  reference         String
+  subjectHash       String
+  sourceUrl         String?
+  sourceContentHash String?
+  observedAt        DateTime?
+  verifiedAt        DateTime?
+}
+
+type OutletScopeConfirmation {
+  basis             OutletScopeBasis
+  contentVersion    Int
+  scopeHash         String
+  evidenceRef       String
+  retainedVenueIds  String[]         @db.ObjectId
+  sourceContentHash String?
+  sourceUrl         String?
+  confirmedAt       DateTime?
+  reasonCode        String?
+}
+
+model Venue {
+  catalogueVersion Int?
+  id               String      @id @default(auto()) @map("_id") @db.ObjectId
+  merchantId       String      @db.ObjectId
+  merchant         Merchant    @relation(fields: [merchantId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  name             String
+  address          String
+  imageUrl         String?
+  area             String?
+  postalCode       String?
+  latitude         Float
+  longitude        Float
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+  deletedAt        DateTime?
+  deals            DealVenue[]
+
+  catalogueKey       String?
+  geographyEvidence  OutletVerificationEvidence?
+  geographyPrecision OutletGeographyPrecision?
+  occupancyEvidence  OutletVerificationEvidence?
+
+  @@index([catalogueKey])
   @@index([merchantId, name])
   @@index([latitude, longitude])
   @@index([area])
 }
 
 model Deal {
-  id              String            @id @default(auto()) @map("_id") @db.ObjectId
-  title           String
-  description     String
-  category        String
-  offerType       OfferType
-  terms           String?
-  priceMinor      Int?
-  currency        String            @default("SGD")
-  discountPercent Int?
-  validFrom       DateTime?
+  operationVersion Int?
+  id               String            @id @default(auto()) @map("_id") @db.ObjectId
+  title            String
+  description      String
+  category         String
+  // Native upstream cuisine remains optional for existing records.
+  cuisine          String?
+  offerType        OfferType
+  terms            String?
+  priceMinor       Int?
+  currency         String            @default("SGD")
+  discountPercent  Int?
+  validFrom        DateTime?
   // Exclusive UTC end; preserve unknown/ambiguous terms rather than inventing dates.
-  validUntil      DateTime?
-  rawValidityText String?
-  applicability   DealApplicability
-  origin          DealOrigin        @default(USER_SUBMITTED)
-  reviewStatus    ReviewStatus      @default(PENDING)
+  validUntil       DateTime?
+  rawValidityText  String?
+  applicability    DealApplicability
+  origin           DealOrigin        @default(USER_SUBMITTED)
+  reviewStatus     ReviewStatus      @default(PENDING)
   // API edits must increment contentVersion and invalidate the old approval.
-  contentVersion  Int               @default(1)
-  reviewedVersion Int?
-  reviewNote      String?
-  reviewedAt      DateTime?
-  publishedAt     DateTime?
-  createdAt       DateTime          @default(now())
-  updatedAt       DateTime          @updatedAt
-  deletedAt       DateTime?
-  merchantId      String?           @db.ObjectId
-  merchant        Merchant?         @relation(fields: [merchantId], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  submittedById   String?           @db.ObjectId
-  submittedBy     User?             @relation("DealSubmitter", fields: [submittedById], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  reviewedById    String?           @db.ObjectId
-  reviewedBy      User?             @relation("DealReviewer", fields: [reviewedById], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  venues          DealVenue[]
-  votes           DealVote[]
-  comments        Comment[]
-  bookmarks       Bookmark[]
-  reports         DealReport[]
-  images          UploadedFile[]
-  sources         DealSource[]
+  contentVersion   Int               @default(1)
+  reviewedVersion  Int?
+  reviewNote       String?
+  reviewedAt       DateTime?
+  publishedAt      DateTime?
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  deletedAt        DateTime?
+  merchantId       String?           @db.ObjectId
+  merchant         Merchant?         @relation(fields: [merchantId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  submittedById    String?           @db.ObjectId
+  submittedBy      User?             @relation("DealSubmitter", fields: [submittedById], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  reviewedById     String?           @db.ObjectId
+  reviewedBy       User?             @relation("DealReviewer", fields: [reviewedById], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  venues           DealVenue[]
+  votes            DealVote[]
+  comments         Comment[]
+  bookmarks        Bookmark[]
+  reports          DealReport[]
+  images           UploadedFile[]
+  sources          DealSource[]
+
+  scopeConfirmation OutletScopeConfirmation?
 
   @@index([reviewStatus, deletedAt, publishedAt])
   @@index([reviewStatus, deletedAt, validUntil])
@@ -270,19 +423,21 @@ model DealVote {
 }
 
 model Comment {
-  id        String          @id @default(auto()) @map("_id") @db.ObjectId
-  dealId    String          @db.ObjectId
-  deal      Deal            @relation(fields: [dealId], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  authorId  String          @db.ObjectId
-  author    User            @relation(fields: [authorId], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  body      String
-  createdAt DateTime        @default(now())
-  updatedAt DateTime        @updatedAt
-  deletedAt DateTime?
-  hiddenAt  DateTime?
-  reports   CommentReport[]
+  moderationVersion Int?
+  id                String          @id @default(auto()) @map("_id") @db.ObjectId
+  dealId            String          @db.ObjectId
+  deal              Deal            @relation(fields: [dealId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  authorId          String          @db.ObjectId
+  author            User            @relation(fields: [authorId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  body              String
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+  deletedAt         DateTime?
+  hiddenAt          DateTime?
+  reports           CommentReport[]
 
   @@index([dealId, createdAt])
+  @@index([dealId, id(sort: Desc)])
   @@index([authorId, createdAt])
 }
 
@@ -300,20 +455,21 @@ model Bookmark {
 }
 
 model DealReport {
-  id           String       @id @default(auto()) @map("_id") @db.ObjectId
-  dealId       String       @db.ObjectId
-  deal         Deal         @relation(fields: [dealId], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  reporterId   String       @db.ObjectId
-  reporter     User         @relation("DealReporter", fields: [reporterId], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  reason       ReportReason
-  details      String?
-  status       ReportStatus @default(OPEN)
-  resolvedById String?      @db.ObjectId
-  resolvedBy   User?        @relation("DealReportResolver", fields: [resolvedById], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  resolution   String?
-  resolvedAt   DateTime?
-  createdAt    DateTime     @default(now())
-  updatedAt    DateTime     @updatedAt
+  moderationVersion Int?
+  id                String       @id @default(auto()) @map("_id") @db.ObjectId
+  dealId            String       @db.ObjectId
+  deal              Deal         @relation(fields: [dealId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  reporterId        String       @db.ObjectId
+  reporter          User         @relation("DealReporter", fields: [reporterId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  reason            ReportReason
+  details           String?
+  status            ReportStatus @default(OPEN)
+  resolvedById      String?      @db.ObjectId
+  resolvedBy        User?        @relation("DealReportResolver", fields: [resolvedById], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  resolution        String?
+  resolvedAt        DateTime?
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
 
   @@unique([reporterId, dealId])
   @@index([dealId, status])
@@ -322,20 +478,21 @@ model DealReport {
 }
 
 model CommentReport {
-  id           String       @id @default(auto()) @map("_id") @db.ObjectId
-  commentId    String       @db.ObjectId
-  comment      Comment      @relation(fields: [commentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  reporterId   String       @db.ObjectId
-  reporter     User         @relation("CommentReporter", fields: [reporterId], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  reason       ReportReason
-  details      String?
-  status       ReportStatus @default(OPEN)
-  resolvedById String?      @db.ObjectId
-  resolvedBy   User?        @relation("CommentReportResolver", fields: [resolvedById], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  resolution   String?
-  resolvedAt   DateTime?
-  createdAt    DateTime     @default(now())
-  updatedAt    DateTime     @updatedAt
+  moderationVersion Int?
+  id                String       @id @default(auto()) @map("_id") @db.ObjectId
+  commentId         String       @db.ObjectId
+  comment           Comment      @relation(fields: [commentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  reporterId        String       @db.ObjectId
+  reporter          User         @relation("CommentReporter", fields: [reporterId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  reason            ReportReason
+  details           String?
+  status            ReportStatus @default(OPEN)
+  resolvedById      String?      @db.ObjectId
+  resolvedBy        User?        @relation("CommentReportResolver", fields: [resolvedById], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  resolution        String?
+  resolvedAt        DateTime?
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
 
   @@unique([reporterId, commentId])
   @@index([commentId, status])
@@ -381,6 +538,11 @@ model ImportSource {
 }
 
 model ImportedPost {
+  latestSnapshot       Json?
+  latestSnapshotHash   String?
+  snapshotFormat       String?
+  failureStage         String?
+  lastRunId            String?      @db.ObjectId
   id                   String       @id @default(auto()) @map("_id") @db.ObjectId
   sourceId             String       @db.ObjectId
   source               ImportSource @relation(fields: [sourceId], references: [id], onDelete: NoAction, onUpdate: NoAction)
@@ -407,19 +569,112 @@ model ImportedPost {
 }
 
 model DealSource {
-  id                    String       @id @default(auto()) @map("_id") @db.ObjectId
-  dealId                String       @db.ObjectId
-  deal                  Deal         @relation(fields: [dealId], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  importedPostId        String       @db.ObjectId
-  importedPost          ImportedPost @relation(fields: [importedPostId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  id                    String            @id @default(auto()) @map("_id") @db.ObjectId
+  dealId                String            @db.ObjectId
+  deal                  Deal              @relation(fields: [dealId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  importedPostId        String            @db.ObjectId
+  importedPost          ImportedPost      @relation(fields: [importedPostId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   // Pin the source content used for this deal; refreshing ImportedPost must not rewrite it.
   sourceContentHash     String
   sourceContentSnapshot String
   sourceUrl             String
-  createdAt             DateTime     @default(now())
+  images                DealSourceImage[]
+  createdAt             DateTime          @default(now())
 
   @@unique([dealId, importedPostId])
   @@index([importedPostId])
+}
+
+// Server-imported media never fabricates a user-owned UploadThing file.
+// _id is the actual byte SHA-256. UNKNOWN uploads must reconcile, never resend.
+model ImportedImage {
+  id              String            @id @map("_id")
+  mimeType        String
+  sizeBytes       Int
+  status          String            @default("DOWNLOADED_ONLY")
+  storageKey      String?
+  hostedUrl       String?
+  uploadToken     String?
+  uploadExpiresAt DateTime?
+  errorCode       String?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  sources         DealSourceImage[]
+}
+
+// Immutable per-citation provenance, including URLs actually fetched.
+model DealSourceImage {
+  id           String        @id @default(auto()) @map("_id") @db.ObjectId
+  dealSourceId String        @db.ObjectId
+  dealSource   DealSource    @relation(fields: [dealSourceId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  imageId      String
+  image        ImportedImage @relation(fields: [imageId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  sourceUrl    String
+  // Historical links may predate redirect capture. New captures still supply finalUrl.
+  finalUrl     String?
+  altText      String?
+  createdAt    DateTime      @default(now())
+
+  @@unique([dealSourceId, imageId])
+  @@index([imageId])
+}
+
+// Deterministic promotion identity lives in Mongo's native unique _id index.
+// Its creation and the canonical deal/citation commit in one transaction.
+model PromotionIdentity {
+  id        String   @id @map("_id")
+  dealId    String   @db.ObjectId
+  createdAt DateTime @default(now())
+
+  @@index([dealId])
+}
+
+enum IngestionRecoveryMode {
+  REPROCESS_STORED
+  REFRESH_SOURCE_WINDOW
+}
+
+enum IngestionRecoveryStatus {
+  REQUESTED
+  RUNNING
+  SUCCEEDED
+  PARTIAL
+  FAILED
+  INTERRUPTED
+}
+
+enum IngestionRecoveryOutcome {
+  RECOVERED
+  UNCHANGED
+  NOT_OBSERVED
+  STILL_FAILED
+  UNKNOWN
+}
+
+// Explicit operator attempt. No source activation or broad run is implied.
+model IngestionRecovery {
+  id                  String                   @id @default(auto()) @map("_id") @db.ObjectId
+  actorId             String                   @db.ObjectId
+  actorName           String
+  postId              String                   @db.ObjectId
+  sourceId            String                   @db.ObjectId
+  mode                IngestionRecoveryMode
+  expectedUpdatedAt   DateTime
+  expectedContentHash String
+  note                String
+  status              IngestionRecoveryStatus  @default(REQUESTED)
+  targetOutcome       IngestionRecoveryOutcome
+  runId               String?                  @db.ObjectId
+  errorCode           String?
+  requestedAt         DateTime                 @default(now())
+  finishedAt          DateTime?
+  // Optional for historical attempts. Admission records the exact source owner;
+  // readers can project owner loss without repairing this durable operation.
+  ownerLeaseToken     String?
+
+  @@index([postId, requestedAt])
+  @@index([sourceId, requestedAt])
+  @@index([status, requestedAt])
 }
 
 model IngestionRun {

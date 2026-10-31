@@ -31,16 +31,34 @@ async function mountAt(path: string) {
 }
 
 describe('starter navigation', () => {
-  it('lands on the full-bleed browse map', async () => {
+  it('lands on the food discovery landing page', async () => {
     const { wrapper } = await mountAt('/')
 
-    expect(wrapper.find('.site-canvas').exists()).toBe(true)
-    expect(wrapper.find('[data-testid="browse-canvas"]').exists()).toBe(true)
-    expect(wrapper.get('[data-testid="panel-toggle"]').text()).toBe('Show list')
+    expect(wrapper.find('.landing-canvas').exists()).toBe(true)
+    expect(wrapper.get('h1').text()).toContain('Bang for')
+    expect(wrapper.find('a[href="/browse"]').exists()).toBe(true)
+  })
+
+  it('opens the full-bleed map shell at /browse', async () => {
+    const { wrapper } = await mountAt('/browse')
+
+    expect(wrapper.find('[data-testid="map-shell"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="primary-nav"]').exists()).toBe(false)
+    expect(wrapper.get('[data-testid="panel-toggle"]').attributes('aria-label')).toBe('Show list')
+  })
+
+  it('shows the splash screen only while the map loads, not on the landing page', async () => {
+    const landing = await mountAt('/')
+    expect(landing.wrapper.find('[data-testid="splash-screen"]').exists()).toBe(false)
+    landing.wrapper.unmount()
+
+    const map = await mountAt('/browse')
+    expect(map.wrapper.find('[data-testid="splash-screen"]').exists()).toBe(true)
+    map.wrapper.unmount()
   })
 
   it('navigates to the developer setup page from the header', async () => {
-    const { router, wrapper } = await mountAt('/')
+    const { router, wrapper } = await mountAt('/browse')
 
     await wrapper.get('[data-testid="nav-toggle"]').trigger('click')
     await wrapper.get('[data-testid="nav-menu"] a[href="/getting-started"]').trigger('click')

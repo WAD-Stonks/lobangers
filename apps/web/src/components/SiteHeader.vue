@@ -1,12 +1,15 @@
 <script setup lang="ts">
-import logoUrl from '@web/assets/logo.png'
+import logoUrl from '@web/assets/lobangers-logo.png'
 import AccountMenu from '@web/components/AccountMenu.vue'
 import { SITE_MENU_ID, SITE_NAV_LINKS } from '@web/components/site-nav-links'
 import { useSiteMenu } from '@web/components/use-site-menu'
-import { ref } from 'vue'
+import { authClient } from '@web/lib/auth-client'
+import { computed, ref } from 'vue'
 import { RouterLink } from 'vue-router'
 
 const root = ref<HTMLElement | null>(null)
+const session = authClient.useSession()
+const links = computed(() => SITE_NAV_LINKS.filter((link) => !link.roles || link.roles.includes(session.value.data?.user.role ?? '')))
 withDefaults(defineProps<{ embedded?: boolean }>(), { embedded: false })
 const toggleButton = ref<HTMLElement | null>(null)
 const panel = ref<HTMLElement | null>(null)
@@ -21,16 +24,9 @@ const { isOpen, close, toggle } = useSiteMenu({ root, toggle: toggleButton, pane
         <img :src="logoUrl" alt="Lobangers" class="site-logo" />
       </RouterLink>
 
-      <button
-        ref="toggleButton"
-        type="button"
-        class="site-toggle"
-        data-testid="nav-toggle"
-        :aria-controls="SITE_MENU_ID"
-        :aria-expanded="isOpen"
-        :aria-label="isOpen ? 'Close menu' : 'Open menu'"
-        @click="toggle"
-      >
+      <button ref="toggleButton" type="button" class="site-toggle" data-testid="nav-toggle"
+        :aria-controls="SITE_MENU_ID" :aria-expanded="isOpen" :aria-label="isOpen ? 'Close menu' : 'Open menu'"
+        @click="toggle">
         <span class="site-toggle__bar" aria-hidden="true" />
         <span class="site-toggle__bar" aria-hidden="true" />
         <span class="site-toggle__bar" aria-hidden="true" />
@@ -45,7 +41,7 @@ const { isOpen, close, toggle } = useSiteMenu({ root, toggle: toggleButton, pane
           data-testid="nav-menu"
         >
           <li
-            v-for="(link, index) in SITE_NAV_LINKS"
+            v-for="(link, index) in links"
             :key="link.to"
             class="site-menu__item"
             :style="{ '--i': index }"
@@ -56,7 +52,7 @@ const { isOpen, close, toggle } = useSiteMenu({ root, toggle: toggleButton, pane
           </li>
           <li
             class="site-menu__item site-menu__account"
-            :style="{ '--i': SITE_NAV_LINKS.length }"
+            :style="{ '--i': links.length }"
             data-testid="nav-account"
           >
             <AccountMenu />
@@ -299,9 +295,7 @@ const { isOpen, close, toggle } = useSiteMenu({ root, toggle: toggleButton, pane
 .site-logo {
   display: block;
   height: 2rem;
-  aspect-ratio: 5.6;
-  object-fit: cover;
-  object-position: center 48%;
+  width: auto;
 }
 
 /* Administration uses ordinary page chrome; the browse canvas keeps its floating card. */

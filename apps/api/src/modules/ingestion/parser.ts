@@ -1,3 +1,4 @@
+import { classifyDealCategory } from '@broke-oclock/contracts/deal-categories'
 import { z } from 'zod'
 
 export const moneyDigestPostSchema = z.object({
@@ -558,6 +559,15 @@ const secondItemQualification = (tokens: Token[]) => {
 
 export const parseMoneyDigestPost = (input: unknown) => {
   const post = moneyDigestPostSchema.parse(input)
+  return { ...parsePostContent(post), post }
+}
+
+// Provider identities are validated separately; the exact same conservative offer
+// grammar consumes every provider's bounded title/body/excerpt, without fake URLs.
+export const parsePostContent = (input: unknown) => {
+  const post = moneyDigestPostSchema
+    .pick({ title: true, content: true, excerpt: true })
+    .parse(input)
   const fullTitle = plainText(post.title.rendered)
   const title = fullTitle.slice(0, 200)
   const text = plainText(post.content.rendered)
@@ -655,7 +665,7 @@ export const parseMoneyDigestPost = (input: unknown) => {
     draft: {
       title,
       description: text.slice(0, 2000),
-      category: 'FOOD',
+      category: classifyDealCategory(fullTitle, text),
       offerType,
       priceMinor: offerType === 'FIXED_PRICE' ? priceMinor : null,
       discountPercent: offerType === 'PERCENT_OFF' ? discountPercent : null,

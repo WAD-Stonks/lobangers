@@ -1,0 +1,21 @@
+/* SPIKE: ambient map decoration. Never takes pointer input; sits under the deal pins. */
+.ambient-pane {
+  pointer-events: none;
+  transition: opacity 400ms ease;
+}
+
+.ambient-pane.is-hidden {
+  visibility: hidden;
+}
+
+.ambient-pane.is-hidden {
+  opacity: 0;
+}
+
+.ambient-sprite {
+  position: absolute;
+  top: 0;
+  left: 0;
+  background-repeat: no-repeat;
+  will-change: transform;
+}

@@ -1,26 +1,38 @@
 <script setup lang="ts">
 import { AppShell, BApp } from '@broke-oclock/ui'
+import { adminNavigation } from '@web/components/admin/admin-navigation'
 import SiteHeader from '@web/components/SiteHeader.vue'
+import SplashScreen from '@web/components/SplashScreen.vue'
 import { routeLayout } from '@web/router/layouts'
 import { computed } from 'vue'
 import { RouterView, useRoute } from 'vue-router'
 
 const route = useRoute()
 const layout = computed(() => routeLayout(route))
-const administration = computed(() => route.path === '/admin' || route.path.startsWith('/admin/'))
+// Only matched admin destinations own an AdminShell; unknown URLs use the public fallback.
+const administration = computed(() =>
+  route.matched.some((record) => adminNavigation.some(({ href }) => record.path === href)),
+)
 </script>
 
 <template>
   <BApp>
-    <div
-      class="min-vh-100 bg-light-subtle text-body site-layout"
-      :class="{ 'site-layout--shell': layout === 'shell' && !administration, 'site-layout--admin': administration }"
-    >
-      <SiteHeader :embedded="administration" />
-      <main v-if="layout === 'canvas'" class="site-canvas">
-        <RouterView />
-      </main>
-      <AppShell v-else>
+    <!-- The map shell owns the whole viewport and brings its own header and landmarks. The splash
+         covers the map while it loads; other pages, the landing page included, open without it. -->
+    <template v-if="layout === 'canvas'">
+      <SplashScreen />
+      <RouterView />
+    </template>
+    <!-- The landing page brings its own navbar. -->
+    <main v-else-if="layout === 'landing'" class="landing-canvas">
+      <RouterView />
+    </main>
+    <div v-else-if="administration" class="admin-layout">
+      <RouterView />
+    </div>
+    <div v-else class="min-vh-100 bg-light-subtle text-body site-layout site-layout--shell">
+      <SiteHeader />
+      <AppShell>
         <RouterView />
       </AppShell>
     </div>
@@ -30,16 +42,5 @@ const administration = computed(() => route.path === '/admin' || route.path.star
 <style scoped>
 .site-layout--shell {
   padding-top: var(--site-header-clearance);
-}
-
-/* Full-bleed canvas: the page owns the viewport and the fixed header floats over it. */
-.site-canvas {
-  height: 100vh;
-}
-
-@supports (height: 100dvh) {
-  .site-canvas {
-    height: 100dvh;
-  }
 }
 </style>

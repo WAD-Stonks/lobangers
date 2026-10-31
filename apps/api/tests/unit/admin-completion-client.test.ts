@@ -64,6 +64,17 @@ describe('admin completion Axios methods, synthetic transport only', () => {
     http.patch.mockResolvedValue({ data: association })
     const body = { expectedContentVersion: 1, venueId: id }
     expect(await method(client.ingestion, 'associateDraftOutlet')(id, body)).toEqual(association)
+    expect(http.patch).toHaveBeenCalledExactlyOnceWith(`/ingestion/drafts/${id}/outlet`, {
+      ...body,
+      expectedOperationVersion: 0,
+    })
+    expect(http.get).not.toHaveBeenCalled()
+  })
+  it('preserves an explicit operation version without fetching or substituting current state', async () => {
+    const { http, client } = fixture()
+    http.patch.mockResolvedValue({ data: association })
+    const body = { expectedContentVersion: 1, expectedOperationVersion: 7, venueId: id }
+    expect(await method(client.ingestion, 'associateDraftOutlet')(id, body)).toEqual(association)
     expect(http.patch).toHaveBeenCalledExactlyOnceWith(`/ingestion/drafts/${id}/outlet`, body)
     expect(http.get).not.toHaveBeenCalled()
   })

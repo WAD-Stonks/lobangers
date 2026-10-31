@@ -1,4 +1,8 @@
-import { MONEYDIGEST_SOURCE, sourceWhere } from '@api/modules/ingestion/source'
+import {
+  operationalSourceScope,
+  readIngestionReadiness,
+} from '@api/modules/ingestion/operational-policy'
+import { importedDealScope } from '@api/modules/ingestion/review-policy'
 import { createRestHandler, type RestDependencies, requireAdmin } from '@api/rest/context'
 import { parseRestInput } from '@api/rest/validation'
 import {
@@ -11,38 +15,21 @@ export const getIngestionDashboard = (dependencies: RestDependencies): RequestHa
   createRestHandler(dependencies, async (request, response, context) => {
     await requireAdmin(context)
     parseRestInput(ingestionDashboardQuerySchema, request.query)
-    const source = await context.db.importSource.findUnique({
-      where: sourceWhere,
-      select: { id: true, enabled: true },
-    })
-    const scope = {
-      origin: 'IMPORTED' as const,
-      OR: [{ deletedAt: null }, { deletedAt: { isSet: false } }],
-      sources: {
-        some: {
-          importedPost: {
-            source: {
-              provider: MONEYDIGEST_SOURCE.provider,
-              externalId: MONEYDIGEST_SOURCE.externalId,
-            },
-          },
-        },
-      },
-    }
+    const readiness = await readIngestionReadiness(context.db, context.ingestion)
     const [pending, approved, rejected, failed] = await Promise.all([
-      context.db.deal.count({ where: { ...scope, reviewStatus: 'PENDING' } }),
-      context.db.deal.count({ where: { ...scope, reviewStatus: 'APPROVED' } }),
-      context.db.deal.count({ where: { ...scope, reviewStatus: 'REJECTED' } }),
-      source
-        ? context.db.importedPost.count({ where: { sourceId: source.id, status: 'FAILED' } })
-        : 0,
+      context.db.deal.count({ where: { ...importedDealScope, reviewStatus: 'PENDING' } }),
+      context.db.deal.count({ where: { ...importedDealScope, reviewStatus: 'APPROVED' } }),
+      context.db.deal.count({ where: { ...importedDealScope, reviewStatus: 'REJECTED' } }),
+      context.db.importedPost.count({
+        where: { status: 'FAILED', source: operationalSourceScope },
+      }),
     ])
     response.json(
       ingestionDashboardResponseSchema.parse({
         source: {
-          name: MONEYDIGEST_SOURCE.name,
-          enabled: Boolean(context.ingestion?.enabled && source?.enabled),
-          reuseApproved: context.ingestion?.reuseApproved ?? false,
+          name: readiness.name,
+          enabled: readiness.importAllowed,
+          reuseApproved: readiness.reuseAttested,
           onemapConfigured: Boolean(context.ingestion?.searchLocations),
         },
         counts: { pending, approved, rejected, failed },

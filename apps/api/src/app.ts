@@ -1,7 +1,9 @@
 import { createAuth } from '@api/auth'
 import type { AppConfig } from '@api/config'
 import { apiErrorMiddleware } from '@api/errors'
+import { type AssistantRuntime, createAssistantRuntime } from '@api/modules/assistant/runtime'
 import { createIngestionRuntime, type IngestionRuntime } from '@api/modules/ingestion/runtime'
+import { createAdminOptionsRouter } from '@api/rest/admin-options'
 import { requireJsonRequestBody } from '@api/rest/body'
 import { methodNotAllowed } from '@api/rest/policy'
 import { requireBoundedRestQuery } from '@api/rest/query'
@@ -15,7 +17,7 @@ import helmet from 'helmet'
 
 export const createApp = (
   config: AppConfig,
-  options: { ingestion?: IngestionRuntime } = {},
+  options: { ingestion?: IngestionRuntime; assistant?: AssistantRuntime } = {},
 ): Express => {
   const auth = createAuth(config)
   const app = express()
@@ -29,8 +31,12 @@ export const createApp = (
   })
   // These same-origin resources reject unsupported methods before global CORS preflight.
   // Preserve preflight behavior on the existing native SDK and REST routes.
-  app.options(['/api/auth-methods', '/api/admin/overview'], methodNotAllowed('GET'))
+  app.options(
+    ['/api/auth-methods', '/api/admin/overview', '/api/admin/analytics/users'],
+    methodNotAllowed('GET'),
+  )
   app.options('/api/ingestion/drafts/:dealId/outlet', methodNotAllowed('PATCH'))
+  app.use(createAdminOptionsRouter())
   app.use(
     cors({
       origin: config.webOrigin,
@@ -57,6 +63,7 @@ export const createApp = (
       config,
       auth,
       ingestion: options.ingestion ?? createIngestionRuntime(config),
+      assistant: options.assistant ?? createAssistantRuntime(config),
     }),
   )
 

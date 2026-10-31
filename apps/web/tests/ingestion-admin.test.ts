@@ -16,6 +16,7 @@ const rest = vi.hoisted(() => ({
   run: vi.fn(),
   queue: vi.fn(),
   review: vi.fn(),
+  category: vi.fn(),
   locations: vi.fn(),
   accounts: vi.fn(),
 }))
@@ -37,6 +38,7 @@ vi.mock('@web/lib/api-client', () => ({
       run: rest.run,
       drafts: rest.queue,
       reviewDraft: rest.review,
+      setDraftCategory: rest.category,
       searchLocations: rest.locations,
       accounts: rest.accounts,
     },
@@ -72,6 +74,7 @@ beforeEach(() => {
         email: 'admin@example.test',
         role: 'USER',
       },
+      session: { id: 'synthetic-session', userId: 'synthetic-admin' },
     },
     error: null,
   })
@@ -231,6 +234,47 @@ const draft: IngestionDraft = {
   reviewReady: true,
 }
 
+it('saves a corrected category at the current version and locks the stale draft until reload', async () => {
+  rest.queue.mockResolvedValue({ items: [draft], nextCursor: null })
+  rest.category.mockResolvedValue({
+    id: draft.id,
+    contentVersion: 8,
+    reviewStatus: 'PENDING',
+    category: 'DRINKS',
+  })
+  const wrapper = mount(IngestionAdminPage)
+  await flushPromises()
+  await wrapper.get('[data-testid="view-draft-1"]').trigger('click')
+  const select = wrapper.get<HTMLSelectElement>('#draft-category')
+  expect(select.element.value).toBe('FOOD')
+  expect(wrapper.get('[data-testid="save-category"]').attributes('disabled')).toBeDefined()
+  await select.setValue('DRINKS')
+  expect(wrapper.get('[data-testid="save-category"]').attributes('disabled')).toBeUndefined()
+  await wrapper.get('[data-testid="category-form"]').trigger('submit')
+  await flushPromises()
+  expect(rest.category).toHaveBeenCalledWith('draft-1', {
+    expectedContentVersion: 7,
+    expectedOperationVersion: 0,
+    category: 'DRINKS',
+  })
+  expect(wrapper.text()).toContain('Category updated')
+  expect(wrapper.get('[data-testid="approve-draft"]').attributes('disabled')).toBeDefined()
+  expect(wrapper.find('[data-testid="reload-draft"]').exists()).toBe(true)
+})
+
+it('reports a failed category update without leaving the draft reviewable', async () => {
+  rest.queue.mockResolvedValue({ items: [draft], nextCursor: null })
+  rest.category.mockRejectedValue(new ApiClientError('CONFLICT', 409, 'Draft changed'))
+  const wrapper = mount(IngestionAdminPage)
+  await flushPromises()
+  await wrapper.get('[data-testid="view-draft-1"]').trigger('click')
+  await wrapper.get('#draft-category').setValue('BAKERY')
+  await wrapper.get('[data-testid="category-form"]').trigger('submit')
+  await flushPromises()
+  expect(wrapper.text()).toContain('Unable to update the category')
+  expect(wrapper.get('[data-testid="approve-draft"]').attributes('disabled')).toBeDefined()
+})
+
 it('renders escaped attributed draft details and rejects with a required note and current version', async () => {
   rest.queue.mockResolvedValueOnce({ items: [draft], nextCursor: null })
   rest.review.mockResolvedValue({ id: draft.id, reviewStatus: 'REJECTED' })
@@ -249,6 +293,7 @@ it('renders escaped attributed draft details and rejects with a required note an
   await flushPromises()
   expect(rest.review).toHaveBeenCalledWith(draft.id, {
     expectedContentVersion: 7,
+    expectedOperationVersion: 0,
     decision: 'REJECT',
     note: 'Not enough confirmed validity information',
   })
@@ -351,6 +396,7 @@ it('approves known validity once and displays a stale-content conflict with a re
   expect(rest.review).toHaveBeenCalledTimes(2)
   expect(rest.review).toHaveBeenLastCalledWith(draft.id, {
     expectedContentVersion: 8,
+    expectedOperationVersion: 0,
     decision: 'APPROVE',
     note: 'Verified dated source',
   })
@@ -426,6 +472,7 @@ it('preserves a selected stale draft conflict through pagination until an explic
   expect(rest.review).toHaveBeenCalledTimes(2)
   expect(rest.review).toHaveBeenLastCalledWith(draft.id, {
     expectedContentVersion: 8,
+    expectedOperationVersion: 0,
     decision: 'APPROVE',
     note: 'Review of current version eight',
   })
@@ -524,6 +571,7 @@ it.each(['draft-1', 'replacement-draft'])(
     expect(rest.review).toHaveBeenCalledTimes(2)
     expect(rest.review).toHaveBeenLastCalledWith(currentId, {
       expectedContentVersion: 8,
+      expectedOperationVersion: 0,
       decision: 'APPROVE',
       note: 'Review of current source revision',
     })
@@ -595,6 +643,7 @@ it('requires deliberate selection of a different-ID source replacement returned 
   expect(rest.review).toHaveBeenCalledTimes(2)
   expect(rest.review).toHaveBeenLastCalledWith(replacement.id, {
     expectedContentVersion: 8,
+    expectedOperationVersion: 0,
     decision: 'APPROVE',
     note: 'Reviewed replacement evidence',
   })

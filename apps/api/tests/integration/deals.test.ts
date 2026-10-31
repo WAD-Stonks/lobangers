@@ -3,6 +3,11 @@ import { randomUUID } from 'node:crypto'
 import { createServer, type Server } from 'node:http'
 import { fileURLToPath } from 'node:url'
 import { promisify } from 'node:util'
+import {
+  registerSyntheticOutletFixtureDatabase,
+  seedSyntheticOutletProof,
+  seedSyntheticScope,
+} from '@api/../tests/fixtures/outlet-proof'
 import { parseConfig } from '@api/config'
 import type { DealsResponse } from '@broke-oclock/contracts/deals'
 import axios from 'axios'
@@ -30,6 +35,7 @@ beforeAll(async () => {
     timeout: 60_000,
   })
   db = (await import('@broke-oclock/db')).db
+  registerSyntheticOutletFixtureDatabase(db, databaseUrl)
   const { createApp } = await import('@api/app')
   server = createServer()
   await new Promise<void>((resolve) => server?.listen(0, '127.0.0.1', resolve))
@@ -92,6 +98,10 @@ beforeAll(async () => {
   await db.dealVenue.create({
     data: { dealId: expired.id, venueId: venue.id },
   })
+  // Explicit reviewed physical positives; preserve genuine user open-ended validity.
+  await seedSyntheticOutletProof(db, venue.id)
+  await seedSyntheticScope(db, visible.id, 'SOURCE_ALL')
+  await seedSyntheticScope(db, expired.id, 'SOURCE_SELECTED')
   await db.deal.create({
     data: {
       title: 'Pending teh',
@@ -144,7 +154,7 @@ describe('GET /api/deals', () => {
     expect(kopi?.priceMinor).toBe(100)
     expect(kopi?.terms).toBeNull()
     expect(kopi?.validUntil).toBeNull()
-    expect(kopi?.votes).toEqual({ alive: 1, dead: 0 })
+    expect(kopi?.votes).toEqual({ alive: 1, dead: 0, status: 'UNCERTAIN' })
     expect(kopi?.commentCount).toBe(1)
   })
 
@@ -157,8 +167,69 @@ describe('GET /api/deals', () => {
 
   it('rejects unknown query keys and other methods', async () => {
     expect((await client().get('/api/deals', { params: { bogus: 1 } })).status).toBe(400)
-    const post = await client().post('/api/deals')
-    expect(post.status).toBe(405)
-    expect(post.headers.allow).toBe('GET')
+    // POST is community submission (merchant-deals.test.ts); everything else is refused.
+    const remove = await client().delete('/api/deals')
+    expect(remove.status).toBe(405)
+    expect(remove.headers.allow).toBe('GET, POST')
+  })
+
+  it('derives verification from distinct recent voters, the ratio, approval and expiry', async () => {
+    const merchant = await db.merchant.findFirstOrThrow()
+    const deal = await db.deal.create({
+      data: {
+        title: 'Synthetic freshness fixture',
+        description: 'Test only',
+        category: 'FOOD',
+        offerType: 'OTHER',
+        applicability: 'ALL_MERCHANT_OUTLETS',
+        merchantId: merchant.id,
+        reviewStatus: 'APPROVED',
+        reviewedVersion: 1,
+        publishedAt: new Date(Date.now() - 2 * DAY_MS),
+      },
+    })
+    await seedSyntheticScope(db, deal.id, 'SOURCE_ALL')
+    const users = []
+    try {
+      for (let index = 0; index < 5; index++) {
+        const user = await db.user.create({
+          data: {
+            name: 'Synthetic voter',
+            email: `${randomUUID()}@example.test`,
+            emailVerified: true,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          },
+        })
+        users.push(user)
+        await db.dealVote.create({
+          data: { dealId: deal.id, userId: user.id, value: index === 3 ? 'DEAD' : 'ALIVE' },
+        })
+      }
+      const read = async () =>
+        (
+          await client().get<DealsResponse>('/api/deals', { params: { validNow: 'false' } })
+        ).data.items.find((item) => item.id === deal.id)?.votes
+      expect(await read()).toEqual({ alive: 4, dead: 1, status: 'LIKELY_STILL_ON' })
+      await db.dealVote.updateMany({
+        where: { dealId: deal.id, userId: users[4]?.id },
+        data: { updatedAt: new Date(Date.now() - 25 * 3600000) },
+      })
+      expect(await read()).toEqual({ alive: 3, dead: 1, status: 'UNCERTAIN' })
+      await db.deal.update({
+        where: { id: deal.id },
+        data: { reviewedAt: new Date(Date.now() + 1000) },
+      })
+      expect(await read()).toEqual({ alive: 0, dead: 0, status: 'NO_RECENT_REPORTS' })
+      await db.deal.update({
+        where: { id: deal.id },
+        data: { validUntil: new Date(Date.now() - 1000) },
+      })
+      expect((await read())?.status).toBe('EXPIRED')
+    } finally {
+      await db.dealVote.deleteMany({ where: { dealId: deal.id } })
+      await db.deal.delete({ where: { id: deal.id } })
+      await db.user.deleteMany({ where: { id: { in: users.map((user) => user.id) } } })
+    }
   })
 })
