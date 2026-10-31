@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { DealPin } from '@broke-oclock/contracts/deals'
 import { areaFor } from '@web/modules/browse-map/cluster-area'
+import { OUTLET_NOT_CONFIRMED } from '@web/modules/browse-map/deal-format'
 import { regions } from '@web/modules/landing/deals'
 import HeroWaterfront from '@web/modules/landing/HeroWaterfront.vue'
 import IllustratedMap from '@web/modules/landing/IllustratedMap.vue'
@@ -222,6 +223,7 @@ onBeforeUnmount(() => {
                 </div>
               </Transition>
           <span v-if="isLikelyStillOn(featured.deal)" class="landing-verification-badge">✓ Likely still on</span>
+          <span v-if="featured.deal.outletUnconfirmed" class="landing-outlet-unsure" data-testid="outlet-unconfirmed">{{ OUTLET_NOT_CONFIRMED }}</span>
           <p class="hero-promotion-period" :title="promotionDates(featured.deal)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="3" /><path d="M7 3v4m10-4v4M3 11h18" /></svg><span>{{ promotionDates(featured.deal) }}</span></p>
             </div>
           </div>

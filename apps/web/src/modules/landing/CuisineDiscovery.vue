@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { DealPin } from '@broke-oclock/contracts/deals'
+import { OUTLET_NOT_CONFIRMED } from '@web/modules/browse-map/deal-format'
 import { regions } from '@web/modules/landing/deals'
 import { isLikelyStillOn, landingDealLink, promotionDates, venuesInRegion } from '@web/modules/landing/live-deals'
 import type { LandingDealsStatus } from '@web/modules/landing/use-landing-deals'
@@ -125,6 +126,7 @@ onBeforeUnmount(() => {
             <h3 :id="`landing-restaurant-${deal.id}`" class="landing-restaurant-name" :title="cardVenue(deal)?.name"><RouterLink v-if="cardVenue(deal)" class="landing-venue-link" :to="`/venues/${cardVenue(deal)?.id}`">{{ cardVenue(deal)?.name }}</RouterLink><template v-else>Restaurant details unavailable</template></h3>
             </div>
             <div class="landing-outlet-summary">
+              <span v-if="deal.outletUnconfirmed" class="landing-outlet-unsure" data-testid="outlet-unconfirmed">{{ OUTLET_NOT_CONFIRMED }}</span>
               <button v-if="deal.venues.length > 1" type="button" class="landing-outlet-button" :aria-label="`View all ${deal.venues.length} outlets for ${deal.title}`" @click="openOutlets(deal)">+{{ deal.venues.length - 1 }} more {{ deal.venues.length === 2 ? 'outlet' : 'outlets' }}</button>
               <span v-else-if="!deal.venues.length" class="landing-outlet-count">{{ deal.venues.length === 0 ? 'No outlets listed' : '' }}</span>
             </div>
