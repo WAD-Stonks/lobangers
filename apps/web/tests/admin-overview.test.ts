@@ -100,6 +100,50 @@ it('shows sign-in on confirmed absent native identity without a protected read',
   expect(rest.overview).not.toHaveBeenCalled()
   w.unmount()
 })
+it('refreshes through a fresh identity check, disables duplicate refresh and replaces the snapshot', async () => {
+  const w = await open()
+  let release!: (value: typeof overview) => void
+  rest.overview.mockImplementationOnce(() => new Promise((resolve) => { release = resolve }))
+  const previousSessionReads = rest.session.mock.calls.length
+  await w.get('[data-testid="overview-refresh"]').trigger('click')
+  await flushPromises()
+  expect(rest.session.mock.calls.length).toBeGreaterThan(previousSessionReads)
+  expect(w.get('[data-testid="overview-refresh"]').attributes('disabled')).toBeDefined()
+  expect(w.find('.overview-summary').exists()).toBe(false)
+  release({ ...overview, generatedAt: '2026-10-31T04:30:00Z', counts: { ...overview.counts, pendingMerchantRequests: 9 } })
+  await flushPromises()
+  expect(rest.overview).toHaveBeenCalledTimes(2)
+  expect(w.get('[data-testid="overview-refresh"]').attributes('disabled')).toBeUndefined()
+  expect(w.get('.overview-toolbar time').attributes('datetime')).toBe('2026-10-31T04:30:00Z')
+  expect(w.get('.overview-summary a').text()).toContain('9')
+  w.unmount()
+})
+it('clears protected overview data when refresh discovers that admin access was removed', async () => {
+  const w = await open()
+  rest.overview.mockRejectedValueOnce(new ApiClientError('FORBIDDEN', 403, 'Forbidden'))
+  await w.get('[data-testid="overview-refresh"]').trigger('click')
+  await flushPromises()
+  expect(w.text()).toContain('You do not have permission')
+  expect(w.find('.overview-summary').exists()).toBe(false)
+  expect(w.find('[data-testid="overview-refresh"]').exists()).toBe(false)
+  w.unmount()
+})
+it('renders run results, unfinished timestamps and escaped error details in the recent-imports table', async () => {
+  const run = { id: 'synthetic-run', sourceName: 'Synthetic source', status: 'FAILED', startedAt: '2026-10-31T04:30:00Z', finishedAt: null, fetchedCount: 10, createdCount: 3, updatedCount: 2, failedCount: 5, errorCode: '<script>private()</script>' }
+  rest.overview.mockResolvedValueOnce({ ...overview, recentRuns: [run] })
+  const w = await open()
+  const row = w.get('.overview-runs-table tbody tr')
+  expect(row.text()).toContain('Synthetic source')
+  expect(row.text()).toContain('Not finished')
+  expect(row.text()).toContain('Fetched 10')
+  expect(row.text()).toContain('Created 3 · Updated 2')
+  expect(row.text()).toContain('Failed posts 5')
+  expect(row.get('time').attributes('datetime')).toBe(run.startedAt)
+  expect(row.get('.overview-status').attributes('data-tone')).toBe('danger')
+  expect(row.text()).toContain(run.errorCode)
+  expect(row.find('script').exists()).toBe(false)
+  w.unmount()
+})
 it('keeps failed logout closed and fences an old overview read', async () => {
   let release!: (value: typeof overview) => void
   rest.overview.mockImplementationOnce(
