@@ -3,7 +3,7 @@ import { walkMinutesFor } from '@web/modules/browse-map/apply-filters'
 import { categoryStyle } from '@web/modules/browse-map/category-style'
 import DealPhoto from '@web/modules/browse-map/DealPhoto.vue'
 import { clampPhotoRatio } from '@web/modules/browse-map/deal-columns'
-import { formatEnding, formatMoreOutlets, priceText } from '@web/modules/browse-map/deal-format'
+import { formatEnding, formatMoreOutlets, OUTLET_NOT_CONFIRMED, priceText } from '@web/modules/browse-map/deal-format'
 import FreshnessTag from '@web/modules/browse-map/FreshnessTag.vue'
 import type { DealRow } from '@web/modules/browse-map/types'
 import { computed, ref } from 'vue'
@@ -49,6 +49,7 @@ const moreOutlets = computed(() => formatMoreOutlets(props.row.outletCount))
     <span class="deal-cards__body">
       <strong class="deal-cards__title">{{ props.row.deal.title }}</strong>
       <span class="lb-meta lb-text-wrap">{{ props.row.venue.name }}</span>
+      <span v-if="props.row.deal.outletUnconfirmed" class="deal-cards__unsure" data-testid="outlet-unconfirmed">{{ OUTLET_NOT_CONFIRMED }}</span>
       <span v-if="moreOutlets" class="deal-cards__outlets" data-testid="more-outlets">{{ moreOutlets }}</span>
     </span>
     <span class="deal-cards__perf" aria-hidden="true" />
@@ -131,6 +132,11 @@ const moreOutlets = computed(() => formatMoreOutlets(props.row.outletCount))
 .deal-cards__title {
   font-size: 0.9375rem;
   overflow-wrap: anywhere;
+}
+
+.deal-cards__unsure {
+  font-size: var(--text-xs);
+  color: var(--ink-muted);
 }
 
 .deal-cards__outlets {
