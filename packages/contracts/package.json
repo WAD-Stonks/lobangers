@@ -5,6 +5,7 @@
   "type": "module",
   "exports": {
     "./api": "./src/api.ts",
+    "./assistant": "./src/assistant.ts",
     "./ingestion": "./src/ingestion.ts",
     "./ingestion-sources": "./src/ingestion-sources.ts",
     "./admin-common": "./src/admin-common.ts",

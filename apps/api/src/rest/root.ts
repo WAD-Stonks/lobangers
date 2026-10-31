@@ -3,6 +3,7 @@ import { createAccountRouter } from '@api/rest/routers/account'
 import { createAdminCatalogueRouter } from '@api/rest/routers/admin-catalogue'
 import { createAdminDealsRouter } from '@api/rest/routers/admin-deals'
 import { createAdminModerationRouter } from '@api/rest/routers/admin-moderation'
+import { createAssistantRouter } from '@api/rest/routers/assistant'
 import { createCommunityRouter } from '@api/rest/routers/community'
 import { createDealsRouter } from '@api/rest/routers/deals'
 import { createInfrastructureRouter } from '@api/rest/routers/infrastructure'
@@ -27,6 +28,7 @@ export const createRestRouter = (dependencies: RestDependencies): Router => {
   router.use('/admin/catalogue', createAdminCatalogueRouter(dependencies))
   router.use(createAdminModerationRouter(dependencies))
   router.use('/deals', createDealsRouter(dependencies))
+  router.use('/assistant', createAssistantRouter(dependencies))
   router.use('/merchant', createMerchantRouter(dependencies))
   router.use('/venues', createVenuesRouter(dependencies))
   return router

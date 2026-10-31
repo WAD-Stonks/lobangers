@@ -8,10 +8,14 @@ import { ref } from 'vue'
 
 // Floating header: menu button and search on the first row, quick chips underneath. On
 // desktop it sits in the panel column; below 992px it spans the screen.
-const props = defineProps<{ filters: BrowseFilters; sheetOpen: boolean }>()
+const props = withDefaults(
+  defineProps<{ filters: BrowseFilters; sheetOpen: boolean; lobbieOpen?: boolean }>(),
+  { lobbieOpen: false },
+)
 const emit = defineEmits<{
   apply: [filters: BrowseFilters, mode: 'push' | 'replace']
   openSheet: []
+  askLobbie: []
 }>()
 
 const chips = ref<InstanceType<typeof QuickChips> | null>(null)
@@ -32,8 +36,10 @@ defineExpose({ focusAllFilters: () => chips.value?.focusAllFilters() })
       class="shell-header__chips"
       :filters="filters"
       :sheet-open="sheetOpen"
+      :lobbie-open="lobbieOpen"
       @apply="(next) => emit('apply', next, 'push')"
       @open-sheet="emit('openSheet')"
+      @ask-lobbie="emit('askLobbie')"
     />
   </header>
 </template>

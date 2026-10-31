@@ -3,10 +3,12 @@ import '@web/modules/map-shell/shell-ui.css'
 import '@web/modules/map-shell/motion.css'
 import { authClient } from '@web/lib/auth-client'
 import DealMap from '@web/modules/browse-map/DealMap.vue'
-import type { BrowseFilters } from '@web/modules/browse-map/filters'
+import { type BrowseFilters, createDefaultFilters } from '@web/modules/browse-map/filters'
 import { FOCUS_ZOOM, LOCATE_ZOOM } from '@web/modules/browse-map/map-config'
 import type { Coordinates, SelectedDeal } from '@web/modules/browse-map/types'
+import { provideLobbieChat } from '@web/modules/lobbie/use-lobbie-chat'
 import FilterSheet from '@web/modules/map-shell/FilterSheet.vue'
+import { withFilters } from '@web/modules/map-shell/filter-query'
 import HotCard from '@web/modules/map-shell/HotCard.vue'
 import MapControls from '@web/modules/map-shell/MapControls.vue'
 import { type NavDirection, navDirection } from '@web/modules/map-shell/nav-direction'
@@ -15,7 +17,13 @@ import ShellHeader from '@web/modules/map-shell/ShellHeader.vue'
 import ShellIcon from '@web/modules/map-shell/ShellIcon.vue'
 import ShellPanel from '@web/modules/map-shell/ShellPanel.vue'
 import ShellToast from '@web/modules/map-shell/ShellToast.vue'
-import { dealLocation, panelSnapFor, venueLocation } from '@web/modules/map-shell/shell-routes'
+import {
+  browseLocation,
+  dealLocation,
+  panelSnapFor,
+  shellQuery,
+  venueLocation,
+} from '@web/modules/map-shell/shell-routes'
 import { provideShellState } from '@web/modules/map-shell/shell-state'
 import { useBreakpoint, useFinePointer, usePrefersReducedMotion } from '@web/modules/map-shell/use-breakpoint'
 import { usePanelMorph } from '@web/modules/map-shell/use-panel-morph'
@@ -32,6 +40,7 @@ const router = useRouter()
 provideToastQueue()
 provideSavedDeals(authClient.useSession())
 const shell = provideShellState({ router, route })
+const lobbie = provideLobbieChat({ position: shell.position })
 
 const breakpoint = useBreakpoint()
 const reducedMotion = usePrefersReducedMotion()
@@ -50,6 +59,7 @@ const panelHidden = ref(false)
 provide(PANEL_FOCUS_KEY, focusHeadingOnMount)
 
 const isBrowse = computed(() => route.name === 'browse')
+const isLobbie = computed(() => route.name === 'lobbie')
 const wide = computed(() => isBrowse.value && shell.view.value === 'list')
 // The panel is drawn at `panelWide`, which trails `wide` while the desktop card shrinks back;
 // the map frames itself for `wide` at once, so a deal opened from the list lands centred.
@@ -79,9 +89,12 @@ const selectedVenueId = computed(() => {
   return route.name === 'venue' ? String(route.params.venueId ?? '') : null
 })
 const selectedPin = computed(() => (selectedVenueId.value ? shell.findVenuePin(selectedVenueId.value) : null))
+const lobbiePins = computed(() => (isLobbie.value ? lobbie.resultPins.value : []))
+const mapFramed = computed(() => lobbiePins.value.length > 0)
 
 // A filter can hide the deal being viewed; its pin still shows so the map matches the panel.
 const mapPins = computed(() => {
+  if (mapFramed.value) return lobbiePins.value
   const pin = selectedPin.value
   return pin && !shell.pins.value.some((candidate) => candidate.id === pin.id)
     ? [...shell.pins.value, pin]
@@ -140,6 +153,15 @@ const openVenue = (venueId: string) => {
 }
 
 const openHot = (deal: SelectedDeal) => router.push(dealLocation(route.query, deal.deal.id, deal.venue.id))
+
+// The Lobbie chip opens the chat, or closes it back to the results when it is already open.
+// Opening the chat clears the quick chips and the filter sheet, so Lobbie starts from all
+// deals; the search text stays. Closing it returns to the results as they are.
+const toggleLobbie = () => {
+  if (isLobbie.value) return router.push(browseLocation(route.query))
+  const cleared = { ...createDefaultFilters(), q: shell.filters.value.q }
+  return router.push({ name: 'lobbie', query: withFilters(shellQuery(route.query), cleared) })
+}
 
 const nearMe = async () => {
   const startedAt = route.path
@@ -215,13 +237,16 @@ onBeforeUnmount(() => document.documentElement.classList.remove('is-canvas'))
       ref="headerRef"
       :filters="shell.filters.value"
       :sheet-open="sheetOpen"
+      :lobbie-open="isLobbie"
       @apply="applyFilters"
       @open-sheet="sheetOpen = !sheetOpen"
+      @ask-lobbie="toggleLobbie"
     />
     <main class="map-shell__map" aria-label="Deal map" :inert="backgroundInert">
       <DealMap
         ref="dealMap"
         :pins="mapPins"
+        :framed="mapFramed"
         :focus="mapFocus"
         :focus-zoom="mapFocusZoom"
         :focus-offset="layout.focusOffset.value"

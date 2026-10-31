@@ -8,13 +8,11 @@ import {
 import ShellIcon from '@web/modules/map-shell/ShellIcon.vue'
 import { computed, ref } from 'vue'
 
-// One-tap filters under the search box. "Ending today" is the least important, so phones hide
-// it rather than letting the row scroll sideways. "All filters" shows a badge for the active
-// filters the chips don't cover.
-const props = withDefaults(defineProps<{ filters: BrowseFilters; sheetOpen?: boolean }>(), {
-  sheetOpen: false,
-})
-const emit = defineEmits<{ apply: [filters: BrowseFilters]; openSheet: [] }>()
+const props = withDefaults(
+  defineProps<{ filters: BrowseFilters; sheetOpen?: boolean; lobbieOpen?: boolean }>(),
+  { sheetOpen: false, lobbieOpen: false },
+)
+const emit = defineEmits<{ apply: [filters: BrowseFilters]; openSheet: []; askLobbie: [] }>()
 
 const allButton = ref<HTMLButtonElement | null>(null)
 
@@ -60,6 +58,22 @@ defineExpose({ focusAllFilters: () => allButton.value?.focus() })
         {{ sheetCount }}<span class="visually-hidden"> active</span>
       </span>
     </button>
+    <button
+      type="button"
+      class="lb-chip quick-chips__lobbie"
+      :class="{ 'is-on': lobbieOpen }"
+      :aria-expanded="lobbieOpen"
+      aria-controls="shell-panel"
+      data-testid="ask-lobbie"
+      @click="emit('askLobbie')"
+    >
+      <ShellIcon
+        class="quick-chips__lobbie-icon"
+        :name="lobbieOpen ? 'close' : 'diamond'"
+        :size="16"
+        :stroke-width="lobbieOpen ? 2.4 : 2"
+      />Ask Lobbie for Lobangs
+    </button>
   </fieldset>
 </template>
 
@@ -76,6 +90,11 @@ defineExpose({ focusAllFilters: () => allButton.value?.focus() })
 
 .quick-chips :deep(.lb-chip) {
   box-shadow: var(--shadow-pill);
+}
+
+.quick-chips__lobbie:not(.is-on) .quick-chips__lobbie-icon {
+  color: var(--coral);
+  fill: var(--coral);
 }
 
 @media (max-width: 767.98px) {

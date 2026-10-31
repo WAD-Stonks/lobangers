@@ -1,4 +1,14 @@
 export type {
+  GeminiClient,
+  GeminiClientOptions,
+  GeminiErrorCode,
+  GeminiJsonRequest,
+  GeminiTurn,
+} from '@integrations/gemini-client'
+export { createGeminiClient, GeminiClientError } from '@integrations/gemini-client'
+export type { GroqClient, GroqClientOptions, GroqErrorCode } from '@integrations/groq-client'
+export { createGroqClient, GroqClientError, toStrictSchema } from '@integrations/groq-client'
+export type {
   SourceClient,
   SourceClientOptions,
   SourceKind,
@@ -6,6 +16,12 @@ export type {
   SourcePost,
 } from '@integrations/ingestion-source-post'
 export { extractSourceImages, SourceClientError } from '@integrations/ingestion-source-post'
+export type {
+  JsonModelClient,
+  JsonModelErrorCode,
+  JsonModelRequest,
+  JsonModelTurn,
+} from '@integrations/json-model'
 export type { MoneyDigestClientOptions } from '@integrations/moneydigest-client'
 export {
   createMoneyDigestClient,
