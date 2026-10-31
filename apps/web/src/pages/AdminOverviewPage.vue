@@ -93,7 +93,8 @@ onUnmounted(() => { fence.dispose(); nativeFence.dispose() })
         <h2 id="overview-runs-title" class="h4">Recent ingestion runs</h2>
         <p><a href="/admin/ingestion#runs-title">View ingestion run history</a></p>
         <p v-if="!overview.recentRuns.length" class="text-secondary mb-0">No ingestion runs yet.</p>
-        <div v-else class="table-responsive overview-runs-scroll" role="region" aria-label="Recent ingestion runs" tabindex="0">
+        <!-- biome-ignore lint/a11y/noNoninteractiveTabindex: Keyboard users need to focus and horizontally scroll the table on small screens. -->
+        <section v-else class="table-responsive overview-runs-scroll" aria-label="Recent ingestion runs table" tabindex="0">
           <table class="table mb-0 overview-runs-table">
             <caption class="visually-hidden">Latest {{ overview.recentRuns.length }} ingestion runs. Dates are in Singapore time (SGT). Results count imported posts.</caption>
             <thead><tr><th scope="col">Source / run</th><th scope="col">Status</th><th scope="col">Started (SGT)</th><th scope="col">Finished (SGT)</th><th scope="col">Results</th></tr></thead>
@@ -107,7 +108,7 @@ onUnmounted(() => { fence.dispose(); nativeFence.dispose() })
               </tr>
             </tbody>
           </table>
-        </div>
+        </section>
       </section>
       <section class="card p-3 mb-3 admin-readiness" aria-labelledby="readiness-title">
         <h2 id="readiness-title" class="h4">Configuration readiness</h2>

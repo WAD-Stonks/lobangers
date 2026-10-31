@@ -6,6 +6,8 @@ import { beforeEach, expect, it, vi } from 'vitest'
 import { createMemoryHistory, createRouter } from 'vue-router'
 
 // Synthetic REST/native boundaries: SPA projection and races, not live authentication.
+// The overview never mounts the landing page; avoid its unrelated Windows public-asset transform.
+vi.mock('@web/pages/LandingPage.vue', () => ({ default: { template: '<div />' } }))
 const rest = vi.hoisted(() => ({
   overview: vi.fn(),
   session: vi.fn(),
@@ -103,14 +105,23 @@ it('shows sign-in on confirmed absent native identity without a protected read',
 it('refreshes through a fresh identity check, disables duplicate refresh and replaces the snapshot', async () => {
   const w = await open()
   let release!: (value: typeof overview) => void
-  rest.overview.mockImplementationOnce(() => new Promise((resolve) => { release = resolve }))
+  rest.overview.mockImplementationOnce(
+    () =>
+      new Promise((resolve) => {
+        release = resolve
+      }),
+  )
   const previousSessionReads = rest.session.mock.calls.length
   await w.get('[data-testid="overview-refresh"]').trigger('click')
   await flushPromises()
   expect(rest.session.mock.calls.length).toBeGreaterThan(previousSessionReads)
   expect(w.get('[data-testid="overview-refresh"]').attributes('disabled')).toBeDefined()
   expect(w.find('.overview-summary').exists()).toBe(false)
-  release({ ...overview, generatedAt: '2026-10-31T04:30:00Z', counts: { ...overview.counts, pendingMerchantRequests: 9 } })
+  release({
+    ...overview,
+    generatedAt: '2026-10-31T04:30:00Z',
+    counts: { ...overview.counts, pendingMerchantRequests: 9 },
+  })
   await flushPromises()
   expect(rest.overview).toHaveBeenCalledTimes(2)
   expect(w.get('[data-testid="overview-refresh"]').attributes('disabled')).toBeUndefined()
@@ -129,7 +140,18 @@ it('clears protected overview data when refresh discovers that admin access was 
   w.unmount()
 })
 it('renders run results, unfinished timestamps and escaped error details in the recent-imports table', async () => {
-  const run = { id: 'synthetic-run', sourceName: 'Synthetic source', status: 'FAILED', startedAt: '2026-10-31T04:30:00Z', finishedAt: null, fetchedCount: 10, createdCount: 3, updatedCount: 2, failedCount: 5, errorCode: '<script>private()</script>' }
+  const run = {
+    id: 'synthetic-run',
+    sourceName: 'Synthetic source',
+    status: 'FAILED',
+    startedAt: '2026-10-31T04:30:00Z',
+    finishedAt: null,
+    fetchedCount: 10,
+    createdCount: 3,
+    updatedCount: 2,
+    failedCount: 5,
+    errorCode: '<script>private()</script>',
+  }
   rest.overview.mockResolvedValueOnce({ ...overview, recentRuns: [run] })
   const w = await open()
   const row = w.get('.overview-runs-table tbody tr')
