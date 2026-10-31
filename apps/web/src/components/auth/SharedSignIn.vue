@@ -153,7 +153,7 @@ const recovered = () => { recovery.value = false; notice.value = 'Password reset
           <div>
             <label :for="emailId" class="form-label">Email</label>
             <input :id="emailId" ref="emailInput" v-model="email" type="email" autocomplete="username" class="form-control" :disabled="context === 'account' && pending" :aria-invalid="touched && !!emailError" :aria-describedby="touched && emailError ? 'sign-in-email-error' : undefined" required @blur="touched = true" />
-            <p v-if="touched && emailError" id="sign-in-email-error" class="auth-field-error">{{ emailError }}</p>
+            <p id="sign-in-email-error" class="auth-field-error" aria-live="polite">{{ touched ? emailError : '' }}</p>
           </div>
           <div v-if="passwordMode">
             <div class="auth-label-row">
@@ -189,8 +189,8 @@ const recovered = () => { recovery.value = false; notice.value = 'Password reset
         <div class="auth-resend" aria-live="polite"><span>Didn't get a code?</span><button data-testid="otp-resend" type="button" class="auth-link" :disabled="pending || cooldown > 0" @click="sendCode">{{ cooldown ? `Resend in ${cooldown}s` : 'Resend sign-in code' }}</button></div>
         <button data-testid="use-password" type="button" class="auth-link auth-back" :disabled="pending" @click="switchMethod('password')">Use password instead</button>
       </template>
-      <details v-if="methods?.emailOtp" class="auth-method-note"><summary>About code sign-in</summary><p>For an existing unverified account, first code sign-in can remove previous sign-in links, password and sessions. Use password recovery to set a new password. This does not grant a role.</p></details>
-      <p v-if="context === 'admin'" class="auth-role-note">Signing in does not grant an administrator or merchant role.</p>
+      <details v-if="methods?.emailOtp" class="auth-method-note"><summary>About code sign-in</summary><p>For an existing unverified account, first code sign-in can remove previous sign-in links, password and sessions. Use password recovery to set a new password. Administrator access still requires separate approval.</p></details>
+      <p v-if="context === 'admin'" class="auth-role-note">Administrator and merchant access must be approved separately.</p>
       <footer v-if="$slots.footer" class="auth-footer"><slot name="footer" /></footer>
     </div>
   </section>

@@ -196,9 +196,12 @@
   border-left: 3px solid var(--coral-deep);
 }
 .auth-flow .auth-field-error {
+  /* Keep nearby actions still when email blur reveals a validation message. */
+  min-height: 1.6em;
   margin: var(--space-2) 0 0;
   color: var(--coral-deep);
   font-size: var(--text-xs);
+  line-height: 1.6;
 }
 .auth-flow .auth-method-note {
   margin-top: var(--space-5);
