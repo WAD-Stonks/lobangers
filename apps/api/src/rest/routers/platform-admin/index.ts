@@ -9,8 +9,8 @@ import { listMerchantRequests } from '@api/rest/routers/platform-admin/merchant-
 import { getAdminOverview } from '@api/rest/routers/platform-admin/overview'
 import { reviewMerchantRequest } from '@api/rest/routers/platform-admin/review-merchant-request'
 import { deleteStallGrant } from '@api/rest/routers/platform-admin/revoke-stall'
-import { listAdminVenues } from '@api/rest/routers/platform-admin/venues'
 import { getAdminUserAnalytics } from '@api/rest/routers/platform-admin/user-analytics'
+import { listAdminVenues } from '@api/rest/routers/platform-admin/venues'
 import { Router } from 'express'
 
 export const createPlatformAdminRouter = (dependencies: RestDependencies) => {

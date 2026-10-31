@@ -10,6 +10,7 @@ import { createMemoryHistory, createRouter } from 'vue-router'
 vi.mock('@web/pages/LandingPage.vue', () => ({ default: { template: '<div />' } }))
 const rest = vi.hoisted(() => ({
   overview: vi.fn(),
+  analytics: vi.fn(),
   session: vi.fn(),
   signOut: vi.fn(),
   methods: vi.fn(),
@@ -21,7 +22,7 @@ vi.mock('@web/lib/api-client', () => ({
     }
   },
   api: {
-    platformAdmin: { overview: rest.overview },
+    platformAdmin: { overview: rest.overview, userAnalytics: rest.analytics },
     infrastructure: { authMethods: rest.methods },
   },
 }))
@@ -50,6 +51,7 @@ const overview = {
 }
 beforeEach(() => {
   vi.resetAllMocks()
+  rest.analytics.mockRejectedValue(new Error('Synthetic analytics unavailable'))
   rest.overview.mockResolvedValue(overview)
   rest.session.mockResolvedValue({
     data: {
@@ -84,6 +86,7 @@ it('renders protected operational counts and exact actionable links without live
   expect(w.findAll('.admin-overview-panels h2').map((heading) => heading.attributes('id'))).toEqual(
     [
       'work-title',
+      'registration-title',
       'attention-title',
       'quick-actions-title',
       'import-chart-title',

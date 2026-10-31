@@ -247,7 +247,8 @@ export const createApiClient = (baseURL = '/api') => {
       },
     },
     platformAdmin: {
-      userAnalytics: () => request(http.get('/admin/analytics/users'), adminUserAnalyticsResponseSchema),
+      userAnalytics: () =>
+        request(http.get('/admin/analytics/users'), adminUserAnalyticsResponseSchema),
       overview: () => request(http.get('/admin/overview'), adminOverviewResponseSchema),
       accounts: (input: QueryInput<typeof platformAccountsQuerySchema> = {}) => {
         const query = validateInput(platformAccountsQuerySchema, input)

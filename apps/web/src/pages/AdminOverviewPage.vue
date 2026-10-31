@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { AdminOverviewResponse } from '@broke-oclock/contracts/platform-admin'
 import AdminShell from '@web/components/admin/AdminShell.vue'
+import AdminIcon from '@web/components/admin/AdminIcon.vue'
 import UserRegistrationAnalytics from '@web/components/admin/UserRegistrationAnalytics.vue'
 import SharedSignIn from '@web/components/auth/SharedSignIn.vue'
 import { confirmAdminIdentity } from '@web/lib/admin-recovery'
@@ -23,9 +24,9 @@ const attentionItems = computed(() => {
   ].filter(item => item.count > 0)
 })
 const quickActions = [
-  { href: '/admin/deals', label: 'Manage deals', description: 'Review and correct deal listings.' },
-  { href: '/admin/accounts', label: 'Manage accounts', description: 'Review roles and merchant access.' },
-  { href: '/admin/moderation', label: 'Review reports', description: 'Investigate deal and comment reports.' },
+  { href: '/admin/deals', label: 'Manage deals', description: 'Review and correct deal listings.', icon: 'deals' },
+  { href: '/admin/accounts', label: 'Manage accounts', description: 'Review roles and merchant access.', icon: 'accounts' },
+  { href: '/admin/moderation', label: 'Review reports', description: 'Investigate deal and comment reports.', icon: 'moderation' },
 ]
 const chartSeries = [
   { key: 'createdCount', label: 'Created', tone: 'created' },
@@ -88,14 +89,17 @@ onUnmounted(() => { fence.dispose(); nativeFence.dispose() })
 </script>
 
 <template>
-  <AdminShell @click.capture="logoutStarting" title="Admin overview" :refresh-key="sessionRefreshKey" @closing="close" @signed-out="anonymous" @access-reload="reload">
+  <AdminShell class="admin-overview" @click.capture="logoutStarting" title="Admin overview" :refresh-key="sessionRefreshKey" @closing="close" @signed-out="anonymous" @access-reload="reload">
     <div v-if="access === 'allowed' || access === 'loading'" class="overview-toolbar">
+      <div class="overview-introduction">
+      <p class="overview-description">Review pending work and track registrations and imports.</p>
       <p class="small text-secondary mb-0">
         <template v-if="overview">Last updated <time :datetime="overview.generatedAt">{{ formatDate(overview.generatedAt) }}</time> (SGT)</template>
         <template v-else>Checking the latest overview.</template>
       </p>
+      </div>
       <button data-testid="overview-refresh" type="button" class="btn btn-outline-primary" :disabled="access === 'loading'" @click="reload">
-        {{ access === 'loading' ? 'Refreshing…' : 'Refresh overview' }}
+        <span aria-hidden="true" class="overview-refresh-symbol">↻</span>{{ access === 'loading' ? 'Refreshing…' : 'Refresh overview' }}
       </button>
     </div>
     <p v-if="access === 'loading'" role="status">Loading admin overview…</p>
@@ -111,9 +115,9 @@ onUnmounted(() => { fence.dispose(); nativeFence.dispose() })
       <section class="admin-work-panel" aria-labelledby="work-title">
         <h2 id="work-title" class="h4">Work awaiting review</h2>
         <ul class="overview-summary">
-          <li class="card"><a class="overview-summary-link" href="/admin/accounts?requestStatus=PENDING#merchant-requests"><span>Pending merchant requests: </span><strong>{{ overview.counts.pendingMerchantRequests }}</strong><span class="overview-card-hint">Review merchant access →</span></a></li>
-          <li class="card"><a class="overview-summary-link" href="/admin/ingestion?status=PENDING#queue-title"><span>Pending imported drafts: </span><strong>{{ overview.counts.pendingImportedDrafts }}</strong><span class="overview-card-hint">Review imported deals →</span></a></li>
-          <li class="card overview-summary-static"><span>Failed imported posts: </span><strong>{{ overview.counts.failedImportedPosts }}</strong><span class="overview-card-hint">Stored posts requiring investigation</span></li>
+          <li class="card"><a class="overview-summary-link" href="/admin/accounts?requestStatus=PENDING#merchant-requests"><span class="overview-metric-label"><span>Pending merchant requests: </span><span class="overview-metric-icon"><AdminIcon name="accounts" /></span></span><strong>{{ overview.counts.pendingMerchantRequests }}</strong><span class="overview-card-hint">Review merchant access →</span></a></li>
+          <li class="card"><a class="overview-summary-link" href="/admin/ingestion?status=PENDING#queue-title"><span class="overview-metric-label"><span>Pending imported drafts: </span><span class="overview-metric-icon"><AdminIcon name="deals" /></span></span><strong>{{ overview.counts.pendingImportedDrafts }}</strong><span class="overview-card-hint">Review imported deals →</span></a></li>
+          <li class="card overview-summary-static"><span class="overview-metric-label"><span>Failed imported posts: </span><span class="overview-metric-icon overview-metric-icon--neutral"><AdminIcon name="ingestion" /></span></span><strong>{{ overview.counts.failedImportedPosts }}</strong><span class="overview-card-hint">Stored posts requiring investigation</span></li>
         </ul>
         <p class="small mb-0">Failures count imported posts, not ingestion runs.</p>
       </section>
@@ -134,7 +138,7 @@ onUnmounted(() => { fence.dispose(); nativeFence.dispose() })
           <h2 id="quick-actions-title">Quick actions</h2>
           <ul class="overview-shortcut-list">
             <li v-for="action in quickActions" :key="action.href">
-              <a :href="action.href"><strong>{{ action.label }} →</strong><span>{{ action.description }}</span></a>
+              <a :href="action.href"><span class="overview-shortcut-icon" aria-hidden="true"><AdminIcon :name="action.icon" /></span><span class="overview-shortcut-copy"><strong>{{ action.label }} →</strong><span>{{ action.description }}</span></span></a>
             </li>
           </ul>
         </nav>
@@ -214,24 +218,52 @@ onUnmounted(() => { fence.dispose(); nativeFence.dispose() })
 </template>
 
 <style scoped>
+.admin-overview {
+  --admin-bg: #f7f8fa;
+  --overview-radius: 14px;
+}
+.admin-overview :deep(.admin-heading) { margin-bottom: 12px; }
 .overview-toolbar {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  margin-bottom: 24px;
+  margin-bottom: 32px;
 }
+.overview-description { margin: 0 0 6px; color: #535e6e; font-size: 14px; }
+.overview-toolbar .btn { display: inline-flex; align-items: center; gap: 8px; background: #fff; }
+.overview-refresh-symbol { font-size: 20px; line-height: 1; }
 .admin-overview-panels.overview-panels {
-  grid-template-columns: minmax(0, 1fr);
-  grid-template-areas: "work" "registrations" "next" "chart" "runs" "readiness";
+  grid-template-columns: minmax(0, 1.65fr) minmax(300px, 1fr);
+  grid-template-areas: "work work" "registrations next" "chart chart" "runs runs" "readiness readiness";
+  gap: 24px;
 }
+.overview-panels :where(.card) {
+  border-radius: var(--overview-radius);
+  border-color: #e5e8ed;
+  box-shadow: 0 3px 14px #20242b04;
+}
+.overview-panels > :where(.card),
+.overview-next-steps > :where(.card) { padding: 24px !important; margin-bottom: 0 !important; }
+.overview-panels :where(h2) { margin-bottom: 8px; letter-spacing: -0.02em; }
+.overview-panels :where(h2)::before {
+  display: inline-block;
+  content: "";
+  width: 4px;
+  height: 14px;
+  margin-right: 9px;
+  border-radius: 3px;
+  background: var(--admin-accent);
+  vertical-align: -1px;
+}
+.admin-work-panel > .small { color: var(--admin-muted); }
 .overview-registrations { grid-area: registrations; }
 .overview-next-steps {
   grid-area: next;
   display: grid;
-  grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
-  gap: 16px;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 24px;
   align-items: start;
 }
 .overview-attention-list,
@@ -243,42 +275,44 @@ onUnmounted(() => { fence.dispose(); nativeFence.dispose() })
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 8px 16px;
-  padding-block: 12px;
+  gap: 10px 16px;
+  padding-block: 16px;
   border-top: 1px solid var(--admin-border);
 }
-.overview-attention-list strong { font-variant-numeric: tabular-nums; }
-.overview-attention-list a { font-size: 12px; }
-.overview-queue-clear { color: #285c3b; }
+.overview-attention-list strong { display: inline-block; min-width: 28px; padding: 2px 7px; margin-right: 4px; border-radius: 6px; background: #fff4ca; color: #6a5100; text-align: center; font-variant-numeric: tabular-nums; }
+.overview-attention-list a { font-size: 12px; font-weight: 600; }
+.overview-queue-clear { padding: 16px; border: 1px solid #dbeadd; border-radius: 8px; color: #285c3b; background: #f5faf6; }
 .overview-shortcut-list :where(li + li) { border-top: 1px solid var(--admin-border); }
-.overview-shortcut-list a { display: block; padding: 12px 0; text-decoration: none; }
-.overview-shortcut-list a:hover { text-decoration: underline; }
-.overview-shortcut-list span { display: block; margin-top: 4px; color: var(--admin-muted); font-size: 12px; }
+.overview-shortcut-list a { display: flex; align-items: center; gap: 12px; padding: 14px 8px; margin-inline: -8px; border-radius: 8px; text-decoration: none; transition: background-color 150ms ease; }
+.overview-shortcut-list a:hover { background: #faf7ed; }
+.overview-shortcut-icon { display: grid; place-items: center; flex: 0 0 36px; height: 36px; border: 1px solid #eceef1; border-radius: 10px; background: #fafbfc; color: #657184; }
+.overview-shortcut-copy { min-width: 0; }
+.overview-shortcut-copy > span { display: block; margin-top: 3px; color: var(--admin-muted); font-size: 12px; }
 .overview-import-chart { grid-area: chart; }
 .overview-chart-heading { display: flex; flex-wrap: wrap; gap: 16px; justify-content: space-between; }
 .overview-chart-heading > div { flex: 1 1 300px; }
-.overview-chart-filter { display: grid; gap: 4px; font-size: 12px; }
-.overview-chart-legend { display: flex; flex-wrap: wrap; gap: 16px; margin: 20px 0 12px; }
+.overview-chart-filter { display: grid; align-content: start; gap: 6px; min-width: 150px; color: var(--admin-muted); font-size: 12px; }
+.overview-chart-legend { display: flex; flex-wrap: wrap; gap: 20px; margin: 24px 0 12px; }
 .overview-chart-legend li { display: flex; align-items: center; gap: 6px; font-size: 12px; }
-.overview-chart-swatch { width: 10px; height: 10px; border-radius: 2px; }
-[data-series="created"] { background: #39764e; }
-[data-series="updated"] { background: #4668a1; }
-[data-series="failed"] { background: #b64538; }
-.overview-chart-run { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 3fr); gap: 16px; padding: 16px 0; border-top: 1px solid var(--admin-border); }
+.overview-chart-swatch { width: 9px; height: 9px; border-radius: 50%; }
+[data-series="created"] { background: #3b8062; }
+[data-series="updated"] { background: #6675ae; }
+[data-series="failed"] { background: #be6254; }
+.overview-chart-run { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 3fr); gap: 24px; padding: 20px 0; border-top: 1px solid #edf0f3; }
 .overview-chart-run-label { display: grid; align-content: start; gap: 4px; }
 .overview-chart-run-label time,
 .overview-chart-run-label small { font-size: 12px; color: var(--admin-muted); overflow-wrap: anywhere; }
 .overview-chart-series { display: grid; align-content: center; gap: 8px; }
 .overview-chart-bar-row { display: grid; grid-template-columns: 78px minmax(0, 1fr) 44px; align-items: center; gap: 8px; font-size: 12px; }
-.overview-chart-track { height: 12px; background: #f0f1f4; border-radius: 3px; overflow: hidden; }
-.overview-chart-bar { display: block; height: 100%; border-radius: 3px; }
+.overview-chart-track { height: 10px; background: #f2f4f7; border-radius: 6px; overflow: hidden; }
+.overview-chart-bar { display: block; height: 100%; border-radius: 6px; }
 .overview-chart-count { text-align: right; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
 .overview-summary {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 16px;
+  gap: 20px;
   padding: 0;
-  margin: 16px 0;
+  margin: 16px 0 12px;
   list-style: none;
 }
 .overview-summary-link,
@@ -286,17 +320,22 @@ onUnmounted(() => { fence.dispose(); nativeFence.dispose() })
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 10px;
-  padding: 20px;
+  gap: 14px;
+  padding: 24px;
   height: 100%;
   text-decoration: none;
 }
 .overview-summary-link:hover {
-  background: #fff9e5;
-  border-radius: 8px;
+  background: #fffdf5;
+  border-radius: var(--overview-radius);
 }
+.overview-summary > .card { overflow: hidden; transition: border-color 150ms ease, box-shadow 150ms ease; }
+.overview-summary > .card:has(a:hover) { border-color: #d6bd66; box-shadow: 0 5px 18px #7c64100b; }
+.overview-metric-label { display: flex; width: 100%; align-items: center; justify-content: space-between; gap: 12px; color: #5f6875; font-size: 13px; }
+.overview-metric-icon { display: grid; place-items: center; flex: 0 0 38px; height: 38px; border: 1px solid #f1e6b9; border-radius: 11px; color: #826517; background: #fff8dc; }
+.overview-metric-icon--neutral { border-color: #e5e8ed; color: #667184; background: #f5f6f8; }
 .overview-summary strong {
-  font-size: 32px;
+  font-size: 40px;
   line-height: 1.2;
   font-weight: 650;
   font-variant-numeric: tabular-nums;
@@ -306,29 +345,52 @@ onUnmounted(() => { fence.dispose(); nativeFence.dispose() })
   color: var(--admin-muted);
   font-size: 12px;
 }
-.overview-card-hint { margin-top: auto; }
+.overview-card-hint { width: 100%; padding-top: 12px; margin-top: auto; border-top: 1px solid #edf0f3; }
 .overview-runs-table { min-width: 700px; }
+.overview-runs-table :where(tbody tr:hover) { --bs-table-bg: #fffdf6; }
+.overview-runs-table :where(th, td) { padding-block: 16px !important; }
+.overview-runs-scroll { margin-top: 20px; }
 .overview-runs-table td { font-variant-numeric: tabular-nums; }
 .overview-source,
 .overview-run-id { display: block; }
 .overview-run-id { margin-top: 4px; overflow-wrap: anywhere; }
 .overview-status {
   display: inline-block;
-  padding: 3px 8px;
-  border-radius: 4px;
+  padding: 4px 9px;
+  border: 1px solid #dde2ea;
+  border-radius: 20px;
   background: #edf0f4;
   color: #465366;
   font-size: 11px;
   font-weight: 600;
 }
-.overview-status[data-tone="success"] { background: #e7f3eb; color: #285c3b; }
-.overview-status[data-tone="danger"] { background: #fff0ed; color: #912d27; }
+.overview-status[data-tone="success"] { background: #edf7f0; border-color: #d6e9dc; color: #285c3b; }
+.overview-status[data-tone="danger"] { background: #fff1ee; border-color: #f1d9d3; color: #912d27; }
 .overview-runs-scroll:focus-visible { outline: 2px solid #465c82; outline-offset: 3px; }
+.admin-readiness > p { color: var(--admin-muted); font-size: 12px; }
+@media (max-width: 1199.98px) {
+  .admin-overview-panels.overview-panels {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: "work" "registrations" "next" "chart" "runs" "readiness";
+  }
+  .overview-next-steps { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .overview-summary-link, .overview-summary-static { padding: 20px; }
+}
 @media (max-width: 991.98px) {
-  .overview-summary { grid-template-columns: minmax(0, 1fr); }
+  .overview-summary { gap: 12px; }
+  .overview-metric-label { flex-wrap: wrap-reverse; }
+  .overview-summary strong { font-size: 34px; }
+}
+@media (max-width: 767.98px) {
   .overview-next-steps { grid-template-columns: minmax(0, 1fr); }
+  .overview-summary { grid-template-columns: minmax(0, 1fr); }
+  .overview-metric-label { flex-wrap: nowrap; }
+  .overview-panels > :where(.card), .overview-next-steps > :where(.card) { padding: 20px !important; }
 }
 @media (max-width: 575.98px) {
   .overview-chart-run { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .overview-summary > .card, .overview-shortcut-list a { transition: none; }
 }
 </style>

@@ -187,11 +187,15 @@ export const adminUserAnalyticsResponseSchema = z.strictObject({
   timeZone: z.literal('Asia/Singapore'),
   totalUsers: z.number().int().nonnegative(),
   newUsersThisWeek: z.number().int().nonnegative(),
-  weeks: z.array(z.strictObject({
-    weekStart: z.iso.datetime(),
-    weekEnd: z.iso.datetime(),
-    newUsers: z.number().int().nonnegative(),
-  })).length(8),
+  weeks: z
+    .array(
+      z.strictObject({
+        weekStart: z.iso.datetime(),
+        weekEnd: z.iso.datetime(),
+        newUsers: z.number().int().nonnegative(),
+      }),
+    )
+    .length(8),
 })
 export type AdminUserAnalyticsResponse = z.infer<typeof adminUserAnalyticsResponseSchema>
 
