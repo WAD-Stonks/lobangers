@@ -26,7 +26,7 @@ const onSignedIn = () => router.replace(safeRedirect(route.query.redirect))
   <section aria-label="Log in" class="row justify-content-center py-4">
     <div class="col-12 col-sm-10 col-md-7 col-lg-5">
       <div v-if="notice" class="alert alert-success" role="status">{{ notice }}</div>
-      <LoginForm @signed-in="onSignedIn" />
+      <LoginForm :destination="safeRedirect(route.query.redirect)" @signed-in="onSignedIn" />
     </div>
   </section>
 </template>

@@ -7,7 +7,8 @@ export const safeAuthDestination = (destination: string, origin: string): string
   return new URL(allowed.includes(destination) ? destination : '/', origin).href
 }
 
-export const consumeOAuthError = (): string => {
+// Account login owns its same-site redirect query; admin callers still strip it by default.
+export const consumeOAuthError = (preserveAccountRedirect = false): string => {
   const url = new URL(window.location.href)
   const code = url.searchParams.get('error')
   const known = [
@@ -32,7 +33,10 @@ export const consumeOAuthError = (): string => {
     'callbackURL',
   ]
   const dirty = keys.some((key) => url.searchParams.has(key))
-  for (const key of keys) url.searchParams.delete(key)
+  for (const key of keys) {
+    if (key === 'redirect' && preserveAccountRedirect) continue
+    url.searchParams.delete(key)
+  }
   if (dirty)
     window.history.replaceState(window.history.state, '', `${url.pathname}${url.search}${url.hash}`)
   return code && known.includes(code)
