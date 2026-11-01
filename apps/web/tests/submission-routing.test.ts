@@ -31,7 +31,7 @@ describe('protected add-deal route', () => {
     getSession.mockResolvedValue({ data: null })
     const router = createSubmissionRouter()
     await router.push('/add')
-    expect(router.currentRoute.value.name).toBe('login')
+    expect(router.currentRoute.value.name).toBe('sign-in')
     expect(router.currentRoute.value.query.redirect).toBe('/add')
   })
 

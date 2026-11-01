@@ -241,13 +241,10 @@ describe('Ask Lobbie panel', () => {
     expect(router.currentRoute.value.name).toBe('lobbie')
     // The chips and the filter sheet are cleared; the search text and sort stay.
     expect(router.currentRoute.value.query).toEqual({ q: 'kopi', sort: 'ending' })
-    const chipPressed = (label: string) =>
-      wrapper
-        .findAll('[data-testid="quick-chips"] button')
-        .find((button) => button.text().includes(label))
-        ?.attributes('aria-pressed')
-    expect(chipPressed('Under $5')).toBe('false')
-    expect(chipPressed('Ending today')).toBe('false')
+    const chipSelected = (key: string) =>
+      wrapper.get(`[data-testid="quick-${key}"]`).classes().includes('is-selected')
+    expect(chipSelected('price')).toBe(false)
+    expect(chipSelected('ending')).toBe(false)
     expect(wrapper.find('[data-testid="filter-badge"]').exists()).toBe(false)
     expect(wrapper.get('[data-testid="ask-lobbie"]').attributes('aria-expanded')).toBe('true')
     expect(iconPaths()).toBe(2)

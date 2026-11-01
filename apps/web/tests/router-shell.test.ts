@@ -123,7 +123,7 @@ describe('map shell routes', () => {
 
   it.each([
     ['/saved', 'saved', 'Saved'],
-    ['/add', 'add-deal', 'Share'],
+    ['/add', 'submit-deal', 'Share'],
     ['/me/profile', 'profile', 'Account'],
   ])('selects the %s tab and displays its padded account prompt', async (path, tab, label) => {
     const { router, wrapper } = await mountAt('/browse')
@@ -134,7 +134,7 @@ describe('map shell routes', () => {
     expect(wrapper.get('[data-testid="map-navigation"] a[aria-current="page"]').text()).toBe(label)
     expect(wrapper.find('[data-testid="shell-panel"] .auth-prompt').exists()).toBe(true)
     expect(wrapper.text()).not.toContain('Maybe later')
-    if (tab === 'add-deal') {
+    if (tab === 'submit-deal') {
       expect(wrapper.text()).toContain('Share good lobangs')
       expect(wrapper.text()).toContain('Post your finds')
       expect(wrapper.findAll('.saved-prompt__benefit')).toHaveLength(3)

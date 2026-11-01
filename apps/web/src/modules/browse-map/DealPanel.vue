@@ -181,6 +181,8 @@ const toggleSave = async () => {
 
     <p v-if="selected.deal.outletUnconfirmed" class="deal-panel__outlet-note lb-meta">{{ OUTLET_NOT_CONFIRMED_NOTE }}</p>
 
+    <p v-if="selected.deal.description" class="deal-panel__description lb-text-wrap">{{ selected.deal.description }}</p>
+
     <div class="deal-panel__fine-print">
       <dl class="deal-panel__validity-field">
         <dt class="lb-meta">Valid</dt>
@@ -349,6 +351,13 @@ const toggleSave = async () => {
 
 .deal-panel__outlet-note {
   margin: 0;
+}
+
+.deal-panel__description {
+  margin: 0;
+  font-size: var(--text-sm);
+  line-height: 1.55;
+  white-space: pre-line;
 }
 /* One condition per line, so the fine print scans instead of reading as a paragraph. */
 .deal-panel__terms {

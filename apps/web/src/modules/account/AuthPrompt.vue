@@ -7,7 +7,8 @@ import { useRoute, useRouter } from 'vue-router'
 const route = useRoute()
 const router = useRouter()
 const isSaved = computed(() => route.query.tab === 'saved')
-const isShare = computed(() => route.query.tab === 'add-deal')
+// /add is the full submission page; its account prompt is shown under the Share tab.
+const isShare = computed(() => route.query.tab === 'submit-deal')
 const visible = computed(() => Boolean(authPrompt.value) || route.name === 'auth-required')
 const choose = (choice: 'login' | 'register') => {
   if (authPrompt.value) authPrompt.value.resolve(choice)

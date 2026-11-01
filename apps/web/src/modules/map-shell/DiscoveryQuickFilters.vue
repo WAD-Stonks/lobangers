@@ -120,11 +120,6 @@ defineExpose({ focusAllFilters: () => allButton.value?.focus() })
         <ShellIcon name="filters" :size="16" />Filters
         <span v-if="count" class="lb-badge" data-testid="filter-badge">{{ count }}<span class="visually-hidden"> active</span></span>
       </button>
-      <span class="discovery-filters__separator" aria-hidden="true" />
-      <button v-for="key in keys" :key="key" class="lb-chip" :class="{ 'is-selected': isOn(key) }" type="button" aria-haspopup="dialog" :aria-expanded="active === key" :aria-controls="active === key ? panelId : undefined" :data-testid="`quick-${key}`" @click="toggle(key, $event)">
-        {{ chipLabel(key) }}<ShellIcon :name="active === key ? 'chevronUp' : 'chevronDown'" :size="14" />
-      </button>
-      <button v-if="count || filters.q.trim()" class="discovery-filters__clear-all" type="button" data-testid="clear-all-filters" @click="clearAll">Clear all</button>
       <button
         type="button"
         class="lb-chip discovery-filters__lobbie"
@@ -142,6 +137,11 @@ defineExpose({ focusAllFilters: () => allButton.value?.focus() })
           :stroke-width="lobbieOpen ? 2.4 : 2"
         /><span>Ask Lobbie</span>
       </button>
+      <span class="discovery-filters__separator" aria-hidden="true" />
+      <button v-for="key in keys" :key="key" class="lb-chip" :class="{ 'is-selected': isOn(key) }" type="button" aria-haspopup="dialog" :aria-expanded="active === key" :aria-controls="active === key ? panelId : undefined" :data-testid="`quick-${key}`" @click="toggle(key, $event)">
+        {{ chipLabel(key) }}<ShellIcon :name="active === key ? 'chevronUp' : 'chevronDown'" :size="14" />
+      </button>
+      <button v-if="count || filters.q.trim()" class="discovery-filters__clear-all" type="button" data-testid="clear-all-filters" @click="clearAll">Clear all</button>
     </fieldset>
 
     <section v-if="active" :id="panelId" ref="panel" class="discovery-filters__popover lb-card" :style="{ left: `${panelLeft}px` }" role="dialog" :aria-label="`${labels[active]} filter`" data-testid="quick-filter-popover">

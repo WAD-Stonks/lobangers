@@ -338,7 +338,7 @@ describe('collapsing the desktop panel', () => {
 
   it('keeps the previous panel hidden until the selected tab finishes navigating', async () => {
     auth.session.current = SIGNED_IN
-    const { wrapper, router } = await mountAt('/add')
+    const { wrapper, router } = await mountAt('/me/profile')
     await tab(wrapper).trigger('click')
     let finishNavigation: (() => void) | undefined
     router.beforeEach((to) =>
@@ -350,7 +350,7 @@ describe('collapsing the desktop panel', () => {
     )
     await wrapper.get('[data-testid="map-navigation"] a[href^="/saved"]').trigger('click')
     await flushPromises()
-    expect(router.currentRoute.value.name).toBe('add-deal')
+    expect(router.currentRoute.value.name).toBe('profile')
     expect(panel(wrapper).classes()).toContain('is-collapsed')
     expect(tab(wrapper).attributes('aria-expanded')).toBe('false')
     finishNavigation?.()
@@ -855,7 +855,7 @@ describe('map navigation rail', () => {
       '/browse?q=synthetic&cat=drinks&max=5&when=week&sort=ending&results=list',
     )
     const rail = () => wrapper.get('[data-testid="map-navigation"]')
-    for (const path of ['/me/profile', '/add', '/saved', '/browse']) {
+    for (const path of ['/me/profile', '/saved', '/browse']) {
       await rail().get(`a[href^="${path}"]`).trigger('click')
       await flushPromises()
       expect(router.currentRoute.value.path).toBe(path)
@@ -865,6 +865,15 @@ describe('map navigation rail', () => {
     await wrapper.get('[data-testid="nav-menu"] a[href^="/me/submissions"]').trigger('click')
     await flushPromises()
     expect(router.currentRoute.value.query).toMatchObject(choices)
+  })
+
+  it('opens the full add-deal page from the Share tab', async () => {
+    auth.session.current = SIGNED_IN
+    const { wrapper, router } = await mountAt('/browse')
+    await wrapper.get('[data-testid="map-share"]').trigger('click')
+    await flushPromises()
+    expect(router.currentRoute.value.name).toBe('submit-deal')
+    expect(wrapper.find('[data-testid="map-navigation"]').exists()).toBe(false)
   })
 
   it('reopens the collapsed deals panel on a same-route click and highlights only the open tab', async () => {
@@ -888,7 +897,6 @@ describe('map navigation rail', () => {
     expect(active()).toEqual(['Deals'])
     for (const [path, label] of [
       ['/saved', 'Saved'],
-      ['/add', 'Share'],
       ['/me/profile', 'Account'],
     ]) {
       await router.push(defined(path))
