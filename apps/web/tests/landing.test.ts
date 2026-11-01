@@ -1,5 +1,6 @@
 import type { DealPin } from '@broke-oclock/contracts/deals'
 import { flushPromises, mount } from '@vue/test-utils'
+import { OUTLET_NOT_CONFIRMED } from '@web/modules/browse-map/deal-format'
 import CuisineDiscovery from '@web/modules/landing/CuisineDiscovery.vue'
 import { regions } from '@web/modules/landing/deals'
 import HeroSection from '@web/modules/landing/HeroSection.vue'
@@ -754,5 +755,41 @@ describe('public voting preview', () => {
     expect(fetch).not.toHaveBeenCalled()
     expect(send).not.toHaveBeenCalled()
     send.mockRestore()
+  })
+})
+
+describe('guessed outlets on the landing page', () => {
+  const guessed = liveDeals.map((deal) => ({ ...deal, outletUnconfirmed: true }))
+
+  it('warns on the hero card and the cuisine cards when the outlet is a guess', async () => {
+    const hero = keep(
+      mount(HeroSection, {
+        props: { live: guessed, liveState: 'ready' },
+        global: { plugins: [router()] },
+      }),
+    )
+    const cuisine = keep(
+      mount(CuisineDiscovery, {
+        props: { live: guessed, liveState: 'ready' },
+        global: { plugins: [router()] },
+      }),
+    )
+    await flushPromises()
+    expect(hero.get('.hero-live-card [data-testid="outlet-unconfirmed"]').text()).toBe(
+      OUTLET_NOT_CONFIRMED,
+    )
+    expect(cuisine.get('.landing-food-card [data-testid="outlet-unconfirmed"]').text()).toBe(
+      OUTLET_NOT_CONFIRMED,
+    )
+  })
+
+  it('stays quiet for confirmed outlets', async () => {
+    const hero = keep(mount(HeroSection, { props: heroProps, global: { plugins: [router()] } }))
+    const cuisine = keep(
+      mount(CuisineDiscovery, { props: heroProps, global: { plugins: [router()] } }),
+    )
+    await flushPromises()
+    expect(hero.find('[data-testid="outlet-unconfirmed"]').exists()).toBe(false)
+    expect(cuisine.find('[data-testid="outlet-unconfirmed"]').exists()).toBe(false)
   })
 })

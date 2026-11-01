@@ -1,5 +1,6 @@
 import type { DealPin } from '@broke-oclock/contracts/deals'
 import { areaFor } from '@web/modules/browse-map/cluster-area'
+import { LIMITED_PROMOTION } from '@web/modules/browse-map/deal-format'
 import type { SingaporeRegion } from '@web/modules/browse-map/singapore-areas'
 import { validityLabel } from '@web/modules/venues-feed/deal-format'
 
@@ -20,6 +21,7 @@ export const randomRegionalDeal = (
 }
 
 export const promotionDates = (deal: DealPin) => {
+  if (!deal.validUntil && deal.limitedTime) return LIMITED_PROMOTION
   const supplied = deal.rawValidityText?.trim()
   // Ingestion metadata is not customer-facing promotion copy.
   if (supplied && !/^Explicit source calendar:/i.test(supplied)) return supplied

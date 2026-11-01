@@ -17,6 +17,11 @@ export type AppConfig = {
     oneMap?: { email: string; password: string }
   }
   photoStorage?: { token: string; isDev: boolean }
+  assistant?: {
+    gemini?: { apiKey: string; model: string }
+    groq?: { apiKey: string; model: string }
+    clientIpHeader: string | null
+  }
   // Present only when RESEND_API_KEY and EMAIL_FROM are both set to real values.
   email?: { apiKey: string; from: string }
   authProviders?: {
@@ -115,6 +120,33 @@ const parseAuthProviders = (env: Environment): AppConfig['authProviders'] => {
   }
 }
 
+export const DEFAULT_GEMINI_MODEL = 'gemini-3.5-flash-lite'
+export const DEFAULT_GROQ_MODEL = 'openai/gpt-oss-20b'
+
+const optionalKey = (env: Environment, name: string): string | undefined => {
+  const value = env[name]?.trim()
+  if (!value || /^(?:unset|unconfigured)$/iu.test(value)) return undefined
+  if (!/^[A-Za-z0-9._-]{20,256}$/u.test(value)) throw new Error(`${name} is malformed`)
+  return value
+}
+
+const parseAssistant = (env: Environment): AppConfig['assistant'] => {
+  const geminiKey = optionalKey(env, 'GEMINI_API_KEY')
+  const groqKey = optionalKey(env, 'GROQ_API_KEY')
+  if (!geminiKey && !groqKey) return undefined
+  const geminiModel = env.GEMINI_MODEL?.trim() || DEFAULT_GEMINI_MODEL
+  if (!/^[a-z0-9][a-z0-9.-]{0,63}$/u.test(geminiModel))
+    throw new Error('GEMINI_MODEL must be a Gemini model id such as gemini-3.5-flash-lite')
+  const groqModel = env.GROQ_MODEL?.trim() || DEFAULT_GROQ_MODEL
+  if (!/^[a-z0-9][a-z0-9./_-]{0,99}$/u.test(groqModel))
+    throw new Error('GROQ_MODEL must be a Groq model id such as openai/gpt-oss-20b')
+  return {
+    ...(geminiKey ? { gemini: { apiKey: geminiKey, model: geminiModel } } : {}),
+    ...(groqKey ? { groq: { apiKey: groqKey, model: groqModel } } : {}),
+    clientIpHeader: env.VERCEL === '1' ? 'x-real-ip' : null,
+  }
+}
+
 const parseCommunityPolicy = (env: Environment): CommunityPolicy => {
   const integer = (name: string, fallback: number, max: number) => {
     const raw = env[name]?.trim()
@@ -146,6 +178,7 @@ export const parseConfig = (env: Environment): AppConfig => {
     ingestion: parseIngestion(env),
     authProviders,
     photoStorage: parsePhotoStorage(env),
+    assistant: parseAssistant(env),
     webOrigin: parseOrigin(env.WEB_ORIGIN?.trim() || 'http://localhost:5173', 'WEB_ORIGIN'),
     betterAuthUrl: parseOrigin(
       env.BETTER_AUTH_URL?.trim() || 'http://localhost:3000',

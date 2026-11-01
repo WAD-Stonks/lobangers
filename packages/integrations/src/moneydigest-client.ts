@@ -1,3 +1,4 @@
+import { withProviderEnvelope } from '@integrations/provider-envelope'
 import {
   type UntrustedHtml,
   type WordPressClient,
@@ -79,14 +80,19 @@ const parsePost = (value: unknown, index: number): WordPressPost => {
   ) {
     throw new MoneyDigestMalformedPostError(index)
   }
-  return {
-    id: value.id,
-    link: value.link,
-    date: value.date,
-    title: { rendered: value.title.rendered },
-    content: { rendered: value.content.rendered },
-    excerpt: { rendered: rendered(value.excerpt) ? value.excerpt.rendered : ('' as UntrustedHtml) },
-  }
+  return withProviderEnvelope(
+    {
+      id: value.id,
+      link: value.link,
+      date: value.date,
+      title: { rendered: value.title.rendered },
+      content: { rendered: value.content.rendered },
+      excerpt: {
+        rendered: rendered(value.excerpt) ? value.excerpt.rendered : ('' as UntrustedHtml),
+      },
+    },
+    value,
+  )
 }
 
 const MAX_BODY_BYTES = 1_048_576

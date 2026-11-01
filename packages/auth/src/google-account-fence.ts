@@ -1,5 +1,11 @@
+import {
+  generation,
+  isActive,
+  type SecuritySession,
+  type SecurityUser,
+} from '@auth/account-security'
 import type { prismaAdapter } from '@better-auth/prisma-adapter'
-import type { DBTransactionAdapter, Session, User, Where } from 'better-auth'
+import type { DBTransactionAdapter, Where } from 'better-auth'
 import { APIError } from 'better-auth/api'
 
 type Proof = Readonly<{
@@ -8,6 +14,8 @@ type Proof = Readonly<{
   provenEmail: string
   accountId: string
   sessionId: string | null
+  authVersion: number
+  platformVersion: number
 }>
 const denied = () =>
   APIError.fromStatus('FORBIDDEN', {
@@ -53,12 +61,15 @@ export const createGoogleAccountFence = () => {
         )
           throw denied()
         const insert = async (tx: DBTransactionAdapter) => {
-          const local = await tx.findOne<User>({
+          const local = await tx.findOne<SecurityUser>({
             model: 'user',
             where: [{ field: 'id', value: proof.userId }],
           })
           if (
-            !local?.emailVerified ||
+            !isActive(local) ||
+            generation(local.authVersion) !== proof.authVersion ||
+            generation(local.platformVersion) !== proof.platformVersion ||
+            !local.emailVerified ||
             local.email !== proof.email ||
             local.email.toLowerCase() !== proof.provenEmail
           )
@@ -80,13 +91,14 @@ export const createGoogleAccountFence = () => {
           )
             throw denied()
           if (proof.sessionId !== null) {
-            const session = await tx.findOne<Session>({
+            const session = await tx.findOne<SecuritySession>({
               model: 'session',
               where: [{ field: 'id', value: proof.sessionId }],
             })
             if (
               !session ||
               session.userId !== proof.userId ||
+              generation(session.authVersion) !== generation(local.authVersion) ||
               session.expiresAt.getTime() <= Date.now()
             )
               throw denied()

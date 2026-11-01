@@ -31,6 +31,8 @@ Browser artifacts are ignored under `test-results/` and `playwright-report/`. Ne
 
 ## Platform-admin verification
 
+The expanded [admin operations workspace](admin-operations.md) adds native-session/disposable-Mongo suites for Deals, Catalogue, Moderation, ingestion investigation/recovery and account-security admission/races. New read-only regression cases compare complete database snapshots after GET and implicit HEAD, including aged native-session rows. Existing-editor tests cover legacy-zero operation versions, stale/interleaved writes and audit rollback. Responsive component fixtures remain explicitly synthetic; root-connected acceptance uses the actual registered SPA/API/client and native session path. Final PR results must name the exact executed gate and distinguish these boundaries, rather than adding overlapping suite totals together.
+
 See [platform-admin contracts](platform-admin.md). The API suite uses real cookies and disposable MongoDB for permissions, privilege escalation, optimistic versions, concurrent changes and audit rollback. Vue and browser suites exercise the real UI with synthetic API responses, including account/request actions and 320/390/1280px layouts. They do not replace a connected browser-to-API-to-database acceptance journey or a separately approved live demo.
 
 A new worktree without `.env` needs a non-connecting DATABASE_URL for Prisma validation, for example `DATABASE_URL=mongodb://127.0.0.1:1/platform_admin_validation_only pnpm run check:all`. Each integration suite replaces it with its own disposable replica-set URI before schema setup. No existing application database is used.

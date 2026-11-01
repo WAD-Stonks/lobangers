@@ -17,7 +17,10 @@ export const runCommands = async (commands: Command[]): Promise<number> => {
   if (commands.length === 0) throw new Error('At least one command is required')
   const grouped = process.platform !== 'win32'
   const children = commands.map(({ command, args, cwd, env }) => {
-    const child = spawn(command, args, { cwd, env, stdio: 'inherit', detached: grouped })
+    // Windows exposes pnpm as a .cmd shim, which only resolves through a shell.
+    const child = grouped
+      ? spawn(command, args, { cwd, env, stdio: 'inherit', detached: true })
+      : spawn([command, ...args].join(' '), { cwd, env, stdio: 'inherit', shell: true })
     let spawnFailure = 0
     const exited = new Promise<number>((resolve) => {
       child.once('error', (error: NodeJS.ErrnoException) => {

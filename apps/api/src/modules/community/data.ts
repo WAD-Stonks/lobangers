@@ -1,4 +1,8 @@
 import { ApiErrorException } from '@api/errors'
+import {
+  type AuthenticatedActor,
+  requireActiveSessionWrite,
+} from '@api/modules/account/security-access'
 import { type CommunityPolicy, communityStatus } from '@broke-oclock/contracts/community-policy'
 import type { db } from '@broke-oclock/db'
 
@@ -47,15 +51,10 @@ export const communityTransaction = async <T>(
 export const lockCommunityWrite = async (
   tx: Transaction,
   dealId: string,
-  userId: string,
+  actor: AuthenticatedActor,
   now: Date,
 ) => {
-  const user = await tx.user.findUnique({ where: { id: userId }, select: { updatedAt: true } })
-  if (!user) throw new ApiErrorException('UNAUTHORIZED')
-  await tx.user.update({
-    where: { id: userId },
-    data: { updatedAt: new Date(Math.max(now.getTime(), user.updatedAt.getTime() + 1)) },
-  })
+  await requireActiveSessionWrite(tx, actor, now)
   const deal = await publicDeal(tx, dealId)
   await tx.deal.update({
     where: { id: deal.id },

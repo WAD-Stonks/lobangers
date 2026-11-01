@@ -101,6 +101,7 @@ describe('admin completion browser-safe contracts, synthetic data only', () => {
     const s = schema(ingestion, 'ingestionOutletAssociationRequestSchema')
     expect(s.parse({ expectedContentVersion: 1, venueId: id })).toEqual({
       expectedContentVersion: 1,
+      expectedOperationVersion: 0,
       venueId: id,
     })
     expect(s.safeParse({ expectedContentVersion: 2_147_483_646, venueId: id }).success).toBe(true)
@@ -114,6 +115,10 @@ describe('admin completion browser-safe contracts, synthetic data only', () => {
     { expectedContentVersion: 1, venueId: id, merchantId: id },
     { expectedContentVersion: 1, venueId: id, actorId: id },
     { expectedContentVersion: 1, venueId: id, publishedAt: overview.generatedAt },
+    { expectedContentVersion: 1, expectedOperationVersion: -1, venueId: id },
+    { expectedContentVersion: 1, expectedOperationVersion: 1.5, venueId: id },
+    { expectedContentVersion: 1, expectedOperationVersion: '1', venueId: id },
+    { expectedContentVersion: 1, expectedOperationVersion: 2_147_483_647, venueId: id },
   ])('rejects injected ownership/publication and invalid association input', (value) => {
     expect(
       schema(ingestion, 'ingestionOutletAssociationRequestSchema').safeParse(value).success,

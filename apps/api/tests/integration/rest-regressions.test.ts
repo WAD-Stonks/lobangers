@@ -15,10 +15,25 @@ const mocks = vi.hoisted(() => {
     role: 'ADMIN',
     email: 'admin@example.test',
     platformVersion: 0,
+    authVersion: 0,
+    suspendedAt: null,
+    emailVerified: true,
     createdAt: new Date('2026-10-01T00:00:00Z'),
+    updatedAt: new Date('2026-10-01T00:00:00Z'),
+  }
+  const session = {
+    // Persisted session identity, never a bearer token or an authentication bypass.
+    id: 'cccccccccccccccccccccccc',
+    userId: user.id,
+    createdAt: new Date('2026-10-01T00:00:00Z'),
+    updatedAt: new Date('2026-10-01T00:00:00Z'),
+    expiresAt: new Date('2027-01-01T00:00:00Z'),
+    loginAt: null,
+    authVersion: 0,
   }
   return {
     db: {
+      session: { findUnique: vi.fn(async () => session) },
       user: { findUnique: vi.fn(async () => user), findMany: vi.fn(async () => [user]) },
       importSource: {
         findUnique: vi.fn(async () => ({ id: 'bbbbbbbbbbbbbbbbbbbbbbbb', enabled: true })),
@@ -38,7 +53,7 @@ const mocks = vi.hoisted(() => {
     },
     getSession: vi.fn(async () => ({
       user,
-      session: { expiresAt: new Date('2027-01-01T00:00:00Z') },
+      session,
     })),
     listPosts: vi.fn(async () => []),
     search: vi.fn(async () => []),
@@ -131,6 +146,7 @@ describe('REST regression slices (real HTTP, synthetic transport dependencies)',
       error: { code: 'BAD_REQUEST', message: 'Query is too complex' },
     })
     expect(mocks.getSession).not.toHaveBeenCalled()
+    expect(mocks.db.session.findUnique).not.toHaveBeenCalled()
     expect(mocks.db.user.findUnique).not.toHaveBeenCalled()
     expect(mocks.db.user.findMany).not.toHaveBeenCalled()
     expect(mocks.runIngestion).not.toHaveBeenCalled()
@@ -190,6 +206,7 @@ describe('REST regression slices (real HTTP, synthetic transport dependencies)',
       }
     }
     expect(mocks.getSession).not.toHaveBeenCalled()
+    expect(mocks.db.session.findUnique).not.toHaveBeenCalled()
     expect(mocks.runIngestion).not.toHaveBeenCalled()
     expect(mocks.db.user.findUnique).not.toHaveBeenCalled()
   })
@@ -234,6 +251,7 @@ describe('REST regression slices (real HTTP, synthetic transport dependencies)',
       error: { code: 'BAD_REQUEST', message: 'Invalid path parameter' },
     })
     expect(mocks.getSession).not.toHaveBeenCalled()
+    expect(mocks.db.session.findUnique).not.toHaveBeenCalled()
     expect(mocks.db.user.findUnique).not.toHaveBeenCalled()
     expect(mocks.runIngestion).not.toHaveBeenCalled()
   })
@@ -252,6 +270,7 @@ describe('REST regression slices (real HTTP, synthetic transport dependencies)',
         error: { code: 'BAD_REQUEST', message: 'Invalid JSON body' },
       })
       expect(mocks.getSession).not.toHaveBeenCalled()
+      expect(mocks.db.session.findUnique).not.toHaveBeenCalled()
       expect(mocks.runIngestion).not.toHaveBeenCalled()
       expect(mocks.db.user.findUnique).not.toHaveBeenCalled()
     },

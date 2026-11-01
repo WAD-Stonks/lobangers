@@ -336,7 +336,7 @@ it('reads legacy nullable finalUrl without rewriting literal original HTTP attri
 })
 
 it.each(['geographyEvidence', 'occupancyEvidence'] as const)(
-  'requires independent current %s before exposing public media',
+  'without current %s the map pin and venue page flag the outlet as unconfirmed',
   async (field) => {
     const original = await db.venue.findUniqueOrThrow({ where: { id: venueId } })
     for (const missing of [false, true]) {
@@ -347,8 +347,14 @@ it.each(['geographyEvidence', 'occupancyEvidence'] as const)(
       try {
         const mapResponse = await fetch(`${baseURL}/api/deals`)
         expect(mapResponse.status).toBe(200)
-        expect(await mapResponse.json()).toMatchObject({ items: [], categories: [] })
-        expect((await fetch(`${baseURL}/api/venues/${venueId}`)).status).toBe(404)
+        const map = await mapResponse.json()
+        expect(map.items).toEqual([
+          expect.objectContaining({ id: publicId, outletUnconfirmed: true }),
+        ])
+        const venue = await (await fetch(`${baseURL}/api/venues/${venueId}`)).json()
+        expect(venue.deals).toEqual([
+          expect.objectContaining({ id: publicId, outletUnconfirmed: true }),
+        ])
       } finally {
         await db.venue.update({ where: { id: venueId }, data: { [field]: original[field] } })
       }
@@ -357,7 +363,7 @@ it.each(['geographyEvidence', 'occupancyEvidence'] as const)(
 )
 
 it.each(['missing', 'null', 'stale'] as const)(
-  'requires current campaign scope independently of catalogue proof: %s',
+  'without current campaign scope the map pin is flagged unconfirmed: %s',
   async (mode) => {
     const original = await db.deal.findUniqueOrThrow({ where: { id: publicId } })
     if (!original.scopeConfirmation) throw new Error('Missing positive synthetic scope')
@@ -375,10 +381,15 @@ it.each(['missing', 'null', 'stale'] as const)(
     try {
       const mapResponse = await fetch(`${baseURL}/api/deals`)
       expect(mapResponse.status).toBe(200)
-      expect(await mapResponse.json()).toMatchObject({ items: [], categories: [] })
+      const map = await mapResponse.json()
+      expect(map.items).toEqual([
+        expect.objectContaining({ id: publicId, outletUnconfirmed: true }),
+      ])
       const venueResponse = await fetch(`${baseURL}/api/venues/${venueId}`)
       expect(venueResponse.status).toBe(200)
-      expect(await venueResponse.json()).toMatchObject({ deals: [] })
+      expect((await venueResponse.json()).deals).toEqual([
+        expect.objectContaining({ id: publicId, outletUnconfirmed: true }),
+      ])
     } finally {
       await db.deal.update({
         where: { id: publicId },
@@ -409,14 +420,20 @@ it('hashes complete selected edges including deleted outlets before filtering th
     })
     await seedSyntheticScope(db, publicId, 'SOURCE_SELECTED')
     await db.dealVenue.create({ data: { dealId: publicId, venueId: deleted.id } })
+    // The stale receipt falls back to an unconfirmed pin at the live selected outlet only.
     const held = await fetch(`${baseURL}/api/deals`)
     expect(held.status).toBe(200)
-    expect(await held.json()).toMatchObject({ items: [], categories: [] })
+    const heldBody = await held.json()
+    expect(heldBody.items).toEqual([
+      expect.objectContaining({ id: publicId, outletUnconfirmed: true }),
+    ])
+    expect(heldBody.items[0].venues.map((venue: { id: string }) => venue.id)).toEqual([venueId])
     await seedSyntheticScope(db, publicId, 'SOURCE_SELECTED')
     const restored = await fetch(`${baseURL}/api/deals`)
     expect(restored.status).toBe(200)
     const body = await restored.json()
     expect(body.items).toHaveLength(1)
+    expect(body.items[0].outletUnconfirmed).toBeUndefined()
     expect(body.items[0].venues.map((venue: { id: string }) => venue.id)).toEqual([venueId])
     expect(body.items[0].images).toEqual([{ url, alt: altText }])
   } finally {

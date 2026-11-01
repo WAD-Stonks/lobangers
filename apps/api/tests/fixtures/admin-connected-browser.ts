@@ -45,6 +45,8 @@ const jwk = {
 }
 let otpAdmin: { id: string; email: string; password: string; cookie: string }
 let ownedRecordId = ''
+let securityTarget: Awaited<ReturnType<typeof seedAdmin>>
+let passwordAdminId = ''
 const request = (path: string, body?: object, cookie = '', headers: Record<string, string> = {}) =>
   nativeFetch(`${apiURL}${path}`, {
     method: body ? 'POST' : 'GET',
@@ -233,11 +235,16 @@ const initialize = async () => {
     ),
   )
   const passwordAdmin = await seedAdmin('password', { verified: true })
+  passwordAdminId = passwordAdmin.id
   // Native logout closes setup's independent signup session. Browser then owns the
   // password identity's only session; OTP setup session deliberately remains for revocation proof.
   if ((await request('/api/auth/sign-out', {}, passwordAdmin.cookie)).status !== 200)
     throw new Error('Native setup logout failed')
   otpAdmin = await seedAdmin('otp', { verified: false })
+  // Independent native identity: security mutations must not consume/demote the
+  // password, OTP or Google identities used by the five original journeys.
+  securityTarget = await seedAdmin('security-target', { verified: true })
+  await db.user.update({ where: { id: securityTarget.id }, data: { role: 'USER' } })
   const merchant = await db.merchant.create({ data: { name: 'Synthetic connected merchant' } })
   const venue = await db.venue.create({
     data: {
@@ -277,6 +284,7 @@ const initialize = async () => {
       password: passwordAdmin.password,
     },
     otpAdmin: { id: otpAdmin.id, email: otpAdmin.email, password: otpAdmin.password },
+    securityTarget: { id: securityTarget.id },
   })
 }
 process.on(
@@ -290,6 +298,7 @@ process.on(
     cookie?: string
     authorization?: string
     verified?: boolean
+    merchantName?: string
   }) => {
     try {
       let value: unknown
@@ -354,6 +363,56 @@ process.on(
           userId: active.userId,
           expiresAt: active.expiresAt.getTime(),
           recordStatus: record.status,
+        }
+      } else if (message.operation === 'catalogueReadback') {
+        value = await database.merchant.findMany({
+          where: { name: message.merchantName },
+          select: { id: true, name: true, catalogueVersion: true, deletedAt: true },
+        })
+      } else if (message.operation === 'securityReadback') {
+        const target = await database.user.findUniqueOrThrow({
+          where: { id: securityTarget.id },
+          select: {
+            id: true,
+            role: true,
+            platformVersion: true,
+            authVersion: true,
+            suspendedAt: true,
+          },
+        })
+        const sessionIds = await database.session.findMany({
+          where: { userId: securityTarget.id },
+          select: { id: true },
+          orderBy: { id: 'asc' },
+        })
+        const native = await request(
+          '/api/auth/get-session?disableCookieCache=true',
+          undefined,
+          securityTarget.cookie,
+        )
+        const nativeIdentity = (await native.json()) as { user?: { id?: string } } | null
+        const controls = await database.session.findMany({
+          where: { userId: { in: [passwordAdminId, otpAdmin.id] } },
+          select: { id: true, userId: true, loginAt: true },
+          orderBy: { id: 'asc' },
+        })
+        value = {
+          ...target,
+          platformVersion: target.platformVersion ?? 0,
+          authVersion: target.authVersion ?? 0,
+          sessionIds: sessionIds.map((row) => row.id),
+          nativeUserId: nativeIdentity?.user?.id ?? null,
+          nativeMeStatus: (await request('/api/me', undefined, securityTarget.cookie)).status,
+          controls: controls.map((row) => ({
+            id: row.id,
+            userId: row.userId,
+            genuineRecentLogin: !!row.loginAt && Date.now() - row.loginAt.getTime() <= 300_000,
+          })),
+          audits: await database.platformAudit.findMany({
+            where: { subjectId: securityTarget.id },
+            select: { actorId: true, action: true, subjectId: true, note: true, detailsJson: true },
+            orderBy: { createdAt: 'asc' },
+          }),
         }
       } else if (message.operation === 'protected')
         value = (await request('/api/admin/overview', undefined, message.cookie)).status

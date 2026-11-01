@@ -3,7 +3,7 @@ import SaveDealButton from '@web/modules/browse-map/SaveDealButton.vue'
 import DealImage from '@web/components/DealImage.vue'
 import { walkMinutesFor } from '@web/modules/browse-map/apply-filters'
 import CategoryBubble from '@web/modules/browse-map/CategoryBubble.vue'
-import { dealFreshness, formatEnding, formatMoreOutlets } from '@web/modules/browse-map/deal-format'
+import { dealFreshness, dealNoticeTags, formatEnding, formatMoreOutlets, OUTLET_NOT_CONFIRMED } from '@web/modules/browse-map/deal-format'
 import type { DealRow } from '@web/modules/browse-map/types'
 import ShellIcon from '@web/modules/map-shell/ShellIcon.vue'
 import { ref } from 'vue'
@@ -58,6 +58,8 @@ const isHot = (row: DealRow) => {
           <span v-if="row.outletCount > 1" class="deal-rows__outlets" data-testid="more-outlets">
             {{ formatMoreOutlets(row.outletCount) }}
           </span>
+          <span v-if="row.deal.outletUnconfirmed" class="deal-rows__unsure">{{ OUTLET_NOT_CONFIRMED }}</span>
+          <span v-for="notice in dealNoticeTags(row.deal)" :key="notice.label" class="lb-tag deal-rows__notice" :class="`lb-tag--${notice.tone}`">{{ notice.label }}</span>
           <span class="deal-rows__ending" :class="{ 'is-expired': formatEnding(row.deal.validUntil) === 'Ended' }"><ShellIcon name="calendar" :size="16" /><span>{{ formatEnding(row.deal.validUntil) }}</span></span>
           <span v-if="row.distanceMetres !== null" class="deal-rows__walk">
             <ShellIcon name="walk" :size="16" /><span>{{ walkMinutesFor(row.distanceMetres) }} min walk</span>
@@ -227,6 +229,16 @@ const isHot = (row: DealRow) => {
   font-weight: 600;
   color: var(--ink);
   overflow-wrap: anywhere;
+}
+
+.deal-rows__unsure {
+  font-size: var(--text-xs);
+  color: var(--ink-muted);
+  white-space: nowrap;
+}
+
+.deal-rows__notice {
+  align-self: flex-start;
 }
 
 .deal-rows__walk,

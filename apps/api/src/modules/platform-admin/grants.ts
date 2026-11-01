@@ -1,3 +1,4 @@
+import type { AuthenticatedActor } from '@api/modules/account/security-access'
 import { isSelectableCatalogueVenue } from '@api/modules/deals/outlet-eligibility'
 import { DomainError } from '@api/modules/domain-error'
 import { invalidatePendingRequests } from '@api/modules/platform-admin/invalidation'
@@ -8,7 +9,7 @@ import {
   conflict,
   currentUser,
   type Database,
-  requireCurrentAdmin,
+  requireRecentAdminWrite,
 } from '@api/modules/platform-admin/transaction'
 import { activeVenue } from '@api/modules/platform-admin/venues'
 
@@ -26,11 +27,13 @@ export const activateGrant = async (tx: AccessTransaction, userId: string, venue
 }
 export const revokeStall = (
   db: Database,
-  actorId: string,
-  input: { grantId: string; expectedVersion: number; note: string },
+  actorRef: AuthenticatedActor,
+  input: { grantId: string; expectedVersion: number; note: string; confirmed: true },
 ) =>
   accessTransaction(db, async (tx) => {
-    const actor = await requireCurrentAdmin(tx, actorId)
+    const actorId = actorRef.userId
+    const actor = await requireRecentAdminWrite(tx, actorRef)
+    if (input.confirmed !== true) throw new DomainError('BAD_REQUEST')
     const grant = await tx.stallGrant.findUnique({ where: { id: input.grantId } })
     if (!grant) throw new DomainError('NOT_FOUND')
     checkVersion(grant.version, input.expectedVersion)
@@ -68,11 +71,19 @@ export const revokeStall = (
 
 export const grantStall = (
   db: Database,
-  actorId: string,
-  input: { userId: string; venueId: string; expectedUserVersion: number; note: string },
+  actorRef: AuthenticatedActor,
+  input: {
+    userId: string
+    venueId: string
+    expectedUserVersion: number
+    note: string
+    confirmed: true
+  },
 ) =>
   accessTransaction(db, async (tx) => {
-    const actor = await requireCurrentAdmin(tx, actorId)
+    const actorId = actorRef.userId
+    const actor = await requireRecentAdminWrite(tx, actorRef)
+    if (input.confirmed !== true) throw new DomainError('BAD_REQUEST')
     if (actorId === input.userId) throw new DomainError('FORBIDDEN', 'Cannot grant yourself access')
     const target = await currentUser(tx, input.userId)
     checkVersion(target.platformVersion, input.expectedUserVersion)

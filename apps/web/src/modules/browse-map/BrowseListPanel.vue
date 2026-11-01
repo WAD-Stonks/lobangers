@@ -5,6 +5,7 @@ import DealRowList from '@web/modules/browse-map/DealRowList.vue'
 import FoodDealGrid from '@web/modules/browse-map/FoodDealGrid.vue'
 import { activeFilterTokens } from '@web/modules/browse-map/filter-tokens'
 import { createDefaultFilters } from '@web/modules/browse-map/filters'
+import { resultsTitle } from '@web/modules/browse-map/results-title'
 import type { DealRow } from '@web/modules/browse-map/types'
 import PanelFrame from '@web/modules/map-shell/PanelFrame.vue'
 import ShellIcon from '@web/modules/map-shell/ShellIcon.vue'
@@ -33,13 +34,18 @@ const setResultView = (results: 'list' | 'cards') => {
   return router.replace({ query: { ...route.query, results } })
 }
 const located = computed(() => shell.position.value !== null)
+const firstLoad = computed(() => shell.status.value === 'loading' && shell.deals.value.length === 0)
 const title = computed(() => {
-  if (shell.status.value === 'loading' && shell.deals.value.length === 0) return 'Finding deals'
+  if (firstLoad.value) return 'Finding deals'
   const noun = `${shell.savedOnly.value ? 'saved ' : ''}${count.value === 1 ? 'deal' : 'deals'}`
   if (shell.savedOnly.value) return `${count.value} ${noun}`
   if (fullPage.value) return `${count.value} ${noun} to explore`
-  if (shell.area.value) return `${count.value} ${noun} in this area`
-  return located.value ? `${count.value} ${noun} nearby` : `${count.value} ${noun}`
+  return resultsTitle({
+    count: count.value,
+    loading: false,
+    inArea: shell.area.value !== null,
+    walkFiltered: shell.filters.value.walkMinutes !== null && located.value,
+  })
 })
 const tokens = computed(() => activeFilterTokens(shell.filters.value))
 const hasNarrowing = computed(() => tokens.value.length > 0)
@@ -151,7 +157,7 @@ const clearAll = () => {
 
     <div class="browse-list__cta">
       <span>Know a deal that isn't here?</span>
-      <RouterLink class="lb-btn lb-btn--primary" :to="{ name: 'add-deal', query: { ...route.query, collection: undefined } }">Add a deal</RouterLink>
+      <RouterLink class="lb-btn lb-btn--primary" :to="{ name: 'submit-deal' }">Add a deal</RouterLink>
     </div>
   </PanelFrame>
 </template>

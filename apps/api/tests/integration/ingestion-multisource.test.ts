@@ -206,16 +206,123 @@ it('does not create a second canonical deal when an identical promotion was alre
   })
 })
 it('stops admitting further sources when the shared request budget is exhausted', async () => {
+  const source = await db.importSource.findUniqueOrThrow({
+    where: { provider_externalId: { provider: 'WORDPRESS', externalId: 'moneydigest.sg' } },
+  })
+  await db.importSource.update({ where: { id: source.id }, data: { cursor: null } })
+  lists[0]?.mockResolvedValue({ posts: [], nextCursor: '2' })
+  const completedAt = clock
+  const update = db.ingestionRun.update.bind(db.ingestionRun)
+  let completedRunId: string | undefined
+  const spy = vi.spyOn(db.ingestionRun, 'update').mockImplementation((args) => {
+    const query = update(args)
+    // Retain the real lazy Prisma client; observe only its committed resolution.
+    const observe: typeof query.then = (onfulfilled, onrejected) =>
+      query
+        .then(async (result) => {
+          if (args.data.status === 'SUCCEEDED') {
+            // Advance only after the real cursor transaction and terminal run write
+            // have committed, before runIngestion considers the next source.
+            expect(
+              await db.ingestionRun.findUniqueOrThrow({ where: { id: result.id } }),
+            ).toMatchObject({
+              sourceId: source.id,
+              status: 'SUCCEEDED',
+              finishedAt: completedAt,
+            })
+            expect(
+              await db.importSource.findUniqueOrThrow({ where: { id: source.id } }),
+            ).toMatchObject({
+              cursor: '2',
+              leaseToken: null,
+              leaseExpiresAt: null,
+            })
+            completedRunId = result.id
+            clock = new Date(clock.getTime() + 90_000)
+          }
+          return result
+        })
+        .then(onfulfilled, onrejected)
+    return new Proxy(query, {
+      get(target, property, receiver) {
+        if (property === 'then') return observe
+        return Reflect.get(target, property, receiver)
+      },
+    })
+  })
+  try {
+    const response = await request()
+    expect(response.status).toBe(200)
+    expect(await response.json()).toMatchObject({ status: 'PARTIAL' })
+    expect(lists[0]).toHaveBeenCalledTimes(1)
+    expect(lists[1]).not.toHaveBeenCalled()
+    expect(lists[2]).not.toHaveBeenCalled()
+    expect(completedRunId).toBeDefined()
+    expect(await db.ingestionRun.findMany()).toEqual([
+      expect.objectContaining({
+        id: completedRunId,
+        sourceId: source.id,
+        status: 'SUCCEEDED',
+        finishedAt: completedAt,
+        fetchedCount: 0,
+        createdCount: 0,
+        updatedCount: 0,
+        failedCount: 0,
+        errorCode: null,
+      }),
+    ])
+  } finally {
+    spy.mockRestore()
+  }
+})
+it('fails an empty provider page returned at the deadline without cursor, domain or media writes', async () => {
+  const source = await db.importSource.findUniqueOrThrow({
+    where: { provider_externalId: { provider: 'WORDPRESS', externalId: 'moneydigest.sg' } },
+  })
+  await db.importSource.update({ where: { id: source.id }, data: { cursor: null } })
+  const [, , ...before] = await snapshotIngestion()
+  const fetchImage = vi.fn()
+  const upload = vi.fn()
+  const resolve = vi.fn()
+  runtime.fetchImage = fetchImage
+  runtime.imageStorage = { upload, resolve }
   lists[0]?.mockImplementation(async () => {
     clock = new Date(clock.getTime() + 90_000)
-    return { posts: [], nextCursor: null }
+    return { posts: [], nextCursor: '2' }
   })
-  const response = await request()
-  expect(response.status).toBe(200)
-  expect(await response.json()).toMatchObject({ status: 'PARTIAL' })
-  expect(lists[0]).toHaveBeenCalledTimes(1)
-  expect(lists[1]).not.toHaveBeenCalled()
-  expect(lists[2]).not.toHaveBeenCalled()
+  try {
+    const response = await request()
+    expect(response.status).toBe(200)
+    expect(await response.json()).toMatchObject({ status: 'FAILED' })
+    expect(lists[0]).toHaveBeenCalledTimes(1)
+    expect(lists[1]).not.toHaveBeenCalled()
+    expect(lists[2]).not.toHaveBeenCalled()
+    expect(await db.ingestionRun.findMany()).toEqual([
+      expect.objectContaining({
+        sourceId: source.id,
+        status: 'FAILED',
+        finishedAt: clock,
+        fetchedCount: 0,
+        createdCount: 0,
+        updatedCount: 0,
+        errorCode: 'CONFLICT',
+      }),
+    ])
+    expect(await db.importSource.findUniqueOrThrow({ where: { id: source.id } })).toMatchObject({
+      cursor: null,
+      leaseToken: null,
+      leaseExpiresAt: null,
+    })
+    const [, , ...after] = await snapshotIngestion()
+    expect(after).toEqual(before)
+    expect(fetchImage).not.toHaveBeenCalled()
+    expect(upload).not.toHaveBeenCalled()
+    expect(resolve).not.toHaveBeenCalled()
+    expect(await db.uploadedFile.count()).toBe(0)
+  } finally {
+    delete runtime.fetchImage
+    delete runtime.imageStorage
+  }
 })
 it.each([
   'Singapore pizza 25% off. Valid from 1 October 2026 until 30 December 2026. All outlets. No membership required.',

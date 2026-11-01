@@ -167,9 +167,10 @@ describe('GET /api/deals', () => {
 
   it('rejects unknown query keys and other methods', async () => {
     expect((await client().get('/api/deals', { params: { bogus: 1 } })).status).toBe(400)
-    const post = await client().post('/api/deals')
-    expect(post.status).toBe(405)
-    expect(post.headers.allow).toBe('GET')
+    // POST is community submission (merchant-deals.test.ts); everything else is refused.
+    const remove = await client().delete('/api/deals')
+    expect(remove.status).toBe(405)
+    expect(remove.headers.allow).toBe('GET, POST')
   })
 
   it('derives verification from distinct recent voters, the ratio, approval and expiry', async () => {

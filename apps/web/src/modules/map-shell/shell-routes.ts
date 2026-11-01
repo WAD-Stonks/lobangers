@@ -32,6 +32,21 @@ export const dealLocation = (
   query: { ...shellQuery(query), ...(venueId ? { at: venueId } : {}) },
 })
 
+export const lobbieLocation = (query: LocationQuery): RouteLocationRaw => ({
+  name: 'lobbie',
+  query: shellQuery(query),
+})
+
+export const lobbieDealLocation = (
+  query: LocationQuery,
+  dealId: string,
+  venueId: string,
+): RouteLocationRaw => ({
+  name: 'deal',
+  params: { dealId },
+  query: { ...shellQuery(query), at: venueId, from: 'lobbie' },
+})
+
 export const venueLocation = (query: LocationQuery, venueId: string): RouteLocationRaw => ({
   name: 'venue',
   params: { venueId },
@@ -40,14 +55,7 @@ export const venueLocation = (query: LocationQuery, venueId: string): RouteLocat
 
 // Snap index (0 peek, 1 half, 2 full) a panel opens at on a bottom sheet. Forms and the list
 // view need room; browsing and deal details leave the map visible.
-const FULL_HEIGHT_PANELS = new Set([
-  'add-deal',
-  'login',
-  'register',
-  'profile',
-  'saved',
-  'merchant',
-])
+const FULL_HEIGHT_PANELS = new Set(['add-deal', 'login', 'register', 'profile', 'saved'])
 
 export const panelSnapFor = (
   name: RouteRecordNameGeneric | null | undefined,

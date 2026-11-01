@@ -1,6 +1,6 @@
 # Platform administration
 
-Owner: Noah. The dedicated UI is `/admin/accounts`, separate from `/admin/ingestion`. Its API uses explicit same-origin REST resources and named Axios client functions; app-local services are in `apps/api/src/modules/platform-admin`.
+Owner: Noah. Accounts remain at `/admin/accounts` within the seven-page [admin operations workspace](admin-operations.md). Its API uses explicit same-origin REST resources and named Axios client functions; app-local account-access services are in `apps/api/src/modules/platform-admin`.
 
 ## Scope
 
@@ -9,6 +9,7 @@ Owner: Noah. The dedicated UI is `/admin/accounts`, separate from `/admin/ingest
 - Review of existing merchant-access requests, with approval limited to the named active stall and merchant.
 - Explicit account-to-stall grants, revocation and two-stall isolation.
 - Atomic account-action history with actor, target, stall, note, time and before/after role snapshots.
+- Approved account-security detail, non-bearer session revocation and indefinite suspension/reinstatement. Sensitive account actions require reason, explicit confirmation and a genuine primary sign-in within five minutes, not MFA or renewed-session age. See [the approved policy and native boundaries](admin-operations.md#approved-account-security-policy).
 
 Account deletion is unavailable until the team agrees retention and anonymisation. No deletion endpoint, production account provisioning, schema application, source activation, deployment or scheduler is included. Kang En owns user-facing request screens and account lifecycle; Isaac owns merchant promotion management. This module does not implement those screens or promotion endpoints.
 
@@ -37,13 +38,13 @@ The public API has no audit update/delete operations. This is application-level 
 
 ## Handoff to Kang En
 
-The internal server function `submitMerchantAccessRequest(db, authenticatedUserId, { venueId, message })` in `requests.ts` creates a versioned request with an audit event. Message length is 1 to 1000 trimmed characters. It rejects unknown input keys, staff requests, duplicate pending requests, already-active grants and inactive/missing venues or merchants.
+The internal server function `submitMerchantAccessRequest(db, actor, { venueId, message })` in `requests.ts` creates a versioned request with an audit event. The verified actor is `{ userId, sessionId }`, not a body-supplied identity or user ID alone. Message length is 1 to 1000 trimmed characters. It rejects unknown input keys, staff requests, duplicate pending requests, already-active grants and inactive/missing venues or merchants.
 
-A future protected, trusted-origin REST handler must derive `authenticatedUserId` from the verified cookie session, never from the request body. Request status and role are server-owned. Add a separately authorized own-request status resource and the user-facing screens in Kang En's module. Do not bypass the service with unchecked Prisma request inserts.
+The protected, trusted-origin REST handler derives both actor identifiers from the verified cookie session, never from the request body. Request status and role are server-owned. User-facing request/status screens remain in Kang En's module. Do not bypass the service with unchecked Prisma request inserts.
 
 ## Handoff to Isaac
 
-`requireMerchantStall(tx, userId, venueId)` in `capability.ts` checks the fresh MERCHANT role, active grant and active venue/merchant. It acquires the permission fence and must run **inside the same interactive transaction as the protected promotion write**, before that write. Derive the user ID from the verified session and verify that the promotion really belongs to the authorized stall. This helper is not a read-only lookup and must not be called outside a transaction then trusted later.
+`requireMerchantStall(tx, actor, venueId)` in `capability.ts` checks the current persisted actor/session, fresh MERCHANT role, active grant and active venue/merchant. The actor is `{ userId, sessionId }` from the verified session. It acquires the permission fence and must run **inside the same interactive transaction as the protected promotion write**, before that write. Verify that the promotion really belongs to the authorized stall. This helper is not a read-only lookup and must not be called outside a transaction then trusted later.
 
 Future merchant mutations should use `accessTransaction` so known concurrency conflicts receive the same safe error mapping. Multi-outlet promotion scope still needs an explicit authorization design; permission for one venue must not imply permission for a whole brand. No merchant promotion endpoint is protected merely because this helper exists.
 

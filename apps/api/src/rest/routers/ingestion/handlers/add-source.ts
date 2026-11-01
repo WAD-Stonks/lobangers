@@ -1,5 +1,10 @@
 import { addIngestionSource } from '@api/modules/ingestion/source-management'
-import { createRestHandler, type RestDependencies, requireAdmin } from '@api/rest/context'
+import {
+  authenticatedActor,
+  createRestHandler,
+  type RestDependencies,
+  requireAdmin,
+} from '@api/rest/context'
 import { requireTrustedOrigin } from '@api/rest/policy'
 import { parseRestInput } from '@api/rest/validation'
 import {
@@ -16,6 +21,8 @@ export const postIngestionSource = (dependencies: RestDependencies): RequestHand
     response
       .status(201)
       .json(
-        ingestionSourceSchema.parse(await addIngestionSource(context.db, session.user.id, input)),
+        ingestionSourceSchema.parse(
+          await addIngestionSource(context.db, authenticatedActor(session), input),
+        ),
       )
   })

@@ -6,15 +6,16 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { promisify } from 'node:util'
-import {
-  registerSyntheticOutletFixtureDatabase,
-  seedSyntheticOutletProof,
-  seedSyntheticScope,
-} from '@api/../tests/fixtures/outlet-proof'
 import { parseConfig } from '@api/config'
 import type { IngestionRuntime } from '@api/modules/ingestion/runtime'
 import { MONEYDIGEST_SOURCE, sourceWhere } from '@api/modules/ingestion/source'
 import { parseDealCopyBatch } from '@api/tools/deal-copy/batch'
+import { pushDisposableSchema } from '@api-tests/fixtures/disposable-schema'
+import {
+  registerSyntheticOutletFixtureDatabase,
+  seedSyntheticOutletProof,
+  seedSyntheticScope,
+} from '@api-tests/fixtures/outlet-proof'
 import axios from 'axios'
 import { MongoMemoryReplSet } from 'mongodb-memory-server'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
@@ -76,12 +77,7 @@ beforeAll(async () => {
   fixtureDatabaseUrl = databaseUrl
   vi.stubEnv('DATABASE_URL', databaseUrl)
   vi.stubEnv('NODE_ENV', 'test')
-  await promisify(execFile)('pnpm', ['--dir', 'packages/db', 'run', 'push', '--skip-generate'], {
-    cwd: root,
-    env: { ...process.env, DATABASE_URL: databaseUrl },
-    encoding: 'utf8',
-    timeout: 60_000,
-  })
+  await pushDisposableSchema(databaseUrl)
   db = (await import('@broke-oclock/db')).db
   registerSyntheticOutletFixtureDatabase(db, databaseUrl)
   const { createApp } = await import('@api/app')
@@ -177,14 +173,26 @@ const fixture = async () => {
   await seedSyntheticOutletProof(db, venue.id)
   return { deal, post, venue, merchant, source }
 }
-const associate = (f: Awaited<ReturnType<typeof fixture>>, version = 1, venueId = f.venue.id) =>
+const associate = (
+  f: Awaited<ReturnType<typeof fixture>>,
+  version = 1,
+  venueId = f.venue.id,
+  operationVersion = 0,
+) =>
   http().patch(`/api/ingestion/drafts/${f.deal.id}/outlet`, {
     expectedContentVersion: version,
+    expectedOperationVersion: operationVersion,
     venueId,
   })
-const review = (f: Awaited<ReturnType<typeof fixture>>, version = 1, decision = 'APPROVE') =>
+const review = (
+  f: Awaited<ReturnType<typeof fixture>>,
+  version = 1,
+  decision = 'APPROVE',
+  operationVersion = 0,
+) =>
   http().post(`/api/ingestion/drafts/${f.deal.id}/review`, {
     expectedContentVersion: version,
+    expectedOperationVersion: operationVersion,
     decision,
     note: 'Synthetic evidence checked',
   })
@@ -193,6 +201,7 @@ const stored = (id: string) =>
 
 describe('existing outlet association real native HTTP and disposable Mongo', () => {
   it('conflicts with real changed-content reimport and never carries the selected outlet to new evidence', async () => {
+    const { runIngestion } = await import('@api/modules/ingestion/service')
     const f = await fixture()
     const id = 90001
     runtime.enabled = true
@@ -206,6 +215,7 @@ describe('existing outlet association real native HTTP and disposable Mongo', ()
     const selected = { ...f, deal: initial }
     expect((await associate(selected)).status).toBe(200)
     const before = await stored(initial.id)
+    if (before.operationVersion === null) throw new Error('Missing associated operation version')
     clock = new Date(clock.getTime() + 30_000)
     listPosts.mockResolvedValue([
       syntheticPost(
@@ -229,7 +239,11 @@ describe('existing outlet association real native HTTP and disposable Mongo', ()
                       const result = await delegate.findFirst(...args)
                       if (armed && args[0]?.where?.id === initial.id) {
                         armed = false
-                        expect((await http().post('/api/ingestion/runs')).status).toBe(200)
+                        // An independent system writer must not wait on this manual
+                        // association's native actor fence while its Mongo read is paused.
+                        expect(await runIngestion(db, runtime)).toMatchObject({
+                          status: 'SUCCEEDED',
+                        })
                       }
                       return result
                     }
@@ -243,7 +257,10 @@ describe('existing outlet association real native HTTP and disposable Mongo', ()
     )
     const next = await fixture()
     try {
-      expect((await associate(selected, 2, next.venue.id)).status).toBe(409)
+      expect((await associate(selected, 2, next.venue.id, before.operationVersion)).status).toBe(
+        409,
+      )
+      expect(armed).toBe(false)
     } finally {
       spy.mockRestore()
     }
@@ -380,8 +397,8 @@ describe('existing outlet association real native HTTP and disposable Mongo', ()
     const f = await fixture(),
       next = await fixture()
     expect((await associate(f)).status).toBe(200)
-    expect((await associate(f, 2)).status).toBe(412)
-    expect((await associate(f, 2, next.venue.id)).status).toBe(200)
+    expect((await associate(f, 2, f.venue.id, 1)).status).toBe(412)
+    expect((await associate(f, 2, next.venue.id, 1)).status).toBe(200)
     const after = await stored(f.deal.id)
     expect(after).toMatchObject({
       merchantId: next.merchant.id,
@@ -539,9 +556,9 @@ describe('existing outlet association real native HTTP and disposable Mongo', ()
         await db.venue.update({ where: { id: f.venue.id }, data: { deletedAt: new Date() } })
       else
         await db.merchant.update({ where: { id: f.merchant.id }, data: { deletedAt: new Date() } })
-      expect((await review(f, 2)).status).toBe(412)
+      expect((await review(f, 2, 'APPROVE', 1)).status).toBe(412)
       expect((await stored(f.deal.id)).publishedAt).toBeNull()
-      expect((await review(f, 2, 'REJECT')).status).toBe(200)
+      expect((await review(f, 2, 'REJECT', 1)).status).toBe(200)
     }
   })
   it('conflicts if the ADMIN is demoted after its transaction role read, leaving no review write', async () => {
@@ -593,6 +610,7 @@ describe('existing outlet association real native HTTP and disposable Mongo', ()
     expect(response.status).toBe(200)
     expect(response.data).toEqual({
       id: f.deal.id,
+      operationVersion: 1,
       contentVersion: 2,
       reviewStatus: 'PENDING',
       applicability: 'SELECTED_OUTLETS',
@@ -608,6 +626,7 @@ describe('existing outlet association real native HTTP and disposable Mongo', ()
     expect(after.sources).toEqual(before.sources)
     expect(after).toMatchObject({
       ...f.deal,
+      operationVersion: 1,
       updatedAt: after.updatedAt,
       merchantId: f.merchant.id,
       applicability: 'SELECTED_OUTLETS',
@@ -628,7 +647,7 @@ describe('existing outlet association real native HTTP and disposable Mongo', ()
       approvalReady: false,
       scopeStatus: 'UNCONFIRMED',
     })
-    expect((await review(f, 2)).status).toBe(412)
+    expect((await review(f, 2, 'APPROVE', 1)).status).toBe(412)
     await seedSyntheticScope(db, f.deal.id, 'SOURCE_SELECTED', {
       sourceUrl: f.post.url,
       sourceContentHash: f.post.contentHash,
@@ -640,7 +659,7 @@ describe('existing outlet association real native HTTP and disposable Mongo', ()
       reviewReady: true,
     })
     expect((await review(f, 1)).status).toBe(409)
-    expect((await review(f, 2)).status).toBe(200)
+    expect((await review(f, 2, 'APPROVE', 1)).status).toBe(200)
   })
 })
 
@@ -655,7 +674,7 @@ const approvedPhysicalFixture = async (title = 'Synthetic Pizza') => {
     sourceUrl: f.post.url,
     sourceContentHash: f.post.contentHash,
   })
-  expect((await review(f, 2)).status).toBe(200)
+  expect((await review(f, 2, 'APPROVE', 1)).status).toBe(200)
   expect((await stored(f.deal.id)).publishedAt).not.toBeNull()
   return f
 }
@@ -725,13 +744,13 @@ describe('operator copy writer actual caller with native review and public proje
       postBefore,
     )
     expect(await publicVenueDealIds(f.venue.id)).not.toContain(f.deal.id)
-    expect((await review(f, 2)).status).toBe(409)
-    expect((await review(f, 3)).status).toBe(412)
+    expect((await review(f, 2, 'APPROVE', 1)).status).toBe(409)
+    expect((await review(f, 3, 'APPROVE', 3)).status).toBe(412)
     await seedSyntheticScope(db, f.deal.id, 'SOURCE_SELECTED', {
       sourceUrl: f.post.url,
       sourceContentHash: f.post.contentHash,
     })
-    expect((await review(f, 3)).status).toBe(200)
+    expect((await review(f, 3, 'APPROVE', 3)).status).toBe(200)
     expect(await publicVenueDealIds(f.venue.id)).toContain(f.deal.id)
     // Revert is also material content, not restoration of the previous review/proof.
     await rewriteDealCopy(db, batch.rewrites, { apply: true, revert: true })
@@ -787,13 +806,13 @@ describe('operator category writer actual caller with native review and public p
       postBefore,
     )
     expect(await publicVenueDealIds(f.venue.id)).not.toContain(f.deal.id)
-    expect((await review(f, 2)).status).toBe(409)
-    expect((await review(f, 3)).status).toBe(412)
+    expect((await review(f, 2, 'APPROVE', 1)).status).toBe(409)
+    expect((await review(f, 3, 'APPROVE', 3)).status).toBe(412)
     await seedSyntheticScope(db, f.deal.id, 'SOURCE_SELECTED', {
       sourceUrl: f.post.url,
       sourceContentHash: f.post.contentHash,
     })
-    expect((await review(f, 3)).status).toBe(200)
+    expect((await review(f, 3, 'APPROVE', 3)).status).toBe(200)
     expect(await publicVenueDealIds(f.venue.id)).toContain(f.deal.id)
     const reviewed = await stored(f.deal.id)
     await reclassifyCategories(db, true)
@@ -933,9 +952,15 @@ describe('material writer concurrency and disposable CLI characterization', () =
   })
 })
 
-const setCategory = (f: Awaited<ReturnType<typeof fixture>>, version = 1, category = 'DRINKS') =>
+const setCategory = (
+  f: Awaited<ReturnType<typeof fixture>>,
+  version = 1,
+  category = 'DRINKS',
+  operationVersion = 0,
+) =>
   http().patch(`/api/ingestion/drafts/${f.deal.id}/category`, {
     expectedContentVersion: version,
+    expectedOperationVersion: operationVersion,
     category,
   })
 
@@ -962,13 +987,13 @@ describe('draft category correction', () => {
     expect(after.scopeConfirmation).toBeNull()
     expect(after.sources).toEqual(before.sources)
     expect(after.venues).toEqual(before.venues)
-    expect((await review(f, 2)).status).toBe(412)
+    expect((await review(f, 2, 'APPROVE', 1)).status).toBe(412)
     expect((await stored(f.deal.id)).publishedAt).toBeNull()
     await seedSyntheticScope(db, f.deal.id, 'SOURCE_SELECTED', {
       sourceUrl: f.post.url,
       sourceContentHash: f.post.contentHash,
     })
-    expect((await review(f, 2)).status).toBe(200)
+    expect((await review(f, 2, 'APPROVE', 1)).status).toBe(200)
     expect((await stored(f.deal.id)).publishedAt).not.toBeNull()
   })
 
@@ -1003,6 +1028,7 @@ describe('draft category correction', () => {
     expect(response.status).toBe(200)
     expect(response.data).toEqual({
       id: f.deal.id,
+      operationVersion: 1,
       contentVersion: 2,
       reviewStatus: 'PENDING',
       category: 'DRINKS',
@@ -1018,12 +1044,12 @@ describe('draft category correction', () => {
     })
     expect((await setCategory(f, 1, 'BAKERY')).status).toBe(409)
     expect((await review(f, 1)).status).toBe(409)
-    expect((await review(f, 2)).status).toBe(412)
+    expect((await review(f, 2, 'APPROVE', 1)).status).toBe(412)
     await seedSyntheticScope(db, f.deal.id, 'SOURCE_SELECTED', {
       sourceUrl: f.post.url,
       sourceContentHash: f.post.contentHash,
     })
-    expect((await review(f, 2)).status).toBe(200)
+    expect((await review(f, 2, 'APPROVE', 1)).status).toBe(200)
     expect((await stored(f.deal.id)).publishedAt).not.toBeNull()
     expect((await setCategory(f, 2, 'BAKERY')).status).toBe(409)
   })

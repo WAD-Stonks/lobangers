@@ -1,7 +1,10 @@
+import {
+  type AuthenticatedActor,
+  requireActiveSessionWrite,
+} from '@api/modules/account/security-access'
 import { DomainError } from '@api/modules/domain-error'
 import {
   type AccessTransaction,
-  currentUser,
   fencePlatformAccess,
 } from '@api/modules/platform-admin/transaction'
 import { activeVenue } from '@api/modules/platform-admin/venues'
@@ -11,11 +14,12 @@ import { activeVenue } from '@api/modules/platform-admin/venues'
 // No future merchant endpoint is protected until it adopts this helper.
 export const requireMerchantStall = async (
   tx: AccessTransaction,
-  userId: string,
+  actor: AuthenticatedActor,
   venueId: string,
 ) => {
   await fencePlatformAccess(tx)
-  const user = await currentUser(tx, userId)
+  const { user } = await requireActiveSessionWrite(tx, actor)
+  const userId = user.id
   if (user.role !== 'MERCHANT') throw new DomainError('FORBIDDEN')
   const grant = await tx.stallGrant.findUnique({ where: { userId_venueId: { userId, venueId } } })
   if (!grant || grant.revokedAt) throw new DomainError('FORBIDDEN')

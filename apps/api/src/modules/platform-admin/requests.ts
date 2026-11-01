@@ -1,3 +1,7 @@
+import {
+  type AuthenticatedActor,
+  requireActiveSessionWrite,
+} from '@api/modules/account/security-access'
 import { isSelectableCatalogueVenue } from '@api/modules/deals/outlet-eligibility'
 import { DomainError } from '@api/modules/domain-error'
 import { activateGrant } from '@api/modules/platform-admin/grants'
@@ -8,7 +12,7 @@ import {
   conflict,
   currentUser,
   type Database,
-  requireCurrentAdmin,
+  requireRecentAdminWrite,
 } from '@api/modules/platform-admin/transaction'
 import { activeVenue } from '@api/modules/platform-admin/venues'
 import type { z } from 'zod'
@@ -17,14 +21,14 @@ import type { z } from 'zod'
 // NEVER a body userId. This internal service accepts no role/status/actor overrides.
 export const submitMerchantAccessRequest = async (
   db: Database,
-  authenticatedUserId: string,
+  actorRef: AuthenticatedActor,
   rawInput: z.input<typeof requestSubmission>,
 ) => {
   const parsed = requestSubmission.safeParse(rawInput)
   if (!parsed.success) throw new DomainError('BAD_REQUEST', 'Invalid merchant request')
   const input = parsed.data
   return accessTransaction(db, async (tx) => {
-    const user = await currentUser(tx, authenticatedUserId)
+    const { user } = await requireActiveSessionWrite(tx, actorRef)
     if (user.role !== 'USER' && user.role !== 'MERCHANT')
       throw new DomainError('PRECONDITION_FAILED', 'Staff accounts cannot request merchant access')
     const { venue, merchant } = await activeVenue(tx, input.venueId)
@@ -71,16 +75,19 @@ export const submitMerchantAccessRequest = async (
 
 export const reviewRequest = (
   db: Database,
-  actorId: string,
+  actorRef: AuthenticatedActor,
   input: {
     requestId: string
     expectedVersion: number
     decision: 'APPROVE' | 'REJECT'
     note: string
+    confirmed: true
   },
 ) =>
   accessTransaction(db, async (tx) => {
-    const actor = await requireCurrentAdmin(tx, actorId)
+    const actorId = actorRef.userId
+    const actor = await requireRecentAdminWrite(tx, actorRef)
+    if (input.confirmed !== true) throw new DomainError('BAD_REQUEST')
     const request = await tx.merchantAccessRequest.findUnique({ where: { id: input.requestId } })
     if (!request) throw new DomainError('NOT_FOUND')
     checkVersion(request.version, input.expectedVersion)

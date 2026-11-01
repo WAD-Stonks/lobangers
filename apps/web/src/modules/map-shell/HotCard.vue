@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { categoryStyle } from '@web/modules/browse-map/category-style'
-import { formatEnding, priceText } from '@web/modules/browse-map/deal-format'
+import { formatEnding, OUTLET_NOT_CONFIRMED, priceText } from '@web/modules/browse-map/deal-format'
 import FoodSprite from '@web/modules/browse-map/FoodSprite.vue'
 import { foodKindFor } from '@web/modules/browse-map/food-kind'
 import type { SelectedDeal } from '@web/modules/browse-map/types'
@@ -90,8 +90,9 @@ const open = () => {
       >
         <strong class="hot-hero__deal">{{ current.deal.title }}</strong>
         <span class="hot-hero__venue">{{ current.venue.name }}</span>
+        <span v-if="current.deal.outletUnconfirmed" class="hot-hero__unsure" data-testid="outlet-unconfirmed">{{ OUTLET_NOT_CONFIRMED }}</span>
         <span class="hot-hero__chips">
-          <span class="hot-hero__chip hot-hero__chip--ends">{{ formatEnding(current.deal.validUntil) }}</span>
+          <span class="hot-hero__chip hot-hero__chip--ends">{{ formatEnding(current.deal.validUntil, new Date(), current.deal.limitedTime) }}</span>
           <span v-if="price" class="hot-hero__chip lb-price">{{ price }}</span>
         </span>
       </button>
@@ -253,6 +254,12 @@ const open = () => {
   text-wrap: balance;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
+}
+
+.hot-hero__unsure {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: rgba(27, 27, 31, 0.66);
 }
 
 .hot-hero__venue {

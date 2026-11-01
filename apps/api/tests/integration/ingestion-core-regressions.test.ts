@@ -254,10 +254,28 @@ it.each(
     lists[0]?.mockResolvedValue({ posts: [], nextCursor: null })
     lists[1]?.mockResolvedValue({ posts: [post(1)], nextCursor: null })
     tick()
+    const citationStartedAt = Date.now()
     expect((await request()).status).toBe(200)
+    const citationFinishedAt = Date.now()
     expect(await db.deal.count()).toBe(1)
-    const { sources: frozenCitations, ...frozenDeal } = frozen
-    expect(await db.deal.findUniqueOrThrow({ where: { id: original.id } })).toEqual(frozenDeal)
+    const {
+      sources: frozenCitations,
+      operationVersion: frozenOperationVersion,
+      updatedAt: frozenUpdatedAt,
+      ...frozenFacts
+    } = frozen
+    const { operationVersion, updatedAt, ...canonicalFacts } = await db.deal.findUniqueOrThrow({
+      where: { id: original.id },
+    })
+    // A new immutable citation must fence the parent, not rewrite any canonical
+    // business/source fact (including the deliberate moderation/publication state).
+    expect(canonicalFacts).toEqual(frozenFacts)
+    expect(frozenOperationVersion).toBe(0)
+    expect(operationVersion).toBe((frozenOperationVersion ?? 0) + 1)
+    // Prisma's @updatedAt uses wall time, not the injected source-fetch clock.
+    expect(updatedAt.getTime()).toBeGreaterThan(frozenUpdatedAt.getTime())
+    expect(updatedAt.getTime()).toBeGreaterThanOrEqual(citationStartedAt)
+    expect(updatedAt.getTime()).toBeLessThanOrEqual(citationFinishedAt)
     expect(await db.dealSource.count({ where: { dealId: original.id } })).toBe(2)
     expect(
       await db.dealSource.findUniqueOrThrow({
@@ -353,13 +371,18 @@ it.each(['stale', 'failed'] as const)(
       expect(evidence[1]?.importedPost.contentHash).not.toBe(evidence[1]?.sourceContentHash)
     const queued = await request('/api/ingestion/drafts', { method: 'GET' })
     const item = (await queued.json()).items.find((row: { id: string }) => row.id === original.id)
-    expect(item).toMatchObject({ sourceUrl: pinned[0]?.sourceUrl, reviewReady: false })
+    expect(item).toMatchObject({
+      sourceUrl: pinned[0]?.sourceUrl,
+      reviewReady: false,
+      operationVersion: original.operationVersion,
+    })
     expect(item.images.length).toBeLessThanOrEqual(5)
     const review = await request(`/api/ingestion/drafts/${original.id}/review`, {
       headers: { Origin: origin, Cookie: cookie, 'Content-Type': 'application/json' },
       body: JSON.stringify({
         decision: 'APPROVE',
         expectedContentVersion: original.contentVersion,
+        expectedOperationVersion: item.operationVersion,
         note: 'Synthetic complete evidence regression',
       }),
     })

@@ -1,6 +1,6 @@
 import { revokeStall } from '@api/modules/platform-admin/grants'
 import type { RestDependencies } from '@api/rest/context'
-import { createRestHandler, requireAdmin } from '@api/rest/context'
+import { authenticatedActor, createRestHandler, requireAdmin } from '@api/rest/context'
 import { requireTrustedOrigin } from '@api/rest/policy'
 import { parseRestValue } from '@api/rest/routers/platform-admin/validation'
 import {
@@ -17,7 +17,7 @@ export const deleteStallGrant = (dependencies: RestDependencies) =>
     const body = parseRestValue(revokeStallBodySchema, request.body)
     response.json(
       platformMutationResponseSchema.parse(
-        await revokeStall(context.db, session.user.id, { grantId, ...body }),
+        await revokeStall(context.db, authenticatedActor(session), { grantId, ...body }),
       ),
     )
   })

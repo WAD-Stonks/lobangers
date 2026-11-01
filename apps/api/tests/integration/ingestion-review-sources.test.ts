@@ -1,21 +1,18 @@
-import { execFile } from 'node:child_process'
 import { createHash, randomBytes, randomUUID } from 'node:crypto'
 import { createServer, type Server } from 'node:http'
-import { fileURLToPath } from 'node:url'
-import { promisify } from 'node:util'
+import { parseConfig } from '@api/config'
+import type { IngestionRuntime } from '@api/modules/ingestion/runtime'
+import { pushDisposableSchema } from '@api-tests/fixtures/disposable-schema'
 import {
   registerSyntheticOutletFixtureDatabase,
   seedSyntheticScope,
-} from '@api/../tests/fixtures/outlet-proof'
-import { parseConfig } from '@api/config'
-import type { IngestionRuntime } from '@api/modules/ingestion/runtime'
+} from '@api-tests/fixtures/outlet-proof'
 import type { IngestionDraftsResponse } from '@broke-oclock/contracts/ingestion'
 import axios from 'axios'
 import { MongoMemoryReplSet } from 'mongodb-memory-server'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 
 const origin = 'http://localhost:5173'
-const root = fileURLToPath(new URL('../../../../', import.meta.url))
 const now = new Date('2026-10-20T00:00:00Z')
 const knownSources = [
   ['WORDPRESS', 'moneydigest.sg'],
@@ -74,12 +71,7 @@ beforeAll(async () => {
     throw new Error('Local disposable replica required')
   vi.stubEnv('DATABASE_URL', databaseUrl)
   vi.stubEnv('NODE_ENV', 'test')
-  await promisify(execFile)('pnpm', ['--dir', 'packages/db', 'run', 'push'], {
-    cwd: root,
-    env: { ...process.env, DATABASE_URL: databaseUrl },
-    encoding: 'utf8',
-    timeout: 60_000,
-  })
+  await pushDisposableSchema(databaseUrl)
   db = (await import('@broke-oclock/db')).db
   registerSyntheticOutletFixtureDatabase(db, databaseUrl)
   const { createApp } = await import('@api/app')
@@ -208,7 +200,11 @@ describe('bounded all-source admin review over real HTTP and disposable Mongo', 
       expect(response.status).toBe(200)
       expect(stale.status).toBe(409)
       expect(approval.status).toBe(412)
-      expect(response.data).toEqual({ id: f.deal.id, reviewStatus: 'REJECTED' })
+      expect(response.data).toEqual({
+        id: f.deal.id,
+        operationVersion: 1,
+        reviewStatus: 'REJECTED',
+      })
       const queue = await http().get<IngestionDraftsResponse>(
         '/api/ingestion/drafts?limit=50&status=REJECTED',
       )

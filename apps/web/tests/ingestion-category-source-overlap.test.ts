@@ -9,7 +9,10 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 vi.mock('@web/lib/auth-client', () => ({
   authClient: {
     getSession: vi.fn(async () => ({
-      data: { user: { id: 'synthetic-admin', role: 'ADMIN' } },
+      data: {
+        user: { id: 'synthetic-admin', role: 'ADMIN' },
+        session: { id: 'synthetic-session', userId: 'synthetic-admin' },
+      },
       error: null,
     })),
     useSession: () => ({ value: { refetch: async () => {}, error: null } }),
@@ -44,6 +47,7 @@ const draft = (id: string): IngestionDraft => ({
   outlet: null,
   reviewStatus: 'PENDING',
   contentVersion: 2,
+  operationVersion: 1,
   sourceUrl: 'https://source.example.test/post',
   sourceName: source.name,
   reviewNote: null,
@@ -94,6 +98,8 @@ beforeEach(() => {
       }
     else if (config.url === '/ingestion/drafts')
       data = { items: structuredClone(rows), nextCursor: null }
+    else if (/^\/ingestion\/drafts\/[a-f0-9]{24}\/evidence$/u.test(config.url ?? ''))
+      data = { items: [], nextCursor: null }
     else if (config.url === '/ingestion/runs') data = { items: [] }
     else if (config.url === '/auth-methods')
       data = { password: true, google: false, emailOtp: false, passwordRecovery: false }
@@ -115,7 +121,13 @@ beforeEach(() => {
 afterEach(async () => {
   wrapper?.unmount()
   for (const [id, gate] of writes)
-    gate.resolve({ id, contentVersion: 3, category: 'DRINKS', reviewStatus: 'PENDING' })
+    gate.resolve({
+      id,
+      contentVersion: 3,
+      operationVersion: 2,
+      category: 'DRINKS',
+      reviewStatus: 'PENDING',
+    })
   await flushPromises()
   api.http.defaults.adapter = originalAdapter
   wrapper = undefined
@@ -136,6 +148,7 @@ const startCategory = async (page: VueWrapper, id: string) => {
   expect(requests(`/ingestion/drafts/${id}/category`)).toHaveLength(1)
   expect(JSON.parse(requests(`/ingestion/drafts/${id}/category`)[0]?.data)).toEqual({
     expectedContentVersion: 2,
+    expectedOperationVersion: 1,
     category: 'DRINKS',
   })
   expect(page.get('[data-testid="save-category"]').text()).toBe('Saving…')
@@ -157,7 +170,13 @@ const changeSource = async (page: VueWrapper, operation: 'add' | 'toggle') => {
   expect(requests('/ingestion/dashboard')).toHaveLength(2)
 }
 const finishCategory = async (id: string) => {
-  writes.get(id)?.resolve({ id, contentVersion: 3, category: 'DRINKS', reviewStatus: 'PENDING' })
+  writes.get(id)?.resolve({
+    id,
+    contentVersion: 3,
+    operationVersion: 2,
+    category: 'DRINKS',
+    reviewStatus: 'PENDING',
+  })
   await flushPromises()
 }
 
@@ -184,7 +203,10 @@ it.each(['add', 'toggle'] as const)(
     await page.get('[data-testid="reload-draft"]').trigger('click')
     await flushPromises()
     expect(page.find('[data-testid="reload-draft"]').exists()).toBe(true)
-    rows = [{ ...draft(idA), contentVersion: 3, category: 'DRINKS' }, draft(idB)]
+    rows = [
+      { ...draft(idA), contentVersion: 3, operationVersion: 2, category: 'DRINKS' },
+      draft(idB),
+    ]
     await page.get('[data-testid="reload-draft"]').trigger('click')
     await flushPromises()
     expect(page.find('[data-testid="reload-draft"]').exists()).toBe(false)
@@ -216,7 +238,7 @@ it('late category A completion cannot clear category B pending or its identity l
   await page.get('[data-testid="reload-draft"]').trigger('click')
   await flushPromises()
   expect(page.find('[data-testid="reload-draft"]').exists()).toBe(true)
-  rows = [{ ...draft(idA), contentVersion: 3, category: 'DRINKS' }, draft(idB)]
+  rows = [{ ...draft(idA), contentVersion: 3, operationVersion: 2, category: 'DRINKS' }, draft(idB)]
   await page.get('[data-testid="reload-draft"]').trigger('click')
   await flushPromises()
   expect(page.find('[data-testid="reload-draft"]').exists()).toBe(false)

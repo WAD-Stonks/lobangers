@@ -1,3 +1,4 @@
+import { type AuthenticatedActor, activeAccount } from '@api/modules/account/security-access'
 import { DomainError } from '@api/modules/domain-error'
 import { invalidatePendingRequests } from '@api/modules/platform-admin/invalidation'
 import {
@@ -6,27 +7,34 @@ import {
   conflict,
   currentUser,
   type Database,
-  requireCurrentAdmin,
+  requireRecentAdminWrite,
 } from '@api/modules/platform-admin/transaction'
 import { activeGrant } from '@api/modules/platform-admin/venues'
 
 export const changeRole = (
   db: Database,
-  actorId: string,
+  actorRef: AuthenticatedActor,
   input: {
     userId: string
     expectedVersion: number
     role: 'USER' | 'MERCHANT' | 'MODERATOR' | 'ADMIN'
     note: string
+    confirmed: true
   },
 ) =>
   accessTransaction(db, async (tx) => {
-    const actor = await requireCurrentAdmin(tx, actorId)
+    const actorId = actorRef.userId
+    const actor = await requireRecentAdminWrite(tx, actorRef)
+    if (input.confirmed !== true) throw new DomainError('BAD_REQUEST')
     if (input.userId === actorId) throw new DomainError('FORBIDDEN', 'Cannot change your own role')
     const target = await currentUser(tx, input.userId)
     checkVersion(target.platformVersion, input.expectedVersion)
     if (target.role === input.role) throw conflict()
-    if (target.role === 'ADMIN' && (await tx.user.count({ where: { role: 'ADMIN' } })) <= 1)
+    if (
+      target.role === 'ADMIN' &&
+      !target.suspendedAt &&
+      (await tx.user.count({ where: { role: 'ADMIN', ...activeAccount } })) <= 1
+    )
       throw new DomainError('PRECONDITION_FAILED', 'At least one administrator must remain')
     await invalidatePendingRequests(
       tx,

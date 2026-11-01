@@ -1,5 +1,10 @@
 import { deleteCommunityComment } from '@api/modules/community/writes'
-import { createRestHandler, type RestDependencies, requireSession } from '@api/rest/context'
+import {
+  authenticatedActor,
+  createRestHandler,
+  type RestDependencies,
+  requireSession,
+} from '@api/rest/context'
 import { requireTrustedOrigin } from '@api/rest/policy'
 import { parseRestInput } from '@api/rest/validation'
 import {
@@ -13,9 +18,9 @@ export const deleteComment = (dependencies: RestDependencies) =>
     requireTrustedOrigin(request.get('Origin'), dependencies.config.webOrigin)
     parseRestInput(communityEmptySchema, request.query)
     parseRestInput(communityEmptySchema, request.body ?? {})
-    const userId = requireSession(context).user.id
+    const actor = authenticatedActor(requireSession(context))
     const { commentId } = parseRestInput(commentParamsSchema, request.params)
     response.json(
-      communityOkSchema.parse(await deleteCommunityComment(context.db, commentId, userId)),
+      communityOkSchema.parse(await deleteCommunityComment(context.db, commentId, actor)),
     )
   })

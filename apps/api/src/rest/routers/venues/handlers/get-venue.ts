@@ -1,10 +1,11 @@
 import { ApiErrorException } from '@api/errors'
 import { hasVerifiedGeography, hasVerifiedOccupancy } from '@api/modules/deals/outlet-eligibility'
 import {
+  isLimitedTime,
+  mapVenuesFor,
   publicCurrentWindowWhere,
   publicOutletScopeSelect,
   publicOutletVenueSelect,
-  publicVenuesFor,
 } from '@api/modules/deals/public-deals'
 import { publicImportedImage, publicImportedImageSelect } from '@api/modules/deals/public-images'
 import { activeRecord } from '@api/modules/platform-admin/venues'
@@ -52,13 +53,13 @@ export const getVenue = (dependencies: RestDependencies) =>
     ]
 
     if (!hasVerifiedGeography(venue) || !hasVerifiedOccupancy(venue)) {
-      // Exact legacy campaign retention can preserve its outlet page. A legacy
-      // point alone never publishes a catalogue candidate or a new campaign.
+      // An unproven outlet has a page only while some public deal is pinned here, by legacy
+      // retention or as an unconfirmed outlet, matching the map. A point alone never does.
       const retained = await context.db.deal.findMany({
         where: { ...publicAtVenue, AND: activeAtVenue },
-        select: publicOutletScopeSelect,
+        select: { ...publicOutletScopeSelect, terms: true },
       })
-      if (!retained.some((deal) => publicVenuesFor(deal).some((item) => item.id === venue.id)))
+      if (!retained.some((deal) => mapVenuesFor(deal).venues.some((item) => item.id === venue.id)))
         throw new ApiErrorException('NOT_FOUND', 'Venue not found')
     }
 
@@ -78,6 +79,8 @@ export const getVenue = (dependencies: RestDependencies) =>
         priceMinor: true,
         currency: true,
         discountPercent: true,
+        origin: true,
+        terms: true,
         validUntil: true,
         rawValidityText: true,
         sources: publicImportedImageSelect,
@@ -103,13 +106,14 @@ export const getVenue = (dependencies: RestDependencies) =>
         priceMinor: true,
         currency: true,
         discountPercent: true,
+        terms: true,
         validUntil: true,
       },
     })
 
     const [ongoingRows, pastRows] = await Promise.all([ongoing, past])
-    const atVenue = (deal: Parameters<typeof publicVenuesFor>[0]) =>
-      publicVenuesFor(deal).some((candidate) => candidate.id === venue.id)
+    const atVenue = (deal: Parameters<typeof mapVenuesFor>[0]) =>
+      mapVenuesFor(deal).venues.some((candidate) => candidate.id === venue.id)
     // Apply limits after proof filtering so held rows cannot crowd out eligible campaigns.
     const deals = ongoingRows.filter(atVenue).slice(0, maxDeals)
     const pastDeals = pastRows.filter(atVenue).slice(0, maxPastDeals)
@@ -134,6 +138,8 @@ export const getVenue = (dependencies: RestDependencies) =>
           discountPercent: deal.discountPercent ?? null,
           validUntil: deal.validUntil?.toISOString() ?? null,
           rawValidityText: deal.rawValidityText ?? null,
+          ...(isLimitedTime(deal) ? { limitedTime: true } : {}),
+          ...(mapVenuesFor(deal).outletUnconfirmed ? { outletUnconfirmed: true } : {}),
           ...(deal.images[0] ? { imageUrl: deal.images[0].url } : publicImportedImage(deal)),
         })),
         pastDeals: pastDeals.map((deal) => ({

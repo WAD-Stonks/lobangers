@@ -147,7 +147,7 @@ const logOut = async () => {
 
         <ul v-for="group in menuGroups" :key="group.label" class="brand-menu__links" :aria-label="group.label">
           <li v-if="group.label === 'Contribute'">
-            <RouterLink class="brand-menu__link" :to="navigationTo({ name: 'add-deal' })" @click="closeDrawer">
+            <RouterLink class="brand-menu__link" :to="navigationTo({ name: 'submit-deal' })" @click="closeDrawer">
               <ShellIcon name="plus" :size="22" />Add a deal
             </RouterLink>
           </li>

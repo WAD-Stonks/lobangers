@@ -22,6 +22,13 @@ describe('formatValidity', () => {
   it('prefers the raw text when the stored date is unreadable', () => {
     expect(formatValidity('not-a-date', 'While stocks last')).toBe('While stocks last')
   })
+
+  it('labels a limited promotion without inventing an end date', () => {
+    expect(formatValidity(null, 'Explicit source calendar: end unspecified.', true)).toBe(
+      'Limited promotion',
+    )
+    expect(formatValidity('2026-12-31T15:59:59.000Z', null, true)).toBe('Until 31 Dec 2026')
+  })
 })
 
 describe('formatCategory', () => {
@@ -51,6 +58,10 @@ describe('formatEnding', () => {
     expect(formatEnding(null, now)).toBe('No end date given')
     expect(formatEnding('not a date', now)).toBe('No end date given')
     expect(formatEnding('2026-10-19T02:00:00.000Z', now)).toBe('Ended')
+  })
+
+  it('shows a limited promotion instead of a missing end date', () => {
+    expect(formatEnding(null, now, true)).toBe('Limited promotion')
   })
 })
 
@@ -99,5 +110,38 @@ describe('termsList', () => {
   it('returns no points for missing or blank terms', () => {
     expect(termsList(null)).toEqual([])
     expect(termsList('  ')).toEqual([])
+  })
+})
+
+describe('limited promotions on the venue page and landing cards', () => {
+  it('labels an imported offer with no end as a limited promotion', async () => {
+    const { validityLabel } = await import('@web/modules/venues-feed/deal-format')
+    const { promotionDates } = await import('@web/modules/landing/live-deals')
+    expect(
+      validityLabel({ validUntil: null, rawValidityText: 'While stocks last', limitedTime: true }),
+    ).toBe('Limited promotion')
+    expect(validityLabel({ validUntil: null, rawValidityText: null })).toBe('No end date listed')
+    const pin = { validUntil: null, rawValidityText: 'While stocks last', limitedTime: true }
+    expect(promotionDates(pin as Parameters<typeof promotionDates>[0])).toBe('Limited promotion')
+  })
+})
+
+describe('dealNoticeTags', () => {
+  it('tags limited promotions only, leaving unconfirmed outlets to quieter text', async () => {
+    const { dealNoticeTags } = await import('@web/modules/browse-map/deal-format')
+    const guessed = { validUntil: null, limitedTime: true, outletUnconfirmed: true }
+    expect(dealNoticeTags(guessed)).toEqual([{ label: 'Limited promotion', tone: 'info' }])
+    expect(dealNoticeTags({ validUntil: '2026-11-10T00:00:00.000Z', limitedTime: true })).toEqual(
+      [],
+    )
+    expect(dealNoticeTags({ validUntil: null })).toEqual([])
+  })
+})
+
+describe('offerTypeTag', () => {
+  it('names a known offer type and drops the uninformative fallback', async () => {
+    const { offerTypeTag } = await import('@web/modules/browse-map/deal-format')
+    expect(offerTypeTag('FIXED_PRICE')).toBe('Fixed price')
+    expect(offerTypeTag('OTHER')).toBeNull()
   })
 })

@@ -18,24 +18,29 @@ const navigationTo = useShellNavigation()
 // Floating header: menu button and search on the first row, quick chips underneath. On
 // desktop it sits in the panel column; below 992px it spans the screen.
 const session = authClient.useSession()
-const props = defineProps<{
-  filters: BrowseFilters
-  sheetOpen: boolean
-  discovery?: boolean
-  dealsHeader?: boolean
-  mapLayout?: boolean
-  sidebarVisible?: boolean
-  mapTools?: boolean
-  showLocation?: boolean
-  categories: readonly string[]
-  cuisines: readonly DealCuisine[]
-  countFor: (filters: BrowseFilters) => number
-  locationKnown: boolean
-}>()
+const props = withDefaults(
+  defineProps<{
+    filters: BrowseFilters
+    sheetOpen: boolean
+    lobbieOpen?: boolean
+    discovery?: boolean
+    dealsHeader?: boolean
+    mapLayout?: boolean
+    sidebarVisible?: boolean
+    mapTools?: boolean
+    showLocation?: boolean
+    categories: readonly string[]
+    cuisines: readonly DealCuisine[]
+    countFor: (filters: BrowseFilters) => number
+    locationKnown: boolean
+  }>(),
+  { lobbieOpen: false },
+)
 const emit = defineEmits<{
   apply: [filters: BrowseFilters, mode: 'push' | 'replace']
   openSheet: []
   menuChange: [open: boolean]
+  askLobbie: []
 }>()
 
 const mobileFilters = ref<HTMLButtonElement | null>(null)
@@ -92,6 +97,7 @@ defineExpose({ focusAllFilters: () => {
       class="shell-header__chips"
       :filters="filters"
       :sheet-open="sheetOpen"
+      :lobbie-open="lobbieOpen"
       :categories="categories"
       :cuisines="cuisines"
       :count-for="countFor"
@@ -99,6 +105,7 @@ defineExpose({ focusAllFilters: () => {
       :location-known="locationKnown"
       @apply="(next) => emit('apply', next, 'push')"
       @open-sheet="emit('openSheet')"
+      @ask-lobbie="emit('askLobbie')"
     />
 
   </header>
@@ -115,8 +122,9 @@ defineExpose({ focusAllFilters: () => {
   left: var(--shell-gutter);
   z-index: 30;
   display: grid;
+  --header-gap: 10px;
   grid-template-columns: auto minmax(0, 1fr);
-  gap: 10px;
+  gap: var(--header-gap);
   align-items: center;
   width: var(--header-w);
   pointer-events: none;

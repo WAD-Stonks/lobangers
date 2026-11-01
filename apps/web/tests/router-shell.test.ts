@@ -315,12 +315,11 @@ describe('map shell routes', () => {
       'browse',
       'deal',
       'venue',
-      'add-deal',
+      'lobbie',
       'login',
       'register',
       'profile',
       'saved',
-      'merchant',
     ])
   })
 
@@ -328,6 +327,7 @@ describe('map shell routes', () => {
     ['/browse', '3 deals'],
     [`/deals/${'c'.repeat(24)}`, 'Synthetic iced kopi'],
     [`/venues/${'a'.repeat(24)}`, 'Loading venue'],
+    ['/ask-lobbie', 'Ask Lobbie'],
   ])('renders %s as a panel inside the shell', async (path, heading) => {
     const { wrapper } = await mountAt(path)
     expect(wrapper.find(SHELL).exists()).toBe(true)
@@ -336,7 +336,6 @@ describe('map shell routes', () => {
   })
 
   it.each([
-    ['/add', 'Add a deal'],
     ['/me/profile', 'Synthetic Student'],
     ['/saved', '0 saved deals'],
   ])('renders the signed-in panel %s inside the shell', async (path, heading) => {
@@ -454,7 +453,7 @@ describe('map shell routes', () => {
     expect(wrapper.get('[data-testid="standalone-auth"] h1').text()).toBe('Welcome back')
   })
 
-  it('keeps visitors without the merchant role out of the merchant panel', async () => {
+  it('keeps visitors without the merchant role out of the merchant dashboard', async () => {
     auth.session.current = SIGNED_IN
     const { router } = await mountAt('/merchant')
     expect(router.currentRoute.value.query).toMatchObject({ view: 'list', discovery: '1' })

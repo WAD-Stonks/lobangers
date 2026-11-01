@@ -22,9 +22,8 @@ describe('protected add-deal route', () => {
     expect(router.resolve('/').meta.layout).toBe('landing')
     expect(router.resolve('/browse').name).toBe('browse')
     expect(router.resolve('/browse').meta.layout).toBe('canvas')
-    expect(router.resolve('/add').name).toBe('add-deal')
+    expect(router.resolve('/add').name).toBe('submit-deal')
     expect(router.resolve('/add').meta.requiresAuth).toBe(true)
-    expect(router.resolve('/submit-deal').name).toBe('not-found')
     expect(router.resolve('/submissionform').name).toBe('not-found')
   })
 
@@ -40,7 +39,15 @@ describe('protected add-deal route', () => {
     getSession.mockResolvedValue({ data: { user: { role: 'USER' } } })
     const router = createSubmissionRouter()
     await router.push('/add')
-    expect(router.currentRoute.value.name).toBe('add-deal')
+    expect(router.currentRoute.value.name).toBe('submit-deal')
     expect(router.currentRoute.value.meta.requiresAuth).toBe(true)
+  })
+
+  it('sends the old /submit-deal address to the same form', async () => {
+    getSession.mockResolvedValue({ data: { user: { role: 'USER' } } })
+    const router = createSubmissionRouter()
+    await router.push('/submit-deal')
+    expect(router.currentRoute.value.path).toBe('/add')
+    expect(router.currentRoute.value.name).toBe('submit-deal')
   })
 })

@@ -1,4 +1,57 @@
+import { postsPageSchema } from '@broke-oclock/contracts/ingestion-recovery'
 import { expect, type Page, test } from '@playwright/test'
+
+// Evidence only: observe actual Chromium output without replacing SPA or browser behavior.
+const browserObservations = new WeakMap<
+  Page,
+  {
+    console: string[]
+    pageErrors: string[]
+    resources: { url: string; status?: number; error?: string }[]
+  }
+>()
+test.beforeEach(async ({ page }) => {
+  const observed = {
+    console: [] as string[],
+    pageErrors: [] as string[],
+    resources: [] as { url: string; status?: number; error?: string }[],
+  }
+  browserObservations.set(page, observed)
+  page.on('console', (message) => observed.console.push(`${message.type()}: ${message.text()}`))
+  page.on('pageerror', (error) => observed.pageErrors.push(error.message))
+  page.on('response', (response) =>
+    observed.resources.push({ url: response.url(), status: response.status() }),
+  )
+  page.on('requestfailed', (request) =>
+    observed.resources.push({ url: request.url(), error: request.failure()?.errorText }),
+  )
+})
+test.afterEach(async ({ page }, info) => {
+  await info.attach('actual-browser-observations', {
+    body: JSON.stringify(
+      {
+        ...browserObservations.get(page),
+        layout: await page.evaluate(() => ({
+          url: location.href,
+          fonts: document.fonts.status,
+          splash: Boolean(document.querySelector('[data-testid="splash-screen"]')),
+          width: document.documentElement.clientWidth,
+          scroll: document.documentElement.scrollWidth,
+          alerts: [...document.querySelectorAll('[role="alert"]')].map((el) => el.textContent),
+          buttons: [...document.querySelectorAll('button')].map((el) => ({
+            name: el.getAttribute('aria-label') ?? el.textContent,
+            width: el.getBoundingClientRect().width,
+            height: el.getBoundingClientRect().height,
+            minHeight: getComputedStyle(el).minHeight,
+          })),
+        })),
+      },
+      null,
+      2,
+    ),
+    contentType: 'application/json',
+  })
+})
 
 // Synthetic API and native-session network boundaries. This exercises the real
 // SPA, shared Axios client, DOM, keyboard and layout, not connected authorization.
@@ -46,7 +99,13 @@ const installBoundary = async (page: Page) => {
       }
     else if (path === '/api/ingestion/drafts') data = { items: [], nextCursor: null }
     else if (path === '/api/ingestion/runs') data = { items: [] }
-    else if (path === '/api/ingestion/sources' && request.method() === 'GET')
+    else if (path === '/api/ingestion/posts' && request.method() === 'GET') {
+      expect(Object.fromEntries(new URL(request.url()).searchParams)).toEqual({
+        status: 'FAILED',
+        limit: '20',
+      })
+      data = postsPageSchema.parse({ items: [], nextCursor: null })
+    } else if (path === '/api/ingestion/sources' && request.method() === 'GET')
       data = { items: [source], nextCursor: null }
     else if (path === '/api/ingestion/sources' && request.method() === 'POST') {
       const body = request.postDataJSON() as Record<string, unknown>
@@ -82,6 +141,9 @@ for (const width of [320, 768, 1024, 1440]) {
     const state = await installBoundary(page)
     await page.goto('/admin/ingestion')
     await expect(page.getByRole('heading', { name: 'Ingestion admin', exact: true })).toBeVisible()
+    await expect(page.getByRole('region', { name: 'Failed post investigation' })).toContainText(
+      'No posts on this page. A bounded page can exclude unsupported sources.',
+    )
     const panel = page.locator('section[aria-labelledby="sources-title"]')
     await expect(panel.getByRole('heading', { name: 'Telegram sources' })).toBeVisible()
     await panel.getByRole('button', { name: 'View sources', exact: true }).click()

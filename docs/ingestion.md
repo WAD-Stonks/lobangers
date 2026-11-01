@@ -2,6 +2,8 @@
 
 Owner: Noah. API domain logic belongs under `apps/api/src/modules/ingestion`; its named REST handlers are assembled under `apps/api/src/rest/routers/ingestion`. The web workstream is `apps/web/src/modules/ingestion-admin` with the route `/admin/ingestion`.
 
+The [admin operations contract](admin-operations.md#ingestion-evidence-and-recovery) documents the added full-citation/numeric evidence, failed-post investigation, exact stored-envelope reprocessing and bounded source-window refresh. Its [existing-editor compatibility](admin-operations.md#existing-imported-editors) explains required operation versions and transactional audit. The sections below describe the original ingestion slice; current source registration/activation rules remain authoritative in the source implementation and source-management guide.
+
 ## Scope of this slice
 
 - A bounded MoneyDigest WordPress import into the existing `ImportSource`, `ImportedPost`, `IngestionRun`, `Deal` and `DealSource` models.

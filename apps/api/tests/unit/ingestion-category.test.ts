@@ -11,13 +11,25 @@ describe('category correction input boundary', () => {
   it('accepts only known categories and bounded versions', () => {
     expect(
       ingestionCategoryRequestSchema.parse({ category: 'DRINKS', expectedContentVersion: 1 }),
-    ).toEqual({ category: 'DRINKS', expectedContentVersion: 1 })
+    ).toEqual({ category: 'DRINKS', expectedContentVersion: 1, expectedOperationVersion: 0 })
+    expect(
+      ingestionCategoryRequestSchema.parse({
+        category: 'DRINKS',
+        expectedContentVersion: 1,
+        expectedOperationVersion: 7,
+      }),
+    ).toEqual({ category: 'DRINKS', expectedContentVersion: 1, expectedOperationVersion: 7 })
     for (const input of [
       { category: 'MYSTERY', expectedContentVersion: 1 },
       { category: 'drinks', expectedContentVersion: 1 },
       { category: 'FOOD', expectedContentVersion: 0 },
       { category: 'FOOD', expectedContentVersion: 2_147_483_647 },
       { category: 'FOOD', expectedContentVersion: 1, venueId: dealId },
+      { category: 'FOOD', expectedContentVersion: 1, expectedOperationVersion: -1 },
+      { category: 'FOOD', expectedContentVersion: 1, expectedOperationVersion: 1.5 },
+      { category: 'FOOD', expectedContentVersion: 1, expectedOperationVersion: '1' },
+      { category: 'FOOD', expectedContentVersion: 1, expectedOperationVersion: null },
+      { category: 'FOOD', expectedContentVersion: 1, expectedOperationVersion: 2_147_483_647 },
     ])
       expect(ingestionCategoryRequestSchema.safeParse(input).success).toBe(false)
     expect(ingestionCategoryParamsSchema.safeParse({ dealId, extra: true }).success).toBe(false)

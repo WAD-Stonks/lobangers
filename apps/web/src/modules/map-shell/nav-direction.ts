@@ -12,7 +12,6 @@ const ROUTE_DEPTH: Readonly<Record<string, number>> = {
   register: 1,
   profile: 1,
   saved: 1,
-  merchant: 1,
   venue: 2,
 }
 const DEFAULT_DEPTH = 1

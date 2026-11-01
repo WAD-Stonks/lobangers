@@ -22,6 +22,8 @@ For API feature work, follow the [Express REST route guide](development-guide.md
 Use extensionless `@`-prefixed aliases for authored TypeScript imports and re-exports, including type-only and dynamic imports. Do not write `./`, `../`, or pretend `.js` filenames for TypeScript source.
 
 - `@api/*` → `apps/api/src/*`
+- `@api-tests/*` → `apps/api/tests/*`
+- `@api-client/*` → `packages/api-client/src/*`
 - `@web/*` → `apps/web/src/*`
 - `@auth/*` → `packages/auth/src/*`
 - `@db/*` → `packages/db/src/*`

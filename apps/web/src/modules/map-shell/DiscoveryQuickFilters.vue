@@ -18,8 +18,9 @@ const props = defineProps<{
   showLocation?: boolean
   locationKnown: boolean
   sheetOpen: boolean
+  lobbieOpen?: boolean
 }>()
-const emit = defineEmits<{ apply: [filters: BrowseFilters]; openSheet: [] }>()
+const emit = defineEmits<{ apply: [filters: BrowseFilters]; openSheet: []; askLobbie: [] }>()
 type QuickKey = 'location' | 'price' | 'cuisine' | 'category' | 'ending'
 const fields = { location: 'location', price: 'priceMaxMinor', cuisine: 'cuisines', category: 'categories', ending: 'ending' } as const
 const labels = { location: 'Location', price: 'Price', cuisine: 'Cuisine', category: 'Category', ending: 'Expiry' }
@@ -124,6 +125,23 @@ defineExpose({ focusAllFilters: () => allButton.value?.focus() })
         {{ chipLabel(key) }}<ShellIcon :name="active === key ? 'chevronUp' : 'chevronDown'" :size="14" />
       </button>
       <button v-if="count || filters.q.trim()" class="discovery-filters__clear-all" type="button" data-testid="clear-all-filters" @click="clearAll">Clear all</button>
+      <button
+        type="button"
+        class="lb-chip discovery-filters__lobbie"
+        :class="{ 'is-on': lobbieOpen }"
+        :aria-expanded="lobbieOpen"
+        aria-controls="shell-panel"
+        aria-label="Ask Lobbie for Lobangs"
+        data-testid="ask-lobbie"
+        @click="close(); emit('askLobbie')"
+      >
+        <ShellIcon
+          class="discovery-filters__lobbie-icon"
+          :name="lobbieOpen ? 'close' : 'diamond'"
+          :size="16"
+          :stroke-width="lobbieOpen ? 2.4 : 2"
+        /><span>Ask Lobbie</span>
+      </button>
     </fieldset>
 
     <section v-if="active" :id="panelId" ref="panel" class="discovery-filters__popover lb-card" :style="{ left: `${panelLeft}px` }" role="dialog" :aria-label="`${labels[active]} filter`" data-testid="quick-filter-popover">
@@ -146,6 +164,22 @@ defineExpose({ focusAllFilters: () => allButton.value?.focus() })
 </template>
 
 <style scoped>
+.discovery-filters__lobbie:not(.is-on) .discovery-filters__lobbie-icon {
+  color: var(--coral);
+  fill: var(--coral);
+  animation: lobbie-twinkle 5s var(--ease-out) 1.5s infinite;
+}
+
+@keyframes lobbie-twinkle {
+  0% { transform: rotate(0) scale(1); }
+  8% { transform: rotate(45deg) scale(1.35); }
+  16%, 100% { transform: rotate(90deg) scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .discovery-filters__lobbie-icon { animation: none !important; }
+}
+
 .discovery-filters__clear-all {
   min-height: var(--hit);
   padding: 0 12px;

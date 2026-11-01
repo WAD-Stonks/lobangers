@@ -328,6 +328,12 @@
   font-size: 13px;
   color: #58614f;
 }
+.landing-outlet-unsure {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  color: #58614f;
+}
 .landing-outlet-button {
   padding: 8px 0;
   border: 0;

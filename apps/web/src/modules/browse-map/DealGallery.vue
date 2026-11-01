@@ -3,6 +3,7 @@ import type { DealImage } from '@broke-oclock/contracts/deals'
 import { safeMediaUrl } from '@web/lib/media-url'
 import DealPhoto from '@web/modules/browse-map/DealPhoto.vue'
 import { clampPhotoRatio } from '@web/modules/browse-map/deal-columns'
+import PhotoViewer from '@web/modules/browse-map/PhotoViewer.vue'
 import ShellIcon from '@web/modules/map-shell/ShellIcon.vue'
 import { computed, ref, watch, watchEffect } from 'vue'
 
@@ -16,6 +17,8 @@ const emit = defineEmits<{ showing: [boolean] }>()
 const failed = ref<ReadonlySet<string>>(new Set())
 const ratios = ref<Readonly<Record<string, number>>>({})
 const active = ref(0)
+// Index of the photo open full size, or null when the viewer is closed.
+const viewing = ref<number | null>(null)
 const track = ref<HTMLElement | null>(null)
 
 const MAX_GALLERY_IMAGES = 6
@@ -60,6 +63,12 @@ const goTo = (index: number) => {
   el?.scrollTo?.({ left: target * el.clientWidth, behavior: prefersReducedMotion() ? 'auto' : 'smooth' })
 }
 
+// Stepping in the full-size viewer moves the gallery behind it, so closing lands on the same photo.
+const viewPhoto = (index: number) => {
+  viewing.value = index
+  goTo(index)
+}
+
 const altFor = (image: DealImage, index: number) => image.alt?.trim() || `${props.title}, photo ${index + 1}`
 </script>
 
@@ -67,13 +76,21 @@ const altFor = (image: DealImage, index: number) => image.alt?.trim() || `${prop
   <div v-if="shown.length" class="deal-gallery" :style="{ '--frame-ratio': frameRatio }" data-testid="deal-gallery">
     <ul ref="track" class="deal-gallery__track" aria-label="Deal photos" @scroll.passive="onScroll">
       <li v-for="(image, index) in shown" :key="image.url" class="deal-gallery__slide">
-        <DealPhoto
-          :src="image.url"
-          :alt="altFor(image, index)"
-          :eager="index === 0"
-          @ratio="recordRatio(image.url, $event)"
-          @error="markFailed(image.url)"
-        />
+        <button
+          type="button"
+          class="deal-gallery__open"
+          :aria-label="`Open ${altFor(image, index)} full size`"
+          data-testid="open-photo"
+          @click="viewing = index"
+        >
+          <DealPhoto
+            :src="image.url"
+            :alt="altFor(image, index)"
+            :eager="index === 0"
+            @ratio="recordRatio(image.url, $event)"
+            @error="markFailed(image.url)"
+          />
+        </button>
       </li>
     </ul>
     <template v-if="shown.length > 1">
@@ -101,6 +118,7 @@ const altFor = (image: DealImage, index: number) => image.alt?.trim() || `${prop
         {{ Math.min(active + 1, shown.length) }}/{{ shown.length }}
       </span>
     </template>
+    <PhotoViewer :images="shown" :index="viewing" :alt-for="altFor" @select="viewPhoto" @close="viewing = null" />
   </div>
   <slot v-else name="fallback" />
 </template>
@@ -136,6 +154,16 @@ const altFor = (image: DealImage, index: number) => image.alt?.trim() || `${prop
   flex: 0 0 100%;
   height: 100%;
   scroll-snap-align: center;
+}
+
+.deal-gallery__open {
+  display: block;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  cursor: zoom-in;
+  background: none;
+  border: 0;
 }
 
 .deal-gallery__count {

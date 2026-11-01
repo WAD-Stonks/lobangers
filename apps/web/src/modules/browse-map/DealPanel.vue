@@ -8,17 +8,24 @@ import DealOutlets from '@web/modules/browse-map/DealOutlets.vue'
 import DealRowList from '@web/modules/browse-map/DealRowList.vue'
 import {
   dealFreshness,
+  dealNoticeTags,
   formatCategory,
   formatValidity,
+  OUTLET_NOT_CONFIRMED_NOTE,
+  offerTypeTag,
   termsList,
 } from '@web/modules/browse-map/deal-format'
-import { OFFER_TYPE_LABELS } from '@web/modules/browse-map/filters'
 import type { DealRow } from '@web/modules/browse-map/types'
 import DealCommunity from '@web/modules/community/DealCommunity.vue'
 import { errorCode } from '@web/modules/ingestion-admin/errors'
 import PanelFrame from '@web/modules/map-shell/PanelFrame.vue'
 import ShellIcon from '@web/modules/map-shell/ShellIcon.vue'
-import { browseLocation, dealLocation, venueLocation } from '@web/modules/map-shell/shell-routes'
+import {
+  browseLocation,
+  dealLocation,
+  lobbieLocation,
+  venueLocation,
+} from '@web/modules/map-shell/shell-routes'
 import { useShell } from '@web/modules/map-shell/shell-state'
 import { useSavedDeals } from '@web/modules/map-shell/use-saved-deals'
 import { useToast } from '@web/modules/map-shell/use-toast'
@@ -43,7 +50,12 @@ const commentsOpen = ref(false)
 watch(dealId, () => { commentsOpen.value = false })
 const venueId = computed(() => (typeof route.query.at === 'string' ? route.query.at : null))
 const selected = computed(() => shell.findDeal(dealId.value, venueId.value))
-const backTo = computed(() => browseLocation(route.query))
+// A deal opened from Lobbie's chat goes back to the chat; anything else goes back to the list.
+const fromLobbie = computed(() => route.query.from === 'lobbie')
+const backTo = computed(() =>
+  fromLobbie.value ? lobbieLocation(route.query) : browseLocation(route.query),
+)
+const backLabel = computed(() => (fromLobbie.value ? 'Back to Lobbie' : 'Back to results'))
 const saving = ref(false)
 const popKey = ref(0)
 
@@ -130,7 +142,7 @@ const toggleSave = async () => {
     :title="commentsOpen ? 'Comments' : selected.deal.title"
     :hide-title="commentsOpen"
     :back="commentsOpen || props.dialog ? null : backTo"
-    back-label="Back to results"
+    :back-label="backLabel"
     :scroll-key="`${selected.deal.id}:${selected.venue.id}`"
   >
     <template v-if="commentsOpen" #heading>
@@ -163,14 +175,16 @@ const toggleSave = async () => {
       <template v-if="heroTags.length">
         <span v-for="tag in heroTags" :key="tag" class="lb-tag lb-tag--new">{{ tag }}</span>
       </template>
-      <span class="lb-tag lb-tag--new">{{ OFFER_TYPE_LABELS[selected.deal.offerType] }}</span>
+      <span v-if="offerTypeTag(selected.deal.offerType)" class="lb-tag lb-tag--new">{{ offerTypeTag(selected.deal.offerType) }}</span>
+      <span v-for="notice in dealNoticeTags(selected.deal)" :key="notice.label" class="lb-tag" :class="`lb-tag--${notice.tone}`">{{ notice.label }}</span>
     </div>
 
+    <p v-if="selected.deal.outletUnconfirmed" class="deal-panel__outlet-note lb-meta">{{ OUTLET_NOT_CONFIRMED_NOTE }}</p>
 
     <div class="deal-panel__fine-print">
       <dl class="deal-panel__validity-field">
         <dt class="lb-meta">Valid</dt>
-        <dd>{{ formatValidity(selected.deal.validUntil, selected.deal.rawValidityText) }}</dd>
+        <dd>{{ formatValidity(selected.deal.validUntil, selected.deal.rawValidityText, selected.deal.limitedTime) }}</dd>
       </dl>
     <section class="deal-panel__conditions" aria-labelledby="deal-conditions-title">
       <h2 id="deal-conditions-title">Terms and conditions</h2>
@@ -180,8 +194,6 @@ const toggleSave = async () => {
       <p v-else class="lb-meta">No additional terms and conditions provided.</p>
     </section>
     </div>
-
-
     </template>
 
     <DealCommunity :deal-id="selected.deal.id" :all-comments="commentsOpen" :explanation-popup="props.dialog" @view-change="commentsOpen = $event" @updated="shell.reload" />
@@ -225,12 +237,12 @@ const toggleSave = async () => {
     </template>
   </PanelFrame>
 
-  <PanelFrame v-else-if="shell.status.value === 'loading'" title="Loading deal" :back="backTo" back-label="Back to results">
+  <PanelFrame v-else-if="shell.status.value === 'loading'" title="Loading deal" :back="backTo" :back-label="backLabel">
     <div class="lb-skeleton deal-panel__hero" aria-hidden="true" />
     <p class="lb-meta" role="status">Loading this deal…</p>
   </PanelFrame>
 
-  <PanelFrame v-else title="Deal not found" :back="backTo" back-label="Back to results">
+  <PanelFrame v-else title="Deal not found" :back="backTo" :back-label="backLabel">
     <div class="lb-state" :role="shell.status.value === 'error' ? 'alert' : undefined">
       <p class="lb-state__body">
         {{ shell.status.value === 'error' ? 'Deals could not be loaded right now.' : 'This deal has ended or is no longer listed.' }}
@@ -334,6 +346,9 @@ const toggleSave = async () => {
   gap: 6px;
 }
 
+.deal-panel__outlet-note {
+  margin: 0;
+}
 /* One condition per line, so the fine print scans instead of reading as a paragraph. */
 .deal-panel__terms {
   display: grid;

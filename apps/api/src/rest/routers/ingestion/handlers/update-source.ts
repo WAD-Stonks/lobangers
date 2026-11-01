@@ -1,5 +1,10 @@
 import { setIngestionSourceEnabled } from '@api/modules/ingestion/source-management'
-import { createRestHandler, type RestDependencies, requireAdmin } from '@api/rest/context'
+import {
+  authenticatedActor,
+  createRestHandler,
+  type RestDependencies,
+  requireAdmin,
+} from '@api/rest/context'
 import { requireTrustedOrigin } from '@api/rest/policy'
 import { parseRestInput } from '@api/rest/validation'
 import {
@@ -19,7 +24,7 @@ export const patchIngestionSource = (dependencies: RestDependencies): RequestHan
       ingestionSourceSchema.parse(
         await setIngestionSourceEnabled(
           context.db,
-          session.user.id,
+          authenticatedActor(session),
           sourceId,
           input,
           context.ingestion?.now() ?? new Date(),

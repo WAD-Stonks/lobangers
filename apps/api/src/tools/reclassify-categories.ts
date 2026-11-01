@@ -1,5 +1,6 @@
 import { resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { legacyVersionWhere, normalizeVersion } from '@api/modules/platform-admin/operation-version'
 import type { Database } from '@api/modules/platform-admin/transaction'
 import {
   classifyDealCategory,
@@ -21,7 +22,14 @@ const planChanges = async (db: Database) => {
       category: { in: UNCLASSIFIED },
       OR: [{ deletedAt: null }, { deletedAt: { isSet: false } }],
     },
-    select: { id: true, title: true, description: true, category: true, contentVersion: true },
+    select: {
+      id: true,
+      title: true,
+      description: true,
+      category: true,
+      contentVersion: true,
+      operationVersion: true,
+    },
     orderBy: { createdAt: 'asc' },
   })
   return deals.flatMap((deal) => {
@@ -61,11 +69,15 @@ export const reclassifyCategories = async (db: Database, apply: boolean) => {
           category: change.previousCategory,
           title: change.title,
           description: change.description,
-          OR: [{ deletedAt: null }, { deletedAt: { isSet: false } }],
+          AND: [
+            legacyVersionWhere('operationVersion', normalizeVersion(change.operationVersion)),
+            { OR: [{ deletedAt: null }, { deletedAt: { isSet: false } }] },
+          ],
         },
         data: {
           category: change.category,
           contentVersion: { increment: 1 },
+          operationVersion: normalizeVersion(change.operationVersion) + 1,
           scopeConfirmation: { unset: true },
           reviewStatus: 'PENDING',
           reviewedVersion: null,

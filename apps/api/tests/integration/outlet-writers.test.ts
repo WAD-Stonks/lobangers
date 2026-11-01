@@ -1,8 +1,6 @@
-import { execFile } from 'node:child_process'
 import { createHash, randomBytes, randomUUID } from 'node:crypto'
 import { createServer, type Server } from 'node:http'
 import { fileURLToPath } from 'node:url'
-import { promisify } from 'node:util'
 import { parseConfig } from '@api/config'
 import {
   geographySubjectHash,
@@ -11,6 +9,7 @@ import {
 } from '@api/modules/deals/outlet-eligibility'
 import type { IngestionRuntime } from '@api/modules/ingestion/runtime'
 import { MONEYDIGEST_SOURCE, sourceWhere } from '@api/modules/ingestion/source'
+import { pushDisposableSchema } from '@api-tests/fixtures/disposable-schema'
 import axios from 'axios'
 import { MongoMemoryReplSet } from 'mongodb-memory-server'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
@@ -20,7 +19,7 @@ const required = <Value>(value: Value | null | undefined): Value => {
   return value
 }
 const origin = 'http://localhost:5173'
-const root = fileURLToPath(new URL('../../../../', import.meta.url))
+const _root = fileURLToPath(new URL('../../../../', import.meta.url))
 let mongo: MongoMemoryReplSet | undefined
 let server: Server | undefined
 let db: typeof import('@broke-oclock/db').db
@@ -49,20 +48,41 @@ const runtime: IngestionRuntime = {
 let admin: { id: string; cookie: string }
 let member: { id: string; cookie: string }
 const signUp = async (name: string) => {
+  const email = `synthetic-${randomUUID()}@example.test`
+  const password = randomBytes(24).toString('base64url')
   const response = await fetch(`${baseURL}/api/auth/sign-up/email`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Origin: origin },
     body: JSON.stringify({
       name,
-      email: `synthetic-${randomUUID()}@example.test`,
-      password: randomBytes(24).toString('base64url'),
+      email,
+      password,
     }),
   })
   expect(response.status).toBe(200)
   const body = await response.json()
+  const signupCookie = response.headers
+    .getSetCookie()
+    .map((value) => value.split(';')[0])
+    .join('; ')
+  expect(
+    (
+      await fetch(`${baseURL}/api/auth/sign-out`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Origin: origin, Cookie: signupCookie },
+        body: '{}',
+      })
+    ).status,
+  ).toBe(200)
+  const signedIn = await fetch(`${baseURL}/api/auth/sign-in/email`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Origin: origin },
+    body: JSON.stringify({ email, password }),
+  })
+  expect(signedIn.status).toBe(200)
   return {
     id: body.user.id as string,
-    cookie: response.headers
+    cookie: signedIn.headers
       .getSetCookie()
       .map((v) => v.split(';')[0])
       .join('; '),
@@ -76,12 +96,7 @@ beforeAll(async () => {
   fixtureDatabaseUrl = databaseUrl
   vi.stubEnv('DATABASE_URL', databaseUrl)
   vi.stubEnv('NODE_ENV', 'test')
-  await promisify(execFile)('pnpm', ['--dir', 'packages/db', 'run', 'push', '--skip-generate'], {
-    cwd: root,
-    env: { ...process.env, DATABASE_URL: databaseUrl },
-    encoding: 'utf8',
-    timeout: 60_000,
-  })
+  await pushDisposableSchema(databaseUrl)
   db = (await import('@broke-oclock/db')).db
   const { createApp } = await import('@api/app')
   server = createServer()
@@ -174,14 +189,26 @@ const fixture = async () => {
   })
   return { deal, post, venue, merchant, source }
 }
-const associate = (f: Awaited<ReturnType<typeof fixture>>, version = 1, venueId = f.venue.id) =>
+const associate = (
+  f: Awaited<ReturnType<typeof fixture>>,
+  version = 1,
+  venueId = f.venue.id,
+  operationVersion = 0,
+) =>
   http().patch(`/api/ingestion/drafts/${f.deal.id}/outlet`, {
     expectedContentVersion: version,
+    expectedOperationVersion: operationVersion,
     venueId,
   })
-const review = (f: Awaited<ReturnType<typeof fixture>>, version = 1, decision = 'APPROVE') =>
+const review = (
+  f: Awaited<ReturnType<typeof fixture>>,
+  version = 1,
+  decision = 'APPROVE',
+  operationVersion = 0,
+) =>
   http().post(`/api/ingestion/drafts/${f.deal.id}/review`, {
     expectedContentVersion: version,
+    expectedOperationVersion: operationVersion,
     decision,
     note: 'Synthetic evidence checked',
   })
@@ -253,7 +280,7 @@ describe('conservative outlet writers with native HTTP and disposable replica', 
         },
       },
     })
-    expect((await review(f, 2)).status).toBe(412)
+    expect((await review(f, 2, 'APPROVE', 1)).status).toBe(412)
   })
   it('invalidates old scope when a verified search selection becomes a real version edit', async () => {
     const f = await fixture()
@@ -283,7 +310,7 @@ describe('conservative outlet writers with native HTTP and disposable replica', 
     const f = await fixture()
     await verifyVenue(f)
     await associate(f)
-    expect((await review(f, 2)).status).toBe(412)
+    expect((await review(f, 2, 'APPROVE', 1)).status).toBe(412)
   })
   it('refuses selected approval when geography proof is absent even with current source scope', async () => {
     const f = await fixture()
@@ -294,7 +321,7 @@ describe('conservative outlet writers with native HTTP and disposable replica', 
       where: { id: f.venue.id },
       data: { geographyEvidence: { unset: true } },
     })
-    expect((await review(f, 2)).status).toBe(412)
+    expect((await review(f, 2, 'APPROVE', 1)).status).toBe(412)
   })
   it('refuses unconfirmed ALL approval instead of publishing arbitrary chain scope', async () => {
     const f = await fixture()
@@ -564,9 +591,9 @@ describe('conservative outlet writers with native HTTP and disposable replica', 
         await db.dealVenue.create({ data: { dealId: f.deal.id, venueId: next.venue.id } })
       }
       const before = await stored(f.deal.id)
-      expect((await review(f, 2)).status).toBe(412)
+      expect((await review(f, 2, 'APPROVE', 1)).status).toBe(412)
       expect(await stored(f.deal.id)).toEqual(before)
-      expect((await review(f, 2, 'REJECT')).status).toBe(200)
+      expect((await review(f, 2, 'REJECT', 1)).status).toBe(200)
     },
   )
 
@@ -576,7 +603,7 @@ describe('conservative outlet writers with native HTTP and disposable replica', 
     await associate(f)
     await confirmScope(f)
     const before = await stored(f.deal.id)
-    expect((await review(f, 2)).status).toBe(200)
+    expect((await review(f, 2, 'APPROVE', 1)).status).toBe(200)
     const after = await stored(f.deal.id)
     expect(after).toMatchObject({
       reviewStatus: 'APPROVED',
@@ -624,7 +651,7 @@ describe('conservative outlet writers with native HTTP and disposable replica', 
         ).status,
       ).toBe(400)
     }
-    expect((await associate(f, 2)).status).toBe(409)
+    expect((await associate(f, 2, f.venue.id, 1)).status).toBe(409)
     expect(await stored(f.deal.id)).toEqual(before)
   })
 
@@ -650,7 +677,7 @@ describe('conservative outlet writers with native HTTP and disposable replica', 
     await associate(f)
     await confirmScope(f)
     const before = await stored(f.deal.id)
-    expect((await associate(f, 2, next.venue.id)).status).toBe(200)
+    expect((await associate(f, 2, next.venue.id, 1)).status).toBe(200)
     const after = await stored(f.deal.id)
     expect(after).toMatchObject({
       contentVersion: 3,
@@ -752,7 +779,8 @@ describe('conservative outlet writers with native HTTP and disposable replica', 
             ),
           )
           try {
-            const result = operation === 'review' ? await review(f, 2) : await associate(f)
+            const result =
+              operation === 'review' ? await review(f, 2, 'APPROVE', 1) : await associate(f)
             expect(result.status, `${operation}:${target}`).toBe(409)
             const after = await stored(f.deal.id)
             expect(after).toEqual({
@@ -785,6 +813,7 @@ describe('conservative outlet writers with native HTTP and disposable replica', 
     const target = member
     const user = await db.user.update({ where: { id: target.id }, data: { role: 'MERCHANT' } })
     const response = await http().post('/api/admin/stall-grants', {
+      confirmed: true as const,
       userId: user.id,
       venueId: f.venue.id,
       expectedUserVersion: user.platformVersion ?? 0,
@@ -804,6 +833,7 @@ describe('conservative outlet writers with native HTTP and disposable replica', 
       data: { occupancyEvidence: { unset: true } },
     })
     const response = await http().post(`/api/admin/merchant-requests/${requested.data.id}/review`, {
+      confirmed: true as const,
       expectedVersion: requested.data.version,
       decision: 'APPROVE',
       note: 'Synthetic review',
@@ -867,11 +897,13 @@ describe('conservative outlet writers with native HTTP and disposable replica', 
               })
             : operation === 'approve-request'
               ? await http().post(`/api/admin/merchant-requests/${required(request).id}/review`, {
+                  confirmed: true as const,
                   expectedVersion: required(request).version,
                   decision: 'APPROVE',
                   note: 'Synthetic pending request review',
                 })
               : await http().post('/api/admin/stall-grants', {
+                  confirmed: true as const,
                   userId: target.id,
                   venueId: f.venue.id,
                   expectedUserVersion: before.platformVersion ?? 0,
@@ -911,6 +943,7 @@ describe('conservative outlet writers with native HTTP and disposable replica', 
     expect(
       (
         await http().post(`/api/admin/merchant-requests/${submitted.data.id}/review`, {
+          confirmed: true as const,
           expectedVersion: submitted.data.version,
           decision: 'APPROVE',
           note: 'Synthetic verified approval',
@@ -927,7 +960,10 @@ describe('conservative outlet writers with native HTTP and disposable replica', 
       data: { occupancyEvidence: { unset: true } },
     })
     const { requireMerchantStall } = await import('@api/modules/platform-admin/capability')
-    await db.$transaction((tx) => requireMerchantStall(tx, target.id, f.venue.id))
+    const targetSession = await db.session.findFirstOrThrow({ where: { userId: target.id } })
+    await db.$transaction((tx) =>
+      requireMerchantStall(tx, { userId: target.id, sessionId: targetSession.id }, f.venue.id),
+    )
     expect((await http().get(`/api/admin/accounts/${target.id}`)).data.grants).toContainEqual(
       expect.objectContaining({ id: grant.id }),
     )
@@ -935,6 +971,7 @@ describe('conservative outlet writers with native HTTP and disposable replica', 
       (
         await http().delete(`/api/admin/stall-grants/${grant.id}`, {
           data: {
+            confirmed: true as const,
             expectedVersion: grant.version,
             note: 'Synthetic revoke without occupancy proof',
           },
@@ -948,6 +985,7 @@ describe('conservative outlet writers with native HTTP and disposable replica', 
     expect(
       (
         await http().post('/api/admin/stall-grants', {
+          confirmed: true as const,
           userId: target.id,
           venueId: f.venue.id,
           expectedUserVersion: user.platformVersion ?? 0,
@@ -966,6 +1004,7 @@ describe('conservative outlet writers with native HTTP and disposable replica', 
     expect(
       (
         await http().post('/api/admin/stall-grants', {
+          confirmed: true as const,
           userId: target.id,
           venueId: next.venue.id,
           expectedUserVersion: user.platformVersion ?? 0,
@@ -990,6 +1029,7 @@ describe('conservative outlet writers with native HTTP and disposable replica', 
     expect(
       (
         await http().post(`/api/admin/merchant-requests/${submitted.data.id}/review`, {
+          confirmed: true as const,
           expectedVersion: submitted.data.version,
           decision: 'REJECT',
           note: 'Synthetic rejection without proof',
@@ -1101,12 +1141,14 @@ describe('conservative outlet writers with native HTTP and disposable replica', 
               })
             : operation === 'grant'
               ? await http().post('/api/admin/stall-grants', {
+                  confirmed: true as const,
                   userId: member.id,
                   venueId: f.venue.id,
                   expectedUserVersion: before.platformVersion ?? 0,
                   note: 'Synthetic concurrent grant',
                 })
               : await http().post(`/api/admin/merchant-requests/${required(requested).id}/review`, {
+                  confirmed: true as const,
                   expectedVersion: required(requested).version,
                   decision: 'APPROVE',
                   note: 'Synthetic concurrent approval',

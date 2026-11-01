@@ -1,4 +1,11 @@
-import { createRestHandler, type RestDependencies, requireSession } from '@api/rest/context'
+import { requireActiveSessionWrite } from '@api/modules/account/security-access'
+import { accessTransaction } from '@api/modules/platform-admin/transaction'
+import {
+  authenticatedActor,
+  createRestHandler,
+  type RestDependencies,
+  requireSession,
+} from '@api/rest/context'
 import { requireTrustedOrigin } from '@api/rest/policy'
 import { parseRestInput } from '@api/rest/validation'
 import { bookmarkParamsSchema } from '@broke-oclock/contracts/account'
@@ -15,9 +22,11 @@ export const deleteBookmark = (dependencies: RestDependencies) =>
     // 3. Delete only a bookmark that belongs to THIS user. Putting userId in the where
     //    means nobody can ever delete someone else's bookmark.
     //    deleteMany does not complain if nothing matches, so deleting twice is fine.
-    await context.db.bookmark.deleteMany({
-      where: { userId: session.user.id, dealId },
+    await accessTransaction(context.db, async (tx) => {
+      await requireActiveSessionWrite(tx, authenticatedActor(session))
+      await tx.bookmark.deleteMany({
+        where: { userId: session.user.id, dealId },
+      })
     })
-
     response.json({ saved: false })
   })

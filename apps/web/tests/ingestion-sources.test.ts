@@ -8,7 +8,10 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 vi.mock('@web/lib/auth-client', () => ({
   authClient: {
     getSession: vi.fn(async () => ({
-      data: { user: { id: 'synthetic-admin', role: 'ADMIN' } },
+      data: {
+        user: { id: 'synthetic-admin', role: 'ADMIN' },
+        session: { id: 'synthetic-session', userId: 'synthetic-admin' },
+      },
       error: null,
     })),
     useSession: () => ({ value: { refetch: async () => {}, error: null } }),

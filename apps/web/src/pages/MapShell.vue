@@ -7,10 +7,12 @@ import { authClient } from '@web/lib/auth-client'
 import BrowseListPanel from '@web/modules/browse-map/BrowseListPanel.vue'
 import DealDetailsDialog from '@web/modules/browse-map/DealDetailsDialog.vue'
 import DealMap from '@web/modules/browse-map/DealMap.vue'
-import type { BrowseFilters } from '@web/modules/browse-map/filters'
+import { type BrowseFilters, createDefaultFilters } from '@web/modules/browse-map/filters'
 import { FOCUS_ZOOM, LOCATE_ZOOM } from '@web/modules/browse-map/map-config'
 import type { Coordinates, SelectedDeal } from '@web/modules/browse-map/types'
+import { provideLobbieChat } from '@web/modules/lobbie/use-lobbie-chat'
 import FilterSheet from '@web/modules/map-shell/FilterSheet.vue'
+import { withFilters } from '@web/modules/map-shell/filter-query'
 import HotCard from '@web/modules/map-shell/HotCard.vue'
 import MapControls from '@web/modules/map-shell/MapControls.vue'
 import MapNavigation from '@web/modules/map-shell/MapNavigation.vue'
@@ -39,6 +41,7 @@ const router = useRouter()
 provideToastQueue()
 const saved = provideSavedDeals(authClient.useSession())
 const shell = provideShellState({ router, route, saved })
+const lobbie = provideLobbieChat({ position: shell.position })
 const mapPreferences = provideMapPreferences()
 const tutorialActive = computed(() => mapPreferences.tutorialStep.value !== null)
 const tutorialRestoring = ref(false)
@@ -60,6 +63,7 @@ const panelHidden = ref(false)
 provide(PANEL_FOCUS_KEY, focusHeadingOnMount)
 
 const isBrowse = computed(() => (route.name === 'browse' || route.name === 'saved'))
+const isLobbie = computed(() => route.name === 'lobbie')
 const dealsExperience = computed(
   () => ['browse', 'saved', 'deal', 'venue'].includes(String(route.name)) && route.query.discovery === '1',
 )
@@ -142,9 +146,12 @@ const selectedVenueId = computed(() => {
   return route.name === 'venue' ? String(route.params.venueId ?? '') : null
 })
 const selectedPin = computed(() => (selectedVenueId.value ? shell.findVenuePin(selectedVenueId.value) : null))
+const lobbiePins = computed(() => (isLobbie.value ? lobbie.resultPins.value : []))
+const mapFramed = computed(() => lobbiePins.value.length > 0)
 
 // A filter can hide the deal being viewed; its pin still shows so the map matches the panel.
 const mapPins = computed(() => {
+  if (mapFramed.value) return lobbiePins.value
   const pin = selectedPin.value
   return pin && !shell.pins.value.some((candidate) => candidate.id === pin.id)
     ? [...shell.pins.value, pin]
@@ -244,7 +251,7 @@ const finishTutorial = async (addDeal = false) => {
   tutorialRestoring.value = true
   mapPreferences.tutorialStep.value = null
   sheetOpen.value = false
-  if (addDeal) await router.push({ name: 'add-deal', query: shellQuery(origin?.query ?? route.query) })
+  if (addDeal) await router.push({ name: 'submit-deal' })
   else if (origin) await router.replace(origin.path)
   await nextTick()
   if (origin && !addDeal) {
@@ -275,6 +282,15 @@ const openVenue = (venueId: string) => {
 }
 
 const openHot = (deal: SelectedDeal) => router.push(dealLocation(resultsQuery.value, deal.deal.id, deal.venue.id))
+
+// The Lobbie chip opens the chat, or closes it back to the results when it is already open.
+// Opening the chat clears the quick chips and the filter sheet, so Lobbie starts from all
+// deals; the search text stays. Closing it returns to the results as they are.
+const toggleLobbie = () => {
+  if (isLobbie.value) return router.push(browseLocation(route.query))
+  const cleared = { ...createDefaultFilters(), q: shell.filters.value.q }
+  return router.push({ name: 'lobbie', query: withFilters(shellQuery(route.query), cleared) })
+}
 
 const nearMe = async () => {
   const startedAt = route.path
@@ -350,6 +366,7 @@ onBeforeUnmount(() => document.documentElement.classList.remove('is-canvas'))
       ref="headerRef"
       :filters="shell.filters.value"
       :sheet-open="sheetOpen"
+      :lobbie-open="isLobbie"
       :discovery="dealsExperience"
       :deals-header="dealsPage"
       :map-layout="desktopMap"
@@ -363,11 +380,13 @@ onBeforeUnmount(() => document.documentElement.classList.remove('is-canvas'))
       @apply="applyFilters"
       @open-sheet="sheetOpen = !sheetOpen"
       @menu-change="navigationOpen = $event"
+      @ask-lobbie="toggleLobbie"
     />
     <main class="map-shell__map" aria-label="Deal map" :inert="backgroundInert">
       <DealMap
         ref="dealMap"
         :pins="mapPins"
+        :framed="mapFramed"
         :focus="mapFocus"
         :focus-zoom="mapFocusZoom"
         :focus-offset="mapOnly && !desktopMap ? { x: 0, y: 0 } : layout.focusOffset.value"
@@ -481,7 +500,7 @@ onBeforeUnmount(() => document.documentElement.classList.remove('is-canvas'))
   /* Desktop, as on the Prototype board: the header floats top left, the panel is a card on the
      right, and the map controls and pills centre on the part of the map left of the panel. */
   --panel-w: 380px; /* fallback; use-shell-layout.ts sets the live value inline */
-  --header-w: min(31rem, calc(100% - 2 * var(--shell-gutter)));
+  --header-w: max-content;
   --map-centre-x: calc((100% - var(--panel-w) - 2 * var(--shell-gutter)) / 2);
   --toast-bottom: 84px;
   position: relative;
