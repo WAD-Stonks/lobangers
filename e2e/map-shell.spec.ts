@@ -104,13 +104,9 @@ for (const width of [390, 1280]) {
       await expect(rows(page)).toHaveCount(3)
       await expect(groups(page)).toHaveCount(3)
 
-      if (width >= 992) {
-        await page.getByTestId('quick-price').click()
-        await page.locator('input[type="number"]').fill('5')
-        await page.getByTestId('quick-filter-apply').click()
-      } else {
-        await page.getByRole('button', { name: 'Under $5' }).click()
-      }
+      await page.getByTestId('quick-price').click()
+      await page.locator('input[type="number"]').fill('5')
+      await page.getByTestId('quick-filter-apply').click()
       await expect(page).toHaveURL(/max=5/)
       await expect(rows(page)).toHaveCount(2)
       await expect(groups(page)).toHaveCount(2)

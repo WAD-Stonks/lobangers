@@ -290,7 +290,7 @@ test('map quick filters sit beside search on desktop and below it on mobile with
     await page.setViewportSize({ width, height: 800 })
     await page.goto('/browse')
     const search = await page.getByRole('search').boundingBox()
-    const toolbar = page.getByTestId(width >= 992 ? 'discovery-quick-filters' : 'quick-chips')
+    const toolbar = page.getByTestId('discovery-quick-filters')
     const chips = await toolbar.boundingBox()
     expect(
       chips &&
@@ -299,7 +299,7 @@ test('map quick filters sit beside search on desktop and below it on mobile with
       `${width}px`,
     ).toBe(true)
     const clipped = await page
-      .getByTestId(width >= 992 ? 'discovery-quick-filters' : 'quick-chips')
+      .getByTestId('discovery-quick-filters')
       .locator('button:visible')
       .evaluateAll(
         (els) => els.filter((el) => el.getBoundingClientRect().right > window.innerWidth).length,
