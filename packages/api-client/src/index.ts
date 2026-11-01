@@ -5,6 +5,8 @@ import { createAdminModerationClient } from '@api-client/admin-moderation'
 import { createFlashDropsClient } from '@api-client/flash-drops'
 import { createIngestionInvestigationClient } from '@api-client/ingestion-investigation'
 import { createPlatformSecurityClient } from '@api-client/platform-security'
+import { createPresenceClient } from '@api-client/presence'
+import { createSquadClient } from '@api-client/squad'
 import { type QueryInput, request, type SchemaInput, validateInput } from '@api-client/transport'
 import {
   accountPageQuerySchema,
@@ -118,6 +120,8 @@ export const createApiClient = (baseURL = '/api') => {
     adminDeals: createAdminDealsClient(http),
     adminModeration: createAdminModerationClient(http),
     flashDrops: createFlashDropsClient(http),
+    squad: createSquadClient(http),
+    presence: createPresenceClient(http),
     ingestionInvestigation: createIngestionInvestigationClient(http),
     platformSecurity: createPlatformSecurityClient(http),
     community: {
