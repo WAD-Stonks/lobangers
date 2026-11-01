@@ -1,5 +1,6 @@
 import { flushPromises, mount } from '@vue/test-utils'
 import { createDefaultFilters } from '@web/modules/browse-map/filters'
+import DiscoveryQuickFilters from '@web/modules/map-shell/DiscoveryQuickFilters.vue'
 import FilterSheet from '@web/modules/map-shell/FilterSheet.vue'
 import HotCard from '@web/modules/map-shell/HotCard.vue'
 import MapControls from '@web/modules/map-shell/MapControls.vue'
@@ -27,30 +28,103 @@ describe('QuickChips', () => {
     expect(wrapper.emitted('apply')?.[2]?.[0]).toMatchObject({ priceMaxMinor: null })
   })
 
-  it('badges All filters only with filters the chips do not cover', async () => {
+  it('updates the badge for all selections and hides it when filters are cleared', async () => {
     const wrapper = mount(QuickChips, {
       props: {
         filters: { ...createDefaultFilters(), priceMaxMinor: 500, categories: ['FOOD', 'DRINKS'] },
       },
     })
-    expect(wrapper.get('[data-testid="filter-badge"]').text()).toBe('2 active')
+    expect(wrapper.get('[data-testid="filter-badge"]').text()).toBe('3 active')
     await wrapper.setProps({ filters: { ...createDefaultFilters(), priceMaxMinor: 500 } })
+    expect(wrapper.get('[data-testid="filter-badge"]').text()).toBe('1 active')
+    await wrapper.setProps({ filters: createDefaultFilters() })
     expect(wrapper.find('[data-testid="filter-badge"]').exists()).toBe(false)
     await wrapper.get('[data-testid="all-filters"]').trigger('click')
     expect(wrapper.emitted('openSheet')).toHaveLength(1)
   })
 })
 
-describe('MapControls', () => {
-  it('switches the toggle label with the view', async () => {
-    const wrapper = mount(MapControls, { props: { view: 'map' } })
-    expect(wrapper.get('[data-testid="panel-toggle"]').attributes('aria-label')).toBe('Show list')
-    await wrapper.setProps({ view: 'list' })
-    expect(wrapper.get('[data-testid="panel-toggle"]').attributes('aria-label')).toBe('Show map')
+describe('DiscoveryQuickFilters', () => {
+  const props = {
+    filters: { ...createDefaultFilters(), q: 'lunch', cuisines: ['JAPANESE' as const] },
+    categories: ['DRINKS', 'MEALS'],
+    cuisines: ['JAPANESE' as const, 'CHINESE' as const],
+    countFor: (filters: ReturnType<typeof createDefaultFilters>) =>
+      filters.priceMaxMinor === 500 ? 2 : 4,
+    locationKnown: false,
+    sheetOpen: false,
+  }
+
+  it('updates the quick-filter badge as selections are added and removed', async () => {
+    const wrapper = mount(DiscoveryQuickFilters, { props: { ...props, filters: createDefaultFilters() } })
+    expect(wrapper.find('[data-testid="filter-badge"]').exists()).toBe(false)
+    await wrapper.setProps({ filters: { ...createDefaultFilters(), priceMaxMinor: 500, ending: 'today' } })
+    expect(wrapper.get('[data-testid="filter-badge"]').text()).toBe('2 active')
+    await wrapper.setProps({ filters: { ...createDefaultFilters(), ending: 'today' } })
+    expect(wrapper.get('[data-testid="filter-badge"]').text()).toBe('1 active')
+    await wrapper.setProps({ filters: createDefaultFilters() })
+    expect(wrapper.find('[data-testid="filter-badge"]').exists()).toBe(false)
+    wrapper.unmount()
   })
 
+  it('offers categories in the quick bar and applies them without changing other filters', async () => {
+    const wrapper = mount(DiscoveryQuickFilters, { props })
+    expect(wrapper.find('[data-testid="quick-offer"]').exists()).toBe(false)
+    await wrapper.get('[data-testid="quick-category"]').trigger('click')
+    const drinks = wrapper.findAll('button').find((button) => button.text() === 'Drinks')!
+    await drinks.trigger('click')
+    expect(drinks.attributes('aria-pressed')).toBe('true')
+    expect(wrapper.emitted('apply')).toBeUndefined()
+    await wrapper.get('[data-testid="quick-filter-apply"]').trigger('click')
+    const applied = { ...props.filters, categories: ['DRINKS'] }
+    expect(wrapper.emitted('apply')?.[0]?.[0]).toEqual(applied)
+    await wrapper.setProps({ filters: applied })
+    expect(wrapper.get('[data-testid="quick-category"]').text()).toContain('Category · 1')
+    await wrapper.get('[data-testid="quick-category"]').trigger('click')
+    await wrapper.findAll('button').find((button) => button.text() === 'Clear')!.trigger('click')
+    expect(wrapper.emitted('apply')?.[1]?.[0]).toEqual({ ...props.filters, categories: [] })
+    wrapper.unmount()
+  })
+
+  it('previews price edits and applies them while preserving the other filters', async () => {
+    const wrapper = mount(DiscoveryQuickFilters, { props })
+    await wrapper.get('[data-testid="quick-price"]').trigger('click')
+    await wrapper.get('input[type="number"]').setValue('5')
+    expect(wrapper.emitted('apply')).toBeUndefined()
+    expect(wrapper.get('[data-testid="quick-filter-apply"]').text()).toBe('Show 2 deals')
+    await wrapper.get('[data-testid="quick-filter-apply"]').trigger('click')
+    expect(wrapper.emitted('apply')?.[0]?.[0]).toEqual({ ...props.filters, priceMaxMinor: 500 })
+    expect(wrapper.find('[data-testid="quick-filter-popover"]').exists()).toBe(false)
+    wrapper.unmount()
+  })
+
+  it('discards uncommitted edits on Escape and clears only the open filter', async () => {
+    const wrapper = mount(DiscoveryQuickFilters, { props, attachTo: document.body })
+    await wrapper.get('[data-testid="quick-cuisine"]').trigger('click')
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text() === 'Chinese')
+      ?.trigger('click')
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }))
+    await flushPromises()
+    expect(wrapper.emitted('apply')).toBeUndefined()
+    expect(document.activeElement).toBe(wrapper.get('[data-testid="quick-cuisine"]').element)
+    await wrapper.get('[data-testid="quick-cuisine"]').trigger('click')
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text() === 'Clear')
+      ?.trigger('click')
+    expect(wrapper.emitted('apply')?.[0]?.[0]).toEqual({ ...props.filters, cuisines: [] })
+    expect(wrapper.find('[data-testid="quick-walk"]').exists()).toBe(false)
+    await wrapper.setProps({ locationKnown: true })
+    expect(wrapper.find('[data-testid="quick-walk"]').exists()).toBe(false)
+    wrapper.unmount()
+  })
+})
+
+describe('MapControls', () => {
   it('disables Near me while locating', async () => {
-    const wrapper = mount(MapControls, { props: { view: 'map', locating: true } })
+    const wrapper = mount(MapControls, { props: { locating: true } })
     expect(wrapper.get('[data-testid="near-me"]').attributes('disabled')).toBeDefined()
     expect(wrapper.get('[data-testid="near-me"]').attributes('aria-label')).toBe(
       'Finding your location',
@@ -58,9 +132,9 @@ describe('MapControls', () => {
   })
 
   it('leaves zoom out on phones and emits each control', async () => {
-    const phone = mount(MapControls, { props: { view: 'map', showZoom: false } })
+    const phone = mount(MapControls, { props: { showZoom: false } })
     expect(phone.find('[aria-label="Zoom in"]').exists()).toBe(false)
-    const desktop = mount(MapControls, { props: { view: 'map' } })
+    const desktop = mount(MapControls, { props: {} })
     await desktop.get('[aria-label="Zoom in"]').trigger('click')
     await desktop.get('[aria-label="Zoom out"]').trigger('click')
     await desktop.get('[data-testid="near-me"]').trigger('click')
@@ -125,16 +199,33 @@ describe('FilterSheet', () => {
     locationKnown: false,
   }
 
-  it('is a modal dialog on tablet and phone, and a popover on desktop', async () => {
+  it('is a modal dialog with a backdrop on every screen size', async () => {
     const wrapper = mount(FilterSheet, { props: { ...props, open: true }, attachTo: document.body })
     expect(wrapper.get('[role="dialog"]').attributes('aria-modal')).toBe('true')
     await wrapper.setProps({ breakpoint: 'desktop' })
-    expect(wrapper.get('[role="dialog"]').attributes('aria-modal')).toBeUndefined()
+    expect(wrapper.get('[role="dialog"]').attributes('aria-modal')).toBe('true')
+    await wrapper.get('[data-testid="filter-backdrop"]').trigger('click')
+    expect(wrapper.emitted('close')).toHaveLength(1)
     wrapper.unmount()
   })
 
-  it('traps Tab inside on tablet', async () => {
-    const wrapper = mount(FilterSheet, { props, attachTo: document.body })
+  it('plots actual fixed prices and highlights bars as the budget changes', async () => {
+    const wrapper = mount(FilterSheet, { props: { ...props, open: true, priceValues: [190, 200, 500, 650, 2000] } })
+    const chart = wrapper.get('[data-testid="price-histogram"]')
+    expect(chart.attributes('aria-label')).toBe('Price distribution of 5 fixed-price deals')
+    const first = chart.get('[title="Under $2.50: 2 deals"]')
+    expect(first.attributes('style')).toContain('height: 100%')
+    expect(chart.get('[title="$15+: 1 deal"]').classes()).toContain('is-selected')
+    await wrapper.get('#filter-budget').setValue('5')
+    expect(chart.get('[title="$5.00–$5.50: 1 deal"]').classes()).toContain('is-selected')
+    expect(chart.get('[title="$6.50–$7.00: 1 deal"]').classes()).not.toContain('is-selected')
+    expect(chart.get('[title="$15+: 1 deal"]').classes()).not.toContain('is-selected')
+    expect(wrapper.get('#filter-budget').attributes('aria-valuetext')).toBe('Up to $5.00')
+    wrapper.unmount()
+  })
+
+  it.each(['desktop', 'tablet', 'phone'] as const)('traps Tab inside on %s', async (breakpoint) => {
+    const wrapper = mount(FilterSheet, { props: { ...props, breakpoint }, attachTo: document.body })
     await wrapper.setProps({ open: true })
     await flushPromises()
     const buttons = wrapper.findAll('button')
@@ -149,7 +240,7 @@ describe('FilterSheet', () => {
     wrapper.unmount()
   })
 
-  it('shows the live count, adds one history entry per session, and clears to defaults', async () => {
+  it('keeps selections in draft but applies Clear all immediately with one history entry', async () => {
     const wrapper = mount(FilterSheet, { props })
     await wrapper.setProps({
       open: true,
@@ -158,11 +249,14 @@ describe('FilterSheet', () => {
     expect(wrapper.get('[data-testid="filter-show"]').text()).toBe('Show 7 deals')
     const food = wrapper.findAll('button').find((button) => button.text().startsWith('Food'))
     await food?.trigger('click')
+    expect(wrapper.emitted('apply')).toBeUndefined()
     await wrapper.get('[data-testid="filter-clear"]').trigger('click')
+    expect(wrapper.get('[data-testid="filter-show"]').text()).toBe('Show 7 deals')
+    expect(wrapper.emitted('close')).toHaveLength(1)
     const emitted = wrapper.emitted('apply') ?? []
+    expect(emitted).toHaveLength(1)
     expect(emitted[0]?.[1]).toBe('push')
-    expect(emitted[1]?.[1]).toBe('replace')
-    expect(emitted[1]?.[0]).toEqual({ ...createDefaultFilters(), q: 'kopi' })
+    expect(emitted[0]?.[0]).toEqual(createDefaultFilters())
   })
 
   it('offers the cuisines on the loaded deals and hides the group when there are none', async () => {
@@ -172,6 +266,8 @@ describe('FilterSheet', () => {
       .findAll('button')
       .find((button) => button.text().startsWith('Japanese'))
     await japanese?.trigger('click')
+    expect(wrapper.emitted('apply')).toBeUndefined()
+    await wrapper.get('[data-testid="filter-show"]').trigger('click')
     expect(wrapper.emitted('apply')?.[0]?.[0]).toEqual({
       ...createDefaultFilters(),
       cuisines: ['JAPANESE'],

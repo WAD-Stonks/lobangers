@@ -334,6 +334,84 @@ describe('community REST with real cookies and disposable MongoDB', () => {
       commentCount: 1,
     })
   })
+  it('persists replies, likes and author-only edits without exposing liker IDs', async () => {
+    const deal = await publicDeal('Synthetic comment interactions')
+    const path = `/api/deals/${deal.id}/comments`
+    const parent = (await (
+      await call('POST', path, { cookie: alice.cookies, body: { body: 'Original comment' } })
+    ).json()) as { id: string }
+    expect(
+      (
+        await call('PATCH', `/api/comments/${parent.id}`, {
+          cookie: bob.cookies,
+          body: { body: 'Not mine' },
+        })
+      ).status,
+    ).toBe(403)
+    expect(
+      (
+        await call('PATCH', `/api/comments/${parent.id}`, {
+          cookie: alice.cookies,
+          body: { body: 'Updated comment' },
+        })
+      ).status,
+    ).toBe(200)
+    expect((await call('PUT', `/api/comments/${parent.id}/like`)).status).toBe(401)
+    for (let i = 0; i < 2; i++)
+      expect(
+        (await call('PUT', `/api/comments/${parent.id}/like`, { cookie: bob.cookies })).status,
+      ).toBe(200)
+    expect(
+      (
+        await call('POST', path, {
+          cookie: bob.cookies,
+          body: { body: 'A reply', parentId: parent.id },
+        })
+      ).status,
+    ).toBe(201)
+    const page = (await (await call('GET', path, { cookie: bob.cookies })).json()) as Page<
+      Record<string, unknown>
+    >
+    expect(page.items.find((item) => item.id === parent.id)).toMatchObject({
+      body: 'Updated comment',
+      likeCount: 1,
+      liked: true,
+      canEdit: false,
+    })
+    expect(page.items.find((item) => item.parentId === parent.id)).toMatchObject({
+      body: 'A reply',
+      replyToName: 'Account Test',
+    })
+    expect(page.items.every((item) => !('likedByIds' in item))).toBe(true)
+    expect(
+      (await call('DELETE', `/api/comments/${parent.id}/like`, { cookie: bob.cookies })).status,
+    ).toBe(200)
+    expect((await db.comment.findUniqueOrThrow({ where: { id: parent.id } })).likedByIds).toEqual(
+      [],
+    )
+    const other = await publicDeal('Another synthetic deal')
+    expect(
+      (
+        await call('POST', `/api/deals/${other.id}/comments`, {
+          cookie: bob.cookies,
+          body: { body: 'Wrong deal', parentId: parent.id },
+        })
+      ).status,
+    ).toBe(404)
+    await call('DELETE', `/api/comments/${parent.id}`, { cookie: alice.cookies })
+    expect(
+      (await call('PUT', `/api/comments/${parent.id}/like`, { cookie: bob.cookies })).status,
+    ).toBe(404)
+    expect(
+      (
+        await call('POST', path, {
+          cookie: bob.cookies,
+          body: { body: 'Too late', parentId: parent.id },
+        })
+      ).status,
+    ).toBe(404)
+  })
+
   it('persists idempotent reports separately from visibility and rate limits comment spam', async () => {
     const deal = await publicDeal('Synthetic reporting')
     const created = (await (

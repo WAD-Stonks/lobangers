@@ -1,7 +1,7 @@
 import { flushPromises, mount } from '@vue/test-utils'
 import App from '@web/App.vue'
 import routes from '@web/router/routes'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { ref } from 'vue'
 import { createMemoryHistory, createRouter } from 'vue-router'
 
@@ -30,6 +30,8 @@ async function mountAt(path: string) {
   return { router, wrapper }
 }
 
+afterEach(() => vi.unstubAllGlobals())
+
 describe('starter navigation', () => {
   it('lands on the food discovery landing page', async () => {
     const { wrapper } = await mountAt('/')
@@ -44,28 +46,66 @@ describe('starter navigation', () => {
 
     expect(wrapper.find('[data-testid="map-shell"]').exists()).toBe(true)
     expect(wrapper.find('[data-testid="primary-nav"]').exists()).toBe(false)
-    expect(wrapper.get('[data-testid="panel-toggle"]').attributes('aria-label')).toBe('Show list')
+    expect(wrapper.find('[data-testid="panel-toggle"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="split-toggle"]').exists()).toBe(false)
   })
 
-  it('shows the splash screen only while the map loads, not on the landing page', async () => {
-    const landing = await mountAt('/')
-    expect(landing.wrapper.find('[data-testid="splash-screen"]').exists()).toBe(false)
-    landing.wrapper.unmount()
-
-    const map = await mountAt('/browse')
-    expect(map.wrapper.find('[data-testid="splash-screen"]').exists()).toBe(true)
-    map.wrapper.unmount()
+  it.each([
+    ['/', false],
+    ['/browse', false],
+    ['/browse?view=list&discovery=1', false],
+    ['/browse?view=list&split=1', false],
+    ['/browse?view=map&split=1', true],
+    ['/saved?view=map&split=1', false],
+    ['/add?view=map&split=1', false],
+  ])('shows the loading screen only for split view: %s', async (path, expected) => {
+    const { wrapper } = await mountAt(path)
+    expect(wrapper.find('[data-testid="splash-screen"]').exists()).toBe(expected)
+    wrapper.unmount()
   })
 
-  it('navigates to the developer setup page from the header', async () => {
+  it.each([[390, false], [834, true]])('skips the split-view loading screen on phones (%spx)', async (width, expected) => {
+    vi.stubGlobal('matchMedia', (query: string) => ({
+      matches: query.includes('min-width: 768px') && Number(width) >= 768,
+      media: query, addEventListener: vi.fn(), removeEventListener: vi.fn(),
+    }))
+    const { wrapper } = await mountAt('/browse?view=map&split=1')
+    expect(wrapper.find('[data-testid="splash-screen"]').exists()).toBe(expected)
+    wrapper.unmount()
+  })
+
+  it.each(['/', '/deals'])('shows the loading animation when entering the map from %s', async (origin) => {
+    const { wrapper, router } = await mountAt(origin)
+    expect(wrapper.find('[data-testid="splash-screen"]').exists()).toBe(false)
+    await router.push('/browse')
+    await flushPromises()
+    expect(wrapper.find('[data-testid="splash-screen"]').exists()).toBe(true)
+    await router.push('/deals')
+    await flushPromises()
+    expect(wrapper.find('[data-testid="splash-screen"]').exists()).toBe(false)
+    await router.push('/browse')
+    await flushPromises()
+    expect(wrapper.find('[data-testid="splash-screen"]').exists()).toBe(true)
+    wrapper.unmount()
+  })
+
+  it('does not show the loading animation when switching from Saved to Deals on the visible map', async () => {
+    const { wrapper, router } = await mountAt('/saved?view=map&split=1')
+    await router.push('/browse?view=map&split=1')
+    await flushPromises()
+    expect(wrapper.find('[data-testid="splash-screen"]').exists()).toBe(false)
+    wrapper.unmount()
+  })
+
+  it('navigates to all deals from the header', async () => {
     const { router, wrapper } = await mountAt('/browse')
 
     await wrapper.get('[data-testid="nav-toggle"]').trigger('click')
-    await wrapper.get('[data-testid="nav-menu"] a[href="/getting-started"]').trigger('click')
+    await wrapper.get('[data-testid="nav-menu"] a[href="/deals"]').trigger('click')
     await flushPromises()
 
-    expect(router.currentRoute.value.path).toBe('/getting-started')
-    expect(wrapper.get('h1').text()).toBe('Getting started')
+    expect(router.currentRoute.value.path).toBe('/browse')
+    expect(router.currentRoute.value.query.view).toBe('list')
   })
 
   it('renders a useful 404 page for unknown routes', async () => {

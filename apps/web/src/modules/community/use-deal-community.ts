@@ -55,10 +55,20 @@ export const useDealCommunity = (
     refreshing.value = true
     error.value = ''
     try {
+      const loadedCount = allComments.value ? comments.value.length : 0
+      const visibleCount = allComments.value ? Math.max(5, loadedCount) : 3
       const [nextSummary, page] = await Promise.all([
         api.community.summary(dealId.value),
-        api.community.comments(dealId.value, { limit: allComments.value ? 5 : 3 }),
+        api.community.comments(dealId.value, { limit: Math.min(50, visibleCount) }),
       ])
+      // Likes and edits should not collapse pages the visitor has already opened.
+      while (page.nextCursor && page.items.length < loadedCount) {
+        const next = await api.community.comments(dealId.value, {
+          cursor: page.nextCursor, limit: Math.min(50, loadedCount - page.items.length),
+        })
+        page.items.push(...next.items)
+        page.nextCursor = next.nextCursor
+      }
       if (current !== generation || request !== readVersion) return false
       const differs = acceptSummary(nextSummary)
       comments.value = page.items

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useShellNavigation } from '@web/modules/map-shell/use-shell-navigation'
 import logoUrl from '@web/assets/lobangers-logo.png'
 import AccountMenu from '@web/components/AccountMenu.vue'
 import { SITE_MENU_ID, SITE_NAV_LINKS } from '@web/components/site-nav-links'
@@ -6,6 +7,8 @@ import { useSiteMenu } from '@web/components/use-site-menu'
 import { authClient } from '@web/lib/auth-client'
 import { computed, ref } from 'vue'
 import { RouterLink } from 'vue-router'
+
+const navigationTo = useShellNavigation()
 
 const root = ref<HTMLElement | null>(null)
 const session = authClient.useSession()
@@ -46,7 +49,7 @@ const { isOpen, close, toggle } = useSiteMenu({ root, toggle: toggleButton, pane
             class="site-menu__item"
             :style="{ '--i': index }"
           >
-            <RouterLink class="site-menu__link" :to="link.to" @click="close">
+            <RouterLink class="site-menu__link" :to="navigationTo(link.to)" @click="close">
               {{ link.label }}
             </RouterLink>
           </li>

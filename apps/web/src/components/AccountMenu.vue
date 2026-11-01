@@ -1,6 +1,9 @@
 <script setup lang="ts">
+import { useShellNavigation } from '@web/modules/map-shell/use-shell-navigation'
 import { authClient } from '@web/lib/auth-client'
 import { RouterLink, useRouter } from 'vue-router'
+
+const navigationTo = useShellNavigation()
 
 const router = useRouter()
 const session = authClient.useSession()
@@ -14,10 +17,10 @@ const logOut = async () => {
 <template>
   <template v-if="session.isPending" />
   <template v-else-if="session.data">
-    <RouterLink class="nav-link px-0" to="/saved">Saved</RouterLink>
-    <RouterLink class="nav-link px-0" to="/me/submissions">My submissions</RouterLink>
-    <RouterLink class="nav-link px-0" to="/me/merchant-access">Merchant access</RouterLink>
-    <RouterLink class="nav-link px-0" to="/me/profile" data-testid="signed-in-name">{{ session.data.user.name }}</RouterLink>
+    <RouterLink class="nav-link px-0" :to="navigationTo('/saved')">Saved</RouterLink>
+    <RouterLink class="nav-link px-0" :to="navigationTo('/me/submissions')">My submissions</RouterLink>
+    <RouterLink class="nav-link px-0" :to="navigationTo('/me/merchant-access')">Merchant access</RouterLink>
+    <RouterLink class="nav-link px-0" :to="navigationTo('/me/profile')" data-testid="signed-in-name">{{ session.data.user.name }}</RouterLink>
     <button type="button" class="btn btn-link nav-link px-0" data-testid="log-out" @click="logOut">Log out</button>
   </template>
   <template v-else>

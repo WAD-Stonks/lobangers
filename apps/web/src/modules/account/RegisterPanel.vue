@@ -11,11 +11,11 @@ const router = useRouter()
 const onRegistered = (needsVerification: boolean) =>
   needsVerification
     ? router.replace({ name: 'login', query: { notice: 'verify' } })
-    : router.replace(safeRedirect(route.query.redirect))
+    : router.replace(safeRedirect(route.query.redirect, '/deals'))
 </script>
 
 <template>
-  <PanelFrame title="Create an account" :back="{ name: 'browse' }" back-label="Back to the map">
+  <PanelFrame title="Create an account">
     <div class="account-panel__form">
       <RegisterForm @registered="onRegistered" />
     </div>

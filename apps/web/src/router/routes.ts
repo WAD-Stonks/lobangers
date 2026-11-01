@@ -1,3 +1,4 @@
+import AuthPrompt from '@web/modules/account/AuthPrompt.vue'
 import LoginPanel from '@web/modules/account/LoginPanel.vue'
 import ProfilePanel from '@web/modules/account/ProfilePanel.vue'
 import RegisterPanel from '@web/modules/account/RegisterPanel.vue'
@@ -11,13 +12,13 @@ import ForgotPasswordPage from '@web/pages/ForgotPasswordPage.vue'
 import GettingStartedPage from '@web/pages/GettingStartedPage.vue'
 import IngestionAdminPage from '@web/pages/IngestionAdminPage.vue'
 import LandingPage from '@web/pages/LandingPage.vue'
+import AuthPage from '@web/pages/AuthPage.vue'
 import MapShell from '@web/pages/MapShell.vue'
 import MerchantAccessPage from '@web/pages/MerchantAccessPage.vue'
 import MySubmissionsPage from '@web/pages/MySubmissionsPage.vue'
 import NotFoundPage from '@web/pages/NotFoundPage.vue'
 import PlatformAdminPage from '@web/pages/PlatformAdminPage.vue'
 import ResetPasswordPage from '@web/pages/ResetPasswordPage.vue'
-import SubmissionForm from '@web/pages/SubmissionForm.vue'
 import type { RouteRecordRaw } from 'vue-router'
 
 declare module 'vue-router' {
@@ -36,6 +37,7 @@ const routes: RouteRecordRaw[] = [
     component: MapShell,
     meta: { layout: 'canvas' },
     children: [
+      { path: '/account-required', name: 'auth-required', component: AuthPrompt, meta: { panelLabel: 'Log in or sign up' } },
       { path: '', name: 'browse', component: BrowseListPanel, meta: { panelLabel: 'Results' } },
       { path: '/deals/:dealId', name: 'deal', component: DealPanel, meta: { panelLabel: 'Deal' } },
       {
@@ -71,7 +73,7 @@ const routes: RouteRecordRaw[] = [
       {
         path: '/saved',
         name: 'saved',
-        component: ProfilePanel,
+        component: BrowseListPanel,
         meta: { requiresAuth: true, panelLabel: 'Saved deals' },
       },
       {
@@ -83,8 +85,14 @@ const routes: RouteRecordRaw[] = [
     ],
   },
   { path: '/', name: 'landing', component: LandingPage, meta: { layout: 'landing' } },
+  { path: '/about', name: 'about', component: LandingPage, meta: { layout: 'landing' } },
+  { path: '/sign-in', name: 'sign-in', component: AuthPage, props: { mode: 'login' }, meta: { layout: 'auth', guestOnly: true } },
+  { path: '/sign-up', name: 'sign-up', component: AuthPage, props: { mode: 'register' }, meta: { layout: 'auth', guestOnly: true } },
   // The feed without a map is now the shell's list mode; old links keep working.
-  { path: '/deals', redirect: (to) => ({ name: 'browse', query: { ...to.query, view: 'list' } }) },
+  {
+    path: '/deals',
+    redirect: (to) => ({ name: 'browse', query: { ...to.query, view: 'list', discovery: '1' } }),
+  },
   { path: '/getting-started', name: 'getting-started', component: GettingStartedPage },
   { path: '/admin', name: 'admin-overview', component: AdminOverviewPage },
   { path: '/admin/ingestion', name: 'ingestion-admin', component: IngestionAdminPage },
@@ -109,12 +117,6 @@ const routes: RouteRecordRaw[] = [
     meta: { guestOnly: true },
   },
   { path: '/reset-password', name: 'reset-password', component: ResetPasswordPage },
-  {
-    path: '/submit-deal',
-    name: 'submit-deal',
-    component: SubmissionForm,
-    meta: { requiresAuth: true },
-  },
   { path: '/:pathMatch(.*)*', name: 'not-found', component: NotFoundPage },
 ]
 

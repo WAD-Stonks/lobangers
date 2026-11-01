@@ -94,6 +94,11 @@ describe('deal-level filters', () => {
 describe('venue-level filters', () => {
   const pins = toVenuePins(ALL)
 
+  it('filters by location name without including a deals other outlets', () => {
+    expect(filterVenues(pins, { ...base, location: '  bEdOk  ' }, ctx).map((pin) => pin.id)).toEqual([FAR.id])
+    expect(filterVenues(pins, { ...base, location: 'Unknown mall' }, ctx)).toEqual([])
+  })
+
   it('ignores walking distance until the visitor is located', () => {
     expect(filterVenues(pins, { ...base, walkMinutes: 5 }, ctx)).toHaveLength(2)
   })

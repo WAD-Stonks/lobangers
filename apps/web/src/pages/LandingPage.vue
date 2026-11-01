@@ -41,7 +41,6 @@ const { deals, status, retry } = useLandingDeals()
       <p>Good food. Better prices. Little red dot.</p>
       <div>
         <RouterLink to="/browse">Find a lobang ↗</RouterLink>
-        <RouterLink to="/submit-deal">Share a lobang ↗</RouterLink>
       </div>
       <small>Made for hungry Singaporeans.</small>
     </footer>

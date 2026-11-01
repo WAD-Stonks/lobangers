@@ -1,26 +1,48 @@
 <script setup lang="ts">
 import { AppShell, BApp } from '@broke-oclock/ui'
+import { authPrompt } from '@web/modules/account/auth-prompt'
+import AuthPrompt from '@web/modules/account/AuthPrompt.vue'
 import SiteHeader from '@web/components/SiteHeader.vue'
 import SplashScreen from '@web/components/SplashScreen.vue'
+import { readSplit, readView } from '@web/modules/map-shell/filter-query'
+import { useBreakpoint } from '@web/modules/map-shell/use-breakpoint'
 import { routeLayout } from '@web/router/layouts'
-import { computed } from 'vue'
+import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { RouterView, useRoute } from 'vue-router'
 
+onBeforeUnmount(() => authPrompt.value?.resolve(null))
 const route = useRoute()
+const breakpoint = useBreakpoint()
 const layout = computed(() => routeLayout(route))
+// Scope the application palette to every route except the marketing landing page.
+watch(layout, (value) => {
+  document.documentElement.classList.toggle('app-palette', value !== 'landing')
+}, { immediate: true })
+onBeforeUnmount(() => document.documentElement.classList.remove('app-palette'))
+const splitView = computed(() => readView(route.query) === 'map' && readSplit(route.query) && !['saved', 'add-deal'].includes(String(route.name)))
+const mapVisible = computed(() => layout.value === 'canvas' && (route.name === 'login' || readView(route.query) === 'map'))
+const splashEligible = computed(() => mapVisible.value && breakpoint.value !== 'phone' && !['saved', 'add-deal'].includes(String(route.name)))
+const showMapSplash = ref(false)
+watch([mapVisible, splashEligible], ([visible, eligible], previous) => {
+  if (!eligible) showMapSplash.value = false
+  else if (visible && (previous[0] === false || (previous[0] === undefined && splitView.value))) showMapSplash.value = true
+}, { immediate: true })
 const administration = computed(() => route.path === '/admin' || route.path.startsWith('/admin/'))
 </script>
 
 <template>
   <BApp>
-    <!-- The map shell owns the whole viewport and brings its own header and landmarks. The splash
-         covers the map while it loads; other pages, the landing page included, open without it. -->
+    <AuthPrompt v-if="layout !== 'canvas'" />
+    <!-- The split map/results loading screen is skipped on phones. -->
     <template v-if="layout === 'canvas'">
-      <SplashScreen />
+      <SplashScreen v-if="showMapSplash" />
       <RouterView />
     </template>
     <!-- The landing page brings its own navbar. -->
     <main v-else-if="layout === 'landing'" class="landing-canvas">
+      <RouterView />
+    </main>
+    <main v-else-if="layout === 'auth'">
       <RouterView />
     </main>
     <div

@@ -1,3 +1,4 @@
+import { SINGAPORE_CENTER } from '@web/modules/browse-map/map-config'
 import { areaFor } from '@web/modules/browse-map/cluster-area'
 import { distanceMetres } from '@web/modules/browse-map/distance'
 import type { Coordinates, VenuePin } from '@web/modules/browse-map/types'
@@ -10,6 +11,7 @@ export type GroupKind = 'near' | 'area' | 'region'
 
 export type PinGroup = {
   readonly key: string
+  readonly compact?: boolean
   readonly kind: GroupKind
   readonly label: string
   readonly dealCount: number
@@ -86,6 +88,14 @@ export const planMapLayers = ({ pins, zoom, user, selectedVenueId }: PlanInput):
   // The open outlet always stays a pin, so the panel never points at a group.
   const selected = pins.filter((pin) => pin.id === selectedVenueId)
   const rest = pins.filter((pin) => pin.id !== selectedVenueId)
+  // At country/world scale, one island-centred count replaces regional labels.
+  if (zoom < 10) {
+    return {
+      tier,
+      loose: selected,
+      groups: rest.length ? [{ ...makeGroup('region', 'Singapore', rest, SINGAPORE_CENTER), compact: true }] : [],
+    }
+  }
   const isNear = (pin: VenuePin) => user !== null && distanceMetres(user, pin) <= WALK_RADIUS_METRES
   const near = rest.filter(isNear)
   const far = rest.filter((pin) => !isNear(pin))

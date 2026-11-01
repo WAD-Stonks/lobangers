@@ -1,5 +1,5 @@
 import { usePanelMorph } from '@web/modules/map-shell/use-panel-morph'
-import { panelWidthFor } from '@web/modules/map-shell/use-shell-layout'
+import { panelWidthFor, sheetHeights } from '@web/modules/map-shell/use-shell-layout'
 import { describe, expect, it, vi } from 'vitest'
 import { effectScope, nextTick, ref } from 'vue'
 
@@ -91,5 +91,16 @@ describe('panelWidthFor', () => {
     expect(panelWidthFor(1100, false)).toBe(340)
     expect(panelWidthFor(1440, true)).toBe(760)
     expect(panelWidthFor(1100, true)).toBe(638)
+  })
+})
+
+
+describe('mobile result preview heights', () => {
+  it('sizes the middle snap to one measured result row while preserving peek and full height', () => {
+    expect(sheetHeights(776, 128, 0.58, 350)).toEqual([120, 350, 640])
+  })
+  it('keeps enough space between snaps on small screens or very tall cards', () => {
+    expect(sheetHeights(776, 128, 0.58, 900)).toEqual([120, 580, 640])
+    expect(sheetHeights(776, 128, 0.58, 90)).toEqual([120, 180, 640])
   })
 })

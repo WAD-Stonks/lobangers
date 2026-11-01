@@ -333,6 +333,9 @@ model DealVote {
 }
 
 model Comment {
+  parentId String? @db.ObjectId
+  likedByIds String[] @default([])
+  editedAt DateTime?
   id        String          @id @default(auto()) @map("_id") @db.ObjectId
   dealId    String          @db.ObjectId
   deal      Deal            @relation(fields: [dealId], references: [id], onDelete: NoAction, onUpdate: NoAction)

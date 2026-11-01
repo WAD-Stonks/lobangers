@@ -1,3 +1,4 @@
+import { SINGAPORE_CENTER } from '@web/modules/browse-map/map-config'
 import { NEAR_YOU_LABEL, planMapLayers, tierFor } from '@web/modules/browse-map/map-tiers'
 import type { VenuePin } from '@web/modules/browse-map/types'
 import { makeDeal } from '@web-tests/support/shell-fixtures'
@@ -37,6 +38,15 @@ describe('tierFor', () => {
 })
 
 describe('planMapLayers', () => {
+  it('centres a single count on Singapore when zoomed far out', () => {
+    const plan = planMapLayers({ pins: PINS, zoom: 9, user: USER, selectedVenueId: null })
+    expect(plan.loose).toEqual([])
+    expect(plan.groups).toHaveLength(1)
+    expect(plan.groups[0]).toMatchObject({
+      centre: SINGAPORE_CENTER, compact: true, label: 'Singapore', dealCount: 13,
+    })
+  })
+
   it('shows every outlet as a pin at street zoom', () => {
     const plan = planMapLayers({ pins: PINS, zoom: 16, user: USER, selectedVenueId: null })
 

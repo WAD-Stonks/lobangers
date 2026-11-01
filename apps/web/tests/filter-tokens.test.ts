@@ -28,7 +28,7 @@ describe('active filter tokens', () => {
       'Japanese',
       '1-for-1',
       'Within 10 min',
-      'Ending today',
+      'Expiry today',
       'Including expired',
     ])
     const fastFood = tokens.find((token) => token.label === 'Fast food')

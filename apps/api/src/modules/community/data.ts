@@ -121,11 +121,18 @@ export const listCommunityComments = async (
         id: true,
         body: true,
         authorId: true,
+        parentId: true,
+        likedByIds: true,
+        editedAt: true,
         createdAt: true,
         author: { select: { name: true } },
       },
     })
     const page = rows.slice(0, query.limit)
+    const parents = await tx.comment.findMany({
+      where: { id: { in: page.flatMap((row) => (row.parentId ? [row.parentId] : [])) } },
+      select: { id: true, author: { select: { name: true } } },
+    })
     return {
       items: page.map((row) => ({
         id: row.id,
@@ -133,6 +140,12 @@ export const listCommunityComments = async (
         authorName: row.author.name,
         createdAt: row.createdAt.toISOString(),
         canDelete: row.authorId === userId,
+        canEdit: row.authorId === userId,
+        parentId: row.parentId ?? null,
+        replyToName: parents.find((parent) => parent.id === row.parentId)?.author.name ?? null,
+        likeCount: row.likedByIds?.length ?? 0,
+        liked: userId ? (row.likedByIds ?? []).includes(userId) : false,
+        editedAt: row.editedAt?.toISOString() ?? null,
       })),
       nextCursor: rows.length > query.limit ? (page.at(-1)?.id ?? null) : null,
     }

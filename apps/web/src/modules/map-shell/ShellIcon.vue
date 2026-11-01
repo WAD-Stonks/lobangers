@@ -1,13 +1,26 @@
 <script setup lang="ts">
+import { TICKET_ICON_PATHS } from '@web/components/ticket-icon'
 import { computed } from 'vue'
 
 // Stroked 24x24 outline icons used across the shell. Always decorative: the button or text
 // next to the icon carries the accessible name.
 const ICONS = {
+  ticket: TICKET_ICON_PATHS,
+  calendar: ['M4 5h16v16H4z', 'M8 3v4', 'M16 3v4', 'M4 10h16'],
+  sort: ['M7 3v18', 'm3 17 4 4 4-4', 'M17 21V3', 'm13 7 4-4 4 4'],
+  grid: ['M3 3h7v7H3z', 'M14 3h7v7h-7z', 'M3 14h7v7H3z', 'M14 14h7v7h-7z'],
+  home: ['m3 10 9-7 9 7', 'M5 9v12h14V9', 'M9 21v-8h6v8'],
+  sidebar: ['M3 4h18v16H3z', 'M9 4v16'],
+  edit: ['M20 13v8H3V4h10', 'm10 14 1-4 8-8 3 3-8 8z'],
+  store: ['M3 10h18l-2-6H5z', 'M5 10v11h14V10', 'M9 21v-7h6v7'],
+  help: ['M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18', 'M9.5 9a2.5 2.5 0 1 1 4 2c-1 .7-1.5 1-1.5 2', 'M12 17h.01'],
+  logout: ['M9 4H4v16h5', 'M9 12h12', 'm16 7 5 5-5 5'],
   back: ['M19 12H5', 'M11 6l-6 6 6 6'],
   bookmark: ['M6 4h12v17l-6-4-6 4z'],
+  flag: ['M5 21V3', 'M5 4c5-4 9 4 14 0v10c-5 4-9-4-14 0'],
   check: ['m5 12 5 5 9-10'],
   chevronDown: ['m6 9 6 6 6-6'],
+  chevronUp: ['m6 15 6-6 6 6'],
   chevronLeft: ['m15 6-6 6 6 6'],
   chevronRight: ['m9 6 6 6-6 6'],
   close: ['M18 6 6 18', 'M6 6l12 12'],
@@ -23,6 +36,7 @@ const ICONS = {
   refresh: ['M20 12a8 8 0 1 1-3-6.2', 'M20 4v5h-5'],
   search: ['M11 4a7 7 0 1 0 0 14 7 7 0 0 0 0-14z', 'm20 20-3.5-3.5'],
   walk: ['M13 4a1 1 0 1 0 0 .01', 'M10 21l2-6 3 3v3', 'M9 12l3-4 3 3 3 1', 'M12 8l-2 5'],
+  user: ['M16 7a4 4 0 1 1-8 0 4 4 0 0 1 8 0', 'M4 21v-2a8 8 0 0 1 16 0v2'],
 } as const
 
 export type ShellIconName = keyof typeof ICONS

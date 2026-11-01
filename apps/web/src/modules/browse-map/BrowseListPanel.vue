@@ -1,8 +1,8 @@
 <script setup lang="ts">
+import AllDealsHero from '@web/modules/browse-map/AllDealsHero.vue'
 import type { SortKey } from '@web/modules/browse-map/apply-filters'
-import DealBanners from '@web/modules/browse-map/DealBanners.vue'
-import DealCardGrid from '@web/modules/browse-map/DealCardGrid.vue'
 import DealRowList from '@web/modules/browse-map/DealRowList.vue'
+import FoodDealGrid from '@web/modules/browse-map/FoodDealGrid.vue'
 import { activeFilterTokens } from '@web/modules/browse-map/filter-tokens'
 import { createDefaultFilters } from '@web/modules/browse-map/filters'
 import type { DealRow } from '@web/modules/browse-map/types'
@@ -11,12 +11,12 @@ import ShellIcon from '@web/modules/map-shell/ShellIcon.vue'
 import { dealLocation } from '@web/modules/map-shell/shell-routes'
 import { useShell } from '@web/modules/map-shell/shell-state'
 import { computed } from 'vue'
-import { RouterLink, useRoute } from 'vue-router'
+import { RouterLink, useRoute, useRouter } from 'vue-router'
 
-// The browse panel: result count, sort, removable filter tokens and the results as rows (map
-// view) or cards (list view), with loading, error and empty states.
+// Results can be displayed as compact rows or photo cards in either map or full-width mode.
 const shell = useShell()
 const route = useRoute()
+const router = useRouter()
 
 const SORT_OPTIONS: readonly { value: SortKey; label: string }[] = [
   { value: 'near', label: 'Nearest' },
@@ -26,75 +26,99 @@ const SORT_OPTIONS: readonly { value: SortKey; label: string }[] = [
 const SKELETON_ROWS = 3
 
 const count = computed(() => shell.dealCount.value)
+const fullPage = computed(() => shell.view.value === 'list')
+const cardMode = computed(() => fullPage.value || shell.cardMode.value)
+const setResultView = (results: 'list' | 'cards') => {
+  shell.setHovered(null)
+  return router.replace({ query: { ...route.query, results } })
+}
 const located = computed(() => shell.position.value !== null)
 const title = computed(() => {
   if (shell.status.value === 'loading' && shell.deals.value.length === 0) return 'Finding deals'
-  const noun = count.value === 1 ? 'deal' : 'deals'
+  const noun = `${shell.savedOnly.value ? 'saved ' : ''}${count.value === 1 ? 'deal' : 'deals'}`
+  if (shell.savedOnly.value) return `${count.value} ${noun}`
+  if (fullPage.value) return `${count.value} ${noun} to explore`
   if (shell.area.value) return `${count.value} ${noun} in this area`
   return located.value ? `${count.value} ${noun} nearby` : `${count.value} ${noun}`
 })
 const tokens = computed(() => activeFilterTokens(shell.filters.value))
-const hasNarrowing = computed(() => tokens.value.length > 0 || shell.area.value !== null)
+const hasNarrowing = computed(() => tokens.value.length > 0)
 const showSkeleton = computed(() => shell.status.value === 'loading' && shell.deals.value.length === 0)
 const isEmpty = computed(() => shell.status.value === 'ready' && shell.rows.value.length === 0)
 const scrollKey = computed(() =>
-  JSON.stringify([shell.sort.value, shell.view.value, shell.filters.value, shell.area.value]),
+  JSON.stringify([shell.sort.value, shell.view.value, cardMode.value, shell.filters.value, shell.area.value]),
 )
 
-const toDeal = (row: DealRow) => dealLocation(route.query, row.deal.id, row.venue.id)
+const toDeal = (row: DealRow) => dealLocation({ ...route.query, ...(shell.savedOnly.value ? { collection: 'saved' } : {}) }, row.deal.id, row.venue.id)
 const onSort = (event: Event) => shell.setSort((event.target as HTMLSelectElement).value as SortKey)
 const clearAll = () => {
-  shell.setArea(null)
   void shell.applyFilters({ ...createDefaultFilters() })
 }
 </script>
 
 <template>
-  <PanelFrame :title="title" :scroll-key="scrollKey">
-    <template #heading>
-      <label class="browse-list__sort">
-        <span class="browse-list__sort-label">Sort</span>
+  <PanelFrame class="browse-list" :title="title" :scroll-key="scrollKey" :class="{ 'browse-list--full-page': fullPage }">
+    <template v-if="fullPage && !shell.savedOnly.value" #beforeHeading><AllDealsHero /></template>
+    <template v-if="shell.view.value === 'list'" #heading>
+      <div class="browse-list__heading-actions">
+        <span v-if="fullPage" class="browse-list__sort-caption" aria-hidden="true">Sort by</span>
+        <label class="browse-list__sort">
+          <ShellIcon name="sort" :size="18" />
+          <span class="visually-hidden">Sort deals</span>
+          <select class="browse-list__select" :value="shell.sort.value" data-testid="sort" @change="onSort">
+            <option v-for="option in SORT_OPTIONS" :key="option.value" :value="option.value">{{ option.label }}</option>
+          </select>
+          <ShellIcon class="browse-list__chevron" name="chevronDown" :size="16" :stroke-width="2.4" />
+        </label>
+        <button v-if="fullPage && shell.savedOnly.value" type="button" class="lb-btn browse-list__map-button" data-testid="show-map" @click="shell.setView('map')">
+          <ShellIcon name="map" :size="16" />Show map
+        </button>
+      </div>
+    </template>
+
+    <div v-if="!fullPage" class="browse-list__toolbar">
+      <div class="browse-list__view-toggle" :class="{ 'is-card': cardMode }" role="group" aria-label="Results view">
+        <button type="button" aria-label="List view" title="List view" :aria-pressed="!cardMode" data-testid="results-list" @click="setResultView('list')">
+          <ShellIcon name="list" :size="18" />
+        </button>
+        <button type="button" aria-label="Card view" title="Card view" :aria-pressed="cardMode" data-testid="results-cards" @click="setResultView('cards')">
+          <ShellIcon name="grid" :size="18" />
+        </button>
+      </div>
+      <label v-if="!fullPage" class="browse-list__sort">
+        <ShellIcon name="sort" :size="18" />
+        <span class="visually-hidden">Sort deals</span>
         <select class="browse-list__select" :value="shell.sort.value" data-testid="sort" @change="onSort">
           <option v-for="option in SORT_OPTIONS" :key="option.value" :value="option.value">{{ option.label }}</option>
         </select>
         <ShellIcon class="browse-list__chevron" name="chevronDown" :size="16" :stroke-width="2.4" />
       </label>
-    </template>
+    </div>
 
     <p v-if="shell.locationMessage.value" class="browse-list__note" role="status" data-testid="location-status">
-      {{ shell.locationMessage.value }}
+      {{ cardMode ? 'Enable location to find and sort deals near you.' : shell.locationMessage.value }}
+      <button v-if="cardMode && !located" class="lb-btn" type="button" :disabled="shell.geoStatus.value === 'locating'" @click="shell.locate()">Use my location</button>
     </p>
-
-    <DealBanners v-if="!showSkeleton && shell.status.value !== 'error'" />
-
-    <fieldset v-if="hasNarrowing" class="browse-list__tokens">
-      <legend class="visually-hidden">Active filters</legend>
-      <button v-if="shell.area.value" type="button" class="browse-list__token" @click="shell.setArea(null)">
-        In this area<ShellIcon name="close" :size="14" :stroke-width="2.4" />
-        <span class="visually-hidden">(remove)</span>
-      </button>
-      <button
-        v-for="token in tokens"
-        :key="token.key"
-        type="button"
-        class="browse-list__token"
-        :aria-label="`Remove filter ${token.label}`"
-        @click="shell.applyFilters(token.next)"
-      >
-        <span class="lb-text-wrap">{{ token.label }}</span><ShellIcon name="close" :size="14" :stroke-width="2.4" />
-      </button>
-      <button type="button" class="browse-list__token browse-list__token--clear" @click="clearAll">Clear all</button>
-    </fieldset>
 
     <div v-if="showSkeleton" aria-busy="true" data-testid="deals-loading">
       <span class="visually-hidden" role="status">Loading deals</span>
-      <div v-for="index in SKELETON_ROWS" :key="index" class="browse-list__skeleton">
-        <span class="lb-skeleton browse-list__skeleton-dot" />
-        <span class="browse-list__skeleton-lines">
+      <div v-if="cardMode" class="browse-list__skeleton-cards" aria-hidden="true">
+        <div v-for="index in 4" :key="index" class="browse-list__skeleton-card">
+          <span class="lb-skeleton browse-list__skeleton-photo" />
           <span class="lb-skeleton browse-list__sk-title" />
           <span class="lb-skeleton browse-list__sk-meta" />
-        </span>
-        <span class="lb-skeleton browse-list__sk-price" />
+          <span class="lb-skeleton browse-list__sk-meta browse-list__sk-meta--short" />
+        </div>
+      </div>
+      <div v-else>
+        <div v-for="index in SKELETON_ROWS" :key="index" class="browse-list__skeleton">
+          <span class="lb-skeleton browse-list__skeleton-dot" />
+          <span class="browse-list__skeleton-lines">
+            <span class="lb-skeleton browse-list__sk-title" />
+            <span class="lb-skeleton browse-list__sk-meta" />
+          </span>
+          <span class="lb-skeleton browse-list__sk-price" />
+        </div>
       </div>
     </div>
 
@@ -105,9 +129,9 @@ const clearAll = () => {
     </div>
 
     <div v-else-if="isEmpty" class="lb-state" data-testid="deals-status">
-      <p class="lb-state__title">{{ hasNarrowing ? 'No deals match all of these' : 'No deals yet' }}</p>
+      <p class="lb-state__title">{{ hasNarrowing ? 'No deals match all of these' : shell.area.value ? 'No deals in this area' : shell.savedOnly.value ? 'No saved deals yet' : 'No deals yet' }}</p>
       <p class="lb-state__body">
-        {{ hasNarrowing ? 'Remove a filter or clear them all to see more.' : 'Check back soon, or add one you know about.' }}
+        {{ hasNarrowing ? 'Remove a filter or clear them all to see more.' : shell.area.value ? 'Move the map or zoom out to find more deals.' : shell.savedOnly.value ? 'Save deals using the bookmark button to see them here.' : 'Check back soon, or add one you know about.' }}
       </p>
       <button v-if="hasNarrowing" type="button" class="lb-btn lb-btn--ink" data-testid="clear-filters" @click="clearAll">
         Clear filters
@@ -115,56 +139,200 @@ const clearAll = () => {
     </div>
 
     <template v-else>
-      <DealCardGrid v-if="shell.view.value === 'list'" :rows="shell.rows.value" :to="toDeal" @hover="shell.setHovered" />
+      <FoodDealGrid v-if="cardMode" :rows="shell.rows.value" :to="toDeal" @hover="shell.setHovered" />
       <DealRowList
         v-else
         :rows="shell.rows.value"
         :to="toDeal"
         :hot-venue-id="shell.hoveredVenueId.value"
-        test-id="nearby-list"
         @hover="shell.setHovered"
       />
     </template>
 
     <div class="browse-list__cta">
       <span>Know a deal that isn't here?</span>
-      <RouterLink class="lb-btn lb-btn--primary" :to="{ name: 'add-deal' }">Add a deal</RouterLink>
+      <RouterLink class="lb-btn lb-btn--primary" :to="{ name: 'add-deal', query: { ...route.query, collection: undefined } }">Add a deal</RouterLink>
     </div>
   </PanelFrame>
 </template>
 
 <style scoped>
-/* One quiet pill: "Sort" label, the native select (chrome stripped) and our own chevron. */
+.browse-list :deep(.panel-frame__body) {
+  padding-top: 8px;
+  gap: 12px;
+}
+
+.browse-list--full-page :deep(.panel-frame__heading) {
+  justify-content: space-between;
+  padding-top: 16px;
+  padding-bottom: 8px;
+  gap: 16px 24px;
+}
+
+.browse-list--full-page .browse-list__heading-actions {
+  margin-left: auto;
+  gap: 12px;
+}
+
+.browse-list__sort-caption {
+  color: var(--ink-muted);
+  font-size: var(--text-sm);
+}
+
+.browse-list--full-page .browse-list__heading-actions .browse-list__sort {
+  min-height: 38px;
+  padding-left: 10px;
+  box-sizing: border-box;
+  width: auto;
+  height: 38px;
+}
+
+.browse-list--full-page .browse-list__heading-actions .browse-list__select {
+  min-height: 36px;
+  padding: 0 26px 0 6px;
+  width: auto;
+}
+
+.browse-list--full-page .browse-list__map-button {
+  margin-left: auto;
+}
+
+.browse-list__toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding-bottom: 12px;
+
+}
+
+.browse-list__view-toggle {
+  position: relative;
+  isolation: isolate;
+  display: inline-flex;
+  align-items: center;
+  margin-right: auto;
+  padding: 4px;
+  border-radius: var(--radius-pill);
+  background: var(--paper-sunk);
+}
+
+.browse-list__view-toggle::before {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  top: 4px;
+  left: 4px;
+  width: 40px;
+  height: 30px;
+  border-radius: var(--radius-pill);
+  background: var(--paper-white);
+  box-shadow: 0 2px 5px rgb(27 27 31 / .1);
+  transform: translateX(0);
+  transition: transform 240ms cubic-bezier(.22, 1, .36, 1);
+}
+
+.browse-list__view-toggle.is-card::before {
+  transform: translateX(40px);
+}
+
+.browse-list__view-toggle button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 30px;
+  box-sizing: border-box;
+  padding: 6px;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--ink-muted);
+  font: 600 var(--text-sm)/1.2 var(--font-sans);
+  cursor: pointer;
+}
+
+.browse-list__view-toggle button {
+  transition: color 180ms ease, transform 180ms ease;
+}
+
+.browse-list__view-toggle button:hover {
+  color: var(--ink);
+}
+
+.browse-list__view-toggle button:active {
+  transform: scale(.92);
+}
+
+.browse-list__view-toggle button[aria-pressed='true'] {
+  color: var(--ink);
+}
+
+.browse-list__view-toggle button:focus-visible {
+  outline: 3px solid var(--sunny-ring);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .browse-list__view-toggle::before,
+  .browse-list__view-toggle button { transition: none; }
+  .browse-list__view-toggle button:active { transform: none; }
+}
+
+/* Outlined sort pill beside the segmented view toggle. */
 .browse-list__sort {
   position: relative;
   display: inline-flex;
   flex-shrink: 0;
   align-items: center;
-  min-height: 36px;
-  padding-left: 14px;
-  background: var(--paper-sunk);
+  min-height: 38px;
+  padding-left: 10px;
+  color: var(--ink);
+  background: var(--paper-white);
+  border: 1px solid var(--hairline-strong);
   border-radius: var(--radius-pill);
   cursor: pointer;
   transition: background-color var(--dur-small) var(--ease-out);
 }
 
+.browse-list__heading-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.browse-list__map-button {
+  box-sizing: border-box;
+  width: 132px;
+  height: 38px;
+  min-height: 38px;
+  padding: 0 12px;
+  font-size: var(--text-sm);
+  color: var(--ink);
+  background: var(--sunny);
+  border-color: var(--sunny);
+}
+
+.browse-list__map-button:hover {
+  color: var(--ink);
+  background: var(--sunny-deep);
+  border-color: var(--sunny-deep);
+}
+
 .browse-list__sort:hover {
-  background: var(--paper-hover);
+  background: var(--paper-white);
 }
 
 .browse-list__sort:focus-within {
   box-shadow: 0 0 0 3px var(--coral-ring);
 }
 
-.browse-list__sort-label {
-  font: 500 var(--text-sm) / 1 var(--font-sans);
-  color: var(--ink-muted);
-}
-
 .browse-list__select {
   min-height: 36px;
-  padding: 0 34px 0 6px;
-  font: 700 var(--text-sm) / 1 var(--font-sans);
+  padding: 0 26px 0 6px;
+  font: 500 var(--text-sm) / 1 var(--font-sans);
   color: var(--ink);
   background: transparent;
   border: 0;
@@ -175,7 +343,7 @@ const clearAll = () => {
 
 .browse-list__chevron {
   position: absolute;
-  right: 12px;
+  right: 8px;
   color: var(--ink-muted);
   pointer-events: none;
 }
@@ -190,52 +358,46 @@ const clearAll = () => {
   border-radius: var(--radius-control);
 }
 
-.browse-list__tokens {
-  display: flex;
-  min-width: 0;
-  margin: 0;
-  padding: 0;
-  border: 0;
-  flex-wrap: wrap;
-  gap: var(--space-2);
-}
-
-.browse-list__token {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  max-width: 100%;
-  min-height: var(--hit);
-  padding: 0 10px 0 14px;
-  font: 600 0.78rem/1.2 var(--font-sans);
-  color: var(--ink);
-  background: var(--paper);
-  border: 1px solid var(--hairline);
-  border-radius: var(--radius-pill);
-  cursor: pointer;
-}
-
-.browse-list__token:hover {
-  background: var(--tag-end-bg);
-}
-
-.browse-list__token--clear {
-  color: var(--coral-deep);
-  background: transparent;
-  border-color: transparent;
-}
-
-.browse-list__token:focus-visible {
-  outline: 3px solid var(--sunny-ring);
-  outline-offset: 2px;
-}
-
 .browse-list__skeleton {
   display: grid;
   grid-template-columns: 48px minmax(0, 1fr) 56px;
   gap: var(--space-3);
   align-items: center;
   padding: 12px 0;
+}
+
+.browse-list__skeleton-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 210px), 1fr));
+  gap: 24px 20px;
+}
+
+.browse-list__skeleton-card {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 9px;
+  padding: 10px;
+  background: var(--paper-white);
+  border: 1px solid var(--hairline);
+  border-radius: 22px;
+}
+
+.browse-list__skeleton-photo {
+  width: 100%;
+  aspect-ratio: 4 / 5;
+  border-radius: 14px;
+}
+
+.browse-list__sk-meta--short {
+  width: 58%;
+}
+
+@media (min-width: 360px) and (max-width: 599.98px) {
+  .browse-list__skeleton-cards {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px 12px;
+  }
 }
 
 .browse-list__skeleton-dot {

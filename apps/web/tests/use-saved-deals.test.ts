@@ -1,4 +1,4 @@
-import { mount } from '@vue/test-utils'
+import { flushPromises, mount } from '@vue/test-utils'
 import { createSavedDeals } from '@web/modules/map-shell/use-saved-deals'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { defineComponent, h, nextTick, ref } from 'vue'
@@ -34,6 +34,16 @@ beforeEach(() => {
 })
 
 describe('saved deals', () => {
+  it('loads all bookmark pages so Saved does not omit older deals', async () => {
+    rest.bookmarks.mockResolvedValueOnce({ ...page(['d1']), nextCursor: 'older' }).mockResolvedValueOnce(page(['d2']))
+    const { saved } = setup({ data: { user: { id: 'u1' } } })
+    await flushPromises()
+    expect(rest.bookmarks).toHaveBeenLastCalledWith({ limit: 50, cursor: 'older' })
+    expect(saved.isSaved('d1')).toBe(true)
+    expect(saved.isSaved('d2')).toBe(true)
+    expect(saved.status.value).toBe('ready')
+  })
+
   it('drops a bookmark page that arrives after sign-out', async () => {
     let resolve: (value: unknown) => void = () => undefined
     rest.bookmarks.mockReturnValue(new Promise((done) => (resolve = done)))

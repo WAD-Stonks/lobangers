@@ -18,6 +18,7 @@ export type ShellView = 'map' | 'list'
 
 export const FILTER_QUERY_KEYS = [
   'q',
+  'location',
   'cat',
   'cuisine',
   'max',
@@ -26,6 +27,8 @@ export const FILTER_QUERY_KEYS = [
   'walk',
   'when',
 ] as const
+
+export const SPLIT_QUERY_KEY = 'split'
 
 const MAX_QUERY_TEXT = 80
 const MAX_LIST_ITEMS = 12
@@ -75,6 +78,7 @@ export const filtersFromQuery = (query: LocationQuery): BrowseFilters => {
   const when = first(query.when) as EndingWindow
   return {
     q: first(query.q).slice(0, MAX_QUERY_TEXT),
+    location: first(query.location).slice(0, MAX_QUERY_TEXT),
     categories: unique(list(query.cat).filter((item) => CATEGORY_PATTERN.test(item))).map((item) =>
       item.toUpperCase(),
     ),
@@ -93,6 +97,7 @@ const formatDollars = (minor: number): string => String(minor / CENTS)
 
 export const filtersToQuery = (filters: BrowseFilters): Record<string, string> => ({
   ...(filters.q.trim() ? { q: filters.q.trim() } : {}),
+  ...(filters.location.trim() ? { location: filters.location.trim() } : {}),
   ...(filters.categories.length
     ? { cat: filters.categories.map((item) => item.toLowerCase()).join(LIST_SEPARATOR) }
     : {}),
@@ -120,6 +125,8 @@ export const withFilters = (query: LocationQuery, filters: BrowseFilters): Locat
 
 export const readView = (query: LocationQuery): ShellView =>
   first(query.view) === 'list' ? 'list' : 'map'
+
+export const readSplit = (query: LocationQuery): boolean => first(query[SPLIT_QUERY_KEY]) === '1'
 
 export const readSort = (query: LocationQuery): SortKey => {
   const sort = first(query.sort) as SortKey

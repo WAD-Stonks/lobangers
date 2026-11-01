@@ -12,6 +12,7 @@ describe('browse filters', () => {
   it('gives every field a default', () => {
     expect(createDefaultFilters()).toEqual({
       q: '',
+      location: '',
       categories: [],
       cuisines: [],
       priceMaxMinor: null,
@@ -26,6 +27,7 @@ describe('browse filters', () => {
     const base = createDefaultFilters()
     const patches: { [K in keyof BrowseFilters]: BrowseFilters[K] } = {
       q: 'laksa',
+      location: 'Bedok',
       categories: ['FOOD'],
       cuisines: ['KOREAN'],
       priceMaxMinor: 500,
@@ -49,13 +51,14 @@ describe('browse filters', () => {
     expect(list).toEqual(['FOOD'])
   })
 
-  it('counts only filters the quick chips and search do not cover', () => {
+  it('counts all selected filters including quick chips, excluding search and defaults', () => {
     const base = createDefaultFilters()
     expect(countSheetFilters(base)).toBe(0)
-    // Search, the Under $5 chip and the Ending today chip all have their own control.
+    expect(countSheetFilters({ ...base, location: 'Bedok' })).toBe(1)
+    // Both quick selections count; the search text does not.
     expect(
       countSheetFilters({ ...base, q: 'kopi', priceMaxMinor: QUICK_PRICE_MINOR, ending: 'today' }),
-    ).toBe(0)
+    ).toBe(2)
     expect(
       countSheetFilters({
         ...base,

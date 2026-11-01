@@ -11,7 +11,7 @@
 }
 
 .admin-shell {
-  --admin-font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --admin-font: var(--font-sans);
   --bs-border-color: var(--hairline);
   --bs-secondary-color: #626167;
   color: var(--ink);

@@ -1,16 +1,16 @@
 <script setup lang="ts">
+import SaveDealButton from '@web/modules/browse-map/SaveDealButton.vue'
 import DealImage from '@web/components/DealImage.vue'
 import { walkMinutesFor } from '@web/modules/browse-map/apply-filters'
 import CategoryBubble from '@web/modules/browse-map/CategoryBubble.vue'
-import { dealFreshness, formatMoreOutlets, priceText } from '@web/modules/browse-map/deal-format'
-import { OFFER_TYPE_LABELS } from '@web/modules/browse-map/filters'
+import { dealFreshness, formatEnding, formatMoreOutlets } from '@web/modules/browse-map/deal-format'
 import type { DealRow } from '@web/modules/browse-map/types'
 import ShellIcon from '@web/modules/map-shell/ShellIcon.vue'
 import { ref } from 'vue'
 import type { RouteLocationRaw } from 'vue-router'
 import { RouterLink } from 'vue-router'
 
-// Price-first deal rows. Each row links to its deal; hovering or focusing a row lights up its
+// Image-led deal rows. Each row links to its deal; hovering or focusing a row lights up its
 // pin on the map (and the shell lights the row when its pin is hovered).
 const props = withDefaults(
   defineProps<{
@@ -19,6 +19,7 @@ const props = withDefaults(
     hotVenueId?: string | null
     currentKey?: string | null
     testId?: string
+    compact?: boolean
   }>(),
   { hotVenueId: null, currentKey: null, testId: 'deal-rows' },
 )
@@ -36,88 +37,89 @@ const isHot = (row: DealRow) => {
 </script>
 
 <template>
-  <ol class="deal-rows" :data-testid="testId">
-    <li v-for="(row, index) in rows" :key="row.key" :style="{ '--i': Math.min(index, 8) }">
+  <ol class="deal-rows" :class="{ 'deal-rows--compact': compact }" :data-testid="testId">
+    <li v-for="(row, index) in rows" :key="row.key" :style="{ '--i': Math.min(index, 8) }" :class="{ 'is-hot': isHot(row) }" @mouseenter="point(row)" @mouseleave="point(null)">
       <RouterLink
         :to="to(row)"
         class="deal-rows__row"
         :class="{ 'is-hot': isHot(row), 'is-current': row.key === currentKey }"
         :aria-current="row.key === currentKey ? 'true' : undefined"
-        @mouseenter="point(row)"
-        @mouseleave="point(null)"
         @focus="point(row)"
         @blur="point(null)"
       >
-        <DealImage v-if="row.deal.imageUrl" :key="row.deal.id" class="deal-rows__image" :url="row.deal.imageUrl" :alt="row.deal.imageAltText?.trim() || row.deal.title" />
-        <CategoryBubble
-          v-else
-          :category="row.deal.category"
-          :title="row.deal.title"
-          :venue="row.venue.name"
-          size="md"
-        />
+        <span class="lb-tag deal-rows__status" :class="[`lb-tag--${dealFreshness(row.deal).tone}`, { 'is-expired': dealFreshness(row.deal).label === 'Expired', 'is-conflicting': dealFreshness(row.deal).label === 'Mixed reports' }]">{{ dealFreshness(row.deal).label }}</span>
+        <span class="deal-rows__media" :class="{ 'deal-rows__media--placeholder': !row.deal.imageUrl && !row.deal.images[0] }">
+          <DealImage v-if="row.deal.imageUrl || row.deal.images[0]" :key="row.deal.id" class="deal-rows__image" :url="row.deal.imageUrl || row.deal.images[0]?.url" :alt="row.deal.imageAltText?.trim() || row.deal.images[0]?.alt || row.deal.title" />
+          <CategoryBubble v-else :category="row.deal.category" :title="row.deal.title" :venue="row.venue.name" size="md" />
+        </span>
         <span class="deal-rows__text">
           <strong class="deal-rows__title" :title="row.deal.title">{{ row.deal.title }}</strong>
-          <span class="deal-rows__where">
-            <span class="deal-rows__venue">{{ row.venue.name }}</span>
-            <span v-if="row.distanceMetres !== null" class="deal-rows__walk">
-              <ShellIcon name="walk" :size="14" />{{ walkMinutesFor(row.distanceMetres) }} min
-            </span>
-            <span v-if="formatMoreOutlets(row.outletCount)" class="deal-rows__outlets" data-testid="more-outlets">
-              {{ formatMoreOutlets(row.outletCount) }}
-            </span>
+          <span class="deal-rows__venue" :title="row.venue.name">{{ row.venue.name }}</span>
+          <span v-if="row.outletCount > 1" class="deal-rows__outlets" data-testid="more-outlets">
+            {{ formatMoreOutlets(row.outletCount) }}
           </span>
-          <span class="deal-rows__tags">
-            <span class="lb-tag" :class="`lb-tag--${dealFreshness(row.deal).tone}`">{{ dealFreshness(row.deal).label }}</span>
-            <span class="lb-tag lb-tag--new">{{ OFFER_TYPE_LABELS[row.deal.offerType] }}</span>
+          <span class="deal-rows__ending" :class="{ 'is-expired': formatEnding(row.deal.validUntil) === 'Ended' }"><ShellIcon name="calendar" :size="16" /><span>{{ formatEnding(row.deal.validUntil) }}</span></span>
+          <span v-if="row.distanceMetres !== null" class="deal-rows__walk">
+            <ShellIcon name="walk" :size="16" /><span>{{ walkMinutesFor(row.distanceMetres) }} min walk</span>
           </span>
         </span>
-        <span v-if="priceText(row.deal)" class="lb-price deal-rows__price">{{ priceText(row.deal) }}</span>
+        <ShellIcon class="deal-rows__chevron" name="chevronRight" :size="18" />
       </RouterLink>
+      <SaveDealButton :deal-id="row.deal.id" :title="row.deal.title" />
     </li>
   </ol>
 </template>
 
 <style scoped>
 .deal-rows {
-  display: flex;
-  flex-direction: column;
-  margin: 0 -8px;
+  display: grid;
+  grid-auto-rows: 1fr;
+  gap: 12px;
+  margin: 0;
   padding: 0;
   list-style: none;
 }
 
+.deal-rows > li {
+  position: relative;
+  min-width: 0;
+  transition: transform 180ms ease;
+}
+
 .deal-rows__row {
+  position: relative;
+  box-sizing: border-box;
+  height: 100%;
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-columns: clamp(96px, 32%, 180px) minmax(0, 1fr) 18px;
   gap: var(--space-3);
-  align-items: center;
-  padding: 12px 8px;
+  align-items: start;
+  padding: 12px;
+  border: 0;
+  box-shadow: 0 2px 8px rgb(27 27 31 / 0.06), 0 1px 2px rgb(27 27 31 / 0.03);
+  background: var(--paper-white);
   color: var(--ink);
   text-decoration: none;
   border-radius: 16px;
-  transition:
-    transform var(--dur-press) var(--ease-out),
-    background-color 150ms ease;
+  transition: box-shadow 180ms ease;
 }
 
-.deal-rows__row:active {
+.deal-rows > li:has(.deal-rows__row:active) {
   transform: scale(0.98);
 }
 
-.deal-rows__row.is-hot,
 .deal-rows__row.is-current {
   background: var(--sunny-wash);
 }
 
 @media (hover: hover) and (pointer: fine) {
-  .deal-rows__row:hover {
-    color: var(--ink);
-    background: var(--paper-hover);
+  .deal-rows > li:hover,
+  .deal-rows > li.is-hot {
+    transform: translateY(-3px);
   }
-
-  .deal-rows__row.is-hot:hover {
-    background: var(--sunny-wash);
+  .deal-rows > li:hover .deal-rows__row,
+  .deal-rows > li.is-hot .deal-rows__row {
+    box-shadow: var(--shadow-card);
   }
 }
 
@@ -126,23 +128,78 @@ const isHot = (row: DealRow) => {
   outline-offset: -2px;
 }
 
+.deal-rows__media {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  overflow: hidden;
+  border-radius: var(--radius-control);
+}
+
+.deal-rows__media--placeholder {
+  align-self: stretch;
+  min-height: 140px;
+  aspect-ratio: 4 / 5;
+  background: #e1e4e8;
+}
+
 .deal-rows__image {
-  flex: 0 0 3.5rem;
-  width: 3.5rem;
-  aspect-ratio: 1;
+  width: 100%;
+  height: auto;
+  aspect-ratio: auto;
   font-size: var(--text-xs);
   text-align: center;
+  background: transparent;
+}
+
+.deal-rows__image :deep(img) {
+  height: auto;
+}
+
+.deal-rows--compact .deal-rows__row {
+  grid-template-columns: 88px minmax(0, 1fr) 18px;
+  padding: 10px;
+  align-items: center;
+}
+
+.deal-rows--compact .deal-rows__media {
+  height: 110px;
+  min-height: 0;
+  aspect-ratio: auto;
+  align-self: center;
+}
+
+.deal-rows--compact .deal-rows__image,
+.deal-rows--compact .deal-rows__image :deep(img) {
+  height: 110px;
+  object-fit: contain;
+}
+
+.deal-rows--compact .deal-rows__text {
+  gap: 4px;
+}
+
+.deal-rows__image :deep([data-testid='deal-image-placeholder']) {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  aspect-ratio: 1;
+  background: #e1e4e8;
 }
 
 .deal-rows__text {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 8px;
   min-width: 0;
+  text-align: left;
+  line-height: 1.4;
 }
 
 /* Two lines at most; the full title is in the tooltip and on the deal panel. */
 .deal-rows__title {
+  padding-right: 28px;
+  color: var(--coral-deep);
   display: -webkit-box;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
@@ -152,50 +209,72 @@ const isHot = (row: DealRow) => {
   overflow-wrap: anywhere;
 }
 
-.deal-rows__where {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px 10px;
-  align-items: center;
-  font-size: var(--text-xs);
-  color: var(--ink-muted);
-}
-
 .deal-rows__venue {
+  font-size: var(--text-sm);
+  color: var(--ink);
   min-width: 0;
-  overflow-wrap: anywhere;
-}
-
-.deal-rows__walk {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .deal-rows__outlets {
+  align-self: flex-start;
+  padding: 4px 12px;
+  font-size: var(--text-xs);
+  background: var(--paper-sunk);
+  border-radius: var(--radius-pill);
   font-weight: 600;
   color: var(--ink);
-  white-space: nowrap;
-}
-
-.deal-rows__tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
-/* Never truncated: a long label wraps, capped at two fifths of the row. */
-.deal-rows__price {
-  max-width: 9rem;
-  font-size: 1.375rem;
-  text-align: right;
-  white-space: normal;
   overflow-wrap: anywhere;
 }
 
+.deal-rows__walk,
+.deal-rows__ending {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.deal-rows__walk {
+  font-size: var(--text-xs);
+  color: var(--ink-muted);
+}
+
+.deal-rows__ending {
+  margin-top: 0;
+  font-size: var(--text-xs);
+  color: var(--ink-muted);
+}
+
+.deal-rows__status {
+  position: absolute;
+  z-index: 1;
+  top: 12px;
+  left: 12px;
+  max-width: calc(100% - 76px);
+  white-space: normal;
+}
+
+.deal-rows__status.is-conflicting { color: var(--bs-danger, #dc3545); background: #fde2e2; }
+
+.deal-rows__status.is-expired,
+.deal-rows__ending.is-expired {
+  color: var(--bs-danger, #dc3545);
+}
+
+.deal-rows__chevron {
+  align-self: center;
+  color: var(--ink-muted);
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .deal-rows__row:active {
+  .deal-rows > li,
+  .deal-rows__row { transition: none; }
+  .deal-rows > li:hover,
+  .deal-rows > li.is-hot,
+  .deal-rows > li:has(.deal-rows__row:active) {
     transform: none;
   }
 }

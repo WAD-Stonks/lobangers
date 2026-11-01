@@ -8,7 +8,7 @@ import { useRoute } from 'vue-router'
 const SEARCH_PAUSE_MS = 250
 const MAX_LENGTH = 80
 
-const props = defineProps<{ value: string }>()
+const props = defineProps<{ value: string; submitButton?: boolean }>()
 const emit = defineEmits<{ search: [q: string] }>()
 
 const text = ref(props.value)
@@ -57,7 +57,7 @@ onBeforeUnmount(cancel)
   <!-- biome-ignore lint/a11y/useSemanticElements: Vue does not resolve the <search> element yet -->
   <form class="search-field lb-card" role="search" @submit.prevent="apply">
     <label class="search-field__label">
-      <ShellIcon name="search" :size="18" class="search-field__icon" />
+      <ShellIcon v-if="!submitButton" name="search" :size="18" class="search-field__icon" />
       <span class="visually-hidden">Search deals</span>
       <input
         ref="input"
@@ -74,10 +74,14 @@ onBeforeUnmount(cancel)
     <button v-if="text" type="button" class="search-field__clear" aria-label="Clear search" @click="clear">
       <ShellIcon name="close" :size="14" :stroke-width="2.6" />
     </button>
+    <button v-if="submitButton" class="search-field__submit" type="submit" aria-label="Search deals"><ShellIcon name="search" :size="18" /></button>
   </form>
 </template>
 
 <style scoped>
+.search-field__submit { display: grid; place-items: center; flex: none; width: 36px; height: 36px; padding: 0; border: 0; border-radius: 50%; color: var(--ink); background: var(--sunny); cursor: pointer; }
+.search-field__submit:focus-visible { outline: 3px solid var(--sunny-ring); outline-offset: 2px; }
+
 .search-field {
   display: flex;
   align-items: center;

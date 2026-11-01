@@ -88,7 +88,7 @@ const openGroup = (page: Page, name: string) =>
   page.getByLabel(name, { exact: true }).dispatchEvent('click')
 
 const panelHeading = (page: Page) => page.getByTestId('shell-panel').locator('[data-panel-heading]')
-const rows = (page: Page) => page.getByTestId('nearby-list').locator('li')
+const rows = (page: Page) => page.getByTestId('deal-rows').locator('li')
 
 for (const width of [390, 1280]) {
   test.describe(`at ${width}px`, () => {
@@ -104,7 +104,13 @@ for (const width of [390, 1280]) {
       await expect(rows(page)).toHaveCount(3)
       await expect(groups(page)).toHaveCount(3)
 
-      await page.getByRole('button', { name: 'Under $5' }).click()
+      if (width >= 992) {
+        await page.getByTestId('quick-price').click()
+        await page.locator('input[type="number"]').fill('5')
+        await page.getByTestId('quick-filter-apply').click()
+      } else {
+        await page.getByRole('button', { name: 'Under $5' }).click()
+      }
       await expect(page).toHaveURL(/max=5/)
       await expect(rows(page)).toHaveCount(2)
       await expect(groups(page)).toHaveCount(2)
@@ -150,7 +156,7 @@ for (const width of [390, 1280]) {
     test('filters sheet: live count, badge, and focus back on Escape', async ({ page }) => {
       await page.goto('/browse')
       await expect(rows(page)).toHaveCount(3)
-      const allFilters = page.getByTestId('all-filters')
+      const allFilters = page.locator('[data-testid="all-filters"]:visible, [data-testid="mobile-all-filters"]:visible')
       await allFilters.click()
       const sheet = page.getByRole('dialog', { name: 'Filters' })
       await expect(sheet).toBeVisible()
@@ -159,7 +165,7 @@ for (const width of [390, 1280]) {
       await expect(page.getByTestId('filter-show')).toHaveText('Show 1 deal')
       await page.getByTestId('filter-show').click()
       await expect(sheet).toBeHidden()
-      await expect(page.getByTestId('filter-badge')).toContainText('1')
+      await expect(page.locator('[data-testid="filter-badge"]:visible, [data-testid="mobile-filter-badge"]:visible')).toContainText('1')
 
       await allFilters.click()
       await expect(sheet).toBeVisible()
@@ -213,24 +219,15 @@ for (const width of [390, 1280]) {
   })
 }
 
-test('hot card: rotates, pauses and opens its deal', async ({ page }) => {
-  // A fake clock instead of sleeps: time only moves when the test says so.
-  await page.clock.install()
+test('desktop map keeps promotions out of the map and opens deals from its results drawer', async ({
+  page,
+}) => {
   await page.setViewportSize({ width: 1280, height: 844 })
   await mockApi(page)
   await page.goto('/browse')
-  const position = page.getByTestId('hot-position')
-  await expect(position).toHaveText('1 of 3')
-  await page.mouse.move(1200, 60)
-  await page.clock.runFor(4600)
-  await expect(position).toHaveText('2 of 3')
-
-  await page.getByTestId('hot-pause').click()
-  await page.mouse.move(1200, 60)
-  await page.clock.runFor(15_000)
-  await expect(position).toHaveText('2 of 3')
-
-  const title = (await page.getByTestId('hot-open').locator('strong').textContent()) ?? ''
-  await page.getByTestId('hot-open').click()
+  await expect(page.getByTestId('map-navigation')).toBeVisible()
+  await expect(page.getByTestId('hot-card')).toHaveCount(0)
+  const title = (await rows(page).first().locator('.deal-rows__title').textContent()) ?? ''
+  await rows(page).first().getByRole('link').click()
   await expect(panelHeading(page)).toHaveText(title)
 })

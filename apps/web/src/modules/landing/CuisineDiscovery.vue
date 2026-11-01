@@ -80,7 +80,7 @@ onBeforeUnmount(() => {
       <p v-if="liveState === 'ready'" role="status">
         <strong>{{ filtered.length }}</strong> current {{ filtered.length === 1 ? 'deal' : 'deals' }}
       </p>
-      <RouterLink class="landing-view-all" to="/browse?cat=food"><span>View all food deals</span><span aria-hidden="true">→</span></RouterLink>
+      <RouterLink class="landing-view-all" to="/deals?cat=food"><span>View all food deals</span><span aria-hidden="true">→</span></RouterLink>
       <div>
         <label for="deal-area" class="visually-hidden">Filter deals by region</label>
         <select id="deal-area" v-model="area" :disabled="liveState !== 'ready'">

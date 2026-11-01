@@ -17,6 +17,8 @@ export const WIDE_PANEL_COMPACT_RATIO = 0.58
 const COMPACT_DESKTOP_MAX_PX = 1279
 const SHEET_HALF_RATIO = { phone: 0.58, tablet: 0.46 } as const
 export const SHEET_PEEK_PX = 120
+export const MAP_RAIL_WIDTH_PX = 72
+export const BOTTOM_NAV_HEIGHT_PX = 68
 const SHEET_GAP_PX = 8
 const SHEET_MIN_STEP_PX = 60
 const DESKTOP_GUTTER_PX = 16
@@ -32,6 +34,11 @@ type Options = {
   readonly header: Readonly<Ref<HTMLElement | null>>
   /** Desktop only: the panel is tucked off the right edge, so the whole map is visible. */
   readonly collapsed?: Readonly<Ref<boolean>>
+  /** Google Maps style workspace: results sit beside the navigation rail on the left. */
+  readonly leftPanel?: Readonly<Ref<boolean>>
+  readonly railVisible?: Readonly<Ref<boolean>>
+  readonly bottomNavigation?: Readonly<Ref<boolean>>
+  readonly resultsPreviewHeight?: Readonly<Ref<number | null>>
 }
 
 const viewportSize = () =>
@@ -43,6 +50,7 @@ export const sheetHeights = (
   viewportHeight: number,
   headerBottom: number,
   halfRatio: number = SHEET_HALF_RATIO.tablet,
+  previewHeight: number | null = null,
 ): readonly number[] => {
   const full = Math.max(
     SHEET_PEEK_PX + 2 * SHEET_MIN_STEP_PX,
@@ -50,7 +58,7 @@ export const sheetHeights = (
   )
   const half = Math.min(
     full - SHEET_MIN_STEP_PX,
-    Math.max(SHEET_PEEK_PX + SHEET_MIN_STEP_PX, Math.round(viewportHeight * halfRatio)),
+    Math.max(SHEET_PEEK_PX + SHEET_MIN_STEP_PX, previewHeight ?? Math.round(viewportHeight * halfRatio)),
   )
   return [SHEET_PEEK_PX, half, full]
 }
@@ -70,6 +78,10 @@ export const useShellLayout = ({
   panelWide = wide,
   header,
   collapsed = ref(false),
+  leftPanel = ref(false),
+  railVisible = ref(true),
+  bottomNavigation = ref(false),
+  resultsPreviewHeight = ref(null),
 }: Options) => {
   const viewport = ref(viewportSize())
   const headerBottom = ref(FALLBACK_HEADER_BOTTOM_PX)
@@ -96,41 +108,68 @@ export const useShellLayout = ({
   })
 
   const mode = computed(() => (breakpoint.value === 'desktop' ? 'side' : 'sheet'))
+  const navigationHeight = computed(() => bottomNavigation.value ? BOTTOM_NAV_HEIGHT_PX : 0)
   const heights = computed(() =>
     sheetHeights(
-      viewport.value.height,
+      viewport.value.height - navigationHeight.value,
       headerBottom.value,
       breakpoint.value === 'phone' ? SHEET_HALF_RATIO.phone : SHEET_HALF_RATIO.tablet,
+      resultsPreviewHeight.value,
     ),
   )
   const sheetVisible = computed(() =>
     mode.value === 'sheet' ? (heights.value[snap.value] ?? 0) : 0,
   )
-  const widthFor = (isWide: boolean) => panelWidthFor(viewport.value.width, isWide)
+  const widthFor = (isWide: boolean) =>
+    leftPanel.value
+      ? isWide
+        ? Math.round(viewport.value.width * 0.42)
+        : Math.min(400, Math.round(viewport.value.width * 0.36))
+      : panelWidthFor(viewport.value.width, isWide)
   const panelWidth = computed(() => widthFor(wide.value))
+  const railWidth = computed(() => (leftPanel.value && railVisible.value ? MAP_RAIL_WIDTH_PX : 0))
 
   // How much of the map's right side the desktop panel covers; none while it is collapsed.
-  const sideCover = computed(() => (collapsed.value ? 0 : panelWidth.value + 2 * DESKTOP_GUTTER_PX))
+  const sideCover = computed(() =>
+    leftPanel.value
+      ? railWidth.value + (collapsed.value ? 0 : panelWidth.value)
+      : collapsed.value
+        ? 0
+        : panelWidth.value + 2 * DESKTOP_GUTTER_PX,
+  )
 
   // How far the visible map centre sits from the map's real centre.
   const focusOffset = computed<MapOffset>(() =>
     mode.value === 'side'
       ? // The panel covers the right, so the visible centre sits left of the map's centre.
-        { x: 0 - Math.round(sideCover.value / 2), y: 0 }
-      : { x: 0, y: -Math.round(sheetVisible.value / 2) },
+        { x: (leftPanel.value ? 1 : -1) * Math.round(sideCover.value / 2), y: 0 }
+      : { x: 0, y: -Math.round((sheetVisible.value + navigationHeight.value) / 2) },
   )
 
   // What covers the map: the panel on the right (desktop) or the header and sheet (below).
   const viewPadding = computed(() =>
     mode.value === 'side'
-      ? { top: 0, right: sideCover.value, bottom: 0, left: 0 }
-      : { top: headerBottom.value, right: 0, bottom: sheetVisible.value, left: 0 },
+      ? {
+          top: 0,
+          right: leftPanel.value ? 0 : sideCover.value,
+          bottom: 0,
+          left: leftPanel.value ? sideCover.value : 0,
+        }
+      : { top: headerBottom.value, right: 0, bottom: sheetVisible.value + navigationHeight.value, left: 0 },
+  )
+
+  // Searching follows the map viewport at its current zoom, even while the sheet covers it.
+  const searchPadding = computed(() => mode.value === 'sheet'
+    ? { top: headerBottom.value, right: 0, bottom: navigationHeight.value, left: 0 }
+    : viewPadding.value,
   )
 
   const cssVars = computed(() => ({
+    '--bottom-nav-h': bottomNavigation.value ? `calc(${BOTTOM_NAV_HEIGHT_PX}px + env(safe-area-inset-bottom, 0px))` : '0px',
     '--shell-header-bottom': `${headerBottom.value}px`,
     '--sheet-visible': `${sheetVisible.value}px`,
     '--panel-w': `${widthFor(panelWide.value)}px`,
+    '--map-rail-w': `${railWidth.value}px`,
   }))
 
   return {
@@ -140,6 +179,7 @@ export const useShellLayout = ({
     sheetVisible,
     focusOffset,
     viewPadding,
+    searchPadding,
     cssVars,
     panelWidth,
     widthFor,

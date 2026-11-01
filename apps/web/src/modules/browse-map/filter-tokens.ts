@@ -1,3 +1,4 @@
+import { locationLabel } from '@web/modules/browse-map/location-filter'
 import { DEAL_CUISINE_LABELS } from '@broke-oclock/contracts/deal-cuisines'
 import { formatCategory } from '@web/modules/browse-map/deal-format'
 import {
@@ -15,12 +16,14 @@ export type FilterToken = {
   readonly next: BrowseFilters
 }
 
-const ENDING_LABELS = { today: 'Ending today', week: 'Ending this week' } as const
+const ENDING_LABELS = { today: 'Expiry today', week: 'Expiry this week' } as const
 const CENTS = 100
 
 export const activeFilterTokens = (filters: BrowseFilters): readonly FilterToken[] => {
   const defaults = createDefaultFilters()
   const tokens: FilterToken[] = []
+  if (filters.location.trim())
+    tokens.push({ key: 'location', label: `Location: ${locationLabel(filters.location)}`, next: updateFilters(filters, 'location', '') })
   if (filters.q)
     tokens.push({ key: 'q', label: `Search: ${filters.q}`, next: updateFilters(filters, 'q', '') })
   if (filters.priceMaxMinor !== null) {

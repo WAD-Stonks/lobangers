@@ -21,7 +21,6 @@ import {
   MAX_ZOOM,
   MIN_ZOOM,
   NEARBY_PAN_METRES,
-  OPEN_MIN_ZOOM,
   PAN_DURATION_S,
   USER_ACCURACY_STYLE,
   USER_DOT_CLASS,
@@ -50,6 +49,7 @@ const props = withDefaults(
     focusZoom?: number
     focusOffset?: MapOffset
     viewPadding?: { top: number; right: number; bottom: number; left: number }
+    searchPadding?: { top: number; right: number; bottom: number; left: number }
     userPosition?: Coordinates | null
     userAccuracyMetres?: number | null
     selectedVenueId?: string | null
@@ -71,7 +71,7 @@ const props = withDefaults(
     reducedMotion: false,
   },
 )
-const emit = defineEmits<{ select: [id: string]; hover: [id: string | null]; moved: [] }>()
+const emit = defineEmits<{ select: [id: string]; hover: [id: string | null]; moved: [area: AreaBounds] }>()
 
 const container = ref<HTMLDivElement | null>(null)
 let map: L.Map | null = null
@@ -284,6 +284,22 @@ const zoomBy = (delta: number) => {
   map.setZoomAround(visibleCentre, map.getZoom() + delta, { animate: !props.reducedMotion })
 }
 
+// Search padding is independent of the draggable sheet: covering the map does not
+// change its geographic search area. Desktop drawers still exclude their covered column.
+const getArea = (): AreaBounds | null => {
+  if (!map) return null
+  const size = map.getSize()
+  const { top, right, bottom, left } = props.searchPadding ?? props.viewPadding
+  if (size.x <= left + right || size.y <= top + bottom) return null
+  const northWest = map.containerPointToLatLng([left, top])
+  const southEast = map.containerPointToLatLng([size.x - right, size.y - bottom])
+  return { south: southEast.lat, west: northWest.lng, north: northWest.lat, east: southEast.lng }
+}
+const publishArea = () => {
+  const area = getArea()
+  if (area) emit('moved', area)
+}
+
 onMounted(() => {
   if (!container.value) return
   const bounds = L.latLngBounds(toBoundsTuple(SINGAPORE_BOUNDS).map(([lat, lng]) => L.latLng(lat, lng)))
@@ -297,12 +313,12 @@ onMounted(() => {
     markerZoomAnimation: !props.reducedMotion,
   })
   const { top, right, bottom, left } = props.viewPadding
-  const fitted = map.getBoundsZoom(bounds, false, L.point(left + right, top + bottom))
-  if (fitted >= OPEN_MIN_ZOOM) {
-    map.fitBounds(bounds, { paddingTopLeft: [left, top], paddingBottomRight: [right, bottom] })
-  } else {
-    map.setView(centreFor(bounds.getCenter(), OPEN_MIN_ZOOM), OPEN_MIN_ZOOM)
-  }
+  // Fit the entire island inside the unobstructed map, including narrow viewports.
+  map.fitBounds(bounds, {
+    paddingTopLeft: [left + 16, top + 16],
+    paddingBottomRight: [right + 16, bottom + 16],
+    animate: false,
+  })
   const basemap = resolveBasemap(readCartoApiKey())
   L.tileLayer(basemap.url, {
     attribution: basemap.attribution,
@@ -319,15 +335,17 @@ onMounted(() => {
   selectedLayer = L.layerGroup().addTo(map)
   userLayer = L.layerGroup().addTo(map)
   ambient = mountAmbient(map, { reducedMotion: props.reducedMotion })
-  // Only a drag by the visitor offers "Search this area"; flyTo and panTo never fire dragend.
-  map.on('dragend', () => emit('moved'))
+  // Update once the viewport settles after panning, zooming or locating.
+  map.on('moveend', publishArea)
   map.on('zoomend', () => replan())
   syncPins(props.pins)
   syncUserPosition(props.userPosition, props.userAccuracyMetres)
   if (props.focus) focusOn(props.focus, props.focusZoom)
   resizeObserver = observeResize(container.value)
+  publishArea()
 })
 
+watch(() => props.searchPadding ?? props.viewPadding, publishArea, { deep: true, flush: 'post' })
 watch(() => props.pins, syncPins)
 watch(
   () => [props.selectedVenueId, props.hoveredVenueId] as const,
@@ -370,12 +388,7 @@ onBeforeUnmount(() => {
 defineExpose({
   zoomIn: () => zoomBy(1),
   zoomOut: () => zoomBy(-1),
-  getArea: (): AreaBounds | null => {
-    const bounds = map?.getBounds()
-    return bounds
-      ? { south: bounds.getSouth(), west: bounds.getWest(), north: bounds.getNorth(), east: bounds.getEast() }
-      : null
-  },
+  getArea,
 })
 </script>
 
@@ -535,9 +548,9 @@ defineExpose({
   top: 0;
   display: flex;
   align-items: center;
-  gap: 7px;
+  gap: 5px;
   max-width: 180px;
-  padding: 5px 5px 5px 12px;
+  padding: 3px 4px 3px 9px;
   white-space: nowrap;
   background: var(--sunny);
   border: 2px solid var(--paper-white);
@@ -560,12 +573,12 @@ defineExpose({
 }
 
 .deal-map :deep(.deal-map-cluster__chip--region) {
-  padding: 7px 7px 7px 16px;
-  gap: 9px;
+  padding: 4px 4px 4px 11px;
+  gap: 6px;
 }
 
 .deal-map :deep(.deal-map-cluster__chip--region .deal-map-cluster__name) {
-  font-size: var(--text-md);
+  font-size: 0.9375rem;
 }
 
 .deal-map :deep(.deal-map-cluster__chip--compact) {
@@ -587,24 +600,27 @@ defineExpose({
 }
 
 .deal-map :deep(.deal-map-cluster__name) {
+  /* Leave vertical room for ascenders and descenders while retaining horizontal ellipsis. */
+  min-width: 0;
+  padding-block: 2px;
   overflow: hidden;
   text-overflow: ellipsis;
   font-family: var(--font-display);
-  font-size: var(--text-sm);
+  font-size: 0.8125rem;
   font-weight: 600;
-  line-height: 1;
+  line-height: 1.35;
   color: var(--ink);
 }
 
 .deal-map :deep(.deal-map-cluster__count) {
   flex: none;
-  min-width: 24px;
+  min-width: 22px;
   box-sizing: border-box;
-  padding: 4px 7px;
+  padding: 3px 6px;
   font-family: var(--font-display);
-  font-size: var(--text-xs);
+  font-size: 0.75rem;
   font-weight: 600;
-  line-height: 1;
+  line-height: 1.35;
   text-align: center;
   color: var(--ink);
   background: var(--paper-white);
@@ -626,7 +642,7 @@ defineExpose({
   font-family: var(--font-display);
   font-size: var(--text-xs);
   font-weight: 600;
-  line-height: 1;
+  line-height: 1.35;
   color: var(--paper-white);
   background: var(--ink-strong);
   border: 2px solid var(--paper-white);
