@@ -103,7 +103,8 @@ it('shows a guarded legacy poster in the current panel without losing facts, cui
   expect(panel.get('img').attributes('src')).toBe(deal.imageUrl)
   expect(panel.get('img').attributes('alt')).toBe(deal.imageAltText)
   expect(panel.get('img').attributes('referrerpolicy')).toBe('no-referrer')
-  expect(panel.text()).toContain(deal.description)
+  // The panel leads with the terms; the imported description is not repeated.
+  expect(panel.text()).not.toContain(deal.description)
   expect(panel.text()).toContain('Dine-in only')
   expect(panel.text()).toContain('31 Dec 2099')
   expect(panel.text()).toContain('Japanese')
