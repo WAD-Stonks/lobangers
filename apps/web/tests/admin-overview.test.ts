@@ -37,7 +37,13 @@ vi.mock('@web/lib/auth-client', () => ({
 }))
 const overview = {
   generatedAt: '2026-10-10T00:00:00Z',
-  counts: { pendingMerchantRequests: 3, pendingImportedDrafts: 5, failedImportedPosts: 7 },
+  counts: {
+    pendingMerchantRequests: 3,
+    pendingImportedDrafts: 5,
+    failedImportedPosts: 7,
+    pendingFlashDrops: 2,
+    liveFlashDrops: 1,
+  },
   recentRuns: [],
   readiness: {
     googleConfigured: false,
@@ -104,6 +110,12 @@ it('renders protected operational counts and exact actionable links without live
   expect(w.get('a[href="/admin/ingestion?status=PENDING#queue-title"]').text()).toContain('5')
   expect(w.find('a[href="/admin/ingestion#runs-title"]').exists()).toBe(true)
   expect(w.text()).toContain('Failed imported posts: 7')
+  const flash = w.get('.overview-summary a[href="/admin/flash-drops"]')
+  expect(flash.text()).toContain('Flash drops to review: 2')
+  const attention = w.get('.overview-attention')
+  expect(attention.text()).toContain('2 Flash drops waiting for review')
+  expect(attention.text()).toContain('1 Flash drops live now')
+  expect(attention.find('a[href="/admin/flash-drops?view=live"]').exists()).toBe(true)
   expect(w.text()).toContain('NOT_ESTABLISHED')
   expect(w.text()).toContain('not publisher permission')
   expect(w.text()).toContain('No ingestion runs yet')
@@ -154,7 +166,13 @@ it('keeps the overview available when activity fails and clears it when audit ac
 it('shows only nonempty attention queues and links quick actions to existing admin destinations', async () => {
   rest.overview.mockResolvedValueOnce({
     ...overview,
-    counts: { pendingMerchantRequests: 0, pendingImportedDrafts: 5, failedImportedPosts: 0 },
+    counts: {
+      pendingMerchantRequests: 0,
+      pendingImportedDrafts: 5,
+      failedImportedPosts: 0,
+      pendingFlashDrops: 0,
+      liveFlashDrops: 0,
+    },
   })
   const w = await open()
   const attention = w.get('.overview-attention')
@@ -166,20 +184,26 @@ it('shows only nonempty attention queues and links quick actions to existing adm
       .get('.overview-shortcuts')
       .findAll('a')
       .map((link) => link.attributes('href')),
-  ).toEqual(['/admin/deals', '/admin/accounts', '/admin/moderation'])
+  ).toEqual(['/admin/deals', '/admin/flash-drops', '/admin/accounts', '/admin/moderation'])
   expect(w.get('.overview-import-chart').text()).toContain(
     'Import results will appear here after a run is recorded',
   )
   expect(w.find('[data-testid="import-chart-metric"]').exists()).toBe(false)
   rest.overview.mockResolvedValueOnce({
     ...overview,
-    counts: { pendingMerchantRequests: 0, pendingImportedDrafts: 0, failedImportedPosts: 0 },
+    counts: {
+      pendingMerchantRequests: 0,
+      pendingImportedDrafts: 0,
+      failedImportedPosts: 0,
+      pendingFlashDrops: 0,
+      liveFlashDrops: 0,
+    },
   })
   await w.get('[data-testid="overview-refresh"]').trigger('click')
   await flushPromises()
   expect(w.get('.overview-attention').findAll('li')).toHaveLength(0)
   expect(w.get('.overview-attention').text()).toContain(
-    'No pending merchant requests, imported drafts or failed imported posts in this snapshot',
+    'No pending merchant requests, imported drafts, flash drops or failed imported posts in this snapshot',
   )
   w.unmount()
 })

@@ -91,10 +91,117 @@ export const mockPublicApi = async (page: Page, deals: readonly unknown[] = DEAL
   )
   await page.route('**/api/deals/*/community', (route) =>
     route.fulfill({
-      json: { votes: { alive: 2, dead: 0 }, myVote: null, status: 'FRESH', commentCount: 0 },
+      json: {
+        alive: 2,
+        dead: 0,
+        status: 'UNCERTAIN',
+        myVote: null,
+        myVoteIsRecent: false,
+        lastReportedAt: null,
+        asOf: new Date().toISOString(),
+        commentCount: 0,
+        policy: { minAlive: 3, positivePercent: 80, windowHours: 24 },
+      },
     }),
   )
   await page.route('**/api/deals/*/comments*', (route) =>
     route.fulfill({ json: { items: [], nextCursor: null } }),
   )
+}
+
+export const SYNTHETIC_USER = {
+  id: 'f1'.repeat(12),
+  name: 'Synthetic Allison',
+  email: 'synthetic-allison@example.test',
+  emailVerified: true,
+  role: 'USER',
+  createdAt: new Date().toISOString(),
+  updatedAt: new Date().toISOString(),
+}
+
+// A signed-in synthetic visitor. Registered after mockPublicApi so it wins for /api/me.
+export const mockSignedIn = async (page: Page) => {
+  const expiresAt = new Date(Date.now() + 86_400_000).toISOString()
+  await page.route('**/api/auth/get-session*', (route) =>
+    route.fulfill({
+      json: {
+        user: SYNTHETIC_USER,
+        session: {
+          id: 'synthetic-session',
+          userId: SYNTHETIC_USER.id,
+          expiresAt,
+          createdAt: SYNTHETIC_USER.createdAt,
+          updatedAt: SYNTHETIC_USER.updatedAt,
+        },
+      },
+    }),
+  )
+  await page.route('**/api/me', (route) =>
+    route.fulfill({ json: { user: SYNTHETIC_USER, session: { expiresAt } } }),
+  )
+  await page.route('**/api/account/bookmarks*', (route) =>
+    route.fulfill({ json: { items: [], nextCursor: null } }),
+  )
+}
+
+const inMinutes = (minutes: number) => new Date(Date.now() + minutes * 60_000).toISOString()
+
+// A live, fake Flash Drop on the synthetic chicken rice deal.
+export const flashDrop = (overrides: Record<string, unknown> = {}) => ({
+  id: 'e1'.repeat(12),
+  dealId: 'd2'.repeat(12),
+  dealTitle: 'Synthetic chicken rice set',
+  category: 'FOOD',
+  venueId: VENUES.chicken.id,
+  venueName: VENUES.chicken.name,
+  lat: VENUES.chicken.lat,
+  lng: VENUES.chicken.lng,
+  flashPriceCents: 150,
+  usualPriceCents: 350,
+  startsAt: inMinutes(-5),
+  endsAt: inMinutes(25),
+  radiusMetres: 500,
+  codesLeft: 12,
+  codeLimit: 40,
+  demo: true,
+  ...overrides,
+})
+
+// Live drops, claiming (one code per person) and My codes, kept in memory per page.
+export const mockFlashApi = async (page: Page, drops: readonly ReturnType<typeof flashDrop>[]) => {
+  const codes: Record<string, unknown>[] = []
+  await page.route('**/api/flash-drops/active', (route) =>
+    route.fulfill({ json: { serverTime: new Date().toISOString(), items: drops } }),
+  )
+  await page.route('**/api/flash-drops/codes', (route) => route.fulfill({ json: { items: codes } }))
+  await page.route('**/api/flash-drops/*/claims', (route) => {
+    const dropId = new URL(route.request().url()).pathname.split('/')[3]
+    const drop = drops.find((item) => item.id === dropId)
+    if (!drop)
+      return route.fulfill({
+        status: 404,
+        json: { error: { code: 'NOT_FOUND', message: 'Flash drop not found' } },
+      })
+    if (drop.codesLeft <= 0)
+      return route.fulfill({
+        status: 409,
+        json: {
+          error: { code: 'CONFLICT', message: 'All the codes for this drop have been claimed' },
+        },
+      })
+    const code = {
+      code: 'LB-7KQ2MX',
+      dropId: drop.id,
+      dealId: drop.dealId,
+      dealTitle: drop.dealTitle,
+      venueName: drop.venueName,
+      flashPriceCents: drop.flashPriceCents,
+      claimedAt: new Date().toISOString(),
+      endsAt: drop.endsAt,
+      active: true,
+      demo: drop.demo,
+    }
+    if (!codes.some((item) => item.dropId === drop.id)) codes.unshift(code)
+    return route.fulfill({ status: 201, json: code })
+  })
 }

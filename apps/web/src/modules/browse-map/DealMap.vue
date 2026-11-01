@@ -73,7 +73,13 @@ const props = withDefaults(
     framed: false,
   },
 )
-const emit = defineEmits<{ select: [id: string]; hover: [id: string | null]; moved: [] }>()
+const emit = defineEmits<{
+  select: [id: string]
+  hover: [id: string | null]
+  moved: []
+  // The Leaflet map is ready; feature layers (Flash Drop, Makan Squad, Hungry Nearby) mount on it.
+  ready: [map: L.Map]
+}>()
 
 const container = ref<HTMLDivElement | null>(null)
 let map: L.Map | null = null
@@ -346,6 +352,7 @@ onMounted(() => {
   if (props.framed) frameAll(props.pins)
   else if (props.focus) focusOn(props.focus, props.focusZoom)
   resizeObserver = observeResize(container.value)
+  emit('ready', map)
 })
 
 watch(
@@ -394,6 +401,7 @@ onBeforeUnmount(() => {
 })
 
 defineExpose({
+  leaflet: (): L.Map | null => map,
   zoomIn: () => zoomBy(1),
   zoomOut: () => zoomBy(-1),
   getArea: (): AreaBounds | null => {

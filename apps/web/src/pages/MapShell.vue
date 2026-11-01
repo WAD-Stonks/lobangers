@@ -6,6 +6,10 @@ import DealMap from '@web/modules/browse-map/DealMap.vue'
 import { type BrowseFilters, createDefaultFilters } from '@web/modules/browse-map/filters'
 import { FOCUS_ZOOM, LOCATE_ZOOM } from '@web/modules/browse-map/map-config'
 import type { Coordinates, SelectedDeal } from '@web/modules/browse-map/types'
+import { BANNER_LIFE_MS } from '@web/modules/flash-drop/banner-schedule'
+import FlashEdgeBanner from '@web/modules/flash-drop/FlashEdgeBanner.vue'
+import { provideFlashDrops } from '@web/modules/flash-drop/use-flash-drops'
+import { useFlashMap } from '@web/modules/flash-drop/use-flash-map'
 import { provideLobbieChat } from '@web/modules/lobbie/use-lobbie-chat'
 import FilterSheet from '@web/modules/map-shell/FilterSheet.vue'
 import { withFilters } from '@web/modules/map-shell/filter-query'
@@ -30,6 +34,7 @@ import { usePanelMorph } from '@web/modules/map-shell/use-panel-morph'
 import { provideSavedDeals } from '@web/modules/map-shell/use-saved-deals'
 import { useShellLayout } from '@web/modules/map-shell/use-shell-layout'
 import { provideToastQueue } from '@web/modules/map-shell/use-toast'
+import type L from 'leaflet'
 import { computed, nextTick, onBeforeUnmount, onMounted, provide, ref, shallowRef, watch } from 'vue'
 import { type RouteLocationNormalizedLoaded, RouterView, useRoute, useRouter } from 'vue-router'
 
@@ -38,7 +43,9 @@ import { type RouteLocationNormalizedLoaded, RouterView, useRoute, useRouter } f
 const route = useRoute()
 const router = useRouter()
 provideToastQueue()
-provideSavedDeals(authClient.useSession())
+const session = authClient.useSession()
+provideSavedDeals(session)
+const flash = provideFlashDrops(session)
 const shell = provideShellState({ router, route })
 const lobbie = provideLobbieChat({ position: shell.position })
 
@@ -180,6 +187,19 @@ const locateOnArrival = async () => {
   locateFocus.value = located
 }
 
+// Flash Drops draw on the Leaflet map once it exists. Their banner only pops up over the plain
+// map: never while a deal, the filter sheet or any other panel has the visitor's attention.
+const leaflet = shallowRef<L.Map | null>(null)
+const flashMap = useFlashMap({
+  map: leaflet,
+  store: flash,
+  enabled: computed(() => isBrowse.value && !sheetOpen.value && !panelWide.value),
+  user: shell.position,
+  padding: layout.viewPadding,
+  reducedMotion,
+  open: (drop) => router.push(dealLocation(route.query, drop.dealId, drop.venueId)),
+})
+
 const searchArea = () => {
   shell.setArea(dealMap.value?.getArea() ?? null)
   mapMoved.value = false
@@ -260,8 +280,19 @@ onBeforeUnmount(() => document.documentElement.classList.remove('is-canvas'))
         @select="openVenue"
         @hover="shell.setHovered"
         @moved="mapMoved = true"
+        @ready="leaflet = $event"
       />
     </main>
+
+    <FlashEdgeBanner
+      v-if="flashMap.edge.value"
+      :banner="flashMap.edge.value"
+      :now="flash.now.value"
+      :life-ms="BANNER_LIFE_MS"
+      :inert="backgroundInert"
+      @open="flashMap.openDrop(flashMap.edge.value.drop)"
+      @hover="flashMap.setPaused"
+    />
 
 
     <Transition name="shell-rise">

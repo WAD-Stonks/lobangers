@@ -292,6 +292,7 @@ it('renders the shell slot and native identity even for forbidden content, forwa
   expect(wrapper.findAll('nav a').map((link) => link.attributes('href'))).toEqual([
     '/admin',
     '/admin/deals',
+    '/admin/flash-drops',
     '/admin/catalogue',
     '/admin/moderation',
     '/admin/accounts',

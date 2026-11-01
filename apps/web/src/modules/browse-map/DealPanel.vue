@@ -19,6 +19,8 @@ import {
 import FreshnessTag from '@web/modules/browse-map/FreshnessTag.vue'
 import type { DealRow } from '@web/modules/browse-map/types'
 import DealCommunity from '@web/modules/community/DealCommunity.vue'
+import FlashClaimCard from '@web/modules/flash-drop/FlashClaimCard.vue'
+import { useFlashDrops } from '@web/modules/flash-drop/use-flash-drops'
 import { errorCode } from '@web/modules/ingestion-admin/errors'
 import PanelFrame from '@web/modules/map-shell/PanelFrame.vue'
 import ShellIcon from '@web/modules/map-shell/ShellIcon.vue'
@@ -38,6 +40,7 @@ import { RouterLink, useRoute, useRouter } from 'vue-router'
 // stay in the sticky bar. Votes, comments and reports belong to the community module.
 const shell = useShell()
 const saved = useSavedDeals()
+const flash = useFlashDrops()
 const toast = useToast()
 const session = authClient.useSession()
 const route = useRoute()
@@ -51,6 +54,8 @@ const commentsOpen = ref(false)
 watch(dealId, () => { commentsOpen.value = false })
 const venueId = computed(() => (typeof route.query.at === 'string' ? route.query.at : null))
 const selected = computed(() => shell.findDeal(dealId.value, venueId.value))
+// A Flash Drop running for this deal right now, if any.
+const flashDrop = computed(() => flash?.liveForDeal(dealId.value) ?? null)
 // A deal opened from Lobbie's chat goes back to the chat; anything else goes back to the list.
 const fromLobbie = computed(() => route.query.from === 'lobbie')
 const backTo = computed(() =>
@@ -177,6 +182,8 @@ const toggleSave = async () => {
       </RouterLink>
       <span v-if="price" class="lb-price deal-panel__price" data-testid="deal-price">{{ price }}</span>
     </div>
+
+    <FlashClaimCard v-if="flashDrop" :drop="flashDrop" />
 
     <div class="deal-panel__tags">
       <!-- With a photo in the hero, these move here so they never cover the poster's text. -->

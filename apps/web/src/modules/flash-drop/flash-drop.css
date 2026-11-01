@@ -1,0 +1,311 @@
+/* Flash Drop on the map (flash-layer.ts): the dashed coral circle of who sees the banner, the
+   coral pin with its countdown, and the black banner that pops up over the circle. Global
+   because Leaflet draws these outside any component. */
+
+.flash-zone {
+  fill: var(--coral);
+  fill-opacity: 0.12;
+  stroke: var(--coral);
+  stroke-opacity: 0.75;
+  stroke-width: 2.5;
+  stroke-dasharray: 8 7;
+  animation: flash-zone-spin 14s linear infinite;
+}
+
+@keyframes flash-zone-spin {
+  to {
+    stroke-dashoffset: -150;
+  }
+}
+
+.flash-pin,
+.flash-banner-anchor {
+  background: transparent;
+  border: 0;
+}
+
+.flash-pin__stack {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  transform: translate(-50%, calc(-100% + 5.5px));
+  cursor: pointer;
+}
+
+.flash-pin__oval {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 36px;
+  margin-top: 22px;
+  padding: 0 6px 0 40px;
+  white-space: nowrap;
+  color: var(--paper-white);
+  background: var(--ink-strong);
+  border-radius: var(--radius-pill);
+  box-shadow:
+    0 0 0 3px rgba(216, 96, 63, 0.45),
+    0 8px 20px rgba(27, 27, 31, 0.28);
+}
+
+.flash-pin__food {
+  position: absolute;
+  top: -24px;
+  left: -14px;
+  width: 52px;
+  height: 52px;
+  filter: drop-shadow(0 4px 4px rgba(27, 27, 31, 0.25));
+}
+
+.flash-pin__price {
+  font-family: var(--font-display);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  line-height: 1;
+}
+
+.flash-pin__timer {
+  padding: 5px 7px;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  color: var(--paper-white);
+  background: var(--coral);
+  border-radius: 8px;
+}
+
+.flash-pin__stem {
+  width: 2px;
+  height: 12px;
+  background: rgba(29, 29, 34, 0.85);
+}
+
+.flash-pin__dot {
+  box-sizing: border-box;
+  width: 11px;
+  height: 11px;
+  background: var(--paper-white);
+  border: 3px solid var(--coral);
+  border-radius: 50%;
+}
+
+/* The banner sits on the circle's top edge with its tail pointing down at it. */
+.flash-banner-wrap {
+  position: absolute;
+  left: 0;
+  transform: translateX(calc(-50% + var(--flash-shift, 0px)));
+}
+
+/* Under the circle, tail pointing up, when the top is too close to the header. */
+.flash-banner-wrap--above {
+  bottom: 8px;
+}
+
+.flash-banner-wrap--below {
+  top: 8px;
+}
+
+.flash-banner-wrap--pin {
+  bottom: 76px;
+}
+
+.flash-banner-wrap--under {
+  top: 14px;
+}
+
+.flash-banner {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: max-content;
+  max-width: min(330px, 86vw);
+  padding: 10px 12px 14px 8px;
+  text-align: left;
+  color: var(--paper-white);
+  background: var(--ink-strong);
+  border: 0;
+  border-radius: 18px;
+  box-shadow: 0 14px 30px rgba(27, 27, 31, 0.32);
+  transform-origin: 50% 100%;
+  animation: flash-banner-in 420ms cubic-bezier(0.34, 1.4, 0.64, 1) both;
+  cursor: pointer;
+}
+
+.flash-banner::after {
+  position: absolute;
+  left: calc(50% - var(--flash-shift, 0px));
+  margin-left: -8px;
+  content: "";
+  border: 8px solid transparent;
+}
+
+.flash-banner--above::after,
+.flash-banner--pin::after {
+  bottom: -8px;
+  border-bottom: 0;
+  border-top-color: var(--ink-strong);
+}
+
+.flash-banner--below,
+.flash-banner--under {
+  transform-origin: 50% 0;
+}
+
+.flash-banner--below::after,
+.flash-banner--under::after {
+  top: -8px;
+  border-top: 0;
+  border-bottom-color: var(--ink-strong);
+}
+
+.flash-banner:active {
+  transform: scale(0.97);
+}
+
+.flash-banner:focus-visible {
+  outline: 3px solid var(--sunny);
+  outline-offset: 3px;
+}
+
+.flash-banner.is-leaving {
+  animation: flash-banner-out 200ms var(--ease-out) both;
+}
+
+.flash-banner__food {
+  flex: none;
+  width: 46px;
+  height: 46px;
+}
+
+.flash-banner__text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.flash-banner__kicker {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #f3a58e;
+}
+
+.flash-banner__title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--font-display);
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+.flash-banner__meta {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  color: #c9c6bf;
+}
+
+.flash-banner__timer {
+  flex: none;
+  align-self: center;
+  padding: 5px 8px;
+  font-size: 12px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  background: var(--coral);
+  border-radius: 9px;
+}
+
+/* How long the banner has left before it closes itself; hovering pauses it. */
+.flash-banner__life {
+  position: absolute;
+  right: 14px;
+  bottom: 6px;
+  left: 14px;
+  height: 3px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.14);
+  border-radius: 2px;
+}
+
+.flash-banner__life i {
+  display: block;
+  height: 100%;
+  background: var(--coral);
+  transform-origin: left;
+  animation: flash-banner-life var(--flash-life, 5000ms) linear forwards;
+}
+
+.flash-banner.is-paused .flash-banner__life i {
+  animation-play-state: paused;
+}
+
+/* "Fake deal": every demonstration drop says so wherever it shows. */
+.flash-fake {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 6px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: none;
+  white-space: nowrap;
+  color: #7a5a00;
+  background: var(--sunny-wash, #fdf6dc);
+  border: 1px dashed #b98a12;
+  border-radius: 6px;
+}
+
+@keyframes flash-banner-in {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.75);
+  }
+}
+
+@keyframes flash-banner-out {
+  to {
+    opacity: 0;
+    transform: translateY(18px) scale(0.6);
+  }
+}
+
+@keyframes flash-banner-life {
+  to {
+    transform: scaleX(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .flash-zone {
+    animation: none;
+  }
+
+  .flash-banner,
+  .flash-banner.is-leaving {
+    animation: flash-banner-fade 150ms ease both;
+  }
+
+  .flash-banner.is-leaving {
+    animation-direction: reverse;
+  }
+}
+
+@keyframes flash-banner-fade {
+  from {
+    opacity: 0;
+  }
+}

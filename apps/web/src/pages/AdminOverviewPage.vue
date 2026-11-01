@@ -24,10 +24,13 @@ const attentionItems = computed(() => {
     { count: counts.failedImportedPosts, label: 'Imported posts need investigation', href: '/admin/ingestion#failed-posts', action: 'Investigate posts' },
     { count: counts.pendingMerchantRequests, label: 'Merchant requests await a decision', href: '/admin/accounts?requestStatus=PENDING#merchant-requests', action: 'Review requests' },
     { count: counts.pendingImportedDrafts, label: 'Imported drafts await review', href: '/admin/ingestion?status=PENDING#queue-title', action: 'Review drafts' },
+    { count: counts.pendingFlashDrops, label: 'Flash drops waiting for review', href: '/admin/flash-drops', action: 'Review flash drops' },
+    { count: counts.liveFlashDrops, label: 'Flash drops live now', href: '/admin/flash-drops?view=live', action: 'Watch live drops' },
   ].filter(item => item.count > 0)
 })
 const quickActions = [
   { href: '/admin/deals', label: 'Manage deals', description: 'Review and correct deal listings.', icon: 'deals' },
+  { href: '/admin/flash-drops', label: 'Review flash drops', description: 'Check radius, codes and overlaps.', icon: 'flash' },
   { href: '/admin/accounts', label: 'Manage accounts', description: 'Review roles and merchant access.', icon: 'accounts' },
   { href: '/admin/moderation', label: 'Review reports', description: 'Investigate deal and comment reports.', icon: 'moderation' },
 ]
@@ -121,6 +124,7 @@ onUnmounted(() => { fence.dispose(); nativeFence.dispose() })
           <li class="card"><a class="overview-summary-link" href="/admin/accounts?requestStatus=PENDING#merchant-requests"><span class="overview-metric-label"><span>Pending merchant requests: </span><span class="overview-metric-icon"><AdminIcon name="accounts" /></span></span><strong>{{ overview.counts.pendingMerchantRequests }}</strong><span class="overview-card-hint">Review merchant access →</span></a></li>
           <li class="card"><a class="overview-summary-link" href="/admin/ingestion?status=PENDING#queue-title"><span class="overview-metric-label"><span>Pending imported drafts: </span><span class="overview-metric-icon"><AdminIcon name="deals" /></span></span><strong>{{ overview.counts.pendingImportedDrafts }}</strong><span class="overview-card-hint">Review imported deals →</span></a></li>
           <li class="card overview-summary-static"><span class="overview-metric-label"><span>Failed imported posts: </span><span class="overview-metric-icon overview-metric-icon--neutral"><AdminIcon name="ingestion" /></span></span><strong>{{ overview.counts.failedImportedPosts }}</strong><span class="overview-card-hint">Stored posts requiring investigation</span></li>
+          <li class="card"><a class="overview-summary-link" href="/admin/flash-drops"><span class="overview-metric-label"><span>Flash drops to review: </span><span class="overview-metric-icon overview-metric-icon--flash"><AdminIcon name="flash" /></span></span><strong>{{ overview.counts.pendingFlashDrops }}</strong><span class="overview-card-hint">Review flash drops →</span></a></li>
         </ul>
         <p class="small mb-0">Failures count imported posts, not ingestion runs.</p>
       </section>
@@ -135,7 +139,7 @@ onUnmounted(() => { fence.dispose(); nativeFence.dispose() })
               <a :href="item.href">{{ item.action }} →</a>
             </li>
           </ul>
-          <p v-else class="overview-queue-clear mb-0">No pending merchant requests, imported drafts or failed imported posts in this snapshot.</p>
+          <p v-else class="overview-queue-clear mb-0">No pending merchant requests, imported drafts, flash drops or failed imported posts in this snapshot.</p>
         </section>
         <nav class="card overview-shortcuts" aria-labelledby="quick-actions-title">
           <h2 id="quick-actions-title">Quick actions</h2>
@@ -333,7 +337,7 @@ onUnmounted(() => { fence.dispose(); nativeFence.dispose() })
 .overview-chart-count { text-align: right; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
 .overview-summary {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 20px;
   padding: 0;
   margin: 16px 0 12px;
@@ -357,6 +361,7 @@ onUnmounted(() => { fence.dispose(); nativeFence.dispose() })
 .overview-summary > .card:has(a:hover) { border-color: #d6bd66; box-shadow: 0 5px 18px #7c64100b; }
 .overview-metric-label { display: flex; width: 100%; align-items: center; justify-content: space-between; gap: 12px; color: #5f6875; font-size: 13px; }
 .overview-metric-icon { display: grid; place-items: center; flex: 0 0 38px; height: 38px; border: 1px solid #f1e6b9; border-radius: 11px; color: #826517; background: #fff8dc; }
+.overview-metric-icon--flash { border-color: #f3d2c6; color: #a8432a; background: #fff1ec; }
 .overview-metric-icon--neutral { border-color: #e5e8ed; color: #667184; background: #f5f6f8; }
 .overview-summary strong {
   font-size: 40px;
@@ -398,6 +403,7 @@ onUnmounted(() => { fence.dispose(); nativeFence.dispose() })
     grid-template-areas: "work" "registrations" "next" "chart" "runs" "activity" "readiness";
   }
   .overview-next-steps { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .overview-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .overview-summary-link, .overview-summary-static { padding: 20px; }
 }
 @media (max-width: 991.98px) {

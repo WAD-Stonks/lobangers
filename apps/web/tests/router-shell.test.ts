@@ -69,6 +69,7 @@ describe('map shell routes', () => {
       'register',
       'profile',
       'saved',
+      'codes',
     ])
   })
 

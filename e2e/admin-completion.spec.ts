@@ -60,7 +60,13 @@ test.afterEach(async ({ page }, info) => {
 // not live authentication, provider delivery, database authorization or acceptance.
 const overview: AdminOverviewResponse = {
   generatedAt: '2026-10-10T00:00:00.000Z',
-  counts: { pendingMerchantRequests: 2, pendingImportedDrafts: 4, failedImportedPosts: 3 },
+  counts: {
+    pendingMerchantRequests: 2,
+    pendingImportedDrafts: 4,
+    failedImportedPosts: 3,
+    pendingFlashDrops: 0,
+    liveFlashDrops: 0,
+  },
   recentRuns: [],
   readiness: {
     googleConfigured: false,
@@ -229,6 +235,7 @@ for (const width of [320, 390, 768, 1024, 1440]) {
       await expect(nav.locator('a')).toHaveText([
         'Overview',
         'Deals',
+        'Flash drops',
         'Catalogue',
         'Moderation',
         'Accounts',
@@ -242,6 +249,7 @@ for (const width of [320, 390, 768, 1024, 1440]) {
       ).toEqual([
         '/admin',
         '/admin/deals',
+        '/admin/flash-drops',
         '/admin/catalogue',
         '/admin/moderation',
         '/admin/accounts',

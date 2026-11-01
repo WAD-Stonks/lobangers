@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { DEAL_CUISINE_LABELS } from '@broke-oclock/contracts/deal-cuisines'
+import FakeBadge from '@web/modules/merchant/FakeBadge.vue'
+import FlashDropsSection from '@web/modules/merchant/FlashDropsSection.vue'
 import {
   createDeal,
   type DealInput,
@@ -227,6 +229,11 @@ const confirmEndDeal = async (deal: MerchantDeal) => {
   }
 }
 
+// ----- Flash drops -----
+// The flash drop form and list live in their own component; these buttons just open its form.
+const flashDrops = ref<InstanceType<typeof FlashDropsSection> | null>(null)
+const openFlashDrop = (dealId?: string) => flashDrops.value?.openForm(dealId)
+
 onMounted(loadDashboard)
 </script>
 
@@ -234,18 +241,22 @@ onMounted(loadDashboard)
   <section class="container py-4">
     <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
       <h1 class="h2 mb-0">Merchant dashboard</h1>
-      <button
-        v-if="!loading && outlets.length > 0"
-        type="button"
-        class="btn btn-primary"
-        @click="openCreateForm"
-      >
-        + New deal
-      </button>
+      <div v-if="!loading && outlets.length > 0" class="d-flex flex-wrap gap-2">
+        <button
+          v-if="currentDeals.length > 0"
+          type="button"
+          class="btn btn-dark"
+          @click="openFlashDrop()"
+        >
+          New flash drop
+        </button>
+        <button type="button" class="btn btn-primary" @click="openCreateForm">+ New deal</button>
+      </div>
     </div>
 
     <p v-if="USE_SAMPLE_DATA" class="alert alert-warning">
-      Showing sample data. Changes are not saved and reset when you refresh.
+      <strong>Fake deals.</strong> Showing sample data: every deal and flash drop on this page is
+      made up. Changes are not saved and reset when you refresh.
     </p>
     <p v-if="errorMessage" class="alert alert-danger" role="alert">{{ errorMessage }}</p>
     <p v-if="successMessage" class="alert alert-success" role="status">{{ successMessage }}</p>
@@ -387,7 +398,10 @@ onMounted(loadDashboard)
       <ul v-else class="list-unstyled d-grid gap-3 mb-4">
         <li v-for="deal in currentDeals" :key="deal.id" class="card card-body">
           <div class="d-flex justify-content-between align-items-start gap-2">
-            <h3 class="h5 mb-1">{{ deal.title }}</h3>
+            <div class="d-flex flex-wrap align-items-center gap-2 mb-1">
+              <h3 class="h5 mb-0">{{ deal.title }}</h3>
+              <FakeBadge v-if="USE_SAMPLE_DATA" />
+            </div>
             <span
               class="badge"
               :class="statusOf(deal) === 'Live' ? 'text-bg-success' : 'text-bg-info'"
@@ -401,16 +415,22 @@ onMounted(loadDashboard)
           </p>
           <p class="small text-secondary mb-1">At: {{ outletNames(deal) }}</p>
           <p v-if="deal.terms" class="small text-secondary mb-2 terms">Terms: {{ deal.terms }}</p>
-          <div class="d-flex gap-2 mt-2">
+          <div class="d-flex flex-wrap gap-2 mt-2">
             <button type="button" class="btn btn-sm btn-outline-primary" @click="openEditForm(deal)">
               Edit
             </button>
             <button type="button" class="btn btn-sm btn-outline-danger" @click="confirmEndDeal(deal)">
               End deal
             </button>
+            <button type="button" class="btn btn-sm btn-dark ms-sm-auto" @click="openFlashDrop(deal.id)">
+              Flash drop this
+            </button>
           </div>
         </li>
       </ul>
+
+      <!-- Flash drops: the form and the merchant's drops -->
+      <FlashDropsSection ref="flashDrops" :deals="currentDeals" :outlets="outlets" />
 
       <!-- Ended deals: view only -->
       <h2 class="h4 mb-3">Ended deals</h2>
@@ -418,7 +438,10 @@ onMounted(loadDashboard)
       <ul v-else class="list-unstyled d-grid gap-3">
         <li v-for="deal in endedDeals" :key="deal.id" class="card card-body bg-body-tertiary">
           <div class="d-flex justify-content-between align-items-start gap-2">
-            <h3 class="h5 mb-1">{{ deal.title }}</h3>
+            <div class="d-flex flex-wrap align-items-center gap-2 mb-1">
+              <h3 class="h5 mb-0">{{ deal.title }}</h3>
+              <FakeBadge v-if="USE_SAMPLE_DATA" />
+            </div>
             <span class="badge text-bg-secondary">Ended</span>
           </div>
           <p class="small text-secondary mb-1">
@@ -435,5 +458,11 @@ onMounted(loadDashboard)
 /* Keep the line breaks the merchant typed in the terms box. */
 .terms {
   white-space: pre-line;
+}
+/* Comfortable touch targets on phones. */
+@media (max-width: 575.98px) {
+  .btn-sm {
+    min-height: var(--hit);
+  }
 }
 </style>

@@ -4,11 +4,13 @@ import RegisterPanel from '@web/modules/account/RegisterPanel.vue'
 // import AddDealPanel from '@web/modules/add-deal/AddDealPanel.vue'
 import BrowseListPanel from '@web/modules/browse-map/BrowseListPanel.vue'
 import DealPanel from '@web/modules/browse-map/DealPanel.vue'
+import MyCodesPanel from '@web/modules/flash-drop/MyCodesPanel.vue'
 import LobbiePanel from '@web/modules/lobbie/LobbiePanel.vue'
 import VenuePanel from '@web/modules/venues-feed/VenuePanel.vue'
 import AdminAuditPage from '@web/pages/AdminAuditPage.vue'
 import AdminCataloguePage from '@web/pages/AdminCataloguePage.vue'
 import AdminDealsPage from '@web/pages/AdminDealsPage.vue'
+import AdminFlashDropsPage from '@web/pages/AdminFlashDropsPage.vue'
 import AdminModerationPage from '@web/pages/AdminModerationPage.vue'
 import AdminOverviewPage from '@web/pages/AdminOverviewPage.vue'
 import ForgotPasswordPage from '@web/pages/ForgotPasswordPage.vue'
@@ -86,6 +88,9 @@ const routes: RouteRecordRaw[] = [
         component: ProfilePanel,
         meta: { requiresAuth: true, panelLabel: 'Saved deals' },
       },
+      // Signed-out visitors see a prompt to log in rather than a redirect, so the menu link
+      // always lands somewhere that explains what codes are.
+      { path: '/codes', name: 'codes', component: MyCodesPanel, meta: { panelLabel: 'My codes' } },
     ],
   },
   { path: '/', name: 'landing', component: LandingPage, meta: { layout: 'landing' } },
@@ -94,6 +99,7 @@ const routes: RouteRecordRaw[] = [
   { path: '/getting-started', name: 'getting-started', component: GettingStartedPage },
   { path: '/admin', name: 'admin-overview', component: AdminOverviewPage },
   { path: '/admin/deals', name: 'admin-deals', component: AdminDealsPage },
+  { path: '/admin/flash-drops', name: 'admin-flash-drops', component: AdminFlashDropsPage },
   { path: '/admin/catalogue', name: 'admin-catalogue', component: AdminCataloguePage },
   { path: '/admin/moderation', name: 'admin-moderation', component: AdminModerationPage },
   { path: '/admin/audit', name: 'admin-audit', component: AdminAuditPage },

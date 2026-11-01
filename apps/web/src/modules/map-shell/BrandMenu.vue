@@ -4,6 +4,7 @@ import { ACCOUNT_NAV_LINKS, SITE_MENU_ID, SITE_NAV_LINKS } from '@web/components
 import { TICKET_ICON_PATHS } from '@web/components/ticket-icon'
 import { useSiteMenu } from '@web/components/use-site-menu'
 import { authClient } from '@web/lib/auth-client'
+import { useFlashDrops } from '@web/modules/flash-drop/use-flash-drops'
 import ShellIcon from '@web/modules/map-shell/ShellIcon.vue'
 import { useSavedDeals } from '@web/modules/map-shell/use-saved-deals'
 import { useToast } from '@web/modules/map-shell/use-toast'
@@ -14,6 +15,7 @@ import { RouterLink, useRoute, useRouter } from 'vue-router'
 // click outside and any navigation close it, and focus returns to the button.
 const session = authClient.useSession()
 const saved = useSavedDeals()
+const flash = useFlashDrops()
 const toast = useToast()
 const route = useRoute()
 const router = useRouter()
@@ -33,6 +35,18 @@ const initials = computed(() =>
     .join(''),
 )
 const savedText = computed(() => `${saved.countLabel.value} saved ${saved.count.value === 1 ? 'deal' : 'deals'}`)
+// Flash Drop codes still good to use; the menu button wears a dot so they are never lost.
+const activeCodeCount = computed(() => (user.value ? (flash?.activeCodes.value.length ?? 0) : 0))
+const codesText = computed(() => {
+  const count = activeCodeCount.value
+  if (count === 0) return 'Codes you claim from Flash Drops'
+  return `${count} ${count === 1 ? 'code' : 'codes'} ready to use`
+})
+const menuLabel = computed(() => {
+  const base = isOpen.value ? 'Close menu' : 'Open menu'
+  const count = activeCodeCount.value
+  return count > 0 ? `${base}, ${count} Flash Drop ${count === 1 ? 'code' : 'codes'} ready` : base
+})
 // Signing in from the menu brings the visitor back to where they were.
 const authQuery = computed(() =>
   route.name === 'login' || route.name === 'register' ? route.query : { redirect: route.fullPath },
@@ -71,7 +85,7 @@ const logOut = async () => {
       data-testid="nav-toggle"
       :aria-controls="SITE_MENU_ID"
       :aria-expanded="isOpen"
-      :aria-label="isOpen ? 'Close menu' : 'Open menu'"
+      :aria-label="menuLabel"
       @click="toggle"
     >
       <span class="brand-menu__mark" aria-hidden="true">
@@ -86,6 +100,7 @@ const logOut = async () => {
         </svg>
       </span>
       <span v-if="user && saved.count.value > 0" class="brand-menu__count" aria-hidden="true">{{ saved.countLabel.value }}</span>
+      <span v-if="activeCodeCount > 0" class="brand-menu__codes-dot" data-testid="codes-dot" aria-hidden="true" />
     </button>
 
     <Transition name="shell-menu">
@@ -111,6 +126,19 @@ const logOut = async () => {
 
         <RouterLink class="lb-btn lb-btn--primary lb-btn--block" :to="{ name: 'submit-deal' }">
           <ShellIcon name="plus" :size="18" />Add a deal
+        </RouterLink>
+
+        <RouterLink v-if="user" class="brand-menu__codes" :to="{ name: 'codes' }" data-testid="my-codes-link">
+          <span class="brand-menu__codes-icon" aria-hidden="true">
+            <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <path v-for="d in TICKET_ICON_PATHS" :key="d" :d="d" />
+            </svg>
+          </span>
+          <span class="brand-menu__codes-text">
+            <strong>My codes</strong>
+            <span class="lb-meta">{{ codesText }}</span>
+          </span>
+          <span v-if="activeCodeCount > 0" class="brand-menu__codes-count">{{ activeCodeCount }}</span>
         </RouterLink>
 
         <ul class="brand-menu__links">
@@ -219,6 +247,69 @@ const logOut = async () => {
 
 .brand-menu__button[aria-expanded='true'] .l3 {
   transform: translateY(-5px) rotate(-45deg);
+}
+
+/* A claimed Flash Drop code is waiting: a coral dot on the ticket mark. */
+.brand-menu__codes-dot {
+  position: absolute;
+  top: 6px;
+  left: 34px;
+  width: 12px;
+  height: 12px;
+  background: var(--coral);
+  border: 2px solid var(--paper-white);
+  border-radius: 50%;
+}
+
+.brand-menu__codes {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: var(--hit);
+  padding: 8px 12px;
+  color: var(--ink);
+  text-decoration: none;
+  background: var(--paper);
+  border-radius: var(--radius-control);
+  transition: background-color 150ms ease;
+}
+
+.brand-menu__codes:hover {
+  background: var(--paper-hover);
+}
+
+.brand-menu__codes-icon {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  color: var(--paper-white);
+  background: var(--ink-strong);
+  border-radius: 50%;
+}
+
+.brand-menu__codes-icon svg {
+  width: 18px;
+  height: 18px;
+}
+
+.brand-menu__codes-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.brand-menu__codes-count {
+  margin-left: auto;
+  min-width: 24px;
+  padding: 3px 8px;
+  font-size: var(--text-xs);
+  font-weight: 700;
+  text-align: center;
+  color: var(--paper-white);
+  background: var(--coral);
+  border-radius: var(--radius-pill);
 }
 
 .brand-menu__count {
