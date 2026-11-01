@@ -47,8 +47,8 @@ const toggle = async () => {
   z-index: 2;
   display: grid;
   place-items: center;
-  width: 40px;
-  height: 40px;
+  width: var(--hit);
+  height: var(--hit);
   padding: 0;
   color: var(--ink-muted);
   background: var(--paper-white);

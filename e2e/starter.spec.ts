@@ -10,7 +10,7 @@ test('the landing page opens the preserved browse map and navigation works', asy
   await expect(page.getByTestId('panel-toggle')).toHaveCount(0)
   await expect(page.getByTestId('split-toggle')).toHaveCount(0)
   await page.getByTestId('nav-toggle').click()
-  await page.locator('a[href="/deals"]').first().click()
+  await page.getByTestId('nav-menu').getByRole('link', { name: 'All deals' }).click()
   await expect(page).toHaveURL(/view=list/)
   await expect(page.locator(BROWSE_CANVAS)).toBeVisible()
   await expect(page.getByTestId('nav-menu')).toHaveCount(0)

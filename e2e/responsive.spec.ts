@@ -99,8 +99,8 @@ const ROUTES = [
   `/deals/${DEALS[0]?.id}`,
   `/venues/${VENUE.id}`,
   '/ask-lobbie',
-  '/login',
-  '/add',
+  // Signed-out /login and /add both land on the standalone sign-in page.
+  '/sign-in',
 ]
 const TOUCH_MAX_WIDTH = 992
 const MIN_TARGET_PX = 44
@@ -185,7 +185,11 @@ for (const width of WIDTHS) {
       await page.setViewportSize({ width, height: 800 })
       await mockApi(page)
       await page.goto(route)
-      await expect(page.getByTestId('shell-panel').locator('[data-panel-heading]')).toBeVisible()
+      await expect(
+        route === '/sign-in'
+          ? page.getByTestId('standalone-auth')
+          : page.getByTestId('shell-panel').locator('[data-panel-heading]'),
+      ).toBeVisible()
       await settled(page)
       if (route.startsWith('/deals/')) {
         const community = page.getByTestId('deal-community')
@@ -199,26 +203,36 @@ for (const width of WIDTHS) {
         await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
       ).toBe(true)
 
-      // 2. No visible element sticks out past the viewport edge.
+      // 2. No visible element sticks out past the viewport edge. Content clipped by a
+      // container that itself fits (a swipeable chip row, cropped artwork) is fine.
       const offenders = await page.evaluate(() =>
         [...document.querySelectorAll<HTMLElement>('body *')]
           .filter((el) => el.offsetParent !== null && !el.closest('.leaflet-container'))
           .filter((el) => {
             const r = el.getBoundingClientRect()
-            return r.width > 0 && (r.left < -1 || r.right > window.innerWidth + 1)
+            if (r.width === 0 || (r.left >= -1 && r.right <= window.innerWidth + 1)) return false
+            for (let a = el.parentElement; a && a !== document.body; a = a.parentElement) {
+              if (getComputedStyle(a).overflowX === 'visible') continue
+              const c = a.getBoundingClientRect()
+              if (c.left >= -1 && c.right <= window.innerWidth + 1) return false
+            }
+            return true
           })
           .map((el) => el.dataset.testid ?? el.className),
       )
       expect(offenders).toEqual([])
 
-      // 3. Every button is at least 44px on touch widths.
+      // 3. Every button is at least 44px on touch widths. Layout size, so a scroll-triggered
+      // entrance that has not played yet (GSAP, invisible to getAnimations) is not measured.
       if (width < TOUCH_MAX_WIDTH) {
         const small = await page.getByRole('button').evaluateAll(
           (els, min) =>
             els
+              .filter((el): el is HTMLElement => el instanceof HTMLElement)
               .filter((el) => {
-                const r = el.getBoundingClientRect()
-                return r.width > 0 && (r.width < min || r.height < min)
+                const w = el.offsetWidth
+                const h = el.offsetHeight
+                return w > 0 && (w < min || h < min)
               })
               .map((el) => el.getAttribute('aria-label') ?? el.textContent),
           MIN_TARGET_PX,
@@ -298,11 +312,18 @@ test('map quick filters sit beside search on desktop and below it on mobile with
         (width >= 992 ? chips.x >= search.x + search.width : chips.y >= search.y + search.height),
       `${width}px`,
     ).toBe(true)
+    expect(chips && chips.x + chips.width <= width + 1, `${width}px`).toBe(true)
+    // Chips past the edge are fine only inside the swipeable row, which itself fits.
     const clipped = await page
       .getByTestId('discovery-quick-filters')
       .locator('button:visible')
       .evaluateAll(
-        (els) => els.filter((el) => el.getBoundingClientRect().right > window.innerWidth).length,
+        (els) =>
+          els.filter((el) => {
+            if (el.getBoundingClientRect().right <= window.innerWidth) return false
+            const row = el.closest('.discovery-filters__chips')
+            return !row || row.getBoundingClientRect().right > window.innerWidth + 1
+          }).length,
       )
     expect(clipped, `${width}px`).toBe(0)
   }
@@ -354,7 +375,8 @@ test('map workspace rail, results and drawer fit desktop and mobile', async ({ p
       await expect(page.getByTestId('nav-menu')).toBeHidden()
       await expect(page.getByTestId('nav-toggle')).toBeFocused()
     } else {
-      await expect(rail).toHaveCount(0)
+      // Below desktop the navigation is the bottom tab bar instead of the rail.
+      await expect(rail).toHaveClass(/map-navigation--bottom/)
       await expect(page.getByTestId('sheet-handle')).toBeVisible()
     }
     expect(
@@ -519,8 +541,9 @@ for (const width of [1024, 1440]) {
     expect(searchBox.x).toBeGreaterThan(panelBox.x)
     expect(searchBox.x + searchBox.width).toBeLessThanOrEqual(panelBox.x + panelBox.width)
     expect(backBox.y).toBeGreaterThan(searchBox.y + searchBox.height)
-    const bodyBox = await page.getByTestId('panel-body').boundingBox()
-    expect(bodyBox?.y).toBeGreaterThan(searchBox.y + searchBox.height)
+    // The scroll container runs behind search; its content starts below it.
+    const headingBox = await panel.locator('[data-panel-heading]').boundingBox()
+    expect(headingBox?.y).toBeGreaterThan(searchBox.y + searchBox.height)
     await back.click()
     await expect(page).toHaveURL(/\/browse/)
   })
@@ -543,7 +566,7 @@ test('split map panel fits three cards with verification badges on the posters',
       },
     }),
   )
-  await page.goto('/browse?view=map&discovery=1&split=1')
+  await page.goto('/browse?view=map&discovery=1&split=1&results=cards')
   const cards = page.getByTestId('shell-panel').locator('.food-deal-card')
   await expect(cards).toHaveCount(3)
   const boxes = await cards.evaluateAll((elements) =>

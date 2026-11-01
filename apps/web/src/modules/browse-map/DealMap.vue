@@ -32,6 +32,7 @@ import {
   NEAR_PINS_FROM_ZOOM,
   OPEN_GROUP_MAX_ZOOM,
   planMapLayers,
+  REGIONS_FROM_ZOOM,
   STREET_FROM_ZOOM,
 } from '@web/modules/browse-map/map-tiers'
 import { SINGAPORE_BOUNDS, toBoundsTuple } from '@web/modules/browse-map/singapore-bounds'
@@ -130,6 +131,8 @@ const syncPins = (pins: readonly VenuePin[]) => {
 
 // Tapping a group zooms far enough to break it into the next tier down, and no further.
 const openZoomFor = (group: PlacedGroup): number => {
+  // The island-wide count opens onto the regions, not past them.
+  if (group.compact) return REGIONS_FROM_ZOOM
   if (group.kind === 'region') return AREA_FROM_ZOOM
   return group.kind === 'near' ? NEAR_PINS_FROM_ZOOM : STREET_FROM_ZOOM
 }

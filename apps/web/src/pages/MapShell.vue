@@ -359,7 +359,7 @@ onBeforeUnmount(() => document.documentElement.classList.remove('is-canvas'))
     :style="shellStyle"
     data-testid="map-shell"
   >
-    <MapNavigation v-if="(desktopMap && mapPreferences.sidebarVisible.value) || bottomNavigation" :bottom="bottomNavigation" :inert="navigationInert" :panel-open="bottomNavigation ? !mapOnly : !collapsed" @open-panel="panelHidden = false; layout.snap.value = Math.max(1, layout.snap.value)" @menu-change="navigationOpen = $event" />
+    <MapNavigation v-if="desktopMap && mapPreferences.sidebarVisible.value && !bottomNavigation" :inert="navigationInert" :panel-open="!collapsed" @open-panel="panelHidden = false; layout.snap.value = Math.max(1, layout.snap.value)" @menu-change="navigationOpen = $event" />
     <!-- Header first so keyboard users reach the menu and search before the map. -->
     <ShellHeader
       :inert="headerInert"
@@ -476,6 +476,9 @@ onBeforeUnmount(() => document.documentElement.classList.remove('is-canvas'))
       @apply="applyFilters"
       @close="closeSheet"
     />
+
+    <!-- The bottom tab bar comes after the header and panel in the tab order, as it sits below them. -->
+    <MapNavigation v-if="bottomNavigation" bottom :inert="navigationInert" :panel-open="!mapOnly" @open-panel="panelHidden = false; layout.snap.value = Math.max(1, layout.snap.value)" @menu-change="navigationOpen = $event" />
 
     <MapTutorial
       v-if="mapPreferences.tutorialStep.value !== null"
@@ -734,6 +737,11 @@ onBeforeUnmount(() => document.documentElement.classList.remove('is-canvas'))
   /* Initial clearance scrolls away with the content instead of clipping its top edge. */
   padding-top: calc(var(--shell-header-bottom) + 8px);
   scroll-padding-top: calc(var(--shell-header-bottom) + 8px);
+}
+
+/* The back link's negative top margin would tuck it under the floating search field. */
+.map-shell--map-workspace.map-shell--side :deep(.panel-frame__back) {
+  margin-top: 0;
 }
 
 /* Give the results count more breathing room below the floating search field. */

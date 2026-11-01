@@ -87,6 +87,22 @@ const groups = (page: Page) => page.locator('.deal-map-cluster')
 const openGroup = (page: Page, name: string) =>
   page.getByLabel(name, { exact: true }).dispatchEvent('click')
 
+// A phone opens below zoom 10, where one island-wide count replaces the regions; tap it.
+const showRegions = async (page: Page) => {
+  const island = page.locator('.deal-map-cluster[title$=" in Singapore"]')
+  await expect.poll(() => groups(page).count()).toBeGreaterThan(0)
+  if (await island.count()) await island.dispatchEvent('click')
+}
+// Deals the map accounts for, whether summed into region or island groups or shown as pins.
+const mappedDeals = (page: Page) =>
+  page.evaluate(
+    () =>
+      [...document.querySelectorAll('.deal-map-cluster')].reduce(
+        (sum, group) => sum + Number.parseInt(group.getAttribute('title') ?? '0', 10),
+        0,
+      ) + document.querySelectorAll('.deal-map-pin').length,
+  )
+
 const panelHeading = (page: Page) => page.getByTestId('shell-panel').locator('[data-panel-heading]')
 const rows = (page: Page) => page.getByTestId('deal-rows').locator('li')
 
@@ -102,14 +118,14 @@ for (const width of [390, 1280]) {
     }) => {
       await page.goto('/browse')
       await expect(rows(page)).toHaveCount(3)
-      await expect(groups(page)).toHaveCount(3)
+      await expect.poll(() => mappedDeals(page)).toBe(3)
 
       await page.getByTestId('quick-price').click()
       await page.locator('input[type="number"]').fill('5')
       await page.getByTestId('quick-filter-apply').click()
       await expect(page).toHaveURL(/max=5/)
       await expect(rows(page)).toHaveCount(2)
-      await expect(groups(page)).toHaveCount(2)
+      await expect.poll(() => mappedDeals(page)).toBe(2)
 
       await rows(page).first().getByRole('link').click()
       await expect(page).toHaveURL(/\/deals\//)
@@ -146,7 +162,7 @@ for (const width of [390, 1280]) {
         })
       })
       await page.goto('/browse')
-      await expect(groups(page)).toHaveCount(3)
+      await expect.poll(() => mappedDeals(page)).toBe(3)
 
       await page.getByRole('button', { name: 'Ask Lobbie for Lobangs' }).click()
       await expect(page).toHaveURL(/\/ask-lobbie/)
@@ -212,6 +228,7 @@ for (const width of [390, 1280]) {
         route.fulfill({ json: { items, categories: ['BAKERY', 'DRINKS', 'FOOD'] } }),
       )
       await page.goto('/browse')
+      await showRegions(page)
       await openGroup(page, '2 deals in West')
       await expect(page.locator('.deal-map-pin')).toHaveCount(2)
       await page.locator('.deal-map-pin[title^="Synthetic fishball"]').dispatchEvent('click')

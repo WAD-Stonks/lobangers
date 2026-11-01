@@ -79,7 +79,7 @@ onBeforeUnmount(cancel)
 </template>
 
 <style scoped>
-.search-field__submit { display: grid; place-items: center; flex: none; width: 36px; height: 36px; padding: 0; border: 0; border-radius: 50%; color: var(--ink); background: var(--sunny); cursor: pointer; }
+.search-field__submit { display: grid; place-items: center; flex: none; width: var(--hit); height: var(--hit); padding: 0; border: 0; border-radius: 50%; color: var(--ink); background: var(--sunny); cursor: pointer; }
 .search-field__submit:focus-visible { outline: 3px solid var(--sunny-ring); outline-offset: 2px; }
 
 .search-field {

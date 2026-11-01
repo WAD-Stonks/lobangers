@@ -29,6 +29,8 @@ export const NEAR_YOU_LABEL = 'Near you'
 // About a ten-minute walk.
 export const WALK_RADIUS_METRES = 800
 export const AREA_FROM_ZOOM = 13
+// Below this zoom one island-wide count replaces the regional groups.
+export const REGIONS_FROM_ZOOM = 10
 // The zoom the map opens at around the visitor; the walkable deals show as pins from here.
 export const NEAR_PINS_FROM_ZOOM = 15
 export const STREET_FROM_ZOOM = 16
@@ -89,7 +91,7 @@ export const planMapLayers = ({ pins, zoom, user, selectedVenueId }: PlanInput):
   const selected = pins.filter((pin) => pin.id === selectedVenueId)
   const rest = pins.filter((pin) => pin.id !== selectedVenueId)
   // At country/world scale, one island-centred count replaces regional labels.
-  if (zoom < 10) {
+  if (zoom < REGIONS_FROM_ZOOM) {
     return {
       tier,
       loose: selected,

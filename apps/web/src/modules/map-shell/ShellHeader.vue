@@ -294,13 +294,17 @@ defineExpose({ focusAllFilters: () => {
     min-width: 0;
   }
 
+  /* Size the inside so the card border never shrinks the menu toggle below a touch target. */
   .shell-header :deep(.brand-menu__button) {
-    width: 44px;
-    height: 44px;
+    box-sizing: content-box;
+    width: var(--hit);
+    height: var(--hit);
     justify-content: center;
     padding: 0;
   }
 
+  /* The whole home link goes, not just its artwork, so no empty link takes keyboard focus. */
+  .shell-header :deep(.brand-menu__home),
   .shell-header :deep(.brand-menu__mark),
   .shell-header :deep(.brand-menu__word) {
     display: none;

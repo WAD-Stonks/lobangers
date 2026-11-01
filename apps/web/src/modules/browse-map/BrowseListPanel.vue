@@ -231,8 +231,8 @@ const clearAll = () => {
   z-index: -1;
   top: 4px;
   left: 4px;
-  width: 40px;
-  height: 30px;
+  width: var(--hit);
+  height: var(--hit);
   border-radius: var(--radius-pill);
   background: var(--paper-white);
   box-shadow: 0 2px 5px rgb(27 27 31 / .1);
@@ -241,15 +241,15 @@ const clearAll = () => {
 }
 
 .browse-list__view-toggle.is-card::before {
-  transform: translateX(40px);
+  transform: translateX(var(--hit));
 }
 
 .browse-list__view-toggle button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 40px;
-  height: 30px;
+  width: var(--hit);
+  height: var(--hit);
   box-sizing: border-box;
   padding: 6px;
   border: 0;
@@ -316,8 +316,8 @@ const clearAll = () => {
 .browse-list__map-button {
   box-sizing: border-box;
   width: 132px;
-  height: 38px;
-  min-height: 38px;
+  height: var(--hit);
+  min-height: var(--hit);
   padding: 0 12px;
   font-size: var(--text-sm);
   color: var(--ink);

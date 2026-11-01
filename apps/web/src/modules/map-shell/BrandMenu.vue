@@ -180,11 +180,11 @@ const logOut = async () => {
 
 <style scoped>
 .brand-menu--compact .brand-menu__home { display: inline-flex; align-items: center; gap: var(--space-3); text-decoration: none; }
-.brand-menu__toggle { display: grid; place-items: center; align-self: stretch; min-width: 28px; padding: 0; border: 0; background: transparent; border-radius: 50%; cursor: pointer; }
+.brand-menu__toggle { display: grid; place-items: center; align-self: stretch; min-width: var(--hit); padding: 0; border: 0; background: transparent; border-radius: 50%; cursor: pointer; }
 .brand-menu--rail .brand-menu__home, .brand-menu--compact .brand-menu__home { display: none; }
 .brand-menu--rail .brand-menu__toggle, .brand-menu--compact .brand-menu__toggle { width: 100%; }
 
-.brand-menu__button { width: 44px; height: 44px; justify-content: center; padding: 0; border: 0; border-radius: 50%; background: var(--paper-sunk); box-shadow: none; }
+.brand-menu--compact .brand-menu__button { width: 44px; height: 44px; justify-content: center; padding: 0; border: 0; border-radius: 50%; background: var(--paper-sunk); box-shadow: none; }
 .brand-menu--compact .brand-menu__mark,
 .brand-menu--compact .brand-menu__word,
 .brand-menu--compact .brand-menu__count { display: none; }
@@ -197,6 +197,7 @@ const logOut = async () => {
   position: relative;
 }
 
+/* biome-ignore lint/style/noDescendingSpecificity: the earlier, more specific rule is a modifier override for a different state of the same element */
 .brand-menu__button {
   position: relative;
   display: flex;

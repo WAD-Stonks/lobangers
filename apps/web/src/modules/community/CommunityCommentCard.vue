@@ -97,12 +97,12 @@ const postReply = async () => {
 .comment-card__heading { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 6px; font-size: .9375rem; }
 .comment-card__heading time, .comment-card__reply-to { color: var(--ink-muted); font-size: .8125rem; }
 .comment-card__you { padding: 1px 8px; border-radius: 999px; background: var(--paper-hover); color: var(--ink-muted); font-size: .75rem; }
-.comment-card__actions { display: flex; align-items: center; gap: 18px; margin-top: 16px; }
-.comment-card__actions :is(button,a) { display: inline-flex; align-items: center; gap: 5px; padding: 0; border: 0; background: transparent; color: var(--ink-muted); font: inherit; font-size: .875rem; text-decoration: none; cursor: pointer; min-height: 28px; }
+.comment-card__actions { display: flex; align-items: center; gap: 18px; margin-top: 8px; }
+.comment-card__actions :is(button,a) { display: inline-flex; align-items: center; gap: 5px; padding: 0; border: 0; background: transparent; color: var(--ink-muted); font: inherit; font-size: .875rem; text-decoration: none; cursor: pointer; min-height: 44px; }
 .comment-card__actions button[aria-pressed=true] { color: var(--coral-deep); font-weight: 700; }
 .comment-card__actions svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linejoin: round; }
 .comment-card__menu { position: absolute; top: 16px; right: 12px; }
-.comment-card__more { border: 0; background: transparent; color: var(--ink-muted); min-width: 36px; min-height: 36px; letter-spacing: 2px; cursor: pointer; }
+.comment-card__more { border: 0; background: transparent; color: var(--ink-muted); min-width: 44px; min-height: 44px; letter-spacing: 2px; cursor: pointer; }
 .comment-card__menu-items { position: absolute; right: 0; top: 36px; z-index: 3; display: grid; padding: 5px; min-width: 150px; background: var(--paper-white); border: 1px solid var(--hairline); border-radius: 12px; box-shadow: var(--shadow-card); }
 .comment-card__menu-items button { border: 0; border-radius: 8px; padding: 10px; background: transparent; font: inherit; text-align: left; cursor: pointer; white-space: nowrap; }
 .comment-card__menu-items button:hover { background: var(--paper-hover); }
