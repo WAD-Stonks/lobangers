@@ -9,6 +9,7 @@ export type EndingWindow = 'any' | 'today' | 'week'
 
 export type BrowseFilters = {
   readonly q: string
+  readonly location: string
   readonly categories: readonly string[]
   readonly cuisines: readonly DealCuisine[]
   readonly priceMaxMinor: number | null
@@ -36,6 +37,7 @@ export const OFFER_TYPE_LABELS: Record<OfferType, string> = {
 
 export const createDefaultFilters = (): BrowseFilters => ({
   q: '',
+  location: '',
   categories: [],
   cuisines: [],
   priceMaxMinor: null,
@@ -55,12 +57,13 @@ export const updateFilters = <K extends keyof BrowseFilters>(
 export const toggleValue = <T>(list: readonly T[], value: T): readonly T[] =>
   list.includes(value) ? list.filter((item) => item !== value) : [...list, value]
 
-// Badge on "All filters": active filters that search and the quick chips don't already show.
+// Count every selected filter, including quick filters. Search and default validity are excluded.
 export const countSheetFilters = (filters: BrowseFilters): number =>
+  (filters.location.trim() ? 1 : 0) +
   filters.categories.length +
   filters.cuisines.length +
   filters.offerTypes.length +
-  (filters.priceMaxMinor !== null && filters.priceMaxMinor !== QUICK_PRICE_MINOR ? 1 : 0) +
+  (filters.priceMaxMinor !== null ? 1 : 0) +
   (filters.walkMinutes !== null ? 1 : 0) +
-  (filters.ending === 'week' ? 1 : 0) +
+  (filters.ending !== 'any' ? 1 : 0) +
   (filters.validNow ? 0 : 1)

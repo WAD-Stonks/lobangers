@@ -4,15 +4,24 @@ import { ACCOUNT_NAV_LINKS, SITE_MENU_ID, SITE_NAV_LINKS } from '@web/components
 import { TICKET_ICON_PATHS } from '@web/components/ticket-icon'
 import { useSiteMenu } from '@web/components/use-site-menu'
 import { authClient } from '@web/lib/auth-client'
-import ShellIcon from '@web/modules/map-shell/ShellIcon.vue'
+import { useMapPreferences } from '@web/modules/map-shell/map-preferences'
+import ShellIcon, { type ShellIconName } from '@web/modules/map-shell/ShellIcon.vue'
+import { useBreakpoint } from '@web/modules/map-shell/use-breakpoint'
 import { useSavedDeals } from '@web/modules/map-shell/use-saved-deals'
+import { useShellNavigation } from '@web/modules/map-shell/use-shell-navigation'
 import { useToast } from '@web/modules/map-shell/use-toast'
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
+
+const navigationTo = useShellNavigation()
 
 // Logo button that drops down the site menu (it replaces the floating "Log in"). Escape, a
 // click outside and any navigation close it, and focus returns to the button.
+const props = defineProps<{ rail?: boolean; mapTools?: boolean; compact?: boolean }>()
+const emit = defineEmits<{ menuChange: [open: boolean] }>()
 const session = authClient.useSession()
+const mapPreferences = useMapPreferences()
+const breakpoint = useBreakpoint()
 const saved = useSavedDeals()
 const toast = useToast()
 const route = useRoute()
@@ -22,16 +31,21 @@ const root = ref<HTMLElement | null>(null)
 const toggleButton = ref<HTMLElement | null>(null)
 const panel = ref<HTMLElement | null>(null)
 const { isOpen, close, toggle } = useSiteMenu({ root, toggle: toggleButton, panel })
+watch(isOpen, (open) => emit('menuChange', open))
+const closeDrawer = () => { close(); toggleButton.value?.focus() }
+const startTutorial = () => { closeDrawer(); mapPreferences?.startTutorial() }
+const trapDrawer = (event: KeyboardEvent) => {
+  if (!props.rail || event.key !== 'Tab') return
+  const items = [...(panel.value?.querySelectorAll<HTMLElement>('a[href], button') ?? [])]
+    .filter((element) => !element.hasAttribute('disabled'))
+  const first = items[0]
+  const last = items.at(-1)
+  if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus() }
+  else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus() }
+}
 
 const user = computed(() => session.value.data?.user ?? null)
-const initials = computed(() =>
-  (user.value?.name ?? '')
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0]?.toUpperCase())
-    .join(''),
-)
+const initials = computed(() => Array.from(user.value?.name?.trim() ?? '')[0]?.toUpperCase() || '?')
 const savedText = computed(() => `${saved.countLabel.value} saved ${saved.count.value === 1 ? 'deal' : 'deals'}`)
 // Signing in from the menu brings the visitor back to where they were.
 const authQuery = computed(() =>
@@ -42,19 +56,30 @@ const authQuery = computed(() =>
 const visibleSiteLinks = computed(() =>
   SITE_NAV_LINKS.filter((link) => !link.roles || link.roles.includes(user.value?.role ?? '')),
 )
-const menuLinks = computed(() =>
-  user.value ? [...visibleSiteLinks.value, ...ACCOUNT_NAV_LINKS] : visibleSiteLinks.value,
-)
+const menuGroups = computed(() => [
+  { label: 'Your activity', links: user.value ? ACCOUNT_NAV_LINKS.filter((link) => link.to !== '/me/merchant-access') : [] },
+  { label: 'Explore', links: visibleSiteLinks.value.filter((link) => ['/browse', '/deals'].includes(link.to)) },
+  { label: 'Contribute', links: [
+    ...(user.value ? ACCOUNT_NAV_LINKS.filter((link) => link.to === '/me/merchant-access') : []),
+  ] },
+  { label: 'About', links: [{ label: 'About Lobangers', to: '/about' }] },
+  { label: 'Administration', links: visibleSiteLinks.value.filter((link) => link.roles) },
+].filter((group) => group.links.length > 0 || group.label === 'Contribute'))
+const linkIcons: Record<string, ShellIconName> = {
+  '/about': 'help', '/browse': 'map', '/deals': 'ticket', '/saved': 'bookmark',
+  '/me/submissions': 'edit', '/me/merchant-access': 'store',
+  '/admin': 'filters', '/admin/accounts': 'user', '/admin/ingestion': 'list',
+}
 // Exact match including the query: RouterLink's own check ignores it, so "/" and
 // "/?view=list" would both look current.
-const isCurrent = (to: string) => router.resolve(to).fullPath === route.fullPath
+const isCurrent = (to: string) => router.resolve(navigationTo(to)).fullPath === route.fullPath
 
 const logOut = async () => {
   close()
   try {
     await authClient.signOut()
     toast.show('Logged out. Your saved deals are safe.')
-    await router.push({ name: 'browse' })
+    await router.push({ name: 'landing' })
   } catch (error) {
     console.error('Sign out failed', error)
     toast.show('Could not log out. Please try again.', { tone: 'error' })
@@ -63,31 +88,29 @@ const logOut = async () => {
 </script>
 
 <template>
-  <div ref="root" class="brand-menu">
-    <button
-      ref="toggleButton"
-      type="button"
-      class="brand-menu__button lb-card"
-      data-testid="nav-toggle"
-      :aria-controls="SITE_MENU_ID"
-      :aria-expanded="isOpen"
-      :aria-label="isOpen ? 'Close menu' : 'Open menu'"
-      @click="toggle"
-    >
+  <div ref="root" class="brand-menu" :class="{ 'brand-menu--rail': rail, 'brand-menu--compact': compact }">
+    <div class="brand-menu__button lb-card" :aria-expanded="isOpen">
+      <RouterLink class="brand-menu__home" to="/" aria-label="Lobangers home" @click="closeDrawer">
       <span class="brand-menu__mark" aria-hidden="true">
         <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
           <path v-for="d in TICKET_ICON_PATHS" :key="d" :d="d" />
         </svg>
       </span>
       <img :src="logoUrl" alt="" class="brand-menu__word" />
+      </RouterLink>
+      <button ref="toggleButton" type="button" class="brand-menu__toggle" data-testid="nav-toggle" :aria-controls="SITE_MENU_ID" :aria-expanded="isOpen" :aria-label="isOpen ? 'Close menu' : 'Open menu'" @click="toggle">
       <span class="brand-menu__burger" aria-hidden="true">
         <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
           <path class="l1" d="M4 7h16" /><path class="l2" d="M4 12h16" /><path class="l3" d="M4 17h16" />
         </svg>
       </span>
+      </button>
       <span v-if="user && saved.count.value > 0" class="brand-menu__count" aria-hidden="true">{{ saved.countLabel.value }}</span>
-    </button>
+    </div>
 
+    <Transition name="shell-fade">
+      <div v-if="rail && isOpen" class="brand-menu__scrim" aria-hidden="true" @click="closeDrawer" />
+    </Transition>
     <Transition name="shell-menu">
       <nav
         v-if="isOpen"
@@ -95,9 +118,16 @@ const logOut = async () => {
         ref="panel"
         class="brand-menu__panel lb-card"
         aria-label="Site"
+        :role="rail ? 'dialog' : undefined"
+        :aria-modal="rail ? 'true' : undefined"
         data-testid="nav-menu"
+        @keydown="trapDrawer"
       >
-        <RouterLink v-if="user" class="brand-menu__user" to="/me/profile" data-testid="signed-in-name">
+        <div v-if="rail" class="brand-menu__drawer-head">
+          <RouterLink to="/" aria-label="Lobangers home" @click="closeDrawer"><img :src="logoUrl" alt="Lobangers" /></RouterLink>
+          <button class="lb-ctrl lb-ctrl--flat" type="button" aria-label="Close navigation menu" @click="closeDrawer"><ShellIcon name="close" :size="20" /></button>
+        </div>
+        <RouterLink v-if="user" class="brand-menu__user" :to="navigationTo('/me/profile')" data-testid="signed-in-name" @click="closeDrawer">
           <span class="brand-menu__avatar" aria-hidden="true">{{ initials || '?' }}</span>
           <span class="brand-menu__user-text">
             <strong class="lb-text-wrap">{{ user.name }}</strong>
@@ -105,31 +135,43 @@ const logOut = async () => {
           </span>
         </RouterLink>
         <div v-else class="brand-menu__auth">
-          <RouterLink class="lb-btn lb-btn--ink" :to="{ name: 'login', query: authQuery }">Log in</RouterLink>
-          <RouterLink class="lb-btn" :to="{ name: 'register', query: authQuery }">Sign up</RouterLink>
+          <RouterLink class="lb-btn lb-btn--primary" :to="{ name: 'login', query: authQuery }" @click="closeDrawer">Log in</RouterLink>
+          <RouterLink class="lb-btn" :to="{ name: 'register', query: authQuery }" @click="closeDrawer">Sign up</RouterLink>
         </div>
 
-        <RouterLink class="lb-btn lb-btn--primary lb-btn--block" :to="{ name: 'submit-deal' }">
-          <ShellIcon name="plus" :size="18" />Add a deal
-        </RouterLink>
+        <div v-if="mapTools && mapPreferences && breakpoint === 'desktop'" class="brand-menu__map-tools">
+          <button class="brand-menu__sidebar-toggle" type="button" role="switch" :aria-checked="mapPreferences.sidebarVisible.value" data-testid="show-sidebar" @click="mapPreferences.sidebarVisible.value = !mapPreferences.sidebarVisible.value">
+            <ShellIcon name="sidebar" :size="22" /><span>Show sidebar</span><span class="brand-menu__switch" aria-hidden="true" />
+          </button>
+        </div>
 
-        <ul class="brand-menu__links">
-          <li v-for="link in menuLinks" :key="link.to">
-            <RouterLink v-slot="{ href, navigate }" :to="link.to" custom>
+        <ul v-for="group in menuGroups" :key="group.label" class="brand-menu__links" :aria-label="group.label">
+          <li v-if="group.label === 'Contribute'">
+            <RouterLink class="brand-menu__link" :to="navigationTo({ name: 'submit-deal' })" @click="closeDrawer">
+              <ShellIcon name="plus" :size="22" />Add a deal
+            </RouterLink>
+          </li>
+          <li v-for="link in group.links" :key="link.to">
+            <RouterLink v-slot="{ href, navigate }" :to="navigationTo(link.to)" custom>
               <a
                 class="brand-menu__link"
                 :href="href"
                 :aria-current="isCurrent(link.to) ? 'page' : undefined"
-                @click="navigate"
+                @click="navigate($event); closeDrawer()"
               >
+                <ShellIcon :name="linkIcons[link.to] || 'list'" :size="22" />
                 {{ link.label }}
               </a>
             </RouterLink>
           </li>
         </ul>
 
+        <button v-if="mapTools && mapPreferences" class="brand-menu__link brand-menu__help" type="button" data-testid="start-map-tutorial" @click="startTutorial">
+          <ShellIcon name="help" :size="22" />Help
+        </button>
+
         <button v-if="user" type="button" class="brand-menu__link brand-menu__logout" data-testid="log-out" @click="logOut">
-          Log out
+          <ShellIcon name="logout" :size="22" />Log out
         </button>
       </nav>
     </Transition>
@@ -137,10 +179,25 @@ const logOut = async () => {
 </template>
 
 <style scoped>
+.brand-menu--compact .brand-menu__home { display: inline-flex; align-items: center; gap: var(--space-3); text-decoration: none; }
+.brand-menu__toggle { display: grid; place-items: center; align-self: stretch; min-width: var(--hit); padding: 0; border: 0; background: transparent; border-radius: 50%; cursor: pointer; }
+.brand-menu--rail .brand-menu__home, .brand-menu--compact .brand-menu__home { display: none; }
+.brand-menu--rail .brand-menu__toggle, .brand-menu--compact .brand-menu__toggle { width: 100%; }
+
+.brand-menu--compact .brand-menu__button { width: 44px; height: 44px; justify-content: center; padding: 0; border: 0; border-radius: 50%; background: var(--paper-sunk); box-shadow: none; }
+.brand-menu--compact .brand-menu__mark,
+.brand-menu--compact .brand-menu__word,
+.brand-menu--compact .brand-menu__count { display: none; }
+.brand-menu--compact .brand-menu__panel { left: auto; right: 0; transform-origin: top right; }
+@media (max-width: 991.98px) {
+  .brand-menu--compact .brand-menu__panel { left: 0; right: auto; transform-origin: top left; }
+}
+
 .brand-menu {
   position: relative;
 }
 
+/* biome-ignore lint/style/noDescendingSpecificity: the earlier, more specific rule is a modifier override for a different state of the same element */
 .brand-menu__button {
   position: relative;
   display: flex;
@@ -164,6 +221,7 @@ const logOut = async () => {
   transform: scale(0.97);
 }
 
+/* biome-ignore lint/style/noDescendingSpecificity: the earlier, more specific rule is a modifier override for a different state of the same element */
 .brand-menu__mark {
   display: inline-grid;
   place-items: center;
@@ -179,6 +237,7 @@ const logOut = async () => {
   height: 18px;
 }
 
+/* biome-ignore lint/style/noDescendingSpecificity: the earlier, more specific rule is a modifier override for a different state of the same element */
 .brand-menu__word {
   display: block;
   height: 26px;
@@ -221,6 +280,7 @@ const logOut = async () => {
   transform: translateY(-5px) rotate(-45deg);
 }
 
+/* biome-ignore lint/style/noDescendingSpecificity: the earlier, more specific rule is a modifier override for a different state of the same element */
 .brand-menu__count {
   position: absolute;
   top: -6px;
@@ -238,6 +298,7 @@ const logOut = async () => {
   border-radius: var(--radius-pill);
 }
 
+/* biome-ignore lint/style/noDescendingSpecificity: the earlier, more specific rule is a modifier override for a different state of the same element */
 .brand-menu__panel {
   position: absolute;
   top: calc(100% + 10px);
@@ -253,6 +314,115 @@ const logOut = async () => {
   padding: 14px;
   overflow-y: auto;
   transform-origin: top left;
+}
+
+.brand-menu__scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  background: rgb(29 29 34 / 0.4);
+}
+
+.brand-menu__drawer-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--hairline);
+}
+
+.brand-menu__drawer-head img {
+  width: 170px;
+  height: auto;
+}
+
+.brand-menu__map-tools {
+  display: grid;
+  gap: 6px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--hairline);
+}
+
+.brand-menu__sidebar-toggle {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  min-height: 52px;
+  padding: 8px 12px;
+  color: var(--ink);
+  background: transparent;
+  border: 0;
+  border-radius: 12px;
+  font: 500 1rem/1.4 var(--font-sans);
+  cursor: pointer;
+}
+
+.brand-menu__switch {
+  position: relative;
+  margin-left: auto;
+  width: 42px;
+  height: 24px;
+  flex: none;
+  background: var(--track);
+  border-radius: 99px;
+}
+
+.brand-menu__switch::after {
+  content: '';
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 18px;
+  height: 18px;
+  background: var(--paper-white);
+  border-radius: 50%;
+}
+
+.brand-menu__sidebar-toggle[aria-checked='true'] .brand-menu__switch {
+  background: var(--coral-deep);
+}
+
+.brand-menu__sidebar-toggle[aria-checked='true'] .brand-menu__switch::after {
+  transform: translateX(18px);
+}
+
+.brand-menu__sidebar-toggle:focus-visible {
+  outline: 3px solid var(--sunny-ring);
+}
+
+.brand-menu--rail .brand-menu__button {
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  padding: 0;
+  background: transparent;
+  border: 0;
+  border-radius: 50%;
+  box-shadow: none;
+}
+
+.brand-menu--rail .brand-menu__mark,
+.brand-menu--rail .brand-menu__word,
+.brand-menu--rail .brand-menu__count {
+  display: none;
+}
+
+.brand-menu--rail .brand-menu__burger svg {
+  width: 24px;
+  height: 24px;
+}
+
+.brand-menu--rail .brand-menu__panel {
+  position: fixed;
+  inset: 0 auto 0 0;
+  z-index: 2;
+  width: 340px;
+  max-width: calc(100vw - 16px);
+  max-height: none;
+  padding: 20px;
+  border: 0;
+  border-radius: 0;
 }
 
 .brand-menu__user {
@@ -280,7 +450,7 @@ const logOut = async () => {
   height: var(--hit);
   font: 600 0.9375rem/1 var(--font-display);
   background: var(--tint-dessert);
-  border-radius: 14px;
+  border-radius: 50%;
 }
 
 .brand-menu__user-text {
@@ -309,9 +479,10 @@ const logOut = async () => {
   display: flex;
   align-items: center;
   width: 100%;
-  min-height: var(--hit);
-  padding: 0 12px;
-  font: 600 0.875rem/1.2 var(--font-sans);
+  gap: 20px;
+  min-height: 50px;
+  padding: 10px 12px;
+  font: 500 1rem/1.4 var(--font-sans);
   color: var(--ink);
   text-align: left;
   text-decoration: none;
@@ -319,6 +490,20 @@ const logOut = async () => {
   border: 0;
   border-radius: 12px;
   cursor: pointer;
+}
+
+.brand-menu__links + .brand-menu__links {
+  padding-top: 12px;
+  border-top: 1px solid var(--hairline);
+}
+
+.brand-menu__link :deep(.shell-icon),
+.brand-menu__sidebar-toggle :deep(.shell-icon) {
+  color: var(--ink-muted);
+}
+
+.brand-menu__sidebar-toggle:hover {
+  background: var(--paper-hover);
 }
 
 .brand-menu__link:hover {
@@ -330,7 +515,17 @@ const logOut = async () => {
   background: var(--sunny-wash);
 }
 
+.brand-menu--rail .brand-menu__panel > * {
+  flex-shrink: 0;
+}
+
+.brand-menu__help {
+  border-top: 1px solid var(--hairline);
+  border-radius: 0;
+}
+
 .brand-menu__logout {
+  margin-top: auto;
   color: var(--ink-muted);
   border-top: 1px solid var(--hairline);
   border-radius: 0 0 12px 12px;

@@ -2,6 +2,7 @@ import { communityStatus } from '@broke-oclock/contracts/community-policy'
 import type { DealPin, DealVoteSummary } from '@broke-oclock/contracts/deals'
 import { distanceMetres } from '@web/modules/browse-map/distance'
 import type { BrowseFilters, EndingWindow } from '@web/modules/browse-map/filters'
+import { matchesLocation } from '@web/modules/browse-map/location-filter'
 import type { Coordinates, DealRow, VenuePin } from '@web/modules/browse-map/types'
 
 // Client-side filtering. The API only narrows by validity; everything here runs over the loaded
@@ -99,6 +100,7 @@ export const filterVenues = (
   context: FilterContext,
 ): readonly VenuePin[] =>
   pins.filter((pin) => {
+    if (!matchesLocation(pin, filters.location)) return false
     const { position, area } = context
     if (area && !insideArea(pin, area)) return false
     if (filters.walkMinutes === null || !position) return true

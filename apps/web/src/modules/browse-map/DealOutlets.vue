@@ -14,6 +14,7 @@ import { RouterLink } from 'vue-router'
 const COLLAPSED_COUNT = 5
 
 const props = defineProps<{
+  heading?: string
   deal: DealPin
   currentVenueId: string
   position: Coordinates | null
@@ -43,7 +44,7 @@ const hiddenCount = computed(() => outlets.value.length - shown.value.length)
 <template>
   <section v-if="outlets.length > 1" aria-labelledby="deal-outlets-title" data-testid="deal-outlets">
     <h2 id="deal-outlets-title" class="deal-outlets__label">
-      {{ position ? 'Outlets near you' : 'Outlets' }}
+      {{ heading ?? (position ? 'Outlets near you' : 'Outlets') }}
       <span class="deal-outlets__count">{{ outlets.length }}</span>
     </h2>
     <ol class="deal-outlets">

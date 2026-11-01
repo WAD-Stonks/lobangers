@@ -11,6 +11,7 @@ type Session = Readonly<Ref<{ data: { user: { id?: string } } | null }>>
 export const createSavedDeals = (session: Session) => {
   const ids = shallowRef<ReadonlySet<string>>(new Set())
   const hasMore = shallowRef(false)
+  const status = shallowRef<'loading' | 'ready' | 'error'>('ready')
   // Bumped on every load and sign-out, so a slow response for an old session is dropped.
   let latestRequest = 0
 
@@ -20,13 +21,25 @@ export const createSavedDeals = (session: Session) => {
 
   const load = async () => {
     const request = ++latestRequest
+    status.value = 'loading'
     try {
-      const page = await api.account.bookmarks({ limit: BOOKMARK_PAGE_LIMIT })
-      if (request !== latestRequest) return
-      replace(page.items.map((item) => item.dealId))
-      hasMore.value = page.nextCursor !== null
+      const collected: string[] = []
+      let cursor: string | undefined
+      do {
+        const page = await api.account.bookmarks({
+          limit: BOOKMARK_PAGE_LIMIT,
+          ...(cursor ? { cursor } : {}),
+        })
+        if (request !== latestRequest) return
+        collected.push(...page.items.map((item) => item.dealId))
+        cursor = page.nextCursor ?? undefined
+      } while (cursor)
+      replace(collected)
+      hasMore.value = false
+      status.value = 'ready'
     } catch (error) {
-      // The count is a nicety; the saved page itself reports failures.
+      if (request !== latestRequest) return
+      status.value = 'error'
       console.error('Could not load saved deals', error)
     }
   }
@@ -41,6 +54,7 @@ export const createSavedDeals = (session: Session) => {
       latestRequest += 1
       replace([])
       hasMore.value = false
+      status.value = 'ready'
     },
     { immediate: true },
   )
@@ -66,6 +80,7 @@ export const createSavedDeals = (session: Session) => {
 
   return {
     ids,
+    status,
     count: computed(() => ids.value.size),
     // "50+" when the visitor has more bookmarks than the first page holds.
     countLabel: computed(() => `${ids.value.size}${hasMore.value ? '+' : ''}`),

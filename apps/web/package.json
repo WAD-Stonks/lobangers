@@ -16,6 +16,7 @@
     "@broke-oclock/ui": "workspace:*",
     "axios": "1.20.0",
     "bootstrap": "5.3.8",
+    "gsap": "3.15.0",
     "leaflet": "1.9.4",
     "leaflet.markercluster": "1.5.3",
     "three": "0.186.1",

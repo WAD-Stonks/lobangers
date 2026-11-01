@@ -3,6 +3,7 @@ import {
   filtersFromQuery,
   filtersToQuery,
   readSort,
+  readSplit,
   readView,
   withFilters,
 } from '@web/modules/map-shell/filter-query'
@@ -17,6 +18,7 @@ describe('filter query', () => {
   it('round-trips every field exactly', () => {
     const filters = {
       q: 'laksa',
+      location: 'Bedok Mall',
       categories: ['FOOD', 'DRINKS'],
       cuisines: ['JAPANESE', 'KOREAN'] as const,
       priceMaxMinor: 550,
@@ -28,6 +30,7 @@ describe('filter query', () => {
     const query = filtersToQuery(filters)
     expect(query).toEqual({
       q: 'laksa',
+      location: 'Bedok Mall',
       cat: 'food,drinks',
       cuisine: 'japanese,korean',
       max: '5.5',
@@ -85,17 +88,19 @@ describe('filter query', () => {
     expect(filters.categories).toEqual(['FOOD'])
   })
 
-  it('swaps filter keys while keeping the view, sort and other keys', () => {
+  it('swaps filter keys while keeping view, split, sort and other keys', () => {
     const next = withFilters(
-      { view: 'list', sort: 'ending', q: 'old', cat: 'food' },
+      { view: 'map', split: '1', sort: 'ending', q: 'old', cat: 'food' },
       { ...createDefaultFilters(), q: 'new' },
     )
-    expect(next).toEqual({ view: 'list', sort: 'ending', q: 'new' })
+    expect(next).toEqual({ view: 'map', split: '1', sort: 'ending', q: 'new' })
   })
 
   it('reads view and sort with safe defaults', () => {
     expect(readView({ view: 'list' })).toBe('list')
     expect(readView({ view: 'grid' })).toBe('map')
+    expect(readSplit({ split: '1' })).toBe(true)
+    expect(readSplit({ split: '0' })).toBe(false)
     expect(readSort({ sort: 'ending' })).toBe('ending')
     expect(readSort({})).toBe('near')
   })

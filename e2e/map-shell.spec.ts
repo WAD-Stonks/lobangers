@@ -87,8 +87,24 @@ const groups = (page: Page) => page.locator('.deal-map-cluster')
 const openGroup = (page: Page, name: string) =>
   page.getByLabel(name, { exact: true }).dispatchEvent('click')
 
+// A phone opens below zoom 10, where one island-wide count replaces the regions; tap it.
+const showRegions = async (page: Page) => {
+  const island = page.locator('.deal-map-cluster[title$=" in Singapore"]')
+  await expect.poll(() => groups(page).count()).toBeGreaterThan(0)
+  if (await island.count()) await island.dispatchEvent('click')
+}
+// Deals the map accounts for, whether summed into region or island groups or shown as pins.
+const mappedDeals = (page: Page) =>
+  page.evaluate(
+    () =>
+      [...document.querySelectorAll('.deal-map-cluster')].reduce(
+        (sum, group) => sum + Number.parseInt(group.getAttribute('title') ?? '0', 10),
+        0,
+      ) + document.querySelectorAll('.deal-map-pin').length,
+  )
+
 const panelHeading = (page: Page) => page.getByTestId('shell-panel').locator('[data-panel-heading]')
-const rows = (page: Page) => page.getByTestId('nearby-list').locator('li')
+const rows = (page: Page) => page.getByTestId('deal-rows').locator('li')
 
 for (const width of [390, 1280]) {
   test.describe(`at ${width}px`, () => {
@@ -102,12 +118,14 @@ for (const width of [390, 1280]) {
     }) => {
       await page.goto('/browse')
       await expect(rows(page)).toHaveCount(3)
-      await expect(groups(page)).toHaveCount(3)
+      await expect.poll(() => mappedDeals(page)).toBe(3)
 
-      await page.getByRole('button', { name: 'Under $5' }).click()
+      await page.getByTestId('quick-price').click()
+      await page.locator('input[type="number"]').fill('5')
+      await page.getByTestId('quick-filter-apply').click()
       await expect(page).toHaveURL(/max=5/)
       await expect(rows(page)).toHaveCount(2)
-      await expect(groups(page)).toHaveCount(2)
+      await expect.poll(() => mappedDeals(page)).toBe(2)
 
       await rows(page).first().getByRole('link').click()
       await expect(page).toHaveURL(/\/deals\//)
@@ -144,7 +162,7 @@ for (const width of [390, 1280]) {
         })
       })
       await page.goto('/browse')
-      await expect(groups(page)).toHaveCount(3)
+      await expect.poll(() => mappedDeals(page)).toBe(3)
 
       await page.getByRole('button', { name: 'Ask Lobbie for Lobangs' }).click()
       await expect(page).toHaveURL(/\/ask-lobbie/)
@@ -210,6 +228,7 @@ for (const width of [390, 1280]) {
         route.fulfill({ json: { items, categories: ['BAKERY', 'DRINKS', 'FOOD'] } }),
       )
       await page.goto('/browse')
+      await showRegions(page)
       await openGroup(page, '2 deals in West')
       await expect(page.locator('.deal-map-pin')).toHaveCount(2)
       await page.locator('.deal-map-pin[title^="Synthetic fishball"]').dispatchEvent('click')
@@ -226,7 +245,9 @@ for (const width of [390, 1280]) {
     test('filters sheet: live count, badge, and focus back on Escape', async ({ page }) => {
       await page.goto('/browse')
       await expect(rows(page)).toHaveCount(3)
-      const allFilters = page.getByTestId('all-filters')
+      const allFilters = page.locator(
+        '[data-testid="all-filters"]:visible, [data-testid="mobile-all-filters"]:visible',
+      )
       await allFilters.click()
       const sheet = page.getByRole('dialog', { name: 'Filters' })
       await expect(sheet).toBeVisible()
@@ -235,7 +256,11 @@ for (const width of [390, 1280]) {
       await expect(page.getByTestId('filter-show')).toHaveText('Show 1 deal')
       await page.getByTestId('filter-show').click()
       await expect(sheet).toBeHidden()
-      await expect(page.getByTestId('filter-badge')).toContainText('1')
+      await expect(
+        page.locator(
+          '[data-testid="filter-badge"]:visible, [data-testid="mobile-filter-badge"]:visible',
+        ),
+      ).toContainText('1')
 
       await allFilters.click()
       await expect(sheet).toBeVisible()
@@ -289,24 +314,15 @@ for (const width of [390, 1280]) {
   })
 }
 
-test('hot card: rotates, pauses and opens its deal', async ({ page }) => {
-  // A fake clock instead of sleeps: time only moves when the test says so.
-  await page.clock.install()
+test('desktop map keeps promotions out of the map and opens deals from its results drawer', async ({
+  page,
+}) => {
   await page.setViewportSize({ width: 1280, height: 844 })
   await mockApi(page)
   await page.goto('/browse')
-  const position = page.getByTestId('hot-position')
-  await expect(position).toHaveText('1 of 3')
-  await page.mouse.move(1200, 60)
-  await page.clock.runFor(4600)
-  await expect(position).toHaveText('2 of 3')
-
-  await page.getByTestId('hot-pause').click()
-  await page.mouse.move(1200, 60)
-  await page.clock.runFor(15_000)
-  await expect(position).toHaveText('2 of 3')
-
-  const title = (await page.getByTestId('hot-open').locator('strong').textContent()) ?? ''
-  await page.getByTestId('hot-open').click()
+  await expect(page.getByTestId('map-navigation')).toBeVisible()
+  await expect(page.getByTestId('hot-card')).toHaveCount(0)
+  const title = (await rows(page).first().locator('.deal-rows__title').textContent()) ?? ''
+  await rows(page).first().getByRole('link').click()
   await expect(panelHeading(page)).toHaveText(title)
 })

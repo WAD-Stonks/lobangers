@@ -81,14 +81,13 @@ describe('site header pill', () => {
     expect(menu.attributes('aria-label')).toBe('Site')
     const hrefs = menu.findAll('a').map((link) => link.attributes('href'))
     expect(hrefs).toEqual([
+      '/',
       '/login?redirect=/browse',
       '/register?redirect=/browse',
-      '/add',
-      '/',
       '/browse',
       '/deals',
       '/add',
-      '/getting-started',
+      '/about',
     ])
     expect(menu.get('a[href="/browse"]').attributes('aria-current')).toBe('page')
     wrapper.unmount()
@@ -98,10 +97,11 @@ describe('site header pill', () => {
     const { router, wrapper } = await mountAt('/browse')
 
     await wrapper.get(TOGGLE).trigger('click')
-    await wrapper.get(`${MENU} a[href="/getting-started"]`).trigger('click')
+    await wrapper.get(`${MENU} a[href="/deals"]`).trigger('click')
     await flushPromises()
 
-    expect(router.currentRoute.value.path).toBe('/getting-started')
+    expect(router.currentRoute.value.path).toBe('/browse')
+    expect(router.currentRoute.value.query.view).toBe('list')
     expect(wrapper.find(MENU).exists()).toBe(false)
     expect(wrapper.get(TOGGLE).attributes('aria-expanded')).toBe('false')
     wrapper.unmount()
