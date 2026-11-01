@@ -35,7 +35,7 @@ export const REGIONS_FROM_ZOOM = 10
 export const NEAR_PINS_FROM_ZOOM = 15
 export const STREET_FROM_ZOOM = 16
 // Tapping a group never zooms in past this, even for a group of outlets on one street.
-export const OPEN_GROUP_MAX_ZOOM = 17
+export const OPEN_GROUP_MAX_ZOOM = 16
 
 export const tierFor = (zoom: number): MapTier => {
   if (zoom >= STREET_FROM_ZOOM) return 'street'
