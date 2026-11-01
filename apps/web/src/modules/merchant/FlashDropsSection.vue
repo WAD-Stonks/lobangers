@@ -61,7 +61,8 @@ const showFormWith = async (initial: FlashDropFormState, drop: MerchantFlashDrop
   showForm.value = true
   // Bring the form into view and move focus to its heading.
   await nextTick()
-  formHolder.value?.scrollIntoView?.({ behavior: 'smooth', block: 'start' })
+  const reduced = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false
+  formHolder.value?.scrollIntoView?.({ behavior: reduced ? 'auto' : 'smooth', block: 'start' })
   formHolder.value?.querySelector<HTMLElement>('h3')?.focus({ preventScroll: true })
 }
 
@@ -109,7 +110,7 @@ const sendDrop = async (form: FlashDropFormState) => {
       : await createFlashDrop(body)
     putDrop(sent)
     showForm.value = false
-    successMessage.value = `"${sent.dealTitle}" was sent for review. LoBangers usually replies within 30 minutes.`
+    successMessage.value = `“${sent.dealTitle}” was sent for review. LoBangers usually replies within 30 minutes.`
   } catch (error) {
     serverError.value = flashDropErrorMessage(error, 'Could not send the flash drop. Please try again.')
   } finally {
@@ -121,8 +122,8 @@ const sendDrop = async (form: FlashDropFormState) => {
 const confirmEnd = async (drop: MerchantFlashDrop) => {
   const inReview = drop.status === 'IN_REVIEW'
   const question = inReview
-    ? `Withdraw the flash drop for "${drop.dealTitle}"? LoBangers will stop reviewing it.`
-    : `End the flash drop for "${drop.dealTitle}" now? People will stop seeing the banner.`
+    ? `Withdraw the flash drop for “${drop.dealTitle}”? LoBangers will stop reviewing it.`
+    : `End the flash drop for “${drop.dealTitle}” now? People will stop seeing the banner.`
   if (!window.confirm(question)) return
   busyId.value = drop.id
   errorMessage.value = ''
@@ -130,8 +131,8 @@ const confirmEnd = async (drop: MerchantFlashDrop) => {
   try {
     putDrop(await endFlashDrop(drop))
     successMessage.value = inReview
-      ? `The flash drop for "${drop.dealTitle}" was withdrawn.`
-      : `The flash drop for "${drop.dealTitle}" has ended.`
+      ? `The flash drop for “${drop.dealTitle}” was withdrawn.`
+      : `The flash drop for “${drop.dealTitle}” has ended.`
   } catch (error) {
     errorMessage.value = flashDropErrorMessage(error, 'Could not end the flash drop. Please try again.')
   } finally {
@@ -147,8 +148,8 @@ const approveDemo = (drop: MerchantFlashDrop) => {
   putDrop(approved)
   successMessage.value =
     approved.status === 'LIVE'
-      ? `Demo: LoBangers approved "${drop.dealTitle}". It is live now.`
-      : `Demo: LoBangers approved "${drop.dealTitle}". It goes live at its start time.`
+      ? `Demo: LoBangers approved “${drop.dealTitle}”. It is live now.`
+      : `Demo: LoBangers approved “${drop.dealTitle}”. It goes live at its start time.`
 }
 const startDemo = (drop: MerchantFlashDrop) => {
   putDrop(simulateStart(drop))
@@ -194,7 +195,7 @@ onBeforeUnmount(() => clearInterval(timer))
       />
     </div>
 
-    <p v-if="loading" class="text-secondary">Loading your flash drops…</p>
+    <p v-if="loading" class="text-secondary" role="status">Loading your flash drops…</p>
     <FlashDropList
       v-else
       :drops="drops"

@@ -89,6 +89,10 @@ async function syntheticBoundary(page: Page) {
       data = dealsResponseSchema.parse({ items: [], categories: [] })
     else if (pathname === '/api/account/bookmarks' && method === 'GET')
       data = bookmarksResponseSchema.parse({ items: [], nextCursor: null })
+    // The map shell also reads live Flash Drops and the visitor's codes; none here.
+    else if (pathname === '/api/flash-drops/active' && method === 'GET')
+      data = { serverTime: new Date().toISOString(), items: [] }
+    else if (pathname === '/api/flash-drops/codes' && method === 'GET') data = { items: [] }
     else {
       observed.unexpected.push(`${method} ${pathname}`)
       await route.abort('blockedbyclient')
@@ -293,6 +297,14 @@ async function syntheticBoundary(page: Page) {
       const grantId = pathname.split('/').at(-1)
       path = 'platformAdmin.revokeStall'
       input = { grantId, ...revokeStallBodySchema.parse(body) }
+    } else if (pathname === '/api/flash-drops/active' || pathname === '/api/flash-drops/codes') {
+      // The map shell also reads live Flash Drops and the visitor's codes; none here.
+      await route.fulfill({
+        json: pathname.endsWith('/active')
+          ? { serverTime: new Date().toISOString(), items: [] }
+          : { items: [] },
+      })
+      return
     } else {
       observed.unexpected.push(`${method} ${pathname}`)
       await route.fulfill({

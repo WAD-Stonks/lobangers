@@ -34,6 +34,7 @@ const model = defineModel<T>({ required: true })
 <style scoped>
 .chip {
   min-width: 4.5rem;
+  touch-action: manipulation;
 }
 /* The chosen chip is dark, like the app's other selected pills. */
 .btn-check:checked + .chip {

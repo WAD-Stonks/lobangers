@@ -1,0 +1,209 @@
+/* Hungry Nearby: people stand on the map as small lobangers. No circle, no pin stem and no
+   bobbing, so they never read as deal pins (dark ovals). */
+
+.nearby-person-anchor {
+  background: none;
+  border: 0;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.nearby-person-anchor:focus-visible {
+  outline: none;
+}
+
+.nearby-person {
+  position: relative;
+  display: block;
+  width: 34px;
+  height: 34px;
+  transform-origin: 50% 100%;
+}
+
+/* A 44px tap target around the 34px figure. */
+.nearby-person::before {
+  position: absolute;
+  inset: -5px;
+  content: "";
+}
+
+/* A soft contact shadow so the figure stands on the ground rather than floating. */
+.nearby-person::after {
+  position: absolute;
+  bottom: -1px;
+  left: 50%;
+  z-index: -1;
+  width: 22px;
+  height: 6px;
+  content: "";
+  background: rgba(27, 27, 31, 0.22);
+  border-radius: 50%;
+  filter: blur(1.5px);
+  transform: translateX(-50%);
+}
+
+.nearby-person__img {
+  position: relative;
+  display: block;
+  width: 34px;
+  height: 34px;
+  object-fit: contain;
+  pointer-events: none;
+  user-select: none;
+  filter: drop-shadow(0 1px 0 rgba(255, 255, 255, 0.9))
+    drop-shadow(0 1px 1.5px rgba(27, 27, 31, 0.25));
+}
+
+/* The viewer's own lobanger stands on a blue ground ellipse. */
+.nearby-person__ground {
+  position: absolute;
+  bottom: -5px;
+  left: 50%;
+  width: 36px;
+  height: 12px;
+  background: var(--sky-soft);
+  border: 2px solid var(--sky);
+  border-radius: 50%;
+  transform: translateX(-50%);
+}
+
+.nearby-person--self::after {
+  display: none;
+}
+
+.nearby-person__label {
+  position: absolute;
+  bottom: calc(100% + 4px);
+  left: 50%;
+  padding: 2px 8px;
+  font-family: var(--font-sans);
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1.4;
+  color: var(--paper-white);
+  white-space: nowrap;
+  pointer-events: none;
+  background: var(--sky-strong);
+  border-radius: var(--radius-pill);
+  box-shadow: var(--shadow-pill);
+  opacity: 0;
+  transform: translate(calc(-50% + var(--label-shift, 0px)), 3px);
+  transition:
+    opacity 150ms ease,
+    transform 150ms var(--ease-out);
+}
+
+.nearby-person--self .nearby-person__label {
+  bottom: calc(100% + 2px);
+  padding: 0 7px;
+  font-size: 0.6875rem;
+  opacity: 1;
+  transform: translate(calc(-50% + var(--label-shift, 0px)), 0);
+}
+
+.nearby-person-anchor:hover .nearby-person__label,
+.nearby-person-anchor:focus-visible .nearby-person__label,
+.nearby-person.is-labelled .nearby-person__label {
+  opacity: 1;
+  transform: translate(calc(-50% + var(--label-shift, 0px)), 0);
+}
+
+.nearby-person-anchor:focus-visible .nearby-person__img {
+  outline: 3px solid var(--sunny-ring);
+  outline-offset: 2px;
+  border-radius: 10px;
+}
+
+/* The poke: a quick squash and spring back from the feet. */
+.nearby-person.is-poked {
+  animation: nearby-poke 240ms var(--ease-out);
+}
+
+@keyframes nearby-poke {
+  0% {
+    transform: scale(1, 1);
+  }
+  35% {
+    transform: scale(1.18, 0.78);
+  }
+  70% {
+    transform: scale(0.94, 1.06);
+  }
+  100% {
+    transform: scale(1, 1);
+  }
+}
+
+/* Several people in one patch at lower zoom: overlapping faces and a count. */
+.nearby-chip-anchor {
+  background: none;
+  border: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.nearby-chip {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  min-height: 34px;
+  padding: 3px 8px 3px 4px;
+  font-family: var(--font-sans);
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--sky-strong);
+  white-space: nowrap;
+  cursor: pointer;
+  background: var(--paper-white);
+  border: 2px solid var(--sky);
+  border-radius: var(--radius-pill);
+  box-shadow: var(--shadow-pill);
+  transform: translate(-50%, 50%);
+}
+
+.nearby-chip::before {
+  position: absolute;
+  inset: -6px;
+  content: "";
+}
+
+.nearby-chip__faces {
+  display: inline-flex;
+}
+
+.nearby-chip__face {
+  width: 24px;
+  height: 24px;
+  margin-left: -8px;
+  object-fit: contain;
+  background: var(--sky-soft);
+  border: 1.5px solid var(--paper-white);
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.nearby-chip__face:first-child {
+  margin-left: 0;
+}
+
+.nearby-chip__count {
+  padding-left: 2px;
+  font-variant-numeric: tabular-nums;
+}
+
+.nearby-chip-anchor:focus-visible .nearby-chip {
+  outline: 3px solid var(--sunny-ring);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nearby-person.is-poked {
+    animation: none;
+  }
+
+  .nearby-person__label {
+    transition: none;
+  }
+}

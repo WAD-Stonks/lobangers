@@ -83,7 +83,7 @@ const shownError = computed(() => formError.value || props.serverError)
 <template>
   <form class="card card-body mb-4" novalidate aria-labelledby="flash-form-title" @submit.prevent="send">
     <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
-      <h3 id="flash-form-title" class="h4 mb-0" tabindex="-1">
+      <h3 id="flash-form-title" class="h4 mb-0 title" tabindex="-1">
         {{ editing ? 'Edit and resend flash drop' : 'New flash drop' }}
       </h3>
       <FakeBadge v-if="sample" />
@@ -93,6 +93,7 @@ const shownError = computed(() => formError.value || props.serverError)
     <select
       id="flash-deal"
       v-model="form.dealId"
+      name="dealId"
       class="form-select mb-3"
       :disabled="editing"
       @change="onDealChange"
@@ -107,11 +108,13 @@ const shownError = computed(() => formError.value || props.serverError)
         <input
           id="flash-price"
           v-model.number="form.priceDollars"
+          name="priceDollars"
+          autocomplete="off"
           type="number"
           inputmode="decimal"
           min="0.01"
           step="0.01"
-          placeholder="e.g. 1.50"
+          placeholder="e.g. 1.50…"
           class="form-control"
           aria-describedby="flash-price-hint"
         />
@@ -162,6 +165,7 @@ const shownError = computed(() => formError.value || props.serverError)
       <input
         id="flash-start-at"
         v-model="form.startLocal"
+        name="startAt"
         type="datetime-local"
         class="form-control"
         :min="limits.min"
@@ -196,10 +200,14 @@ const shownError = computed(() => formError.value || props.serverError)
 </template>
 
 <style scoped>
+.title {
+  text-wrap: balance;
+}
 .step {
   width: var(--hit);
   padding: 0;
   font-size: 1.125rem;
+  touch-action: manipulation;
 }
 .codes {
   min-width: 3rem;

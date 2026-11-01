@@ -34,8 +34,8 @@ describe('flash format', () => {
     expect(savingText(400, 400)).toBeNull()
     expect(codesLeftText({ codesLeft: 1 })).toBe('1 code left')
     expect(codesLeftText({ codesLeft: 12 })).toBe('12 codes left')
-    expect(radiusText(500)).toBe('500 m')
-    expect(radiusText(1000)).toBe('1 km')
+    expect(radiusText(500)).toBe('500\u00a0m')
+    expect(radiusText(1000)).toBe('1\u00a0km')
   })
 
   it('counts down in minutes, then hours, and never below zero', () => {

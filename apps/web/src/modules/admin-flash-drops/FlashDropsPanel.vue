@@ -19,10 +19,10 @@ import {
   type DeniedCode,
   useAdminFlashDrops,
 } from '@web/modules/admin-flash-drops/use-admin-flash-drops'
-import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 
 const props = defineProps<{ client?: AdminFlashDropsClient; initialView?: FlashDropView }>()
-const emit = defineEmits<{ denied: [code: DeniedCode] }>()
+const emit = defineEmits<{ denied: [code: DeniedCode]; viewChange: [view: FlashDropView] }>()
 const state = useAdminFlashDrops(props.client ?? api.flashDrops.admin, (code) => emit('denied', code))
 const { view, items, counts, status, updatedAt, selected, choices, activeDecision, noteRequired, note, confirmed, pending, problem, notice, canSubmit } = state
 const tabRefs = ref<HTMLButtonElement[]>([])
@@ -30,9 +30,9 @@ const detailRef = ref<HTMLElement | null>(null)
 const hasDemo = computed(() => items.value.some((drop) => drop.demo))
 const countFor = (target: FlashDropView) => counts.value[target]
 const metrics = computed(() => [
-  { view: 'review' as const, label: 'Waiting for review', icon: 'flash', tone: '', count: counts.value.review, hint: 'Approve before the start time →' },
-  { view: 'live' as const, label: 'Live now', icon: 'live', tone: 'live', count: counts.value.live, hint: `${counts.value.claimedToday} codes claimed today` },
-  { view: 'ended' as const, label: 'Ended, sent back or stopped', icon: 'audit', tone: 'neutral', count: counts.value.ended, hint: 'Last 7 days' },
+  { view: 'review' as const, label: 'Waiting for review', icon: 'flash', tone: '', count: counts.value.review, hint: 'Approve before the start time', arrow: true },
+  { view: 'live' as const, label: 'Live now', icon: 'live', tone: 'live', count: counts.value.live, hint: `${counts.value.claimedToday} codes claimed today`, arrow: false },
+  { view: 'ended' as const, label: 'Ended, sent back or stopped', icon: 'audit', tone: 'neutral', count: counts.value.ended, hint: 'Last 7 days', arrow: false },
 ])
 const showView = (target: FlashDropView) => {
   if (pending.value) return
@@ -58,6 +58,8 @@ const pick = async (id: string) => {
   detailRef.value?.scrollIntoView?.({ block: 'start', behavior: reduced ? 'auto' : 'smooth' })
 }
 onMounted(() => state.load(props.initialView ?? 'review'))
+// The page mirrors the open view into ?view= so it can be shared and survives a reload.
+watch(view, (current) => emit('viewChange', current))
 onUnmounted(state.dispose)
 </script>
 
@@ -66,7 +68,7 @@ onUnmounted(state.dispose)
     <div class="fd-toolbar">
       <div>
         <p class="fd-description">Check merchant flash drops before they go live, and stop any that go wrong.</p>
-        <p class="fd-updated"><template v-if="updatedAt">Last updated <time :datetime="updatedAt.toISOString()">{{ formatUpdated(updatedAt) }}</time> (SGT)</template><template v-else>Checking the latest flash drops.</template></p>
+        <p class="fd-updated"><template v-if="updatedAt">Last updated <time :datetime="updatedAt.toISOString()">{{ formatUpdated(updatedAt) }}</time> (SGT)</template><template v-else>Checking the latest flash drops…</template></p>
       </div>
       <button type="button" class="btn btn-outline-primary" data-testid="flash-refresh" :disabled="status === 'loading' || pending" @click="state.refresh()"><span aria-hidden="true" class="fd-refresh-symbol">↻</span>{{ status === 'loading' ? 'Refreshing…' : 'Refresh' }}</button>
     </div>
@@ -74,10 +76,10 @@ onUnmounted(state.dispose)
     <p v-if="notice" class="fd-notice fd-success" role="status">{{ notice }}</p>
     <ul class="fd-metrics" aria-label="Flash drop summary">
       <li v-for="metric in metrics" :key="metric.view">
-        <button type="button" class="fd-metric" :data-current="view === metric.view" :aria-controls="'flash-queue'" @click="showView(metric.view)">
+        <button type="button" class="fd-metric" :data-current="view === metric.view" :aria-pressed="view === metric.view" :aria-controls="'flash-queue'" @click="showView(metric.view)">
           <span class="fd-metric-label"><span>{{ metric.label }}</span><span class="fd-metric-icon" :class="metric.tone && `fd-metric-icon--${metric.tone}`"><AdminIcon :name="metric.icon" /></span></span>
           <strong>{{ metric.count }}</strong>
-          <span class="fd-metric-hint">{{ metric.hint }}</span>
+          <span class="fd-metric-hint">{{ metric.hint }}<span v-if="metric.arrow" aria-hidden="true"> →</span></span>
         </button>
       </li>
     </ul>

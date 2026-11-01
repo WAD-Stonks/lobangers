@@ -138,6 +138,18 @@ const checkPrice = (form: FlashDropFormState, deal: MerchantDeal) => {
   return ''
 }
 
+// A deal's whole-day 'YYYY-MM-DD' as "1 Dec 2026". Read as UTC so the day never shifts.
+const dealDayFormat = new Intl.DateTimeFormat('en-SG', {
+  day: 'numeric',
+  month: 'short',
+  year: 'numeric',
+  timeZone: 'UTC',
+})
+const dealDayText = (day: string) => {
+  const date = new Date(`${day}T00:00:00Z`)
+  return Number.isNaN(date.getTime()) ? day : dealDayFormat.format(date)
+}
+
 const checkStart = (form: FlashDropFormState, deal: MerchantDeal, now: Date) => {
   const start = startTimeOf(form, now)
   if (start === null) return 'Choose when the drop starts.'
@@ -150,7 +162,7 @@ const checkStart = (form: FlashDropFormState, deal: MerchantDeal, now: Date) => 
   // The deal's own dates are whole days ('YYYY-MM-DD') in the merchant's time zone.
   const end = new Date(start.getTime() + form.durationMinutes * MINUTE_MS)
   if (deal.startDate && start.toLocaleDateString('en-CA') < deal.startDate) {
-    return `This deal only starts on ${deal.startDate}. Choose a time while it runs.`
+    return `This deal only starts on ${dealDayText(deal.startDate)}. Choose a time while it runs.`
   }
   if (deal.endDate && end.toLocaleDateString('en-CA') > deal.endDate) {
     return 'Choose one of your deals that runs for the whole drop.'
@@ -188,7 +200,7 @@ export const toFlashDropBody = (form: FlashDropFormState, now: Date): MerchantFl
 // ----- Text for showing a drop -----
 
 export const radiusLabel = (metres: number) =>
-  metres >= 1000 ? `${metres / 1000} km` : `${metres} m`
+  metres >= 1000 ? `${metres / 1000}\u00a0km` : `${metres}\u00a0m`
 
 export const durationMinutesOf = (drop: MerchantFlashDrop) =>
   Math.round((Date.parse(drop.endsAt) - Date.parse(drop.startsAt)) / MINUTE_MS)

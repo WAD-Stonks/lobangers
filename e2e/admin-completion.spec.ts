@@ -293,7 +293,8 @@ for (const width of [320, 390, 768, 1024, 1440]) {
         accent: 'rgb(243, 203, 69)',
         navFill: 'rgb(241, 242, 244)',
         navWeight: '650',
-        navRows: 7,
+        // Overview, Deals, Flash drops, Catalogue, Moderation, Accounts, Ingestion, Audit.
+        navRows: 8,
         surface: 'rgb(255, 255, 255)',
         canvas: path === '/admin' ? 'rgb(247, 248, 250)' : 'rgb(248, 249, 251)',
         radius: path === '/admin' ? '14px' : '8px',

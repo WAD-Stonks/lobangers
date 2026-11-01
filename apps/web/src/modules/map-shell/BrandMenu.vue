@@ -128,6 +128,20 @@ const logOut = async () => {
           <ShellIcon name="plus" :size="18" />Add a deal
         </RouterLink>
 
+        <!-- Makan Squad: start a room or join a friend's with its code. -->
+        <RouterLink class="brand-menu__codes brand-menu__squad" :to="{ name: 'squad-new' }" data-testid="menu-squad-new">
+          <span class="brand-menu__codes-icon brand-menu__squad-icon" aria-hidden="true">
+            <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M4 11h16a8 8 0 0 1-16 0Z" /><path d="M2 11h20" /><path d="M14 7l4-4" />
+            </svg>
+          </span>
+          <span class="brand-menu__codes-text">
+            <strong>Start a Squad room</strong>
+            <span class="lb-meta">Vote on deals with friends</span>
+          </span>
+        </RouterLink>
+        <RouterLink class="brand-menu__link" :to="{ name: 'squad-join' }" data-testid="menu-squad-join">Join with a code</RouterLink>
+
         <RouterLink v-if="user" class="brand-menu__codes" :to="{ name: 'codes' }" data-testid="my-codes-link">
           <span class="brand-menu__codes-icon" aria-hidden="true">
             <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
@@ -138,7 +152,7 @@ const logOut = async () => {
             <strong>My codes</strong>
             <span class="lb-meta">{{ codesText }}</span>
           </span>
-          <span v-if="activeCodeCount > 0" class="brand-menu__codes-count">{{ activeCodeCount }}</span>
+          <span v-if="activeCodeCount > 0" class="brand-menu__codes-count" aria-hidden="true">{{ activeCodeCount }}</span>
         </RouterLink>
 
         <ul class="brand-menu__links">
@@ -300,6 +314,20 @@ const logOut = async () => {
   min-width: 0;
 }
 
+/* The Squad row wears the same sunny as the header's Room button. */
+.brand-menu__squad {
+  background: var(--sunny-wash);
+}
+
+.brand-menu__squad:hover {
+  background: var(--sunny-soft);
+}
+
+.brand-menu__squad-icon {
+  color: var(--ink);
+  background: var(--sunny);
+}
+
 .brand-menu__codes-count {
   margin-left: auto;
   min-width: 24px;
@@ -429,6 +457,7 @@ const logOut = async () => {
 
 .brand-menu__button:focus-visible,
 .brand-menu__link:focus-visible,
+.brand-menu__codes:focus-visible,
 .brand-menu__user:focus-visible {
   outline: 3px solid var(--sunny-ring);
   outline-offset: 2px;

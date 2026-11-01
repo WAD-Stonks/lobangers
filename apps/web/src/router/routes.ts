@@ -6,6 +6,9 @@ import BrowseListPanel from '@web/modules/browse-map/BrowseListPanel.vue'
 import DealPanel from '@web/modules/browse-map/DealPanel.vue'
 import MyCodesPanel from '@web/modules/flash-drop/MyCodesPanel.vue'
 import LobbiePanel from '@web/modules/lobbie/LobbiePanel.vue'
+import SquadCreatePanel from '@web/modules/squad/SquadCreatePanel.vue'
+import SquadJoinPanel from '@web/modules/squad/SquadJoinPanel.vue'
+import SquadRoomPanel from '@web/modules/squad/SquadRoomPanel.vue'
 import VenuePanel from '@web/modules/venues-feed/VenuePanel.vue'
 import AdminAuditPage from '@web/pages/AdminAuditPage.vue'
 import AdminCataloguePage from '@web/pages/AdminCataloguePage.vue'
@@ -91,6 +94,25 @@ const routes: RouteRecordRaw[] = [
       // Signed-out visitors see a prompt to log in rather than a redirect, so the menu link
       // always lands somewhere that explains what codes are.
       { path: '/codes', name: 'codes', component: MyCodesPanel, meta: { panelLabel: 'My codes' } },
+      // Static Squad paths come first: "join" is four letters, so it would also fit a code.
+      {
+        path: '/squad/new',
+        name: 'squad-new',
+        component: SquadCreatePanel,
+        meta: { requiresAuth: true, panelLabel: 'Start a Squad room' },
+      },
+      {
+        path: '/squad/join',
+        name: 'squad-join',
+        component: SquadJoinPanel,
+        meta: { panelLabel: 'Join a Squad room' },
+      },
+      {
+        path: '/squad/:code([A-Za-z]{4})',
+        name: 'squad-room',
+        component: SquadRoomPanel,
+        meta: { panelLabel: 'Squad room' },
+      },
     ],
   },
   { path: '/', name: 'landing', component: LandingPage, meta: { layout: 'landing' } },

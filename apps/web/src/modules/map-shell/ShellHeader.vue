@@ -4,10 +4,11 @@ import { updateFilters } from '@web/modules/browse-map/filters'
 import BrandMenu from '@web/modules/map-shell/BrandMenu.vue'
 import QuickChips from '@web/modules/map-shell/QuickChips.vue'
 import SearchField from '@web/modules/map-shell/SearchField.vue'
+import SquadHeaderButton from '@web/modules/squad/SquadHeaderButton.vue'
 import { ref } from 'vue'
 
-// Floating header: menu button and search on the first row, quick chips underneath. On
-// desktop it sits in the panel column; below 992px it spans the screen.
+// Floating header: menu button, search and the Squad room button on the first row, quick
+// chips underneath. On desktop it sits in the panel column; below 992px it spans the screen.
 const props = withDefaults(
   defineProps<{ filters: BrowseFilters; sheetOpen: boolean; lobbieOpen?: boolean }>(),
   { lobbieOpen: false },
@@ -31,6 +32,7 @@ defineExpose({ focusAllFilters: () => chips.value?.focusAllFilters() })
   <header class="shell-header" data-testid="shell-header">
     <BrandMenu />
     <SearchField class="shell-header__search" :value="filters.q" @search="onSearch" />
+    <SquadHeaderButton class="shell-header__room" />
     <QuickChips
       ref="chips"
       class="shell-header__chips"
@@ -52,7 +54,7 @@ defineExpose({ focusAllFilters: () => chips.value?.focusAllFilters() })
   z-index: 30;
   display: grid;
   --header-gap: 10px;
-  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-columns: auto minmax(0, 1fr) auto;
   gap: var(--header-gap);
   align-items: center;
   width: var(--header-w);
@@ -68,8 +70,15 @@ defineExpose({ focusAllFilters: () => chips.value?.focusAllFilters() })
 }
 
 @media (min-width: 992px) {
-  .shell-header__search {
+  .shell-header__room {
     margin-right: var(--header-gap);
+  }
+}
+
+/* The smallest phones: a tighter gap so the search keeps a usable width beside Room. */
+@media (max-width: 399.98px) {
+  .shell-header {
+    --header-gap: 8px;
   }
 }
 </style>

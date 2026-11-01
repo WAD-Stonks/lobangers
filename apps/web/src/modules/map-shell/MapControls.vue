@@ -1,8 +1,9 @@
 <script setup lang="ts">
+import NearbyToggle from '@web/modules/hungry-nearby/NearbyToggle.vue'
 import type { ShellView } from '@web/modules/map-shell/filter-query'
 import ShellIcon from '@web/modules/map-shell/ShellIcon.vue'
 
-// Vertical stack on the right of the map: list/map toggle, Near me, then zoom. Phones skip
+// Vertical stack on the right of the map: list/map toggle, Near me, Lobangers nearby, then zoom. Phones skip
 // zoom because pinch covers it.
 withDefaults(defineProps<{ view: ShellView; locating?: boolean; showZoom?: boolean; showToggle?: boolean }>(), {
   locating: false,
@@ -40,6 +41,7 @@ const emit = defineEmits<{ toggleView: []; nearMe: []; zoomIn: []; zoomOut: [] }
     >
       <ShellIcon name="locate" />
     </button>
+    <NearbyToggle />
     <template v-if="showZoom">
       <button type="button" class="lb-ctrl" aria-label="Zoom in" title="Zoom in" data-testid="zoom-in" @click="emit('zoomIn')">
         <ShellIcon name="plus" :size="18" />

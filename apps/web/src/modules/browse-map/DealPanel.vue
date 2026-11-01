@@ -33,6 +33,7 @@ import {
 import { useShell } from '@web/modules/map-shell/shell-state'
 import { useSavedDeals } from '@web/modules/map-shell/use-saved-deals'
 import { useToast } from '@web/modules/map-shell/use-toast'
+import SquadDealCta from '@web/modules/squad/SquadDealCta.vue'
 import { computed, ref, watch } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 
@@ -56,12 +57,23 @@ const venueId = computed(() => (typeof route.query.at === 'string' ? route.query
 const selected = computed(() => shell.findDeal(dealId.value, venueId.value))
 // A Flash Drop running for this deal right now, if any.
 const flashDrop = computed(() => flash?.liveForDeal(dealId.value) ?? null)
-// A deal opened from Lobbie's chat goes back to the chat; anything else goes back to the list.
+// A deal opened from Lobbie's chat goes back to the chat; one opened from a Makan Squad room
+// goes back to the room (and hides links to other deals, which the room has locked); anything
+// else goes back to the list.
 const fromLobbie = computed(() => route.query.from === 'lobbie')
-const backTo = computed(() =>
-  fromLobbie.value ? lobbieLocation(route.query) : browseLocation(route.query),
+const squadRoom = computed(() =>
+  route.query.from === 'squad' && typeof route.query.room === 'string' && /^[A-Z]{4}$/.test(route.query.room)
+    ? route.query.room
+    : null,
 )
-const backLabel = computed(() => (fromLobbie.value ? 'Back to Lobbie' : 'Back to results'))
+const backTo = computed(() => {
+  if (squadRoom.value) return { name: 'squad-room', params: { code: squadRoom.value } }
+  return fromLobbie.value ? lobbieLocation(route.query) : browseLocation(route.query)
+})
+const backLabel = computed(() => {
+  if (squadRoom.value) return `Back to Room ${squadRoom.value}`
+  return fromLobbie.value ? 'Back to Lobbie' : 'Back to results'
+})
 const saving = ref(false)
 const popKey = ref(0)
 
@@ -197,6 +209,8 @@ const toggleSave = async () => {
 
     <p v-if="selected.deal.outletUnconfirmed" class="deal-panel__outlet-note lb-meta">{{ OUTLET_NOT_CONFIRMED_NOTE }}</p>
 
+    <SquadDealCta :deal-id="selected.deal.id" />
+
     <p v-if="selected.deal.description" class="deal-panel__description lb-text-wrap">{{ selected.deal.description }}</p>
 
     <dl class="deal-panel__facts">
@@ -221,7 +235,7 @@ const toggleSave = async () => {
 
     <DealCommunity :deal-id="selected.deal.id" :all-comments="commentsOpen" @view-change="commentsOpen = $event" @updated="shell.reload" />
 
-    <template v-if="!commentsOpen">
+    <template v-if="!commentsOpen && !squadRoom">
     <DealOutlets
       :deal="selected.deal"
       :current-venue-id="selected.venue.id"

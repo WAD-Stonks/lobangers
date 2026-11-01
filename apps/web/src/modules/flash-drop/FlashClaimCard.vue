@@ -62,11 +62,11 @@ const claim = async () => {
       <span class="flash-claim__live" aria-hidden="true" />
       <h2 id="flash-claim-title" class="flash-claim__title">Flash drop</h2>
       <span v-if="drop.demo" class="flash-fake">Fake deal</span>
-      <span class="flash-claim__timer" :aria-label="`Ends in ${countdown(drop.endsAt, now)}`">{{ countdown(drop.endsAt, now) }}</span>
+      <span class="flash-claim__timer"><span class="visually-hidden">Ends in </span>{{ countdown(drop.endsAt, now) }}</span>
     </header>
     <p class="flash-claim__price">
       <strong>{{ formatCents(drop.flashPriceCents) }}</strong>
-      <s v-if="drop.usualPriceCents">{{ formatCents(drop.usualPriceCents) }}</s>
+      <s v-if="drop.usualPriceCents"><span class="visually-hidden">Usual price </span>{{ formatCents(drop.usualPriceCents) }}</s>
       <span v-if="saving" class="flash-claim__saving">{{ saving }}</span>
     </p>
     <p class="flash-claim__meta">
@@ -75,7 +75,7 @@ const claim = async () => {
 
     <div v-if="code" class="flash-claim__code" data-testid="flash-code">
       <span class="flash-claim__code-label">Your code</span>
-      <strong class="flash-claim__code-value">{{ code.code }}</strong>
+      <strong class="flash-claim__code-value" translate="no">{{ code.code }}</strong>
       <span class="flash-claim__code-note">Show this at the counter before {{ countdown(drop.endsAt, now) }} runs out. It's saved in My codes.</span>
     </div>
     <p v-else-if="ended" class="flash-claim__note" role="status">This drop has ended.</p>

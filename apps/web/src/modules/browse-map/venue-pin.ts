@@ -131,6 +131,16 @@ const part = (name: string, text?: string): HTMLSpanElement => {
   return element
 }
 
+// "Chicken rice at Ah Seng, $4.50" or "3 deals at Ah Seng, from $3.00".
+export const venuePinLabel = (
+  pin: Pick<VenuePin, 'deals'> & Partial<Pick<VenuePin, 'name'>>,
+): string => {
+  const [first] = pin.deals
+  const what = pin.deals.length === 1 && first ? first.title : `${pin.deals.length} deals`
+  const where = pin.name ? ` at ${pin.name}` : ''
+  return `${what}${where}, ${pinBadgeText(pin.deals)}`
+}
+
 // A dark oval with the first deal's animated 3D food standing out of its top-left corner, the
 // price, and a yellow or white tag, on a stem down to a dot that marks the outlet. Built from DOM
 // nodes so deal text is never parsed as HTML.
@@ -154,6 +164,9 @@ export const createVenuePinIcon = (
   }
 
   const root = part('stack')
+  // Leaflet names the marker's role="button" from its content, not its title, so the stack
+  // carries a full label; on its own the price and tag ("$4.50 1-for-1") say little.
+  root.setAttribute('aria-label', venuePinLabel(pin))
   root.append(bubble, part('stem'), part('dot'))
   return L.divIcon({
     className: stateClasses(state),

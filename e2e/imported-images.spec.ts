@@ -229,6 +229,10 @@ async function installBoundary(page: Page) {
           data = { error: { code: 'FORBIDDEN', message: 'Synthetic revoked access' } }
         } else data = { items: [draft], nextCursor: null }
       } else if (url.pathname === '/api/ingestion/runs') data = { items: [] }
+      // The map shell also reads live Flash Drops and the visitor's codes; none here.
+      else if (url.pathname === '/api/flash-drops/active')
+        data = { serverTime: new Date().toISOString(), items: [] }
+      else if (url.pathname === '/api/flash-drops/codes') data = { items: [] }
       else if (url.pathname === '/api/ingestion/posts') {
         expect(Object.fromEntries(url.searchParams)).toEqual({ status: 'FAILED', limit: '20' })
         data = postsPageSchema.parse({ items: [], nextCursor: null })

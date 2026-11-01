@@ -423,7 +423,7 @@ onMounted(loadDashboard)
               End deal
             </button>
             <button type="button" class="btn btn-sm btn-dark ms-sm-auto" @click="openFlashDrop(deal.id)">
-              Flash drop this
+              Flash drop this<span class="visually-hidden">: {{ deal.title }}</span>
             </button>
           </div>
         </li>

@@ -2,6 +2,9 @@ import type { PublicFlashDrop } from '@broke-oclock/contracts/flash-drops'
 
 // Text for Flash Drop banners, pins, the claim card and My codes.
 
+// Keeps a number and its unit ("500 m") on one line.
+const NBSP = '\u00a0'
+
 export const formatCents = (cents: number): string => `$${(cents / 100).toFixed(2)}`
 
 const pad = (value: number) => String(value).padStart(2, '0')
@@ -29,7 +32,11 @@ export const codesLeftText = (drop: Pick<PublicFlashDrop, 'codesLeft'>): string 
   drop.codesLeft === 1 ? '1 code left' : `${drop.codesLeft} codes left`
 
 export const radiusText = (metres: number): string =>
-  metres >= 1000 ? `${(metres / 1000).toFixed(metres % 1000 === 0 ? 0 : 1)} km` : `${metres} m`
+  metres >= 1000
+    ? `${(metres / 1000).toFixed(metres % 1000 === 0 ? 0 : 1)}${NBSP}km`
+    : `${metres}${NBSP}m`
 
 export const distanceText = (metres: number): string =>
-  metres >= 1000 ? `${(metres / 1000).toFixed(1)} km` : `${Math.round(metres / 10) * 10} m`
+  metres >= 1000
+    ? `${(metres / 1000).toFixed(1)}${NBSP}km`
+    : `${Math.round(metres / 10) * 10}${NBSP}m`

@@ -70,6 +70,9 @@ describe('map shell routes', () => {
       'profile',
       'saved',
       'codes',
+      'squad-new',
+      'squad-join',
+      'squad-room',
     ])
   })
 

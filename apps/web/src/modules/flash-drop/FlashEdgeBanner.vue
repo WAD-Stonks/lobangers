@@ -18,7 +18,7 @@ const arrow = computed(() => ({ transform: `rotate(${props.banner.point.angle}de
 const drop = computed(() => props.banner.drop)
 const label = computed(
   () =>
-    `Flash drop off screen: ${formatCents(drop.value.flashPriceCents)} ${drop.value.dealTitle} at ${drop.value.venueName}. Show it on the map.`,
+    `Flash drop off screen: ${formatCents(drop.value.flashPriceCents)} ${drop.value.dealTitle} at ${drop.value.venueName}, ends in ${countdown(drop.value.endsAt, props.now)}. Show it on the map.`,
 )
 </script>
 
@@ -70,6 +70,8 @@ const label = computed(
   transform: translate(-50%, -50%);
   animation: flash-edge-in 320ms var(--ease-out) both;
   cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .flash-edge:active {
@@ -165,6 +167,10 @@ const label = computed(
   .flash-edge {
     animation-name: flash-edge-fade;
     animation-duration: 150ms;
+  }
+
+  .flash-edge:active {
+    transform: translate(-50%, -50%);
   }
 }
 

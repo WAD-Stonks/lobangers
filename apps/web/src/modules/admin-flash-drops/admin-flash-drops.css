@@ -88,6 +88,7 @@
   color: inherit;
   font: inherit;
   text-align: left;
+  touch-action: manipulation;
   transition:
     border-color 150ms ease,
     box-shadow 150ms ease,
@@ -153,6 +154,7 @@
 }
 .fd-panel h2 {
   margin: 0 0 4px;
+  text-wrap: balance;
   font-size: 1.25rem;
   letter-spacing: -0.02em;
 }
@@ -228,6 +230,9 @@
   color: inherit;
   font: inherit;
   text-align: left;
+}
+.fd-record {
+  touch-action: manipulation;
 }
 .fd-record:hover {
   background: #fffdf6;

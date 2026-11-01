@@ -90,7 +90,9 @@ export const formatUpdated = (date: Date) =>
   `${formatDay(date.toISOString())}, ${formatTime(date.toISOString())}`
 
 export const formatDistance = (metres: number) =>
-  metres >= 1000 ? `${(metres / 1000).toFixed(metres % 1000 === 0 ? 0 : 1)} km` : `${metres} m`
+  metres >= 1000
+    ? `${(metres / 1000).toFixed(metres % 1000 === 0 ? 0 : 1)}\u00a0km`
+    : `${metres}\u00a0m`
 
 export const decisionsFor = (status: FlashDropDisplayStatus): readonly DecisionKind[] =>
   status === 'IN_REVIEW'

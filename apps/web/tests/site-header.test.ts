@@ -84,6 +84,8 @@ describe('site header pill', () => {
       '/login?redirect=/browse',
       '/register?redirect=/browse',
       '/add',
+      '/squad/new',
+      '/squad/join',
       '/',
       '/browse',
       '/deals',

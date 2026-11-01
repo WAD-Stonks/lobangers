@@ -86,7 +86,7 @@ describe('flash drop formatting', () => {
       }),
     )
     expect(rows.map((row) => row.tone)).toEqual(['bad', 'ok', 'warn', 'bad', 'warn'])
-    expect(rows[3]?.details).toEqual(['Kopi O · Kopi Corner · 1.2 km away'])
+    expect(rows[3]?.details).toEqual(['Kopi O · Kopi Corner · 1.2\u00a0km away'])
   })
   it('offers decisions only for actionable states', () => {
     expect(decisionsFor('IN_REVIEW')).toEqual(['APPROVE', 'SEND_BACK'])

@@ -48,8 +48,8 @@ const claimedPercent = (drop: MerchantFlashDrop) =>
       :data-testid="`flash-drop-${drop.id}`"
     >
       <div class="d-flex justify-content-between align-items-start gap-2">
-        <div class="d-flex flex-wrap align-items-center gap-2">
-          <h3 class="h5 mb-0">{{ drop.dealTitle }}</h3>
+        <div class="d-flex flex-wrap align-items-center gap-2 title-row">
+          <h3 class="h5 mb-0 title">{{ drop.dealTitle }}</h3>
           <FakeBadge v-if="drop.demo || sample" />
         </div>
         <span class="badge" :class="badgeClass[drop.status]">{{ STATUS_LABELS[drop.status] }}</span>
@@ -142,6 +142,14 @@ const claimedPercent = (drop: MerchantFlashDrop) =>
 /* A coral edge marks flash drops apart from ordinary deals. */
 .drop-card {
   border-left: 4px solid var(--coral);
+}
+/* Long deal titles wrap beside the status badge instead of pushing it off the card. */
+.title-row {
+  min-width: 0;
+}
+.title {
+  overflow-wrap: anywhere;
+  text-wrap: balance;
 }
 .badge-review {
   background: #e6ddff;

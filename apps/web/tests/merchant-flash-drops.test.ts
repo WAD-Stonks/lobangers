@@ -134,7 +134,7 @@ describe('checkFlashDropForm', () => {
       'Choose one of your deals that runs for the whole drop.',
     )
     expect(checkFlashDropForm(validForm(), deal({ startDate: '2026-12-01' }), NOW)).toMatch(
-      /only starts on 2026-12-01/,
+      /only starts on 1 Dec 2026/,
     )
   })
 })
@@ -174,16 +174,16 @@ describe('flash drop form helpers', () => {
 
   it('previews the banner text', () => {
     expect(bannerPreview(validForm(), pricedDeal)).toBe(
-      'FLASH DROP · $1.50 Synthetic chicken rice · 30:00 · within 500 m',
+      'FLASH DROP · $1.50 Synthetic chicken rice · 30:00 · within 500\u00a0m',
     )
     expect(bannerPreview(validForm({ priceDollars: '', radiusMetres: 1000 }), undefined)).toBe(
-      'FLASH DROP · $? your deal · 30:00 · within 1 km',
+      'FLASH DROP · $? your deal · 30:00 · within 1\u00a0km',
     )
   })
 
   it('describes each drop', () => {
     expect(summaryLine(drop(), NOW)).toMatch(
-      /^Synthetic Stall \(Maxwell\) · Today .* · 30 min · 500 m · 40 codes$/,
+      /^Synthetic Stall \(Maxwell\) · Today .* · 30 min · 500\u00a0m · 40 codes$/,
     )
     expect(statusSentence(drop(), NOW)).toBe('In review. LoBangers is checking it.')
     expect(statusSentence(drop({ status: 'ENDED', claimedCount: 40 }), NOW)).toBe(
@@ -261,7 +261,7 @@ describe('FlashDropForm', () => {
     await wrapper.get('#flash-radius-1000').setValue(true)
     expect(wrapper.get('output').text()).toBe('50')
     expect(wrapper.get('[data-testid="flash-preview"]').text()).toBe(
-      'FLASH DROP · $1.50 Synthetic chicken rice · 30:00 · within 1 km',
+      'FLASH DROP · $1.50 Synthetic chicken rice · 30:00 · within 1\u00a0km',
     )
     await wrapper.get('form').trigger('submit')
     expect(wrapper.emitted('submit')?.[0]?.[0]).toMatchObject({

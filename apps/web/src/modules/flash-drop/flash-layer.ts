@@ -29,6 +29,12 @@ const foodFor = (drop: PublicFlashDrop, size: 'pin' | 'banner') => {
   return sprite
 }
 
+const pinLabel = (drop: PublicFlashDrop) =>
+  `Flash drop: ${formatCents(drop.flashPriceCents)} ${drop.dealTitle} at ${drop.venueName}, ${codesLeftText(drop)}`
+
+const bannerLabel = (drop: PublicFlashDrop, now: number) =>
+  `Flash drop: ${formatCents(drop.flashPriceCents)} ${drop.dealTitle} at ${drop.venueName}, ${codesLeftText(drop)}, ends in ${countdown(drop.endsAt, now)}. Open the deal.`
+
 const pinIcon = (drop: PublicFlashDrop, now: number) => {
   const oval = el('span', 'flash-pin__oval')
   oval.append(
@@ -37,6 +43,9 @@ const pinIcon = (drop: PublicFlashDrop, now: number) => {
   )
   oval.append(el('span', 'flash-pin__timer', countdown(drop.endsAt, now)))
   const stack = el('span', 'flash-pin__stack')
+  // Leaflet names the marker's role="button" from its content, not its title, so the stack
+  // carries the full label (the visible price and countdown alone mean little when read out).
+  stack.setAttribute('aria-label', pinLabel(drop))
   stack.append(oval, el('span', 'flash-pin__stem'), el('span', 'flash-pin__dot'))
   return L.divIcon({ className: 'flash-pin', html: stack, iconSize: [0, 0], iconAnchor: [0, 0] })
 }
@@ -60,10 +69,7 @@ const bannerIcon = (
 ) => {
   const button = el('button', 'flash-banner')
   button.type = 'button'
-  button.setAttribute(
-    'aria-label',
-    `Flash drop: ${formatCents(drop.flashPriceCents)} ${drop.dealTitle} at ${drop.venueName}, ${codesLeftText(drop)}. Open the deal.`,
-  )
+  button.setAttribute('aria-label', bannerLabel(drop, now))
   const text = el('span', 'flash-banner__text')
   const kicker = el('span', 'flash-banner__kicker', 'Flash drop')
   if (drop.demo) kicker.append(fakeTag())
@@ -148,8 +154,11 @@ export const mountFlashLayer = (map: L.Map, onOpen: (drop: PublicFlashDrop) => v
       const kept = entries.get(drop.id)
       if (kept) {
         kept.drop = drop
-        const timer = kept.pin.getElement()?.querySelector('.flash-pin__timer')
+        const element = kept.pin.getElement()
+        const timer = element?.querySelector('.flash-pin__timer')
         if (timer) timer.textContent = countdown(drop.endsAt, now)
+        // Codes left can change between refreshes; keep the spoken label current.
+        element?.querySelector('.flash-pin__stack')?.setAttribute('aria-label', pinLabel(drop))
         continue
       }
       const centre = L.latLng(drop.lat, drop.lng)
@@ -158,7 +167,7 @@ export const mountFlashLayer = (map: L.Map, onOpen: (drop: PublicFlashDrop) => v
         className: 'flash-zone',
         interactive: false,
       }).addTo(layer)
-      const title = `Flash drop: ${formatCents(drop.flashPriceCents)} ${drop.dealTitle}, ${codesLeftText(drop)}`
+      const title = pinLabel(drop)
       const pin = L.marker(centre, {
         icon: pinIcon(drop, now),
         title,
@@ -171,7 +180,10 @@ export const mountFlashLayer = (map: L.Map, onOpen: (drop: PublicFlashDrop) => v
     }
     const bannerTimer = banner?.getElement()?.querySelector('.flash-banner__timer')
     const shown = banner && [...entries.values()].find((entry) => entry.drop.id === bannerDropId)
-    if (bannerTimer && shown) bannerTimer.textContent = countdown(shown.drop.endsAt, now)
+    if (bannerTimer && shown) {
+      bannerTimer.textContent = countdown(shown.drop.endsAt, now)
+      bannerTimer.closest('.flash-banner')?.setAttribute('aria-label', bannerLabel(shown.drop, now))
+    }
   }
 
   const hideBanner = () => {

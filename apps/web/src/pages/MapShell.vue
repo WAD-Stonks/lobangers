@@ -10,6 +10,7 @@ import { BANNER_LIFE_MS } from '@web/modules/flash-drop/banner-schedule'
 import FlashEdgeBanner from '@web/modules/flash-drop/FlashEdgeBanner.vue'
 import { provideFlashDrops } from '@web/modules/flash-drop/use-flash-drops'
 import { useFlashMap } from '@web/modules/flash-drop/use-flash-map'
+import { provideHungryNearby } from '@web/modules/hungry-nearby/use-hungry-nearby'
 import { provideLobbieChat } from '@web/modules/lobbie/use-lobbie-chat'
 import FilterSheet from '@web/modules/map-shell/FilterSheet.vue'
 import { withFilters } from '@web/modules/map-shell/filter-query'
@@ -34,6 +35,8 @@ import { usePanelMorph } from '@web/modules/map-shell/use-panel-morph'
 import { provideSavedDeals } from '@web/modules/map-shell/use-saved-deals'
 import { useShellLayout } from '@web/modules/map-shell/use-shell-layout'
 import { provideToastQueue } from '@web/modules/map-shell/use-toast'
+import { SHEET_CONTROL_KEY } from '@web/modules/squad/sheet-control'
+import { provideSquadRoom } from '@web/modules/squad/use-squad-room'
 import type L from 'leaflet'
 import { computed, nextTick, onBeforeUnmount, onMounted, provide, ref, shallowRef, watch } from 'vue'
 import { type RouteLocationNormalizedLoaded, RouterView, useRoute, useRouter } from 'vue-router'
@@ -42,10 +45,11 @@ import { type RouteLocationNormalizedLoaded, RouterView, useRoute, useRouter } f
 // panel slot over it, so moving between features never reloads the map.
 const route = useRoute()
 const router = useRouter()
-provideToastQueue()
+const toast = provideToastQueue()
 const session = authClient.useSession()
 provideSavedDeals(session)
 const flash = provideFlashDrops(session)
+const squad = provideSquadRoom()
 const shell = provideShellState({ router, route })
 const lobbie = provideLobbieChat({ position: shell.position })
 
@@ -67,12 +71,25 @@ provide(PANEL_FOCUS_KEY, focusHeadingOnMount)
 
 const isBrowse = computed(() => route.name === 'browse')
 const isLobbie = computed(() => route.name === 'lobbie')
+// Makan Squad screens are dark, so the sheet around them (and its grip) goes dark too.
+const isSquadPanel = computed(() => String(route.name ?? '').startsWith('squad'))
 const wide = computed(() => isBrowse.value && shell.view.value === 'list')
 // The panel is drawn at `panelWide`, which trails `wide` while the desktop card shrinks back;
 // the map frames itself for `wide` at once, so a deal opened from the list lands centred.
 const panelWide = ref(wide.value)
 const collapsed = computed(() => panelHidden.value && breakpoint.value === 'desktop')
 const layout = useShellLayout({ breakpoint, wide, panelWide, header, collapsed })
+// Lets a panel (the Squad room) tuck the phone sheet down to its peek height and back.
+provide(SHEET_CONTROL_KEY, {
+  mode: layout.mode,
+  minimised: computed(() => layout.mode.value === 'sheet' && layout.snap.value === 0),
+  minimise: () => {
+    layout.snap.value = 0
+  },
+  expand: () => {
+    layout.snap.value = layout.heights.value.length - 1
+  },
+})
 const panelRef = ref<InstanceType<typeof ShellPanel> | null>(null)
 const controlsRef = ref<HTMLElement | null>(null)
 const panelTabRef = ref<HTMLElement | null>(null)
@@ -91,7 +108,12 @@ const selected = computed<SelectedDeal | null>(() =>
     ? shell.findDeal(String(route.params.dealId ?? ''), typeof route.query.at === 'string' ? route.query.at : null)
     : null,
 )
+// A live Makan Squad room: its current deal is the map's selection, so the camera pans to each
+// new deal, and other pins are locked until the visitor leaves the room.
+const inSquad = computed(() => route.name === 'squad-room' && squad.state.value?.status === 'LIVE' && !squad.state.value.me?.left)
+const squadVenueId = computed(() => (inSquad.value ? (squad.currentDeal.value?.venueId ?? null) : null))
 const selectedVenueId = computed(() => {
+  if (squadVenueId.value) return squadVenueId.value
   if (route.name === 'deal') return selected.value?.venue.id ?? null
   return route.name === 'venue' ? String(route.params.venueId ?? '') : null
 })
@@ -100,12 +122,25 @@ const lobbiePins = computed(() => (isLobbie.value ? lobbie.resultPins.value : []
 const mapFramed = computed(() => lobbiePins.value.length > 0)
 
 // A filter can hide the deal being viewed; its pin still shows so the map matches the panel.
+// A stall running a Flash Drop is drawn by the drop's coral pin instead of its usual one, so the
+// two never stack on the same spot. Its usual pin comes back when the drop ends.
+// Kept identical while the same stalls have drops, since the countdown clock ticks every second
+// and a new set would redraw every pin each time.
+const flashVenueIds = computed<ReadonlySet<string>>((previous) => {
+  const next = new Set(flash.drops.value.map((drop) => drop.venueId))
+  const same = previous && previous.size === next.size && [...next].every((id) => previous.has(id))
+  return same ? previous : next
+})
 const mapPins = computed(() => {
   if (mapFramed.value) return lobbiePins.value
   const pin = selectedPin.value
-  return pin && !shell.pins.value.some((candidate) => candidate.id === pin.id)
-    ? [...shell.pins.value, pin]
-    : shell.pins.value
+  const pins =
+    pin && !shell.pins.value.some((candidate) => candidate.id === pin.id)
+      ? [...shell.pins.value, pin]
+      : shell.pins.value
+  return flashVenueIds.value.size === 0
+    ? pins
+    : pins.filter((candidate) => !flashVenueIds.value.has(candidate.id))
 })
 // Recomputed only when the focused outlet changes, so reloading deals never re-flies the map.
 const selectedFocus = computed<Coordinates | null>((previousFocus) => {
@@ -151,6 +186,11 @@ const closeSheet = async () => {
 
 // From a pin: an outlet with one deal opens that deal; with several, the outlet's panel.
 const openVenue = (venueId: string) => {
+  if (inSquad.value) {
+    if (venueId === squadVenueId.value) layout.snap.value = layout.heights.value.length - 1
+    else toast.show(`You're in Room ${squad.code.value}. Leave the room to open other deals.`)
+    return
+  }
   const pin = shell.findVenuePin(venueId)
   if (!pin) return
   const [only] = pin.deals
@@ -199,6 +239,8 @@ const flashMap = useFlashMap({
   reducedMotion,
   open: (drop) => router.push(dealLocation(route.query, drop.dealId, drop.venueId)),
 })
+// Hungry Nearby: opt-in lobangers on the same Leaflet map; the toggle lives in MapControls.
+provideHungryNearby({ session, map: leaflet, position: shell.position, locate: shell.locate })
 
 const searchArea = () => {
   shell.setArea(dealMap.value?.getArea() ?? null)
@@ -247,7 +289,7 @@ onBeforeUnmount(() => document.documentElement.classList.remove('is-canvas'))
 <template>
   <div
     class="map-shell"
-    :class="[`map-shell--${layout.mode.value}`, { 'map-shell--collapsed': collapsed }]"
+    :class="[`map-shell--${layout.mode.value}`, { 'map-shell--collapsed': collapsed, 'map-shell--squad': isSquadPanel }]"
     :style="shellStyle"
     data-testid="map-shell"
   >
