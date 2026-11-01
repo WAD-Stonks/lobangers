@@ -128,6 +128,7 @@ const handleLabel = computed(
 
 <style scoped>
 .shell-panel {
+  background: var(--page-background, var(--paper-white));
   position: absolute;
   z-index: 20;
   display: flex;

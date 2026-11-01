@@ -103,7 +103,8 @@ it('shows a guarded legacy poster in the current panel without losing facts, cui
   expect(panel.get('img').attributes('src')).toBe(deal.imageUrl)
   expect(panel.get('img').attributes('alt')).toBe(deal.imageAltText)
   expect(panel.get('img').attributes('referrerpolicy')).toBe('no-referrer')
-  expect(panel.text()).toContain(deal.description)
+  // The panel leads with the terms; the imported description is not repeated.
+  expect(panel.text()).not.toContain(deal.description)
   expect(panel.text()).toContain('Dine-in only')
   expect(panel.text()).toContain('31 Dec 2099')
   expect(panel.text()).toContain('Japanese')
@@ -124,7 +125,8 @@ it('shows a guarded legacy poster in the current panel without losing facts, cui
   expect(otherDeal.attributes('href')).toContain(`/deals/${toast.id}`)
   await panel.get('img').trigger('error')
   expect(panel.find('img').exists()).toBe(false)
-  expect(panel.find('[data-testid="category-bubble"]').exists()).toBe(true)
+  // With no photo the panel drops the media block instead of showing placeholder art.
+  expect(panel.find('.deal-panel--no-image').exists()).toBe(true)
   await otherDeal.trigger('click')
   await flushPromises()
   expect(mounted.router.currentRoute.value.params.dealId).toBe(toast.id)
@@ -148,7 +150,8 @@ it('keeps a no-photo deal explicit through category art, empty review messaging 
   wrapper = mounted.wrapper
   const panel = wrapper.get('[data-testid="shell-panel"]')
   expect(panel.find('img').exists()).toBe(false)
-  expect(panel.find('[data-testid="category-bubble"]').exists()).toBe(true)
+  // With no photo the panel drops the media block instead of showing placeholder art.
+  expect(panel.find('.deal-panel--no-image').exists()).toBe(true)
   expect(rest.summary).toHaveBeenCalledWith(deal.id)
   expect(rest.comments).toHaveBeenCalledWith(deal.id, { limit: 3 })
   expect(panel.get('.deal-community-status').text()).toBe('No recent reports')

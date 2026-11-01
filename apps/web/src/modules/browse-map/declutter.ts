@@ -51,6 +51,8 @@ const priority = (a: PinGroup, b: PinGroup): number =>
 
 const absorb = (target: PlacedGroup, extra: PinGroup): PlacedGroup => ({
   ...target,
+  // A merged cluster spans multiple areas; show its count without a misleading area name.
+  compact: true,
   dealCount: target.dealCount + extra.dealCount,
   venues: [...target.venues, ...extra.venues],
 })
@@ -71,7 +73,9 @@ const place = (placed: readonly Placed[], group: PinGroup, at: Point): readonly 
     box: pillBox(group, shift(at, offset)),
   })
 
-  const inPlace = asPill(NO_OFFSET)
+  const inPlace: Placed = group.compact
+    ? { group: { ...group, compact: true, offset: NO_OFFSET }, box: boxAround(at, DOT_PX, DOT_PX) }
+    : asPill(NO_OFFSET)
   if (fits(inPlace.box)) return [...placed, inPlace]
   const coversNearYou = placed.some(
     (item) => item.group.kind === 'near' && overlaps(item.box, inPlace.box),

@@ -276,7 +276,7 @@ describe('live cuisine discovery', () => {
     await flushPromises()
     expect(r.currentRoute.value.path).toBe(`/deals/${liveDealAt(0).id}`)
     expect(r.currentRoute.value.query.at).toBe(liveDealAt(0).venues[0]?.id)
-    expect(wrapper.get('.landing-view-all').attributes('href')).toBe('/browse?cat=food')
+    expect(wrapper.get('.landing-view-all').attributes('href')).toBe('/deals?cat=food')
   })
   it('uses the filtered outlet in the deal link for a chain', async () => {
     const north = liveDealAt(0).venues[0]

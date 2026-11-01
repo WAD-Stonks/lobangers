@@ -8,6 +8,9 @@ import {
 import ShellIcon from '@web/modules/map-shell/ShellIcon.vue'
 import { computed, ref } from 'vue'
 
+// One-tap filters under the search box. "Expiry today" is the least important, so phones hide
+// it rather than letting the row scroll sideways. "All filters" shows a badge for the active
+// selections, including the quick chips.
 const props = withDefaults(
   defineProps<{ filters: BrowseFilters; sheetOpen?: boolean; lobbieOpen?: boolean }>(),
   { sheetOpen: false, lobbieOpen: false },
@@ -40,7 +43,7 @@ defineExpose({ focusAllFilters: () => allButton.value?.focus() })
       :aria-pressed="endingToday"
       @click="toggleEndingToday"
     >
-      <span class="lb-chip__check"><ShellIcon name="check" :size="14" :stroke-width="3" /></span>Ending today
+      <span class="lb-chip__check"><ShellIcon name="check" :size="14" :stroke-width="3" /></span>Expiry today
     </button>
     <button
       ref="allButton"

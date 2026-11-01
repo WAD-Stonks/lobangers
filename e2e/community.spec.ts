@@ -191,6 +191,11 @@ for (const width of [320, 390, 1280]) {
       .locator('button:visible')
       .evaluateAll((buttons) => buttons.map((button) => button.getBoundingClientRect().height))
     expect(touchTargets.every((height) => height >= 44)).toBe(true)
+    // Delete lives in the posted comment's options menu.
+    await community
+      .locator('article', { hasText: 'The synthetic outlet honoured this deal.' })
+      .getByRole('button', { name: 'Comment options', exact: true })
+      .click()
     await community.getByRole('button', { name: 'Delete comment', exact: true }).click()
     await community.getByRole('button', { name: 'Confirm delete', exact: true }).click()
     await expect(community.locator('.deal-community-comments > li')).toHaveCount(3)
@@ -279,7 +284,7 @@ for (const mode of ['manual refresh', 'minute poll']) {
     await page.goto(`/deals/${id}`)
     const community = page.getByTestId('deal-community')
     await expect(community.locator('.deal-community-status')).toHaveText('Likely still on')
-    await expect(page.locator('.deal-panel__tags')).toContainText('Likely still on')
+    await expect(page.locator('.deal-panel__status')).toHaveText('Likely still on')
     await expect(page.locator('.deal-map-pin__flag--verified')).toHaveCount(1)
     const before = dealReads
     agedOut = true
@@ -287,9 +292,7 @@ for (const mode of ['manual refresh', 'minute poll']) {
       await community.getByRole('button', { name: 'Refresh', exact: true }).click()
     else await page.clock.fastForward(60_000)
     await expect(community.locator('.deal-community-status')).toHaveText('No recent reports')
-    await expect(
-      page.locator('.deal-panel__tags').getByRole('img', { name: /^Unverified/ }),
-    ).toBeVisible()
+    await expect(page.locator('.deal-panel__status')).toHaveText('Unverified')
     await expect(page.locator('.deal-map-pin__flag--verified')).toHaveCount(0)
     expect(dealReads).toBeGreaterThan(before)
     await page.getByRole('link', { name: 'Back to results', exact: true }).click()
@@ -297,9 +300,9 @@ for (const mode of ['manual refresh', 'minute poll']) {
       page
         .getByRole('complementary', { name: 'Results' })
         .getByRole('list')
-        .getByRole('img', { name: /^Unverified/ })
+        .locator('.deal-rows__status')
         .first(),
-    ).toBeVisible()
+    ).toHaveText('Unverified')
     await expect(
       page.getByRole('complementary', { name: 'Results' }).getByRole('list'),
     ).not.toContainText('Likely still on')

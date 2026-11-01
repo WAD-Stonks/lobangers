@@ -1,3 +1,4 @@
+import AuthPrompt from '@web/modules/account/AuthPrompt.vue'
 import LoginPanel from '@web/modules/account/LoginPanel.vue'
 import ProfilePanel from '@web/modules/account/ProfilePanel.vue'
 import RegisterPanel from '@web/modules/account/RegisterPanel.vue'
@@ -16,6 +17,7 @@ import AdminDealsPage from '@web/pages/AdminDealsPage.vue'
 import AdminFlashDropsPage from '@web/pages/AdminFlashDropsPage.vue'
 import AdminModerationPage from '@web/pages/AdminModerationPage.vue'
 import AdminOverviewPage from '@web/pages/AdminOverviewPage.vue'
+import AuthPage from '@web/pages/AuthPage.vue'
 import ForgotPasswordPage from '@web/pages/ForgotPasswordPage.vue'
 import GettingStartedPage from '@web/pages/GettingStartedPage.vue'
 import IngestionAdminPage from '@web/pages/IngestionAdminPage.vue'
@@ -46,6 +48,12 @@ const routes: RouteRecordRaw[] = [
     component: MapShell,
     meta: { layout: 'canvas' },
     children: [
+      {
+        path: '/account-required',
+        name: 'auth-required',
+        component: AuthPrompt,
+        meta: { panelLabel: 'Log in or sign up' },
+      },
       { path: '', name: 'browse', component: BrowseListPanel, meta: { panelLabel: 'Results' } },
       { path: '/deals/:dealId', name: 'deal', component: DealPanel, meta: { panelLabel: 'Deal' } },
       {
@@ -88,7 +96,7 @@ const routes: RouteRecordRaw[] = [
       {
         path: '/saved',
         name: 'saved',
-        component: ProfilePanel,
+        component: BrowseListPanel,
         meta: { requiresAuth: true, panelLabel: 'Saved deals' },
       },
       // Signed-out visitors see a prompt to log in rather than a redirect, so the menu link
@@ -116,8 +124,26 @@ const routes: RouteRecordRaw[] = [
     ],
   },
   { path: '/', name: 'landing', component: LandingPage, meta: { layout: 'landing' } },
+  { path: '/about', name: 'about', component: LandingPage, meta: { layout: 'landing' } },
+  {
+    path: '/sign-in',
+    name: 'sign-in',
+    component: AuthPage,
+    props: { mode: 'login' },
+    meta: { layout: 'auth', guestOnly: true },
+  },
+  {
+    path: '/sign-up',
+    name: 'sign-up',
+    component: AuthPage,
+    props: { mode: 'register' },
+    meta: { layout: 'auth', guestOnly: true },
+  },
   // The feed without a map is now the shell's list mode; old links keep working.
-  { path: '/deals', redirect: (to) => ({ name: 'browse', query: { ...to.query, view: 'list' } }) },
+  {
+    path: '/deals',
+    redirect: (to) => ({ name: 'browse', query: { ...to.query, view: 'list', discovery: '1' } }),
+  },
   { path: '/getting-started', name: 'getting-started', component: GettingStartedPage },
   { path: '/admin', name: 'admin-overview', component: AdminOverviewPage },
   { path: '/admin/deals', name: 'admin-deals', component: AdminDealsPage },

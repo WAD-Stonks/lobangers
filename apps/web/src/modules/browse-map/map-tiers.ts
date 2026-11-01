@@ -1,5 +1,6 @@
 import { areaFor } from '@web/modules/browse-map/cluster-area'
 import { distanceMetres } from '@web/modules/browse-map/distance'
+import { SINGAPORE_CENTER } from '@web/modules/browse-map/map-config'
 import type { Coordinates, VenuePin } from '@web/modules/browse-map/types'
 
 // What the map shows at each zoom, from a student's point of view: deals within a short walk
@@ -10,6 +11,7 @@ export type GroupKind = 'near' | 'area' | 'region'
 
 export type PinGroup = {
   readonly key: string
+  readonly compact?: boolean
   readonly kind: GroupKind
   readonly label: string
   readonly dealCount: number
@@ -27,11 +29,13 @@ export const NEAR_YOU_LABEL = 'Near you'
 // About a ten-minute walk.
 export const WALK_RADIUS_METRES = 800
 export const AREA_FROM_ZOOM = 13
+// Below this zoom one island-wide count replaces the regional groups.
+export const REGIONS_FROM_ZOOM = 10
 // The zoom the map opens at around the visitor; the walkable deals show as pins from here.
 export const NEAR_PINS_FROM_ZOOM = 15
 export const STREET_FROM_ZOOM = 16
 // Tapping a group never zooms in past this, even for a group of outlets on one street.
-export const OPEN_GROUP_MAX_ZOOM = 17
+export const OPEN_GROUP_MAX_ZOOM = 16
 
 export const tierFor = (zoom: number): MapTier => {
   if (zoom >= STREET_FROM_ZOOM) return 'street'
@@ -86,6 +90,16 @@ export const planMapLayers = ({ pins, zoom, user, selectedVenueId }: PlanInput):
   // The open outlet always stays a pin, so the panel never points at a group.
   const selected = pins.filter((pin) => pin.id === selectedVenueId)
   const rest = pins.filter((pin) => pin.id !== selectedVenueId)
+  // At country/world scale, one island-centred count replaces regional labels.
+  if (zoom < REGIONS_FROM_ZOOM) {
+    return {
+      tier,
+      loose: selected,
+      groups: rest.length
+        ? [{ ...makeGroup('region', 'Singapore', rest, SINGAPORE_CENTER), compact: true }]
+        : [],
+    }
+  }
   const isNear = (pin: VenuePin) => user !== null && distanceMetres(user, pin) <= WALK_RADIUS_METRES
   const near = rest.filter(isNear)
   const far = rest.filter((pin) => !isNear(pin))

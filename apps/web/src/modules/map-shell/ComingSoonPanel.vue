@@ -16,7 +16,7 @@ withDefaults(
 </script>
 
 <template>
-  <PanelFrame :title="title" :back="{ name: 'browse' }" back-label="Back to the map">
+  <PanelFrame :title="title">
     <div class="lb-state">
       <span class="lb-tag lb-tag--build coming-soon__tag">Being built by {{ owner }}</span>
       <p class="lb-state__body">{{ summary }}</p>

@@ -6,7 +6,7 @@ import { safeRedirect } from '@web/router/guards'
 import { computed } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 
-// Log in over the map. After signing in the visitor goes back to ?redirect=, or the map.
+// Successful login always opens All Deals; the original destination only explains the prompt.
 const route = useRoute()
 const router = useRouter()
 const toast = useToast()
@@ -26,7 +26,7 @@ const REASONS: readonly [prefix: string, title: string][] = [
   ['/deals/', 'Log in to save deals'],
 ]
 
-const redirect = computed(() => safeRedirect(route.query.redirect))
+const redirect = computed(() => safeRedirect(route.query.redirect, '/deals'))
 const notice = computed(() => {
   const key = route.query.notice
   return typeof key === 'string' && Object.hasOwn(NOTICES, key) ? NOTICES[key] : ''
@@ -34,13 +34,13 @@ const notice = computed(() => {
 const title = computed(() => REASONS.find(([prefix]) => redirect.value.startsWith(prefix))?.[1] ?? 'Welcome back')
 
 const onSignedIn = async () => {
-  await router.replace(redirect.value)
+  await router.replace('/deals')
   toast.show('You are logged in')
 }
 </script>
 
 <template>
-  <PanelFrame :title="title" :back="{ name: 'browse' }" back-label="Back to the map">
+  <PanelFrame :title="title" :back="{ name: 'browse' }" back-label="Back to deals">
     <div v-if="notice" class="account-panel__notice" role="status">{{ notice }}</div>
     <div class="account-panel__form">
       <LoginForm @signed-in="onSignedIn" />

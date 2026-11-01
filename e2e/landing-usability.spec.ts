@@ -82,7 +82,7 @@ for (const width of [320, 390, 1440]) {
     const controls = page.locator('.landing-carousel-controls')
     await expect(
       page.locator('.deal-grid-toolbar').getByRole('link', { name: 'View all food deals' }),
-    ).toHaveAttribute('href', '/browse?cat=food')
+    ).toHaveAttribute('href', '/deals?cat=food')
     await controls.scrollIntoViewIfNeeded()
     const bounds = await page.evaluate(() => ({
       grid: document.querySelector('.landing-deal-grid')?.getBoundingClientRect().bottom ?? 0,

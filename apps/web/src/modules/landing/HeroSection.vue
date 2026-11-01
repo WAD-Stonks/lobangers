@@ -178,7 +178,7 @@ onBeforeUnmount(() => {
         </span>
       </h1>
       <p class="hero-subtitle">Good food, better prices, all around Singapore.</p>
-      <RouterLink to="/browse" class="landing-button primary">Explore food deals <span aria-hidden="true">→</span>
+      <RouterLink to="/deals" class="landing-button primary">Explore food deals <span aria-hidden="true">→</span>
       </RouterLink>
     </div>
     <section ref="mapArea" aria-label="Regional food deal preview" class="hero-map-area" :class="{ 'hero-map-docked': (featured || liveState === 'loading' || liveState === 'ready') && !previewPosition }" @transitionend="positionPreview" @animationend="positionPreview">

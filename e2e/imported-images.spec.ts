@@ -375,7 +375,7 @@ for (const width of [320, 768, 1024, 1440]) {
     state.admin = false
     await page.goto('/browse')
     await expect(page.getByTestId('splash-screen')).toHaveCount(0)
-    const row = page.getByTestId('nearby-list').getByRole('link').first()
+    const row = page.getByTestId('deal-rows').getByRole('link').first()
     await painted(row.locator('img'))
     await row.focus()
     await page.keyboard.press('Enter')

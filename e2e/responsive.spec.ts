@@ -95,11 +95,12 @@ const WIDTHS = [320, 360, 390, 768, 834, 1024, 1194, 1280, 1440]
 const ROUTES = [
   '/browse',
   '/browse?view=list',
+  '/deals',
   `/deals/${DEALS[0]?.id}`,
   `/venues/${VENUE.id}`,
   '/ask-lobbie',
-  '/login',
-  '/add',
+  // Signed-out /login and /add both land on the standalone sign-in page.
+  '/sign-in',
 ]
 const TOUCH_MAX_WIDTH = 992
 const MIN_TARGET_PX = 44
@@ -184,7 +185,11 @@ for (const width of WIDTHS) {
       await page.setViewportSize({ width, height: 800 })
       await mockApi(page)
       await page.goto(route)
-      await expect(page.getByTestId('shell-panel').locator('[data-panel-heading]')).toBeVisible()
+      await expect(
+        route === '/sign-in'
+          ? page.getByTestId('standalone-auth')
+          : page.getByTestId('shell-panel').locator('[data-panel-heading]'),
+      ).toBeVisible()
       await settled(page)
       if (route.startsWith('/deals/')) {
         const community = page.getByTestId('deal-community')
@@ -198,26 +203,36 @@ for (const width of WIDTHS) {
         await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
       ).toBe(true)
 
-      // 2. No visible element sticks out past the viewport edge.
+      // 2. No visible element sticks out past the viewport edge. Content clipped by a
+      // container that itself fits (a swipeable chip row, cropped artwork) is fine.
       const offenders = await page.evaluate(() =>
         [...document.querySelectorAll<HTMLElement>('body *')]
           .filter((el) => el.offsetParent !== null && !el.closest('.leaflet-container'))
           .filter((el) => {
             const r = el.getBoundingClientRect()
-            return r.width > 0 && (r.left < -1 || r.right > window.innerWidth + 1)
+            if (r.width === 0 || (r.left >= -1 && r.right <= window.innerWidth + 1)) return false
+            for (let a = el.parentElement; a && a !== document.body; a = a.parentElement) {
+              if (getComputedStyle(a).overflowX === 'visible') continue
+              const c = a.getBoundingClientRect()
+              if (c.left >= -1 && c.right <= window.innerWidth + 1) return false
+            }
+            return true
           })
           .map((el) => el.dataset.testid ?? el.className),
       )
       expect(offenders).toEqual([])
 
-      // 3. Every button is at least 44px on touch widths.
+      // 3. Every button is at least 44px on touch widths. Layout size, so a scroll-triggered
+      // entrance that has not played yet (GSAP, invisible to getAnimations) is not measured.
       if (width < TOUCH_MAX_WIDTH) {
         const small = await page.getByRole('button').evaluateAll(
           (els, min) =>
             els
+              .filter((el): el is HTMLElement => el instanceof HTMLElement)
               .filter((el) => {
-                const r = el.getBoundingClientRect()
-                return r.width > 0 && (r.width < min || r.height < min)
+                const w = el.offsetWidth
+                const h = el.offsetHeight
+                return w > 0 && (w < min || h < min)
               })
               .map((el) => el.getAttribute('aria-label') ?? el.textContent),
           MIN_TARGET_PX,
@@ -259,38 +274,62 @@ test('the sticky action bar never covers the last item', async ({ page }) => {
   expect(lastBottom).toBeLessThanOrEqual(barTop + 1)
 })
 
-test('the filter sheet fits without scrolling inside on tablet and desktop', async ({ page }) => {
+test('the filter popup keeps its actions visible while its body scrolls', async ({ page }) => {
   await mockApi(page)
-  for (const width of [768, 1024, 1280]) {
+  for (const width of [390, 768, 1024, 1280]) {
     await page.setViewportSize({ width, height: 800 })
     await page.goto('/browse')
-    await page.getByTestId('all-filters').click()
+    await page
+      .locator('[data-testid="all-filters"]:visible, [data-testid="mobile-all-filters"]:visible')
+      .click()
     const body = page.getByTestId('filter-sheet-body')
     await expect(body).toBeVisible()
-    const fits = await body.evaluate((element) => element.scrollHeight <= element.clientHeight + 1)
-    expect(fits, `${width}px`).toBe(true)
+    const apply = page.getByTestId('filter-show')
+    await expect(apply).toBeVisible()
+    const before = await apply.boundingBox()
+    await body.evaluate((element) => {
+      element.scrollTop = element.scrollHeight
+    })
+    const after = await apply.boundingBox()
+    expect(before && after && Math.abs(before.y - after.y) < 1, `${width}px`).toBe(true)
+    expect(after && after.y + after.height <= 800, `${width}px`).toBe(true)
   }
 })
 
-test('the chip row sits below the search field and no chip is clipped', async ({ page }) => {
+test('map quick filters sit beside search on desktop and below it on mobile without clipping', async ({
+  page,
+}) => {
   await mockApi(page)
   for (const width of WIDTHS) {
     await page.setViewportSize({ width, height: 800 })
     await page.goto('/browse')
     const search = await page.getByRole('search').boundingBox()
-    const chips = await page.getByTestId('quick-chips').boundingBox()
-    expect(chips && search && chips.y >= search.y + search.height, `${width}px`).toBe(true)
+    const toolbar = page.getByTestId('discovery-quick-filters')
+    const chips = await toolbar.boundingBox()
+    expect(
+      chips &&
+        search &&
+        (width >= 992 ? chips.x >= search.x + search.width : chips.y >= search.y + search.height),
+      `${width}px`,
+    ).toBe(true)
+    expect(chips && chips.x + chips.width <= width + 1, `${width}px`).toBe(true)
+    // Chips past the edge are fine only inside the swipeable row, which itself fits.
     const clipped = await page
-      .getByTestId('quick-chips')
+      .getByTestId('discovery-quick-filters')
       .locator('button:visible')
       .evaluateAll(
-        (els) => els.filter((el) => el.getBoundingClientRect().right > window.innerWidth).length,
+        (els) =>
+          els.filter((el) => {
+            if (el.getBoundingClientRect().right <= window.innerWidth) return false
+            const row = el.closest('.discovery-filters__chips')
+            return !row || row.getBoundingClientRect().right > window.innerWidth + 1
+          }).length,
       )
     expect(clipped, `${width}px`).toBe(0)
   }
 })
 
-test('reduced motion keeps the hot card still but panels still change', async ({ page }) => {
+test('reduced motion still allows opening deals from the map results', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' })
   await page.clock.install()
   await page.setViewportSize({ width: 1280, height: 800 })
@@ -303,12 +342,148 @@ test('reduced motion keeps the hot card still but panels still change', async ({
     route.fulfill({ json: { items: [...DEALS, second], categories: ['FOOD'] } }),
   )
   await page.goto('/browse')
-  await expect(page.getByTestId('hot-position')).toHaveText('1 of 2')
+  await expect(page.getByTestId('deal-rows').locator('li')).toHaveCount(2)
   await page.clock.runFor(6000)
-  await expect(page.getByTestId('hot-position')).toHaveText('1 of 2')
-  await page.getByTestId('hot-open').click()
+  await expect(page.getByTestId('hot-card')).toHaveCount(0)
+  await page.getByTestId('deal-rows').getByRole('link').first().click()
   await expect(page).toHaveURL(/\/deals\//)
 })
+
+test('map workspace rail, results and drawer fit desktop and mobile', async ({ page }, info) => {
+  const errors: string[] = []
+  page.on('pageerror', (error) => errors.push(error.message))
+  await mockApi(page)
+  for (const width of [390, 834, 1024, 1440]) {
+    await page.setViewportSize({ width, height: 844 })
+    await page.goto('/browse')
+    await expect(page.getByTestId('splash-screen')).toBeHidden()
+    const rail = page.getByTestId('map-navigation')
+    if (width >= 992) {
+      await expect(rail).toBeVisible()
+      const railBox = await rail.boundingBox()
+      const results = await page.getByTestId('shell-panel').boundingBox()
+      const search = await page.getByRole('search').boundingBox()
+      const controls = await page.getByTestId('map-controls').boundingBox()
+      expect(railBox?.width).toBe(72)
+      expect(results && railBox && results.x >= railBox.x + railBox.width).toBe(true)
+      expect(search && railBox && search.x >= railBox.x + railBox.width).toBe(true)
+      expect(controls && controls.x > width - 200).toBe(true)
+      await page.getByTestId('nav-toggle').click()
+      await expect(page.getByRole('dialog', { name: 'Site', exact: true })).toBeVisible()
+      await expect(page.getByTestId('shell-panel')).toHaveAttribute('inert', '')
+      await page.getByRole('button', { name: 'Close navigation menu' }).click()
+      await expect(page.getByTestId('nav-menu')).toBeHidden()
+      await expect(page.getByTestId('nav-toggle')).toBeFocused()
+    } else {
+      // Below desktop the navigation is the bottom tab bar instead of the rail.
+      await expect(rail).toHaveClass(/map-navigation--bottom/)
+      await expect(page.getByTestId('sheet-handle')).toBeVisible()
+    }
+    expect(
+      await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
+    ).toBe(true)
+    await page.screenshot({ path: info.outputPath(`workspace-${width}.png`) })
+  }
+  expect(errors).toEqual([])
+})
+
+test('sidebar choice survives reload and can be reversed from the remaining menu', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1280, height: 844 })
+  await mockApi(page)
+  await page.goto('/browse')
+  await expect(page.getByTestId('splash-screen')).toBeHidden()
+  await page.getByTestId('nav-toggle').click()
+  await page.getByTestId('show-sidebar').click()
+  await expect(page.getByTestId('map-navigation')).toHaveCount(0)
+  await expect(page.getByTestId('nav-toggle')).toBeFocused()
+  await page.reload()
+  await expect(page.getByTestId('splash-screen')).toBeHidden()
+  await expect(page.getByTestId('map-navigation')).toHaveCount(0)
+  await page.getByTestId('nav-toggle').click()
+  await expect(page.getByTestId('show-sidebar')).toHaveAttribute('aria-checked', 'false')
+  await page.getByTestId('show-sidebar').click()
+  await expect(page.getByTestId('map-navigation')).toBeVisible()
+  await expect(page.getByTestId('shell-panel')).not.toHaveAttribute('inert')
+  await expect(page.getByTestId('nav-toggle')).toBeFocused()
+})
+
+for (const width of [390, 1280]) {
+  test(`map guide walks through real controls without submitting anything at ${width}px`, async ({
+    page,
+  }, info) => {
+    await page.setViewportSize({ width, height: 844 })
+    const writes: string[] = []
+    const errors: string[] = []
+    page.on('pageerror', (error) => errors.push(error.message))
+    page.on('request', (request) => {
+      if (request.url().includes('/api/') && !['GET', 'HEAD', 'OPTIONS'].includes(request.method()))
+        writes.push(request.url())
+    })
+    await mockApi(page)
+    const now = new Date().toISOString()
+    await page.route('**/api/deals/*/community', (route) =>
+      route.fulfill({
+        json: {
+          alive: 4,
+          dead: 0,
+          status: 'LIKELY_STILL_ON',
+          myVote: null,
+          myVoteIsRecent: false,
+          lastReportedAt: now,
+          asOf: now,
+          commentCount: 1,
+          policy: { minAlive: 3, positivePercent: 80, windowHours: 24 },
+        },
+      }),
+    )
+    await page.route('**/api/deals/*/comments*', (route) =>
+      route.fulfill({
+        json: {
+          items: [
+            {
+              id: '8'.repeat(24),
+              body: 'Synthetic recent outlet tip.',
+              authorName: 'Synthetic visitor',
+              createdAt: now,
+              canDelete: false,
+            },
+          ],
+          nextCursor: null,
+        },
+      }),
+    )
+    await page.goto('/browse?q=synthetic&sort=ending')
+    await expect(page.getByTestId('splash-screen')).toBeHidden()
+    const origin = page.url()
+    await page.getByTestId('nav-toggle').click()
+    await page.getByTestId('start-map-tutorial').click()
+    const guide = page.getByTestId('map-tutorial')
+    await expect(guide.getByRole('heading', { name: 'Find a deal that fits' })).toBeVisible()
+    await expect(page.getByTestId('filter-sheet')).toBeVisible()
+    await expect(page.getByTestId('filter-sheet')).toHaveAttribute('inert', '')
+    await guide.getByTestId('tutorial-next').click()
+    await expect(guide.getByRole('heading', { name: 'Open a deal' })).toBeVisible()
+    await expect(page).toHaveURL(/\/deals\//)
+    await guide.getByTestId('tutorial-next').click()
+    await expect(guide.getByRole('heading', { name: 'Check community verification' })).toBeVisible()
+    await expect(page.locator('.deal-community-verification')).toBeVisible()
+    await page.screenshot({ path: info.outputPath(`tutorial-verification-${width}.png`) })
+    await guide.getByTestId('tutorial-next').click()
+    await expect(guide.getByRole('heading', { name: 'Read the conversation' })).toBeVisible()
+    await expect(page.locator('.deal-community-comments')).toContainText(
+      'Synthetic recent outlet tip.',
+    )
+    await guide.getByTestId('tutorial-next').click()
+    await expect(guide.getByRole('heading', { name: 'Where to add a deal' })).toBeVisible()
+    await guide.getByTestId('tutorial-next').click()
+    await expect(guide).toHaveCount(0)
+    await expect(page).toHaveURL(origin)
+    expect(writes).toEqual([])
+    expect(errors).toEqual([])
+  })
+}
 
 test('screenshots for review', async ({ page }, info) => {
   test.setTimeout(120_000)
@@ -332,7 +507,9 @@ test('screenshots for review', async ({ page }, info) => {
     }
     await page.goto('/browse')
     await expect(page.getByTestId('splash-screen')).toBeHidden()
-    await page.getByTestId('all-filters').click()
+    await page
+      .locator('[data-testid="all-filters"]:visible, [data-testid="mobile-all-filters"]:visible')
+      .click()
     await settled('filter-sheet')
     await page.screenshot({ path: info.outputPath(`map-shell-filters-${width}.png`) })
     await page.keyboard.press('Escape')
@@ -340,4 +517,111 @@ test('screenshots for review', async ({ page }, info) => {
     await settled('nav-menu')
     await page.screenshot({ path: info.outputPath(`map-shell-menu-${width}.png`) })
   }
+})
+
+for (const width of [1024, 1440]) {
+  test(`map search overlays the drawer without covering deal content at ${width}px`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 900 })
+    await mockApi(page)
+    await page.goto(`/deals/${DEALS[0]?.id}`)
+    const panel = page.getByTestId('shell-panel')
+    const search = page.getByRole('search')
+    const back = page.getByRole('link', { name: 'Back to results' })
+    await expect(back).toBeVisible()
+    const panelBox = await panel.boundingBox()
+    const searchBox = await search.boundingBox()
+    const backBox = await back.boundingBox()
+    expect(panelBox).not.toBeNull()
+    expect(searchBox).not.toBeNull()
+    expect(backBox).not.toBeNull()
+    if (!panelBox || !searchBox || !backBox) throw new Error('Missing map layout bounds')
+    expect(panelBox.y).toBeLessThan(searchBox.y)
+    expect(searchBox.x).toBeGreaterThan(panelBox.x)
+    expect(searchBox.x + searchBox.width).toBeLessThanOrEqual(panelBox.x + panelBox.width)
+    expect(backBox.y).toBeGreaterThan(searchBox.y + searchBox.height)
+    // The scroll container runs behind search; its content starts below it.
+    const headingBox = await panel.locator('[data-panel-heading]').boundingBox()
+    expect(headingBox?.y).toBeGreaterThan(searchBox.y + searchBox.height)
+    await back.click()
+    await expect(page).toHaveURL(/\/browse/)
+  })
+}
+
+test('split map panel fits three cards with verification badges on the posters', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 900 })
+  await mockApi(page)
+  await page.route('**/api/deals*', (route) =>
+    route.fulfill({
+      json: {
+        items: [1, 2, 3].map((index) => ({
+          ...DEALS[0],
+          id: String(index).repeat(24),
+          title: `Synthetic offer ${index}`,
+        })),
+        categories: ['FOOD'],
+      },
+    }),
+  )
+  await page.goto('/browse?view=map&discovery=1&split=1&results=cards')
+  const cards = page.getByTestId('shell-panel').locator('.food-deal-card')
+  await expect(cards).toHaveCount(3)
+  const boxes = await cards.evaluateAll((elements) =>
+    elements.map((element) => {
+      const card = element.getBoundingClientRect()
+      const photo = element.querySelector('.food-deal-card__photo')?.getBoundingClientRect()
+      const badge = element.querySelector('.food-deal-card__status')?.getBoundingClientRect()
+      const body = element.querySelector('.food-deal-card__body')?.getBoundingClientRect()
+      return { x: card.x, y: card.y, right: card.right, photo, badge, body }
+    }),
+  )
+  expect(boxes[0]?.y).toBe(boxes[1]?.y)
+  expect(boxes[1]?.y).toBe(boxes[2]?.y)
+  expect(boxes[0]?.right).toBeLessThan(boxes[1]?.x ?? 0)
+  expect(boxes[1]?.right).toBeLessThan(boxes[2]?.x ?? 0)
+  for (const box of boxes) {
+    expect((box.photo?.width ?? 0) / (box.photo?.height ?? 1)).toBeCloseTo(0.8, 2)
+    expect(box.body?.top).toBeCloseTo(box.photo?.bottom ?? 0, 0)
+    expect(box.badge?.top).toBeGreaterThanOrEqual(box.photo?.top ?? 0)
+    expect(box.badge?.bottom).toBeLessThanOrEqual(box.photo?.bottom ?? 0)
+    expect(box.badge?.right).toBeLessThanOrEqual(box.photo?.right ?? 0)
+  }
+})
+
+test('mobile quick filters stay on one swipeable row with full filters beside search', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  await mockApi(page)
+  await page.route('**/api/deals*', (route) =>
+    route.fulfill({
+      json: {
+        items: DEALS.map((deal) => ({ ...deal, cuisine: 'JAPANESE' })),
+        categories: ['FOOD'],
+      },
+    }),
+  )
+  await page.goto('/browse')
+  const quickFilters = page.locator('.discovery-filters__chips')
+  await expect(page.getByTestId('quick-category')).toBeVisible()
+  const row = await quickFilters.evaluate((element) => ({
+    width: element.clientWidth,
+    scrollWidth: element.scrollWidth,
+    tops: [...element.querySelectorAll('[data-testid^="quick-"]')].map(
+      (button) => button.getBoundingClientRect().top,
+    ),
+    viewportWidth: window.innerWidth,
+    pageWidth: document.documentElement.scrollWidth,
+  }))
+  expect(new Set(row.tops).size).toBe(1)
+  expect(row.scrollWidth).toBeGreaterThan(row.width)
+  expect(row.pageWidth).toBe(row.viewportWidth)
+  const allFilters = page.getByTestId('mobile-all-filters')
+  await allFilters.click()
+  await expect(page.getByTestId('filter-sheet')).toBeVisible()
+  await page.keyboard.press('Escape')
+  await expect(allFilters).toBeFocused()
 })

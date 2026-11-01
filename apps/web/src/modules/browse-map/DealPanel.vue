@@ -2,21 +2,19 @@
 import { DEAL_CUISINE_LABELS, isDealCuisine } from '@broke-oclock/contracts/deal-cuisines'
 import { authClient } from '@web/lib/auth-client'
 import { walkMinutesFor } from '@web/modules/browse-map/apply-filters'
-import CategoryBubble from '@web/modules/browse-map/CategoryBubble.vue'
 import { categoryStyle } from '@web/modules/browse-map/category-style'
 import DealGallery from '@web/modules/browse-map/DealGallery.vue'
 import DealOutlets from '@web/modules/browse-map/DealOutlets.vue'
 import DealRowList from '@web/modules/browse-map/DealRowList.vue'
 import {
+  dealFreshness,
   dealNoticeTags,
   formatCategory,
   formatValidity,
   OUTLET_NOT_CONFIRMED_NOTE,
   offerTypeTag,
-  priceText,
   termsList,
 } from '@web/modules/browse-map/deal-format'
-import FreshnessTag from '@web/modules/browse-map/FreshnessTag.vue'
 import type { DealRow } from '@web/modules/browse-map/types'
 import DealCommunity from '@web/modules/community/DealCommunity.vue'
 import FlashClaimCard from '@web/modules/flash-drop/FlashClaimCard.vue'
@@ -39,6 +37,7 @@ import { RouterLink, useRoute, useRouter } from 'vue-router'
 
 // One deal, opened from a pin, a row or the hot card. Details scroll; Save and Get directions
 // stay in the sticky bar. Votes, comments and reports belong to the community module.
+const props = defineProps<{ dialog?: boolean }>()
 const shell = useShell()
 const saved = useSavedDeals()
 const flash = useFlashDrops()
@@ -78,7 +77,6 @@ const saving = ref(false)
 const popKey = ref(0)
 
 const isSaved = computed(() => (selected.value ? saved.isSaved(selected.value.deal.id) : false))
-const price = computed(() => (selected.value ? priceText(selected.value.deal) : null))
 const terms = computed(() => (selected.value ? termsList(selected.value.deal.terms) : []))
 const cuisineLabel = computed(() => {
   const cuisine = selected.value?.deal.cuisine ?? ''
@@ -93,6 +91,7 @@ const photos = computed(() => {
     ? [{ url: deal.imageUrl, alt: deal.imageAltText ?? null }]
     : []
 })
+const freshness = computed(() => (selected.value ? dealFreshness(selected.value.deal) : null))
 const walkLabel = computed(() =>
   selected.value?.distanceMetres == null ? null : `${walkMinutesFor(selected.value.distanceMetres)} min walk`,
 )
@@ -131,7 +130,7 @@ const toggleSave = async () => {
   const deal = selected.value?.deal
   if (!deal || saving.value) return
   if (!session.value.data) {
-    await router.push({ name: 'login', query: { redirect: route.fullPath } })
+    await router.push({ name: 'auth-required', query: { ...route.query, tab: 'profile', redirect: route.fullPath } })
     return
   }
   const wasSaved = isSaved.value
@@ -155,54 +154,46 @@ const toggleSave = async () => {
 <template>
   <PanelFrame
     v-if="selected"
+    class="deal-panel"
+    :class="{ 'deal-panel--dialog': props.dialog, 'deal-panel--comments': commentsOpen, 'deal-panel--no-image': !photosShown }"
     :title="commentsOpen ? 'Comments' : selected.deal.title"
     :hide-title="commentsOpen"
-    :back="commentsOpen ? null : backTo"
+    :back="commentsOpen || props.dialog ? null : backTo"
     :back-label="backLabel"
-    :scroll-key="selected.deal.id"
+    :scroll-key="`${selected.deal.id}:${selected.venue.id}`"
   >
     <template v-if="commentsOpen" #heading>
       <button type="button" class="deal-panel__comments-back deal-community-text-button" @click="commentsOpen = false"><ShellIcon name="back" :size="16" />Back to deal</button>
     </template>
-    <template v-if="!commentsOpen">
-    <div class="deal-panel__media" :style="{ '--hero-tint': categoryStyle(selected.deal.category).tint }">
+    <template v-if="!commentsOpen" #beforeHeading>
+    <div v-show="photosShown" class="deal-panel__media" :style="{ '--hero-tint': categoryStyle(selected.deal.category).tint }">
       <DealGallery
         :key="selected.deal.id"
         :images="photos"
         :title="selected.deal.title"
         @showing="photosShown = $event"
-      >
-        <template #fallback>
-          <div class="deal-panel__hero">
-            <CategoryBubble
-              class="deal-panel__hero-icon"
-              :category="selected.deal.category"
-              :title="selected.deal.title"
-              :venue="selected.venue.name"
-              size="lg"
-              animated
-            />
-            <span v-for="tag in heroTags" :key="tag" class="lb-tag lb-tag--paper">{{ tag }}</span>
-          </div>
-        </template>
-      </DealGallery>
+      />
     </div>
 
+    <div class="deal-panel__status">
+      <span v-if="freshness" class="lb-tag" :class="[`lb-tag--${freshness.tone}`, { 'deal-panel__expired': freshness.label === 'Expired', 'deal-panel__conflicting': freshness.label === 'Mixed reports' }]">{{ freshness.label }}</span>
+    </div>
+    </template>
+
+    <template v-if="!commentsOpen">
     <div class="deal-panel__headline">
       <RouterLink class="deal-panel__venue" :to="venueLocation(route.query, selected.venue.id)">
         {{ selected.venue.name }}
       </RouterLink>
-      <span v-if="price" class="lb-price deal-panel__price" data-testid="deal-price">{{ price }}</span>
     </div>
 
     <FlashClaimCard v-if="flashDrop" :drop="flashDrop" />
 
     <div class="deal-panel__tags">
       <!-- With a photo in the hero, these move here so they never cover the poster's text. -->
-      <template v-if="photosShown">
-        <span v-for="tag in heroTags" :key="tag" class="lb-tag">{{ tag }}</span>
+      <template v-if="heroTags.length">
+        <span v-for="tag in heroTags" :key="tag" class="lb-tag lb-tag--new">{{ tag }}</span>
       </template>
-      <FreshnessTag :deal="selected.deal" />
       <span v-if="offerTypeTag(selected.deal.offerType)" class="lb-tag lb-tag--new">{{ offerTypeTag(selected.deal.offerType) }}</span>
       <span v-for="notice in dealNoticeTags(selected.deal)" :key="notice.label" class="lb-tag" :class="`lb-tag--${notice.tone}`">{{ notice.label }}</span>
     </div>
@@ -211,32 +202,26 @@ const toggleSave = async () => {
 
     <SquadDealCta :deal-id="selected.deal.id" />
 
-    <p v-if="selected.deal.description" class="deal-panel__description lb-text-wrap">{{ selected.deal.description }}</p>
-
-    <dl class="deal-panel__facts">
-      <div>
+    <div class="deal-panel__fine-print">
+      <dl class="deal-panel__validity-field">
         <dt class="lb-meta">Valid</dt>
         <dd>{{ formatValidity(selected.deal.validUntil, selected.deal.rawValidityText, selected.deal.limitedTime) }}</dd>
-      </div>
-      <div v-if="offerTypeTag(selected.deal.offerType)">
-        <dt class="lb-meta">Deal type</dt>
-        <dd>{{ offerTypeTag(selected.deal.offerType) }}</dd>
-      </div>
-      <div v-if="terms.length" class="deal-panel__fact-wide">
-        <dt class="lb-meta">Terms</dt>
-        <dd>
-          <ul class="deal-panel__terms" data-testid="deal-terms">
-            <li v-for="point in terms" :key="point" class="lb-text-wrap">{{ point }}</li>
-          </ul>
-        </dd>
-      </div>
-    </dl>
+      </dl>
+    <section class="deal-panel__conditions" aria-labelledby="deal-conditions-title">
+      <h2 id="deal-conditions-title">Terms and conditions</h2>
+      <ul v-if="terms.length" class="deal-panel__terms" data-testid="deal-terms">
+        <li v-for="point in terms" :key="point" class="lb-text-wrap">{{ point }}</li>
+      </ul>
+      <p v-else class="lb-meta">No additional terms and conditions provided.</p>
+    </section>
+    </div>
     </template>
 
-    <DealCommunity :deal-id="selected.deal.id" :all-comments="commentsOpen" @view-change="commentsOpen = $event" @updated="shell.reload" />
+    <DealCommunity :deal-id="selected.deal.id" :all-comments="commentsOpen" :explanation-popup="props.dialog" @view-change="commentsOpen = $event" @updated="shell.reload" />
 
     <template v-if="!commentsOpen && !squadRoom">
     <DealOutlets
+      :heading="props.dialog ? 'Participating outlets' : undefined"
       :deal="selected.deal"
       :current-venue-id="selected.venue.id"
       :position="shell.position.value"
@@ -246,7 +231,7 @@ const toggleSave = async () => {
 
     <section v-if="otherRows.length" aria-labelledby="deal-more-title">
       <h2 id="deal-more-title" class="deal-panel__label">More at {{ selected.venue.name }}</h2>
-      <DealRowList :rows="otherRows" :to="toRow" test-id="same-outlet-rows" @hover="shell.setHovered" />
+      <DealRowList :rows="otherRows" :to="toRow" compact test-id="same-outlet-rows" @hover="shell.setHovered" />
     </section>
     </template>
 
@@ -290,32 +275,73 @@ const toggleSave = async () => {
 </template>
 
 <style scoped>
-.deal-panel__comments-back { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 8px 0; border: 0; border-radius: 4px; background: transparent; color: var(--ink-muted); font: 600 0.875rem/1.5 var(--font-sans); cursor: pointer; }
-.deal-panel__comments-back:focus-visible { outline: 3px solid var(--coral-deep); outline-offset: 3px; }
-.deal-panel__hero {
-  position: relative;
+.deal-panel :deep(.panel-frame__actions) {
   display: flex;
-  flex: none;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: var(--space-2);
-  aspect-ratio: 16 / 6;
-  padding: 12px;
-  background: var(--hero-tint, var(--paper-sunk));
-  border-radius: 22px;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
 }
 
+.deal-panel :deep(.panel-frame__actions > .lb-btn) {
+  flex: 0 0 auto;
+  width: auto;
+}
+
+.deal-panel:not(.deal-panel--dialog) :deep(.panel-frame__title) {
+  color: var(--coral-deep);
+  font-size: clamp(1.8rem, 3vw, 2.125rem);
+  line-height: 1.2;
+}
+.deal-panel:not(.deal-panel--dialog) :deep(.panel-frame__heading) { margin-bottom: -8px; }
+.deal-panel:not(.deal-panel--dialog) .deal-panel__status { margin-bottom: -10px; }
+.deal-panel :deep(.deal-gallery) { border-radius: 0; background: transparent; }
+.deal-panel :deep(.deal-photo__img) { object-fit: contain; object-position: center top; }
+
+/* biome-ignore lint/style/noDescendingSpecificity: the earlier, more specific rule is a modifier override for a different state of the same element */
+.deal-panel__status {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.deal-panel__validity-field {
+  margin: 0 0 18px;
+}
+
+.deal-panel__validity-field dd {
+  margin: 4px 0 0;
+  font-weight: 600;
+}
+
+.deal-panel__conditions {
+  padding: 20px;
+  background: var(--sunny-wash);
+  border-radius: 18px;
+}
+
+.deal-panel__conditions h2 {
+  margin: 0 0 12px;
+  color: var(--ink);
+  font-size: 1.125rem;
+  font-weight: 700;
+}
+
+.deal-panel__conditions p {
+  margin: 0;
+}
+
+.deal-panel__conflicting { color: var(--bs-danger, #dc3545); background: #fde2e2; }
+
+.deal-panel__expired {
+  color: var(--bs-danger, #dc3545);
+}
+
+.deal-panel__comments-back { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 8px 0; border: 0; border-radius: 4px; background: transparent; color: var(--ink-muted); font: 600 0.875rem/1.5 var(--font-sans); cursor: pointer; }
+.deal-panel__comments-back:focus-visible { outline: 3px solid var(--coral-deep); outline-offset: 3px; }
 .deal-panel__media {
   display: flex;
   flex-direction: column;
   flex: none;
-}
-
-/* No deal photos: the category icon, styled like its map pin, fills the hero. */
-.deal-panel__hero-icon {
-  position: absolute;
-  inset: 50% auto auto 50%;
-  transform: translate(-50%, -50%);
 }
 
 .deal-panel__headline {
@@ -334,14 +360,7 @@ const toggleSave = async () => {
   text-underline-offset: 3px;
 }
 
-.deal-panel__price {
-  flex: none;
-  max-width: 50%;
-  font-size: 2rem;
-  text-align: right;
-  white-space: normal;
-  overflow-wrap: anywhere;
-}
+
 
 .deal-panel__tags {
   display: flex;
@@ -352,37 +371,6 @@ const toggleSave = async () => {
 .deal-panel__outlet-note {
   margin: 0;
 }
-
-.deal-panel__description {
-  margin: 0;
-  font-size: var(--text-sm);
-  line-height: 1.55;
-  white-space: pre-line;
-}
-
-.deal-panel__facts {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
-  margin: 0;
-  font-size: 0.875rem;
-}
-
-.deal-panel__facts dd {
-  margin: 2px 0 0;
-  font-weight: 600;
-}
-
-.deal-panel__fact-wide {
-  grid-column: 1 / -1;
-}
-
-/* Fine print reads better at regular weight; only the short facts are bold. */
-.deal-panel__fact-wide dd {
-  font-weight: 400;
-  line-height: 1.5;
-}
-
 /* One condition per line, so the fine print scans instead of reading as a paragraph. */
 .deal-panel__terms {
   display: grid;

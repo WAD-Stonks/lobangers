@@ -979,14 +979,19 @@
 .hero-copy > :is(.landing-eyebrow, .hero-subtitle, .landing-button, .hero-benefits) {
   animation: landing-copy-up 0.65s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
+/* Finish the staggered headline and its underline before revealing supporting content. */
 .hero-copy > .hero-subtitle {
-  animation-delay: 0.22s;
+  animation-delay: 2.1s;
 }
 .hero-copy > .landing-button {
-  animation-delay: 0.33s;
+  animation-delay: 2.24s;
 }
 .hero-copy > .hero-benefits {
-  animation-delay: 0.44s;
+  animation-delay: 2.38s;
+}
+/* Keyboard focus must never land on a still-hidden action. */
+.hero-copy:focus-within > :is(.hero-subtitle, .landing-button, .hero-benefits) {
+  animation: none;
 }
 @keyframes landing-copy-up {
   from {

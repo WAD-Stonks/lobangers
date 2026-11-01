@@ -31,6 +31,14 @@ const group = (
 })
 
 describe('declutter', () => {
+  it('preserves a country-level count circle and its anchor', () => {
+    const country = { ...group('Singapore', 100, 100, 13, 'region'), compact: true }
+    const [placed] = declutter([country], project)
+    expect(placed?.compact).toBe(true)
+    expect(placed?.centre).toEqual(country.centre)
+    expect(placed?.offset).toEqual({ x: 0, y: 0 })
+  })
+
   it('leaves groups that do not touch as full pills', () => {
     const placed = declutter([group('Orchard', 0, 0, 5), group('Bugis', 400, 0, 3)], project)
 
@@ -54,6 +62,7 @@ describe('declutter', () => {
     expect(placed).toHaveLength(1)
     expect(placed[0]?.label).toBe('Orchard')
     expect(placed[0]?.dealCount).toBe(11)
+    expect(placed[0]?.compact).toBe(true)
     expect(placed[0]?.venues.map((venue) => venue.id)).toEqual(['Orchard', 'Somerset'])
   })
 

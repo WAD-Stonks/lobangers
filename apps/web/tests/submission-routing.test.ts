@@ -15,7 +15,7 @@ function createSubmissionRouter() {
   return router
 }
 
-describe('protected local submission route', () => {
+describe('protected add-deal route', () => {
   it('keeps the landing page and browse map alongside protected submission', () => {
     const router = createSubmissionRouter()
     expect(router.resolve('/').name).toBe('landing')
@@ -31,11 +31,11 @@ describe('protected local submission route', () => {
     getSession.mockResolvedValue({ data: null })
     const router = createSubmissionRouter()
     await router.push('/add')
-    expect(router.currentRoute.value.name).toBe('login')
+    expect(router.currentRoute.value.name).toBe('sign-in')
     expect(router.currentRoute.value.query.redirect).toBe('/add')
   })
 
-  it('lets a signed-in visitor reach the same protected prototype', async () => {
+  it('lets a signed-in visitor reach the protected add-deal form', async () => {
     getSession.mockResolvedValue({ data: { user: { role: 'USER' } } })
     const router = createSubmissionRouter()
     await router.push('/add')

@@ -6,7 +6,7 @@ const getSession = vi.hoisted(() => vi.fn())
 vi.mock('@web/lib/auth-client', () => ({ authClient: { getSession } }))
 
 const to = (meta: RouteLocationNormalized['meta'], fullPath = '/me/submissions', query = {}) =>
-  ({ meta, fullPath, query }) as unknown as RouteLocationNormalized
+  ({ meta, fullPath, path: fullPath.split('?')[0], query }) as unknown as RouteLocationNormalized
 
 const signedIn = (role = 'USER') => getSession.mockResolvedValue({ data: { user: { role } } })
 const signedOut = () => getSession.mockResolvedValue({ data: null })
@@ -24,14 +24,14 @@ describe('authGuard', () => {
   it('sends signed-out visitors to login and remembers where they were going', async () => {
     signedOut()
     expect(await authGuard(to({ requiresAuth: true }))).toEqual({
-      name: 'login',
+      name: 'sign-in',
       query: { redirect: '/me/submissions' },
     })
   })
 
   it('treats a failed session lookup as signed out', async () => {
     getSession.mockRejectedValue(new Error('offline'))
-    expect(await authGuard(to({ requiresAuth: true }))).toMatchObject({ name: 'login' })
+    expect(await authGuard(to({ requiresAuth: true }))).toMatchObject({ name: 'sign-in' })
   })
 
   it('allows signed-in users on protected routes', async () => {
@@ -48,7 +48,17 @@ describe('authGuard', () => {
 
   it('bounces signed-in users off guest-only pages', async () => {
     signedIn()
-    expect(await authGuard(to({ guestOnly: true }, '/login'))).toBe('/')
+    expect(await authGuard(to({ guestOnly: true }, '/login'))).toBe('/deals')
+    expect(await authGuard(to({ guestOnly: true }, '/login', { redirect: '/saved' }))).toBe(
+      '/deals',
+    )
+  })
+
+  it('uses deals as the signed-in home and keeps the landing page for guests', async () => {
+    signedIn()
+    expect(await authGuard(to({}, '/'))).toBe('/deals')
+    signedOut()
+    expect(await authGuard(to({}, '/'))).toBe(true)
   })
 })
 

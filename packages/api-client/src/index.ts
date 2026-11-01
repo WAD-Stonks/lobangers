@@ -38,6 +38,7 @@ import {
   communityDealParamsSchema,
   communityOkSchema,
   communitySummarySchema,
+  createCommentBodySchema,
   reportBodySchema,
   voteBodySchema,
 } from '@broke-oclock/contracts/community'
@@ -143,10 +144,27 @@ export const createApiClient = (baseURL = '/api') => {
         const query = validateInput(commentsQuerySchema, input)
         return request(http.get(`/deals/${id}/comments`, { params: query }), commentsResponseSchema)
       },
-      addComment: (dealId: string, body: string) => {
+      addComment: (dealId: string, body: string, parentId?: string) => {
         const { dealId: id } = validateInput(communityDealParamsSchema, { dealId })
-        const input = validateInput(commentBodySchema, { body })
+        const input = validateInput(createCommentBodySchema, {
+          body,
+          ...(parentId ? { parentId } : {}),
+        })
         return request(http.post(`/deals/${id}/comments`, input), communityCommentSchema)
+      },
+      editComment: (commentId: string, body: string) => {
+        const { commentId: id } = validateInput(commentParamsSchema, { commentId })
+        return request(
+          http.patch(`/comments/${id}`, validateInput(commentBodySchema, { body })),
+          communityOkSchema,
+        )
+      },
+      likeComment: (commentId: string, liked: boolean) => {
+        const { commentId: id } = validateInput(commentParamsSchema, { commentId })
+        return request(
+          liked ? http.put(`/comments/${id}/like`, {}) : http.delete(`/comments/${id}/like`),
+          communityOkSchema,
+        )
       },
       deleteComment: (commentId: string) => {
         const { commentId: id } = validateInput(commentParamsSchema, { commentId })
