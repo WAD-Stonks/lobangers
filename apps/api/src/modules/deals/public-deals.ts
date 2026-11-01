@@ -262,6 +262,21 @@ export const findPublicDealPins = async (
     .map((row) => toDealPin(row, policy, now))
     .filter((deal) => deal.venues.length > 0)
 
+// Category eligibility does not depend on visitor filters. Run the two independent
+// read-only graphs together, retaining their complete existing projections and policies.
+export const findPublicBrowseResult = async (
+  database: Database,
+  query: DealsQuery,
+  now: Date,
+  policy: CommunityPolicy = DEFAULT_COMMUNITY_POLICY,
+) => {
+  const [items, categories] = await Promise.all([
+    findPublicDealPins(database, query, now, policy),
+    findEligibleCategories(database),
+  ])
+  return { items, categories }
+}
+
 export const toDealPin = (
   deal: PublicDealRow,
   policy: CommunityPolicy = DEFAULT_COMMUNITY_POLICY,

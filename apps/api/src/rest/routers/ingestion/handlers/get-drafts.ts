@@ -1,9 +1,9 @@
 import { catalogueVenueSelect } from '@api/modules/deals/catalogue-select'
 import { hasConfirmedOutletScope } from '@api/modules/deals/outlet-eligibility'
+import { findIngestionDrafts } from '@api/modules/ingestion/draft-queries'
 import {
   hasCurrentSourceScope,
   hasVerifiedPhysicalScope,
-  importedDealScope,
   isReviewReady,
 } from '@api/modules/ingestion/review-policy'
 import { sourceFromRecord } from '@api/modules/ingestion/source'
@@ -21,73 +21,7 @@ export const getIngestionDrafts = (dependencies: RestDependencies): RequestHandl
   createRestHandler(dependencies, async (request, response, context) => {
     await requireAdmin(context)
     const input = parseRestInput(ingestionDraftsQuerySchema, request.query)
-    const rows = await context.db.deal.findMany({
-      where: {
-        ...importedDealScope,
-        reviewStatus: input.status,
-        ...(input.cursor ? { id: { gt: input.cursor } } : {}),
-      },
-      orderBy: { id: 'asc' },
-      take: input.limit + 1,
-      select: {
-        id: true,
-        title: true,
-        description: true,
-        terms: true,
-        category: true,
-        offerType: true,
-        validFrom: true,
-        validUntil: true,
-        rawValidityText: true,
-        applicability: true,
-        merchantId: true,
-        scopeConfirmation: true,
-        merchant: { select: { deletedAt: true } },
-        venues: {
-          select: {
-            venueId: true,
-            venue: {
-              select: catalogueVenueSelect,
-            },
-          },
-        },
-        reviewStatus: true,
-        contentVersion: true,
-        operationVersion: true,
-        reviewNote: true,
-        priceMinor: true,
-        currency: true,
-        discountPercent: true,
-        sources: {
-          take: 1,
-          orderBy: { id: 'asc' },
-          select: {
-            sourceUrl: true,
-            sourceContentHash: true,
-            images: {
-              take: 5,
-              orderBy: { id: 'asc' },
-              select: {
-                sourceUrl: true,
-                altText: true,
-                image: {
-                  select: {
-                    id: true,
-                    hostedUrl: true,
-                    mimeType: true,
-                    sizeBytes: true,
-                    status: true,
-                  },
-                },
-              },
-            },
-            importedPost: {
-              select: { contentHash: true, errorCode: true, source: { select: { name: true } } },
-            },
-          },
-        },
-      },
-    })
+    const rows = await findIngestionDrafts(context.db, input)
     const displayed = rows.slice(0, input.limit)
     // Attribution/media stay bounded above; approval policy needs every pinned citation.
     const evidence = await context.db.dealSource.findMany({

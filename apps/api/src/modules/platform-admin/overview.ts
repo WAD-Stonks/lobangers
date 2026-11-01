@@ -1,19 +1,22 @@
 import type { AppConfig } from '@api/config'
+import { resolveImportedDealReadScope } from '@api/modules/ingestion/imported-read-scope'
 import {
   operationalSourceScope,
   readIngestionReadiness,
 } from '@api/modules/ingestion/operational-policy'
-import { importedDealScope } from '@api/modules/ingestion/review-policy'
 import type { RestContext } from '@api/rest/context'
 import { adminOverviewResponseSchema } from '@broke-oclock/contracts/platform-admin'
 
 export const readAdminOverview = async (context: RestContext, config: AppConfig) => {
   const generatedAt = (context.ingestion?.now() ?? new Date()).toISOString()
-  const readiness = await readIngestionReadiness(context.db, context.ingestion)
+  const [readiness, importedScope] = await Promise.all([
+    readIngestionReadiness(context.db, context.ingestion),
+    resolveImportedDealReadScope(context.db),
+  ])
   const [pendingMerchantRequests, pendingImportedDrafts, failedImportedPosts, runs] =
     await Promise.all([
       context.db.merchantAccessRequest.count({ where: { status: 'PENDING' } }),
-      context.db.deal.count({ where: { ...importedDealScope, reviewStatus: 'PENDING' } }),
+      context.db.deal.count({ where: { ...importedScope, reviewStatus: 'PENDING' } }),
       context.db.importedPost.count({
         where: { source: operationalSourceScope, status: 'FAILED' },
       }),

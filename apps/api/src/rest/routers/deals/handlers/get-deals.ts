@@ -1,4 +1,4 @@
-import { findEligibleCategories, findPublicDealPins } from '@api/modules/deals/public-deals'
+import { findPublicBrowseResult } from '@api/modules/deals/public-deals'
 import { createRestHandler, type RestDependencies } from '@api/rest/context'
 import { parseRestInput } from '@api/rest/validation'
 import { dealsQuerySchema, dealsResponseSchema } from '@broke-oclock/contracts/deals'
@@ -10,8 +10,12 @@ export const getDeals = (dependencies: RestDependencies): RequestHandler =>
     const query = parseRestInput(dealsQuerySchema, request.query)
     const now = new Date()
 
-    const items = await findPublicDealPins(context.db, query, now, dependencies.config.community)
-    const categories = await findEligibleCategories(context.db)
+    const result = await findPublicBrowseResult(
+      context.db,
+      query,
+      now,
+      dependencies.config.community,
+    )
 
-    response.json(dealsResponseSchema.parse({ items, categories }))
+    response.json(dealsResponseSchema.parse(result))
   })

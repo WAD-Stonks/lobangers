@@ -1,6 +1,7 @@
 import { createServer, type Server } from 'node:http'
 import { createApp } from '@api/app'
 import { parseConfig } from '@api/config'
+import { importedDealBaseScope, importedDealScope } from '@api/modules/ingestion/review-policy'
 import type { IngestionRuntime } from '@api/modules/ingestion/runtime'
 import axios from 'axios'
 import express from 'express'
@@ -222,12 +223,28 @@ describe('REST regression slices (real HTTP, synthetic transport dependencies)',
     expect(mocks.db.importedPost.count).not.toHaveBeenCalled()
     expect((await http('/api/ingestion/dashboard')).status).toBe(200)
     expect(mocks.db.importSource.findUnique).not.toHaveBeenCalled()
-    expect(mocks.db.importSource.findMany).toHaveBeenCalledTimes(1)
+    expect(mocks.db.importSource.findMany).toHaveBeenCalledTimes(2)
     expect(mocks.db.importSource.findMany).toHaveBeenCalledWith({
       where: { enabled: true },
       orderBy: [{ updatedAt: 'asc' }, { id: 'asc' }],
       take: 50,
     })
+    expect(mocks.db.importSource.findMany).toHaveBeenCalledWith({
+      where: importedDealScope.sources.some.importedPost.source,
+      select: { id: true },
+    })
+    expect(mocks.db.deal.count).toHaveBeenCalledTimes(3)
+    for (const reviewStatus of ['PENDING', 'APPROVED', 'REJECTED']) {
+      expect(mocks.db.deal.count).toHaveBeenCalledWith({
+        where: {
+          ...importedDealBaseScope,
+          reviewStatus,
+          sources: {
+            some: { importedPost: { sourceId: { in: ['bbbbbbbbbbbbbbbbbbbbbbbb'] } } },
+          },
+        },
+      })
+    }
   })
 
   it.each([

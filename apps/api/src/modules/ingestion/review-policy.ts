@@ -9,9 +9,12 @@ import { DomainError } from '@api/modules/domain-error'
 import { MONEYDIGEST_SOURCE } from '@api/modules/ingestion/source'
 import type { AccessTransaction } from '@api/modules/platform-admin/transaction'
 import { activeRecord, activeVenue } from '@api/modules/platform-admin/venues'
-export const importedDealScope = {
+export const importedDealBaseScope = {
   origin: 'IMPORTED' as const,
   OR: [{ deletedAt: null }, { deletedAt: { isSet: false } }],
+}
+export const importedDealScope = {
+  ...importedDealBaseScope,
   sources: {
     some: {
       importedPost: {
