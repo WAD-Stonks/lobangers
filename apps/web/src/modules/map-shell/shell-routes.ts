@@ -3,13 +3,21 @@ import type { LocationQuery, RouteLocationRaw, RouteRecordNameGeneric } from 'vu
 
 // Links between shell panels carry the visitor's filters, sort and view along, so going back
 // to the list shows the same results. Anything else in the query (at, redirect) is dropped.
-const SHELL_QUERY_KEYS: readonly string[] = [...FILTER_QUERY_KEYS, 'sort', 'view']
+const SHELL_QUERY_KEYS: readonly string[] = [
+  ...FILTER_QUERY_KEYS,
+  'sort',
+  'view',
+  'split',
+  'discovery',
+  'results',
+  'collection',
+]
 
 export const shellQuery = (query: LocationQuery): LocationQuery =>
   Object.fromEntries(Object.entries(query).filter(([key]) => SHELL_QUERY_KEYS.includes(key)))
 
 export const browseLocation = (query: LocationQuery): RouteLocationRaw => ({
-  name: 'browse',
+  name: query.collection === 'saved' ? 'saved' : 'browse',
   query: shellQuery(query),
 })
 

@@ -1,5 +1,7 @@
 import { flushPromises, type VueWrapper } from '@vue/test-utils'
 import { FOCUS_ZOOM, LOCATE_ZOOM } from '@web/modules/browse-map/map-config'
+import { MAP_SIDEBAR_STORAGE_KEY } from '@web/modules/map-shell/map-preferences'
+import { defined } from '@web-tests/support/defined'
 import {
   DEALS_RESPONSE,
   HAWKER_VENUE,
@@ -45,14 +47,11 @@ const mountAt = async (path: string) => {
   return result
 }
 const rowTitles = (wrapper: VueWrapper) =>
-  wrapper.findAll('[data-testid="nearby-list"] .deal-rows__title').map((title) => title.text())
-const chip = (wrapper: VueWrapper, label: string) =>
-  wrapper
-    .findAll('[data-testid="quick-chips"] button')
-    .find((button) => button.text().includes(label))
+  wrapper.findAll('[data-testid="deal-rows"] .deal-rows__title').map((title) => title.text())
 const map = (wrapper: VueWrapper) => wrapper.findComponent({ name: 'DealMap' })
 
 beforeEach(() => {
+  window.localStorage.removeItem(MAP_SIDEBAR_STORAGE_KEY)
   auth.session.current = SIGNED_OUT
   rest.list.mockReset().mockResolvedValue(DEALS_RESPONSE)
   rest.bookmarks.mockReset().mockResolvedValue({ items: [], nextCursor: null })
@@ -64,9 +63,115 @@ afterEach(() => {
   for (const wrapper of mounted) wrapper.unmount()
   mounted = []
   vi.unstubAllGlobals()
+  window.localStorage.removeItem(MAP_SIDEBAR_STORAGE_KEY)
 })
 
 describe('browse panel', () => {
+  it('keeps every saved deal visible when the map moves and restores area filtering on Deals', async () => {
+    auth.session.current = SIGNED_IN
+    rest.bookmarks.mockResolvedValue({
+      items: [{ dealId: KOPI.id }, { dealId: NOODLES.id }],
+      nextCursor: null,
+    })
+    const { wrapper, router } = await mountAt('/saved')
+    const savedTitles = rowTitles(wrapper)
+    expect(savedTitles).toHaveLength(2)
+    map(wrapper).vm.$emit('moved', { south: 0, north: 0.1, west: 100, east: 100.1 })
+    await flushPromises()
+    expect(rowTitles(wrapper)).toEqual(savedTitles)
+    expect(wrapper.get('[data-testid="shell-panel"] h1').text()).toBe('2 saved deals')
+    await router.push('/browse')
+    await flushPromises()
+    expect(rowTitles(wrapper)).toEqual([])
+  })
+
+  it('uses location only on All Deals and remembers it when returning from the map', async () => {
+    const { wrapper, router } = await mountAt('/deals')
+    await wrapper.get('[data-testid="quick-location"]').trigger('click')
+    await wrapper.get('[data-testid="quick-filter-popover"] input').setValue('Bugis')
+    await defined(
+      wrapper
+        .findAll('[data-testid="quick-filter-popover"] button')
+        .find((button) => button.text() === 'Bugis'),
+    ).trigger('click')
+    await wrapper.get('[data-testid="quick-filter-apply"]').trigger('click')
+    await flushPromises()
+    expect(router.currentRoute.value.query.location).toBe('town:Bugis')
+    expect(wrapper.findAll('.food-deal-card')).toHaveLength(2)
+    expect(wrapper.get('[data-testid="filter-badge"]').text()).toContain('1')
+    await wrapper.get('[data-testid="show-map"]').trigger('click')
+    await flushPromises()
+    expect(router.currentRoute.value.query.location).toBe('town:Bugis')
+    expect(map(wrapper).props('pins')).toHaveLength(2)
+    expect(wrapper.find('[data-testid="quick-location"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="filter-badge"]').exists()).toBe(false)
+    await router.push({ path: '/deals', query: { location: 'town:Bugis' } })
+    await flushPromises()
+    expect(wrapper.findAll('.food-deal-card')).toHaveLength(2)
+    await wrapper.get('[data-testid="quick-location"]').trigger('click')
+    await defined(
+      wrapper
+        .findAll('[data-testid="quick-filter-popover"] button')
+        .find((button) => button.text() === 'Clear'),
+    ).trigger('click')
+    await flushPromises()
+    expect(router.currentRoute.value.query.location).toBeUndefined()
+    expect(map(wrapper).props('pins')).toHaveLength(2)
+  })
+
+  it('omits Location from the map filter panel and ignores old location query values', async () => {
+    const { wrapper } = await mountAt('/browse?location=region:North')
+    expect(wrapper.find('[data-testid="quick-location"]').exists()).toBe(false)
+    expect(map(wrapper).props('pins')).toHaveLength(2)
+    await wrapper.get('[data-testid="all-filters"]').trigger('click')
+    await flushPromises()
+    expect(wrapper.find('[data-testid="filter-location-section"]').exists()).toBe(false)
+  })
+
+  it('clears filters on All Deals without changing the view or sort', async () => {
+    auth.session.current = SIGNED_IN
+    const { wrapper, router } = await mountAt(
+      '/browse?view=list&discovery=1&q=synthetic&cat=drinks&max=5&sort=ending',
+    )
+    expect(wrapper.find('[data-testid="deals-greeting"]').exists()).toBe(false)
+    expect(wrapper.text()).not.toContain('Great food, better prices')
+    await wrapper.get('[data-testid="clear-all-filters"]').trigger('click')
+    await flushPromises()
+    expect(router.currentRoute.value.query).toMatchObject({
+      view: 'list',
+      discovery: '1',
+      sort: 'ending',
+    })
+    expect(router.currentRoute.value.query.q).toBeUndefined()
+    expect(router.currentRoute.value.query.cat).toBeUndefined()
+    expect(router.currentRoute.value.query.max).toBeUndefined()
+    expect(wrapper.find('[data-testid="filter-badge"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="clear-all-filters"]').exists()).toBe(false)
+    expect(wrapper.findAll('.food-deal-card')).toHaveLength(3)
+  })
+
+  it('automatically filters to the visible map area and restores deals when the viewport expands', async () => {
+    const { wrapper, router } = await mountAt('/browse')
+    map(wrapper).vm.$emit('moved', {
+      south: KOPI_VENUE.lat - 0.00001,
+      north: KOPI_VENUE.lat + 0.00001,
+      west: KOPI_VENUE.lng - 0.00001,
+      east: KOPI_VENUE.lng + 0.00001,
+    })
+    await flushPromises()
+    expect(rowTitles(wrapper)).toEqual(['Synthetic iced kopi'])
+    expect(wrapper.find('[data-testid="search-area"]').exists()).toBe(false)
+    map(wrapper).vm.$emit('moved', { south: 0, north: 2, west: 100, east: 105 })
+    await flushPromises()
+    expect(rowTitles(wrapper)).toHaveLength(3)
+    map(wrapper).vm.$emit('moved', { south: 0, north: 0.1, west: 100, east: 100.1 })
+    await flushPromises()
+    expect(rowTitles(wrapper)).toHaveLength(0)
+    await router.push('/browse?view=list&discovery=1')
+    await flushPromises()
+    expect(wrapper.findAll('.food-deal-card')).toHaveLength(3)
+  })
+
   it('lists every loaded deal with a count, asking the API only for valid deals', async () => {
     const { wrapper } = await mountAt('/browse')
     expect(rest.list).toHaveBeenCalledWith({ validNow: 'true' })
@@ -85,15 +190,19 @@ describe('browse panel', () => {
     expect(rowTitles(wrapper)).toHaveLength(3)
   })
 
-  it('applies the Under $5 chip to the URL, the list and the pins, and Back undoes it', async () => {
+  it('applies the quick price filter to the URL, list and pins, and Back undoes it', async () => {
     const { router, wrapper } = await mountAt('/browse')
-    await chip(wrapper, 'Under $5')?.trigger('click')
+    await wrapper.get('[data-testid="quick-price"]').trigger('click')
+    await wrapper.get('input[type="number"]').setValue('5')
+    await wrapper.get('[data-testid="quick-filter-apply"]').trigger('click')
     await flushPromises()
     expect(router.currentRoute.value.query.max).toBe('5')
-    expect(chip(wrapper, 'Under $5')?.attributes('aria-pressed')).toBe('true')
+    expect(wrapper.get('[data-testid="quick-price"]').text()).toContain('Up to $5')
     // A price cap keeps deals without a fixed price, like the API does.
     expect(rowTitles(wrapper)).toEqual(['Synthetic iced kopi', 'Synthetic chicken rice'])
-    expect(wrapper.text()).toContain('Up to $5.00')
+    expect(wrapper.find('.browse-list__tokens').exists()).toBe(false)
+    expect(wrapper.find('.browse-list__toolbar [data-testid="results-list"]').exists()).toBe(true)
+    expect(wrapper.find('.browse-list__toolbar [data-testid="sort"]').exists()).toBe(true)
 
     router.back()
     await flushPromises()
@@ -136,25 +245,14 @@ describe('browse panel', () => {
     expect(rowTitles(wrapper)).toHaveLength(3)
   })
 
-  it('switches to the list view and back from the toggle', async () => {
-    const { router, wrapper } = await mountAt('/browse')
-    const toggle = () => wrapper.get('[data-testid="panel-toggle"]')
-    expect(toggle().attributes('aria-label')).toBe('Show list')
-    await toggle().trigger('click')
-    await flushPromises()
-    expect(router.currentRoute.value.query.view).toBe('list')
-    expect(toggle().attributes('aria-label')).toBe('Show map')
-    expect(wrapper.findAll('[data-testid="deal-cards"] li')).toHaveLength(3)
-  })
-
   it('highlights the pin for a hovered row, and the row for a hovered pin', async () => {
     const { wrapper } = await mountAt('/browse')
-    await wrapper.get('[data-testid="nearby-list"] a').trigger('mouseenter')
+    await wrapper.get('[data-testid="deal-rows"] > li').trigger('mouseenter')
     expect(map(wrapper).props('hoveredVenueId')).toBe(KOPI_VENUE.id)
 
     map(wrapper).vm.$emit('hover', HAWKER_VENUE.id)
     await flushPromises()
-    const hot = wrapper.findAll('[data-testid="nearby-list"] a.is-hot').map((row) => row.text())
+    const hot = wrapper.findAll('[data-testid="deal-rows"] a.is-hot').map((row) => row.text())
     expect(hot).toHaveLength(2)
     expect(hot[0]).toContain('Synthetic noodle set')
   })
@@ -162,18 +260,53 @@ describe('browse panel', () => {
 
 describe('near me', () => {
   const HERE = { lat: 1.3, lng: 103.85 }
-  const stubGeolocation = () =>
+  const stubGeolocation = (position = HERE) =>
     Object.defineProperty(navigator, 'geolocation', {
       configurable: true,
       value: {
         getCurrentPosition: (ok: PositionCallback) =>
           ok({
-            coords: { latitude: HERE.lat, longitude: HERE.lng, accuracy: 20 },
+            coords: { latitude: position.lat, longitude: position.lng, accuracy: 20 },
           } as GeolocationPosition),
       },
     })
   afterEach(() => {
     Reflect.deleteProperty(navigator, 'geolocation')
+  })
+
+  it('defaults the deals grid to nearby and supports newest and ending sorts after locating', async () => {
+    stubGeolocation(HAWKER_VENUE)
+    const { router, wrapper } = await mountAt('/deals')
+    const titles = () => wrapper.findAll('.food-deal-card__description').map((item) => item.text())
+    expect((wrapper.get('[data-testid="sort"]').element as HTMLSelectElement).value).toBe('near')
+    expect(titles()).toEqual([
+      'Synthetic noodle set',
+      'Synthetic chicken rice',
+      'Synthetic iced kopi',
+    ])
+    await wrapper.get('[data-testid="sort"]').setValue('newest')
+    await flushPromises()
+    expect(router.currentRoute.value.query.sort).toBe('newest')
+    expect(titles()).toEqual([
+      'Synthetic iced kopi',
+      'Synthetic noodle set',
+      'Synthetic chicken rice',
+    ])
+    await wrapper.get('[data-testid="sort"]').setValue('ending')
+    await flushPromises()
+    expect(titles()).toEqual([
+      'Synthetic noodle set',
+      'Synthetic chicken rice',
+      'Synthetic iced kopi',
+    ])
+  })
+
+  it('keeps the Singapore overview on arrival even when location is available', async () => {
+    stubGeolocation()
+    const { wrapper } = await mountAt('/browse')
+    await flushPromises()
+    expect(map(wrapper).props('userPosition')).toEqual(HERE)
+    expect(map(wrapper).props('focus')).toBeNull()
   })
 
   it('focuses the visitor much closer in than a selected deal', async () => {
@@ -203,18 +336,89 @@ describe('collapsing the desktop panel', () => {
   const panel = (wrapper: VueWrapper) => wrapper.get('[data-testid="shell-panel"]')
   const tab = (wrapper: VueWrapper) => wrapper.get('[data-testid="panel-collapse"]')
 
+  it('keeps the previous panel hidden until the selected tab finishes navigating', async () => {
+    auth.session.current = SIGNED_IN
+    const { wrapper, router } = await mountAt('/me/profile')
+    await tab(wrapper).trigger('click')
+    let finishNavigation: (() => void) | undefined
+    router.beforeEach((to) =>
+      to.name === 'saved'
+        ? new Promise<void>((resolve) => {
+            finishNavigation = resolve
+          })
+        : true,
+    )
+    await wrapper.get('[data-testid="map-navigation"] a[href^="/saved"]').trigger('click')
+    await flushPromises()
+    expect(router.currentRoute.value.name).toBe('profile')
+    expect(panel(wrapper).classes()).toContain('is-collapsed')
+    expect(tab(wrapper).attributes('aria-expanded')).toBe('false')
+    finishNavigation?.()
+    await flushPromises()
+    expect(router.currentRoute.value.name).toBe('saved')
+    expect(panel(wrapper).classes()).not.toContain('is-collapsed')
+    expect(panel(wrapper).get('h1').text()).toBe('0 saved deals')
+  })
+
+  it('persists a hidden rail while keeping a menu available to show it again', async () => {
+    const { wrapper } = await mountAt('/browse')
+    await wrapper.get('[data-testid="nav-toggle"]').trigger('click')
+    await wrapper.get('[data-testid="show-sidebar"]').trigger('click')
+    await flushPromises()
+    expect(wrapper.find('[data-testid="map-navigation"]').exists()).toBe(false)
+    expect(wrapper.get('[data-testid="map-shell"]').attributes('style')).toContain(
+      '--map-rail-w: 0px',
+    )
+    expect(window.localStorage.getItem(MAP_SIDEBAR_STORAGE_KEY)).toBe('0')
+    const restored = await mountAt('/browse')
+    expect(restored.wrapper.find('[data-testid="map-navigation"]').exists()).toBe(false)
+    await restored.wrapper.get('[data-testid="nav-toggle"]').trigger('click')
+    expect(restored.wrapper.get('[data-testid="show-sidebar"]').attributes('aria-checked')).toBe(
+      'false',
+    )
+    await restored.wrapper.get('[data-testid="show-sidebar"]').trigger('click')
+    await flushPromises()
+    expect(restored.wrapper.find('[data-testid="map-navigation"]').exists()).toBe(true)
+    expect(restored.wrapper.get('[data-testid="shell-panel"]').attributes('inert')).toBeUndefined()
+    expect(window.localStorage.getItem(MAP_SIDEBAR_STORAGE_KEY)).toBe('1')
+  })
+
+  it('opens a modal navigation drawer from the rail and restores focus on Escape', async () => {
+    const { wrapper } = await mountAt('/browse')
+    expect(wrapper.find('[data-testid="map-navigation"]').exists()).toBe(true)
+    const toggle = wrapper.get('[data-testid="nav-toggle"]')
+    await toggle.trigger('click')
+    await flushPromises()
+    const menu = wrapper.get('[data-testid="nav-menu"]')
+    expect(menu.attributes('role')).toBe('dialog')
+    expect(menu.attributes('aria-modal')).toBe('true')
+    expect(wrapper.get('[data-testid="shell-header"]').attributes('inert')).toBeDefined()
+    expect(panel(wrapper).attributes('inert')).toBeDefined()
+    const first = menu.get('a, button').element as HTMLElement
+    const last = menu.findAll('a, button').at(-1)?.element as HTMLElement
+    first.focus()
+    await menu.trigger('keydown', { key: 'Tab', shiftKey: true })
+    expect(document.activeElement).toBe(last)
+    await menu.trigger('keydown', { key: 'Escape' })
+    await flushPromises()
+    expect(wrapper.find('[data-testid="nav-menu"]').exists()).toBe(false)
+    expect(document.activeElement).toBe(toggle.element)
+    expect(panel(wrapper).attributes('inert')).toBeUndefined()
+  })
+
   it('tucks the panel away, frames the whole map, and brings it back', async () => {
     const { wrapper } = await mountAt('/browse')
     const openOffset = map(wrapper).props('focusOffset')
-    expect(openOffset.x).toBeLessThan(0)
+    expect(openOffset.x).toBeGreaterThan(0)
 
     await tab(wrapper).trigger('click')
     expect(panel(wrapper).classes()).toContain('is-collapsed')
     expect(panel(wrapper).attributes('inert')).toBeDefined()
     expect(tab(wrapper).attributes('aria-expanded')).toBe('false')
     expect(tab(wrapper).attributes('aria-label')).toBe('Show results panel')
-    expect(map(wrapper).props('focusOffset')).toEqual({ x: 0, y: 0 })
+    expect(map(wrapper).props('focusOffset')).toEqual({ x: 36, y: 0 })
     expect(map(wrapper).props('viewPadding').right).toBe(0)
+    expect(map(wrapper).props('viewPadding').left).toBe(72)
 
     await tab(wrapper).trigger('click')
     expect(panel(wrapper).classes()).not.toContain('is-collapsed')
@@ -232,18 +436,145 @@ describe('collapsing the desktop panel', () => {
   })
 
   it('reopens when switching to the list', async () => {
-    const { wrapper } = await mountAt('/browse')
+    const { wrapper, router } = await mountAt('/browse')
     await tab(wrapper).trigger('click')
-    await wrapper.get('[data-testid="panel-toggle"]').trigger('click')
+    await router.push('/browse?view=list&discovery=1')
     await flushPromises()
     expect(panel(wrapper).classes()).not.toContain('is-collapsed')
+  })
+})
+
+describe('map tutorial', () => {
+  const start = async (wrapper: VueWrapper) => {
+    await wrapper.get('[data-testid="nav-toggle"]').trigger('click')
+    await wrapper.get('[data-testid="start-map-tutorial"]').trigger('click')
+    await flushPromises()
+  }
+  const next = async (wrapper: VueWrapper) => {
+    await wrapper.get('[data-testid="tutorial-next"]').trigger('click')
+    await flushPromises()
+  }
+
+  it('walks through real views and restores the original filters, sort and scroll on finish', async () => {
+    const { wrapper, router } = await mountAt('/browse?q=synthetic&sort=ending')
+    const path = router.currentRoute.value.fullPath
+    ;(wrapper.get('[data-testid="panel-body"]').element as HTMLElement).scrollTop = 140
+    await start(wrapper)
+    expect(wrapper.get('[data-testid="map-tutorial"]').text()).toContain('Find a deal that fits')
+    expect(wrapper.get('[data-testid="filter-sheet"]').attributes('inert')).toBeDefined()
+    await next(wrapper)
+    expect(router.currentRoute.value.name).toBe('deal')
+    expect(wrapper.get('[data-testid="map-tutorial"]').text()).toContain('Open a deal')
+    await next(wrapper)
+    expect(wrapper.get('[data-testid="map-tutorial"]').text()).toContain(
+      'Check community verification',
+    )
+    await next(wrapper)
+    expect(wrapper.get('[data-testid="map-tutorial"]').text()).toContain('Read the conversation')
+    await next(wrapper)
+    expect(wrapper.get('[data-testid="map-tutorial"]').text()).toContain('Where to add a deal')
+    await next(wrapper)
+    expect(wrapper.find('[data-testid="map-tutorial"]').exists()).toBe(false)
+    expect(router.currentRoute.value.fullPath).toBe(path)
+    expect((wrapper.get('[data-testid="panel-body"]').element as HTMLElement).scrollTop).toBe(140)
+    expect(rest.save).not.toHaveBeenCalled()
+  })
+
+  it('can be dismissed and replayed when no matching deals are available', async () => {
+    rest.list.mockResolvedValue({ items: [], categories: [] })
+    const { wrapper, router } = await mountAt('/browse?q=empty')
+    await start(wrapper)
+    await next(wrapper)
+    expect(wrapper.get('[data-testid="map-tutorial"]').text()).toContain(
+      'no current matching deals',
+    )
+    await wrapper
+      .get('[data-testid="map-tutorial"] [role="dialog"]')
+      .trigger('keydown', { key: 'Escape' })
+    await flushPromises()
+    expect(router.currentRoute.value.fullPath).toBe('/browse?q=empty')
+    expect(wrapper.find('[data-testid="map-tutorial"]').exists()).toBe(false)
+    await start(wrapper)
+    expect(wrapper.get('[data-testid="map-tutorial"]').text()).toContain('1 of 5')
+  })
+})
+
+describe('results display toggle', () => {
+  it('opens the map Deals tab in List view even after choosing Cards', async () => {
+    const { wrapper, router } = await mountAt('/browse?results=cards&cat=drinks')
+    await defined(
+      wrapper
+        .get('[data-testid="map-navigation"]')
+        .findAll('a')
+        .find((link) => link.text() === 'Deals'),
+    ).trigger('click')
+    await flushPromises()
+    expect(router.currentRoute.value.query).toMatchObject({ results: 'list', cat: 'drinks' })
+    expect(wrapper.get('[data-testid="results-list"]').attributes('aria-pressed')).toBe('true')
+    expect(wrapper.find('[data-testid="deal-rows"]').exists()).toBe(true)
+  })
+
+  it('expands the shared panel/search width for cards and contracts it for rows even on split entry', async () => {
+    vi.stubGlobal('innerWidth', 1440)
+    const { wrapper } = await mountAt('/browse?view=map&discovery=1&split=1&results=cards')
+    const width = () =>
+      (wrapper.get('[data-testid="map-shell"]').element as HTMLElement).style.getPropertyValue(
+        '--panel-w',
+      )
+    const cardWidth = parseFloat(width())
+    expect(cardWidth).toBe(Math.round(1440 * 0.42))
+    await wrapper.get('[data-testid="results-list"]').trigger('click')
+    await flushPromises()
+    expect(parseFloat(width())).toBe(400)
+    const listPadding = map(wrapper).props('viewPadding').left
+    await wrapper.get('[data-testid="results-cards"]').trigger('click')
+    await flushPromises()
+    expect(parseFloat(width())).toBe(cardWidth)
+    expect(map(wrapper).props('viewPadding').left).toBeGreaterThan(listPadding)
+  })
+
+  it('switches layouts without changing filters or sort and preserves the choice through deal navigation', async () => {
+    const { wrapper, router } = await mountAt('/browse?cat=drinks&sort=ending')
+    expect(wrapper.get('[data-testid="results-list"]').attributes('aria-pressed')).toBe('true')
+    expect(wrapper.find('[data-testid="deal-rows"]').exists()).toBe(true)
+    await wrapper.get('[data-testid="results-cards"]').trigger('click')
+    await flushPromises()
+    expect(router.currentRoute.value.query).toMatchObject({
+      cat: 'drinks',
+      sort: 'ending',
+      results: 'cards',
+    })
+    expect(wrapper.get('[data-testid="results-cards"]').attributes('aria-pressed')).toBe('true')
+    expect(wrapper.find('[data-testid="food-deal-grid"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="deal-rows"]').exists()).toBe(false)
+    await wrapper.get('[data-testid="food-deal-grid"] a').trigger('click')
+    await flushPromises()
+    expect(router.currentRoute.value.query.results).toBe('cards')
+    await wrapper.get('.panel-frame__back').trigger('click')
+    await flushPromises()
+    expect(wrapper.find('[data-testid="food-deal-grid"]').exists()).toBe(true)
+    await wrapper.get('[data-testid="results-list"]').trigger('click')
+    await flushPromises()
+    expect(wrapper.find('[data-testid="deal-rows"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="food-deal-grid"]').exists()).toBe(false)
+  })
+
+  it('always shows cards on All Deals without a layout toggle, even with an old list preference', async () => {
+    const { wrapper } = await mountAt('/browse?view=list&results=list')
+    expect(wrapper.get('[data-testid="shell-panel"] h1').text()).toBe('3 deals to explore')
+    expect(wrapper.find('.panel-frame__heading [data-testid="sort"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="show-map"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="food-deal-grid"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="deal-rows"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="results-list"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="results-cards"]').exists()).toBe(false)
   })
 })
 
 describe('opening deals and venues', () => {
   it('opens a deal from a row, focuses the map on it and links back with the filters', async () => {
     const { router, wrapper } = await mountAt('/browse?cat=drinks')
-    await wrapper.get('[data-testid="nearby-list"] a').trigger('click')
+    await wrapper.get('[data-testid="deal-rows"] a').trigger('click')
     await flushPromises()
     expect(router.currentRoute.value.name).toBe('deal')
     expect(router.currentRoute.value.params.dealId).toBe(KOPI.id)
@@ -252,6 +583,20 @@ describe('opening deals and venues', () => {
     )
     expect(map(wrapper).props('selectedVenueId')).toBe(KOPI_VENUE.id)
     expect(map(wrapper).props('focus')).toEqual({ lat: KOPI_VENUE.lat, lng: KOPI_VENUE.lng })
+    const detail = wrapper.get('[data-testid="shell-panel"]')
+    expect(detail.find('.deal-panel__status').exists()).toBe(true)
+    expect(detail.find('.deal-panel__validity-field').exists()).toBe(true)
+    expect(detail.get('.deal-panel__conditions h2').text()).toBe('Terms and conditions')
+    expect(detail.find('.deal-panel__facts').exists()).toBe(false)
+    expect(detail.find('.deal-panel__description').exists()).toBe(false)
+    const elements = [...detail.get('[data-testid="panel-body"]').element.children]
+    expect(elements.indexOf(detail.get('.deal-panel__media').element)).toBeLessThan(
+      elements.indexOf(detail.get('.panel-frame__heading').element),
+    )
+    expect(elements.indexOf(detail.get('.deal-panel__status').element)).toBeLessThan(
+      elements.indexOf(detail.get('.panel-frame__heading').element),
+    )
+    expect(wrapper.find('[data-testid="deal-dialog"]').exists()).toBe(false)
     expect(wrapper.get('.panel-frame__back').attributes('href')).toBe('/browse?cat=drinks')
   })
 
@@ -283,13 +628,80 @@ describe('opening deals and venues', () => {
     expect(wrapper.get('[data-testid="shell-panel"] h1').text()).toBe('Deal not found')
   })
 
-  it('opens the ending-soon card deal in the same deal panel', async () => {
+  it('keeps the map free of floating promotions and opens deals from the results drawer', async () => {
     const { router, wrapper } = await mountAt('/browse')
-    expect(wrapper.get('[data-testid="hot-card"]').text()).toContain('Synthetic noodle set')
-    await wrapper.get('[data-testid="hot-open"]').trigger('click')
+    expect(wrapper.find('[data-testid="hot-card"]').exists()).toBe(false)
+    await wrapper.get(`[data-testid="deal-rows"] a[href*="${NOODLES.id}"]`).trigger('click')
     await flushPromises()
     expect(router.currentRoute.value.name).toBe('deal')
     expect(router.currentRoute.value.params.dealId).toBe(NOODLES.id)
+  })
+})
+
+describe('saved results panel', () => {
+  it('shows only bookmarks with Deals controls and preserves Saved through sorting, layouts and deal navigation', async () => {
+    auth.session.current = SIGNED_IN
+    rest.bookmarks.mockResolvedValue({ items: [{ dealId: KOPI.id }], nextCursor: null })
+    const { wrapper, router } = await mountAt('/saved?tab=settings')
+    expect(wrapper.find('[role="tablist"]').exists()).toBe(false)
+    expect(rowTitles(wrapper)).toEqual([KOPI.title])
+    expect(wrapper.get('[data-testid="shell-panel"] h1').text()).toBe('1 saved deal')
+    await wrapper.get('[data-testid="sort"]').setValue('ending')
+    await flushPromises()
+    expect(router.currentRoute.value.name).toBe('saved')
+    await wrapper.get('[data-testid="results-cards"]').trigger('click')
+    await flushPromises()
+    expect(wrapper.findAll('.food-deal-card')).toHaveLength(1)
+    await wrapper.get('.food-deal-card__link').trigger('click')
+    await flushPromises()
+    expect(router.currentRoute.value.query.collection).toBe('saved')
+    expect(wrapper.find('[data-testid="deal-dialog"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="shell-panel"] .deal-panel__fine-print').exists()).toBe(true)
+    await wrapper.get('.panel-frame__back').trigger('click')
+    await flushPromises()
+    expect(router.currentRoute.value.name).toBe('saved')
+    expect(wrapper.findAll('.food-deal-card')).toHaveLength(1)
+    await wrapper.get('[data-testid="panel-collapse"]').trigger('click')
+    await wrapper.get('[data-testid="map-navigation"] a[href^="/saved"]').trigger('click')
+    await flushPromises()
+    expect(wrapper.get('[data-testid="panel-collapse"]').attributes('aria-expanded')).toBe('true')
+    await wrapper.get('[data-testid="item-save"]').trigger('click')
+    await flushPromises()
+    expect(rest.unsave).toHaveBeenCalledWith(KOPI.id)
+    expect(wrapper.findAll('.food-deal-card')).toHaveLength(0)
+  })
+})
+
+describe('saving from result items', () => {
+  it('saves from a list row without opening it, shares state with cards, and can unsave', async () => {
+    auth.session.current = SIGNED_IN
+    const { wrapper, router } = await mountAt('/browse')
+    const button = () => wrapper.get(`[data-testid="item-save"][aria-label$="${KOPI.title}"]`)
+    expect(wrapper.findAll('[data-testid="item-save"]')).toHaveLength(3)
+    await button().trigger('click')
+    await flushPromises()
+    expect(rest.save).toHaveBeenCalledWith(KOPI.id)
+    expect(router.currentRoute.value.name).toBe('browse')
+    expect(button().attributes('aria-pressed')).toBe('true')
+    await wrapper.get('[data-testid="results-cards"]').trigger('click')
+    await flushPromises()
+    expect(button().attributes('aria-pressed')).toBe('true')
+    await button().trigger('click')
+    await flushPromises()
+    expect(rest.unsave).toHaveBeenCalledWith(KOPI.id)
+    expect(button().attributes('aria-pressed')).toBe('false')
+  })
+
+  it('sends signed-out visitors to login with their current results as the return destination', async () => {
+    const { wrapper, router } = await mountAt('/browse?results=cards')
+    await wrapper.get('[data-testid="item-save"]').trigger('click')
+    await flushPromises()
+    expect(wrapper.find('[data-testid="shell-panel"] .auth-prompt').exists()).toBe(true)
+    expect(wrapper.find('dialog.auth-prompt').exists()).toBe(false)
+    await wrapper.get('.auth-prompt__primary').trigger('click')
+    await flushPromises()
+    expect(router.currentRoute.value.name).toBe('sign-in')
+    expect(router.currentRoute.value.query.redirect).toBe('/browse?results=cards')
   })
 })
 
@@ -298,7 +710,11 @@ describe('saving from the deal panel', () => {
     const { router, wrapper } = await mountAt(`/deals/${KOPI.id}`)
     await wrapper.get('[data-testid="save-deal"]').trigger('click')
     await flushPromises()
-    expect(router.currentRoute.value.name).toBe('login')
+    expect(wrapper.find('[data-testid="shell-panel"] .auth-prompt').exists()).toBe(true)
+    expect(wrapper.find('dialog.auth-prompt').exists()).toBe(false)
+    await wrapper.get('.auth-prompt__primary').trigger('click')
+    await flushPromises()
+    expect(router.currentRoute.value.name).toBe('sign-in')
     expect(router.currentRoute.value.query.redirect).toBe(`/deals/${KOPI.id}`)
   })
 
@@ -328,7 +744,217 @@ describe('saving from the deal panel', () => {
   })
 })
 
+describe('map navigation rail', () => {
+  it.each([390, 834])(
+    'keeps map search bounds and results stable when the sheet expands at %spx',
+    async (width) => {
+      vi.stubGlobal('matchMedia', (query: string) => ({
+        matches: query.includes('min-width: 768px') && width >= 768,
+        media: query,
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+      }))
+      vi.stubGlobal('innerWidth', width)
+      const { wrapper } = await mountAt('/browse?view=map&split=1')
+      map(wrapper).vm.$emit('moved', { south: 0, north: 2, west: 100, east: 105 })
+      await flushPromises()
+      const searchPadding = map(wrapper).props('searchPadding')
+      const coveredBefore = map(wrapper).props('viewPadding').bottom
+      expect(rowTitles(wrapper)).toHaveLength(3)
+      await wrapper.get('[data-testid="sheet-handle"]').trigger('keydown', { key: 'ArrowUp' })
+      await flushPromises()
+      expect(map(wrapper).props('viewPadding').bottom).toBeGreaterThan(coveredBefore)
+      expect(map(wrapper).props('searchPadding')).toEqual(searchPadding)
+      expect(rowTitles(wrapper)).toHaveLength(3)
+      map(wrapper).vm.$emit('moved', {
+        south: KOPI_VENUE.lat - 0.00001,
+        north: KOPI_VENUE.lat + 0.00001,
+        west: KOPI_VENUE.lng - 0.00001,
+        east: KOPI_VENUE.lng + 0.00001,
+      })
+      await flushPromises()
+      expect(rowTitles(wrapper)).toEqual([KOPI.title])
+    },
+  )
+
+  it.each([false, true])(
+    'opens All Deals from its navigation link, preserving filters (mobile: %s)',
+    async (mobile) => {
+      if (mobile)
+        vi.stubGlobal('matchMedia', (query: string) => ({
+          matches: false,
+          media: query,
+          addEventListener: vi.fn(),
+          removeEventListener: vi.fn(),
+        }))
+      const { wrapper, router } = await mountAt('/browse?cat=drinks&view=map&split=1')
+      if (mobile) await wrapper.get('[data-testid="nav-home"]').trigger('click')
+      else {
+        expect(wrapper.find('[data-testid="nav-home"]').exists()).toBe(false)
+        await wrapper.get('[data-testid="nav-toggle"]').trigger('click')
+        await wrapper.get('[data-testid="nav-menu"] a[href^="/deals"]').trigger('click')
+      }
+      await flushPromises()
+      expect(router.currentRoute.value.query).toMatchObject({
+        cat: 'drinks',
+        view: 'list',
+        discovery: '1',
+      })
+      expect(wrapper.find('[data-testid="food-deal-grid"]').exists()).toBe(true)
+      if (mobile)
+        expect(wrapper.get('[data-testid="map-navigation"] a[aria-current="page"]').text()).toBe(
+          'All deals',
+        )
+    },
+  )
+
+  it('uses bottom navigation on phones and hides the unavailable sidebar switch', async () => {
+    vi.stubGlobal('matchMedia', (query: string) => ({
+      matches: false,
+      media: query,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    }))
+    vi.stubGlobal('innerWidth', 390)
+    auth.session.current = SIGNED_IN
+    const { wrapper, router } = await mountAt('/browse?view=map&split=1')
+    expect(wrapper.get('[data-testid="map-navigation"]').classes()).toContain(
+      'map-navigation--bottom',
+    )
+    expect(wrapper.get('[data-testid="map-navigation"] a[aria-current="page"]').text()).toBe('Map')
+    expect(wrapper.get('.map-navigation__avatar').text()).toBe('S')
+    expect(
+      (wrapper.get('[data-testid="map-shell"]').element as HTMLElement).style.getPropertyValue(
+        '--bottom-nav-h',
+      ),
+    ).toContain('68px')
+    await wrapper.get('[data-testid="nav-toggle"]').trigger('click')
+    expect(wrapper.find('[data-testid="show-sidebar"]').exists()).toBe(false)
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }))
+    await flushPromises()
+    await wrapper.get('[data-testid="map-navigation"] a[href^="/saved"]').trigger('click')
+    await flushPromises()
+    expect(router.currentRoute.value.name).toBe('saved')
+    expect(wrapper.get('[data-testid="map-navigation"] a[aria-current="page"]').text()).toBe(
+      'Saved',
+    )
+    expect(wrapper.get('[data-testid="shell-panel"]').classes()).toContain('shell-panel--sheet')
+  })
+
+  it('keeps filters and result preferences when navigating through account, share, saved and deals', async () => {
+    auth.session.current = SIGNED_IN
+    const choices = {
+      q: 'synthetic',
+      cat: 'drinks',
+      max: '5',
+      when: 'week',
+      sort: 'ending',
+      results: 'list',
+    }
+    const { wrapper, router } = await mountAt(
+      '/browse?q=synthetic&cat=drinks&max=5&when=week&sort=ending&results=list',
+    )
+    const rail = () => wrapper.get('[data-testid="map-navigation"]')
+    for (const path of ['/me/profile', '/saved', '/browse']) {
+      await rail().get(`a[href^="${path}"]`).trigger('click')
+      await flushPromises()
+      expect(router.currentRoute.value.path).toBe(path)
+      expect(router.currentRoute.value.query).toMatchObject(choices)
+    }
+    await wrapper.get('[data-testid="nav-toggle"]').trigger('click')
+    await wrapper.get('[data-testid="nav-menu"] a[href^="/me/submissions"]').trigger('click')
+    await flushPromises()
+    expect(router.currentRoute.value.query).toMatchObject(choices)
+  })
+
+  it('opens the full add-deal page from the Share tab', async () => {
+    auth.session.current = SIGNED_IN
+    const { wrapper, router } = await mountAt('/browse')
+    await wrapper.get('[data-testid="map-share"]').trigger('click')
+    await flushPromises()
+    expect(router.currentRoute.value.name).toBe('submit-deal')
+    expect(wrapper.find('[data-testid="map-navigation"]').exists()).toBe(false)
+  })
+
+  it('reopens the collapsed deals panel on a same-route click and highlights only the open tab', async () => {
+    auth.session.current = SIGNED_IN
+    const { wrapper, router } = await mountAt('/browse?view=map&split=1')
+    const rail = () => wrapper.get('[data-testid="map-navigation"]')
+    const active = () =>
+      rail()
+        .findAll('a[aria-current="page"]')
+        .map((link) => link.get('span:last-child').text())
+    expect(active()).toEqual(['Deals'])
+    await wrapper.get('[data-testid="panel-collapse"]').trigger('click')
+    expect(active()).toEqual([])
+    await defined(
+      rail()
+        .findAll('a')
+        .find((link) => link.text() === 'Deals'),
+    ).trigger('click')
+    await flushPromises()
+    expect(wrapper.get('[data-testid="panel-collapse"]').attributes('aria-expanded')).toBe('true')
+    expect(active()).toEqual(['Deals'])
+    for (const [path, label] of [
+      ['/saved', 'Saved'],
+      ['/me/profile', 'Account'],
+    ]) {
+      await router.push(defined(path))
+      await flushPromises()
+      expect(active()).toEqual([label])
+    }
+  })
+})
+
 describe('brand menu', () => {
+  it('keeps the open desktop drawer interactive while disabling only the background', async () => {
+    auth.session.current = SIGNED_IN
+    const { wrapper, router } = await mountAt('/browse?view=map&split=1')
+    await wrapper.get('[data-testid="nav-toggle"]').trigger('click')
+    const menu = wrapper.get('[data-testid="nav-menu"]')
+    expect(menu.element.closest('[inert]')).toBeNull()
+    expect(wrapper.get('.map-shell__map').attributes('inert')).toBeDefined()
+    await menu.get('a[href^="/saved"]').trigger('click')
+    await flushPromises()
+    expect(router.currentRoute.value.name).toBe('saved')
+    expect(wrapper.find('[data-testid="nav-menu"]').exists()).toBe(false)
+    await wrapper.get('[data-testid="nav-toggle"]').trigger('click')
+    await wrapper.get('[data-testid="nav-menu"] a[href^="/browse"]').trigger('click')
+    await flushPromises()
+    await wrapper.get('[data-testid="nav-toggle"]').trigger('click')
+    await wrapper.get('[data-testid="nav-menu"] a[href^="/browse"]').trigger('click')
+    await flushPromises()
+    expect(wrapper.find('[data-testid="nav-menu"]').exists()).toBe(false)
+  })
+
+  it('opens the map from the All Deals menu while keeping filters', async () => {
+    const { wrapper, router } = await mountAt('/browse?view=list&discovery=1&cat=drinks')
+    await wrapper.get('[data-testid="nav-toggle"]').trigger('click')
+    await wrapper.get('[data-testid="nav-menu"] a[href^="/browse"]').trigger('click')
+    await flushPromises()
+    expect(router.currentRoute.value.query).toMatchObject({
+      view: 'map',
+      split: '1',
+      cat: 'drinks',
+    })
+    expect(wrapper.find('[data-testid="nav-menu"]').exists()).toBe(false)
+  })
+
+  it('returns to the landing page after logout', async () => {
+    auth.session.current = SIGNED_IN
+    auth.signOut.mockImplementationOnce(async () => {
+      auth.session.current = SIGNED_OUT
+      return { data: { success: true }, error: null }
+    })
+    const { wrapper, router } = await mountAt('/browse')
+    await wrapper.get('[data-testid="nav-toggle"]').trigger('click')
+    await wrapper.get('[data-testid="log-out"]').trigger('click')
+    await flushPromises()
+    expect(auth.signOut).toHaveBeenCalled()
+    expect(router.currentRoute.value.name).toBe('landing')
+    expect(router.currentRoute.value.fullPath).toBe('/')
+  })
+
   it('offers Log in and Sign up when signed out, and closes on Escape back to the button', async () => {
     const { wrapper } = await mountAt('/browse')
     const toggle = wrapper.get('[data-testid="nav-toggle"]')
@@ -369,7 +995,7 @@ describe('brand menu', () => {
   it('closes when the route changes', async () => {
     const { wrapper } = await mountAt('/browse')
     await wrapper.get('[data-testid="nav-toggle"]').trigger('click')
-    await wrapper.get('[data-testid="nav-menu"] a[href="/getting-started"]').trigger('click')
+    await wrapper.get('[data-testid="nav-menu"] a[href="/deals"]').trigger('click')
     await flushPromises()
     expect(wrapper.find('[data-testid="nav-menu"]').exists()).toBe(false)
   })
@@ -389,14 +1015,22 @@ describe('filter sheet', () => {
     expect(food?.text()).toContain('(2)')
     await food?.trigger('click')
     await flushPromises()
-    expect(router.currentRoute.value.query.cat).toBe('food')
+    expect(router.currentRoute.value.query.cat).toBeUndefined()
     expect(wrapper.get('[data-testid="filter-show"]').text()).toBe('Show 2 deals')
+    await wrapper.get('[data-testid="filter-show"]').trigger('click')
+    await flushPromises()
+    expect(router.currentRoute.value.query.cat).toBe('food')
     expect(wrapper.get('[data-testid="filter-badge"]').text()).toContain('1')
 
+    await wrapper.get('[data-testid="all-filters"]').trigger('click')
+    await flushPromises()
     await wrapper.get('[data-testid="filter-clear"]').trigger('click')
     await flushPromises()
     expect(router.currentRoute.value.query).toEqual({})
+    expect(wrapper.find('[data-testid="filter-sheet"]').exists()).toBe(false)
 
+    await wrapper.get('[data-testid="all-filters"]').trigger('click')
+    await flushPromises()
     await wrapper.get('[data-testid="filter-sheet"]').trigger('keydown', { key: 'Escape' })
     await flushPromises()
     expect(wrapper.find('[data-testid="filter-sheet"]').exists()).toBe(false)
@@ -415,17 +1049,19 @@ describe('review regressions', () => {
       .find((b) => b.text().startsWith('Food'))
     await food?.trigger('click')
     await flushPromises()
+    await wrapper.get('[data-testid="filter-show"]').trigger('click')
+    await flushPromises()
     expect(router.currentRoute.value.name).toBe('browse')
     // Only shell keys travel to browse; the outlet picker stays behind.
     expect(router.currentRoute.value.query).toEqual({ cat: 'food' })
-    expect(wrapper.find('[data-testid="filter-sheet"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="filter-sheet"]').exists()).toBe(false)
 
     router.back()
     await flushPromises()
     await vi.waitFor(() => expect(router.currentRoute.value.name).toBe('deal'))
   })
 
-  it('closes the sheet when a panel opens and moves focus to its heading', async () => {
+  it('closes the filter sheet when map deal details open and focuses the panel heading', async () => {
     const { router, wrapper } = await mountAt('/browse')
     await wrapper.get('[data-testid="all-filters"]').trigger('click')
     await flushPromises()
@@ -437,9 +1073,9 @@ describe('review regressions', () => {
     )
   })
 
-  it('names the merchant panel, not the account, when bounced to log in', async () => {
+  it('uses the standalone login page for legacy merchant login links', async () => {
     const { wrapper } = await mountAt('/login?redirect=/merchant')
-    expect(wrapper.get('[data-panel-heading]').text()).toBe('Log in to manage your stall')
+    expect(wrapper.get('[data-testid="standalone-auth"] h1').text()).toBe('Welcome back')
   })
 
   it('drops a pending search when a panel opens before it fires', async () => {
@@ -453,49 +1089,5 @@ describe('review regressions', () => {
     } finally {
       vi.useRealTimers()
     }
-  })
-})
-
-describe('deal banners', () => {
-  const banner = (wrapper: VueWrapper, testId: string) => wrapper.find(`[data-testid="${testId}"]`)
-  const categoryTile = (wrapper: VueWrapper, label: string) =>
-    wrapper.findAll('[data-testid="banner-category"]').find((tile) => tile.text().includes(label))
-
-  it('shows a tile per category with deals, busiest first, with real counts', async () => {
-    const { wrapper } = await mountAt('/browse')
-    const tiles = wrapper.findAll('[data-testid="banner-category"]').map((tile) => tile.text())
-    expect(tiles).toHaveLength(2)
-    expect(tiles[0]).toContain('Food')
-    expect(tiles[0]).toContain('2 deals')
-    expect(tiles[1]).toContain('Drinks')
-    expect(tiles[1]).toContain('1 deal')
-  })
-
-  it('filters by category from a tile and clears it on a second tap', async () => {
-    const { wrapper, router } = await mountAt('/browse')
-    await categoryTile(wrapper, 'Drinks')?.trigger('click')
-    await vi.waitFor(() => expect(router.currentRoute.value.query.cat).toBe('drinks'))
-    expect(rowTitles(wrapper)).toEqual(['Synthetic iced kopi'])
-    expect(categoryTile(wrapper, 'Drinks')?.attributes('aria-pressed')).toBe('true')
-
-    await categoryTile(wrapper, 'Drinks')?.trigger('click')
-    await vi.waitFor(() => expect(router.currentRoute.value.query.cat).toBeUndefined())
-  })
-
-  it('turns on the ending-this-week filter from the Ending soon banner', async () => {
-    const { wrapper, router } = await mountAt('/browse')
-    await banner(wrapper, 'banner-ending').trigger('click')
-    await vi.waitFor(() => expect(router.currentRoute.value.query.when).toBe('week'))
-    expect(banner(wrapper, 'banner-ending').attributes('aria-pressed')).toBe('true')
-  })
-})
-
-describe('deal banner food', () => {
-  it('keeps the sizing class on each 3D food so it is visible', async () => {
-    const { wrapper } = await mountAt('/browse')
-    const food = wrapper.get('[data-testid="banner-near"] .banner__food')
-    expect(food.classes()).toContain('food-sprite')
-    const tileFood = wrapper.get('[data-testid="banner-category"] .tile__food')
-    expect(tileFood.classes()).toEqual(expect.arrayContaining(['tile__food', 'food-sprite']))
   })
 })

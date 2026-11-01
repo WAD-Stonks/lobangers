@@ -141,7 +141,7 @@ describe('community scene continuity', () => {
     expect(wrapper.classes()).toContain('is-static')
     expect(wrapper.find('.join-community[inert]').exists()).toBe(false)
     expect(wrapper.get('.community-signup').attributes('href')).toBe('/register')
-    expect(wrapper.get('.community-explore').attributes('href')).toBe('/browse')
+    expect(wrapper.get('.community-explore').attributes('href')).toBe('/deals')
     expect(wrapper.findAll('.community-report')).toHaveLength(5)
     wrapper.unmount()
   })

@@ -8,10 +8,10 @@ import {
 import { requireTrustedOrigin } from '@api/rest/policy'
 import { parseRestInput } from '@api/rest/validation'
 import {
-  commentBodySchema,
   communityCommentSchema,
   communityDealParamsSchema,
   communityEmptySchema,
+  createCommentBodySchema,
 } from '@broke-oclock/contracts/community'
 
 export const createComment = (dependencies: RestDependencies) =>
@@ -20,10 +20,12 @@ export const createComment = (dependencies: RestDependencies) =>
     parseRestInput(communityEmptySchema, request.query)
     const actor = authenticatedActor(requireSession(context))
     const { dealId } = parseRestInput(communityDealParamsSchema, request.params)
-    const { body } = parseRestInput(commentBodySchema, request.body)
+    const { body, parentId } = parseRestInput(createCommentBodySchema, request.body)
     response
       .status(201)
       .json(
-        communityCommentSchema.parse(await addCommunityComment(context.db, dealId, actor, body)),
+        communityCommentSchema.parse(
+          await addCommunityComment(context.db, dealId, actor, body, parentId),
+        ),
       )
   })

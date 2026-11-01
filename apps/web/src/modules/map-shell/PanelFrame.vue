@@ -18,7 +18,7 @@ const props = withDefaults(
   }>(),
   { back: null, backLabel: 'Back', hideTitle: false, scrollKey: '' },
 )
-defineSlots<{ default(): unknown; actions?(): unknown; heading?(): unknown }>()
+defineSlots<{ default(): unknown; actions?(): unknown; heading?(): unknown; beforeHeading?(): unknown; afterHeading?(): unknown }>()
 
 const slots = useSlots()
 const headingId = useId()
@@ -42,6 +42,7 @@ onMounted(() => {
       <RouterLink v-if="back" :to="back" class="panel-frame__back">
         <ShellIcon name="back" :size="16" />{{ backLabel }}
       </RouterLink>
+      <slot name="beforeHeading" />
       <div class="panel-frame__heading">
         <h1
           :id="headingId"
@@ -55,6 +56,7 @@ onMounted(() => {
         </h1>
         <slot name="heading" />
       </div>
+      <slot name="afterHeading" />
       <slot />
     </div>
     <div v-if="slots.actions" class="panel-frame__actions">

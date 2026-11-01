@@ -48,6 +48,7 @@ export const addCommunityComment = (
   dealId: string,
   actor: AuthenticatedActor,
   body: string,
+  parentId?: string,
 ) =>
   communityTransaction(database, async (tx) => {
     const userId = actor.userId
@@ -66,8 +67,13 @@ export const addCommunityComment = (
         'TOO_MANY_REQUESTS',
         'Please wait before posting another comment.',
       )
+    if (
+      parentId &&
+      !(await tx.comment.findFirst({ where: { id: parentId, dealId, ...visibleComment } }))
+    )
+      throw new ApiErrorException('NOT_FOUND', 'This comment is no longer available.')
     const row = await tx.comment.create({
-      data: { dealId, authorId: userId, body },
+      data: { dealId, authorId: userId, body, parentId },
       select: { id: true, body: true, createdAt: true, author: { select: { name: true } } },
     })
     return {
@@ -135,5 +141,42 @@ export const reportCommunityContent = (
         data: { ...report, commentId: targetId, reporterId: userId },
       })
     else await tx.dealReport.create({ data: { ...report, dealId: targetId, reporterId: userId } })
+    return { ok: true as const }
+  })
+
+export const editCommunityComment = (
+  database: Database,
+  commentId: string,
+  actor: AuthenticatedActor,
+  body: string,
+) =>
+  communityTransaction(database, async (tx) => {
+    const userId = actor.userId
+    const row = await tx.comment.findFirst({ where: { id: commentId, ...visibleComment } })
+    if (!row) throw new ApiErrorException('NOT_FOUND')
+    if (row.authorId !== userId) throw new ApiErrorException('FORBIDDEN')
+    await lockCommunityWrite(tx, row.dealId, actor, new Date())
+    await tx.comment.update({ where: { id: commentId }, data: { body, editedAt: new Date() } })
+    return { ok: true as const }
+  })
+
+export const likeCommunityComment = (
+  database: Database,
+  commentId: string,
+  actor: AuthenticatedActor,
+  liked: boolean,
+) =>
+  communityTransaction(database, async (tx) => {
+    const userId = actor.userId
+    const row = await tx.comment.findFirst({ where: { id: commentId, ...visibleComment } })
+    if (!row) throw new ApiErrorException('NOT_FOUND')
+    await lockCommunityWrite(tx, row.dealId, actor, new Date())
+    const ids = row.likedByIds ?? []
+    await tx.comment.update({
+      where: { id: commentId },
+      data: {
+        likedByIds: liked ? [...new Set([...ids, userId])] : ids.filter((id) => id !== userId),
+      },
+    })
     return { ok: true as const }
   })

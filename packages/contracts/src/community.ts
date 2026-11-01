@@ -7,6 +7,7 @@ export const communityDealParamsSchema = z.strictObject({ dealId: id })
 export const commentParamsSchema = z.strictObject({ commentId: id })
 export const voteBodySchema = z.strictObject({ value: z.enum(['ALIVE', 'DEAD']) })
 export const commentBodySchema = z.strictObject({ body: z.string().trim().min(1).max(2000) })
+export const createCommentBodySchema = commentBodySchema.extend({ parentId: id.optional() })
 export const commentsQuerySchema = z.strictObject({
   limit: boundedQueryInteger(1, 50, 20),
   cursor: id.optional(),
@@ -36,6 +37,12 @@ export const communityCommentSchema = z.strictObject({
   authorName: z.string(),
   createdAt: z.string().datetime(),
   canDelete: z.boolean(),
+  canEdit: z.boolean().optional(),
+  parentId: id.nullable().optional(),
+  replyToName: z.string().nullable().optional(),
+  likeCount: z.number().int().min(0).optional(),
+  liked: z.boolean().optional(),
+  editedAt: z.string().datetime().nullable().optional(),
 })
 export const commentsResponseSchema = z.strictObject({
   items: z.array(communityCommentSchema),

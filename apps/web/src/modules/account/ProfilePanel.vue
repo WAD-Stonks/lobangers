@@ -8,6 +8,7 @@ import SavedDealsPage from '@web/pages/SavedDealsPage.vue'
 import { type Component, computed, onBeforeUnmount } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
+
 // The visitor's account over the map, in three tabs. /saved opens on Saved; /me/profile on
 // Settings. The tab lives in ?tab= so each tab has its own link and scrolls from the top.
 type ProfileTab = 'saved' | 'submitted' | 'settings'
@@ -37,7 +38,7 @@ onBeforeUnmount(() => void saved.reload())
 </script>
 
 <template>
-  <PanelFrame :title="title" :back="{ name: 'browse' }" back-label="Back to the map" :scroll-key="tab">
+  <PanelFrame :title="title" :scroll-key="tab">
     <div class="lb-tabs" role="tablist" aria-label="Account sections">
       <button
         v-for="item in TABS"

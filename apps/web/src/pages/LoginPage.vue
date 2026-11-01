@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import LoginForm from '@web/modules/account/LoginForm.vue'
-import { safeRedirect } from '@web/router/guards'
 import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
@@ -18,8 +17,7 @@ const notice = computed(() => {
   return typeof key === 'string' && Object.hasOwn(notices, key) ? notices[key] : ''
 })
 
-// Return to the page the guard bounced the visitor from, or home.
-const onSignedIn = () => router.replace(safeRedirect(route.query.redirect))
+const onSignedIn = () => router.replace('/deals')
 </script>
 
 <template>

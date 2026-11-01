@@ -39,7 +39,8 @@ it('shows the public imported thumbnail on browse and venue rows without changin
       to: () => `/deals/${deal.id}?at=${venue.id}`,
       currentKey: 'synthetic',
     },
-    global: { stubs: { RouterLink: RouterLinkStub } },
+    // The save button needs the map shell's saved-deals store; this test only covers the row.
+    global: { stubs: { RouterLink: RouterLinkStub, SaveDealButton: true } },
   })
   expect(wrapper.get('img').attributes('src')).toBe(deal.imageUrl)
   expect(wrapper.get('img').attributes('alt')).toBe(deal.imageAltText)

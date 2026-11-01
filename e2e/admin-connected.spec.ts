@@ -540,9 +540,14 @@ test.beforeEach(async ({ page }) => {
   // Native rate limiting remains enabled. Each independent browser journey gets
   // its own synthetic client address, just like the fixture's native setup calls;
   // the expanded root-navigation matrix must not spend later auth cases' budget.
-  await page.context().setExtraHTTPHeaders({
-    'X-Forwarded-For': `203.0.113.${nextBrowserIp++}`,
-  })
+  // Same-origin only: third-party font hosts reject the header in their CORS preflight.
+  const clientIp = `203.0.113.${nextBrowserIp++}`
+  const origin = new URL(webURL).origin
+  await page.context().route(
+    (url) => url.origin === origin,
+    (route) =>
+      route.continue({ headers: { ...route.request().headers(), 'x-forwarded-for': clientIp } }),
+  )
   observe(page)
   await page.goto(`${webURL}/admin`)
 })
