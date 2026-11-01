@@ -1,5 +1,6 @@
 import { flushPromises } from '@vue/test-utils'
 import routes from '@web/router/routes'
+import { defined } from '@web-tests/support/defined'
 import {
   DEALS_RESPONSE,
   mountShell,
@@ -57,49 +58,74 @@ afterEach(() => {
 const SHELL = '[data-testid="map-shell"]'
 
 describe('map shell routes', () => {
-  it.each([[800, true], [1400, false], [2000, false]])('stacks the hero only when the artwork would overlap at width %s', async (width, stacked) => {
-    const size = vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockImplementation(function (this: HTMLElement) {
+  it.each([
+    [800, true],
+    [1400, false],
+    [2000, false],
+  ])('stacks the hero only when the artwork would overlap at width %s', async (width, stacked) => {
+    const size = vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockImplementation(function (
+      this: HTMLElement,
+    ) {
       return this.classList.contains('all-deals-hero') ? Number(width) : 600
     })
     try {
       const { wrapper } = await mountAt('/deals')
       await flushPromises()
-      expect(wrapper.get('[data-testid="all-deals-hero"]').classes().includes('all-deals-hero--stacked')).toBe(stacked)
-    } finally { size.mockRestore() }
+      expect(
+        wrapper.get('[data-testid="all-deals-hero"]').classes().includes('all-deals-hero--stacked'),
+      ).toBe(stacked)
+    } finally {
+      size.mockRestore()
+    }
   })
 
-  it.each([false, true])('personalises the All Deals hero for sign-in state %s', async (signedIn) => {
-    auth.session.current = signedIn ? SIGNED_IN : SIGNED_OUT
-    const { wrapper, router } = await mountAt('/deals')
-    expect(wrapper.get('[data-testid="all-deals-hero"]').text()).toContain(signedIn ? 'Hey Synthetic Student,' : 'Hey food lover,')
-    await wrapper.get('[data-testid="show-map"]').trigger('click')
-    await flushPromises()
-    expect(router.currentRoute.value.query.view).toBe('map')
-    expect(wrapper.find('[data-testid="all-deals-hero"]').exists()).toBe(false)
-  })
+  it.each([false, true])(
+    'personalises the All Deals hero for sign-in state %s',
+    async (signedIn) => {
+      auth.session.current = signedIn ? SIGNED_IN : SIGNED_OUT
+      const { wrapper, router } = await mountAt('/deals')
+      expect(wrapper.get('[data-testid="all-deals-hero"]').text()).toContain(
+        signedIn ? 'Hey Synthetic Student,' : 'Hey food lover,',
+      )
+      await wrapper.get('[data-testid="show-map"]').trigger('click')
+      await flushPromises()
+      expect(router.currentRoute.value.query.view).toBe('map')
+      expect(wrapper.find('[data-testid="all-deals-hero"]').exists()).toBe(false)
+    },
+  )
 
-  it.each([false, true])('routes the menu logo home based on sign-in state (%s)', async (signedIn) => {
-    auth.session.current = signedIn ? SIGNED_IN : SIGNED_OUT
-    const { wrapper, router } = await mountAt('/browse')
-    await wrapper.get('[data-testid="nav-toggle"]').trigger('click')
-    await flushPromises()
-    await wrapper.get('.brand-menu__drawer-head a').trigger('click')
-    await flushPromises()
-    expect(router.currentRoute.value.name).toBe(signedIn ? 'browse' : 'landing')
-    if (signedIn) expect(router.currentRoute.value.query.view).toBe('list')
-    expect(wrapper.find('[data-testid="nav-menu"]').exists()).toBe(false)
-  })
+  it.each([false, true])(
+    'routes the menu logo home based on sign-in state (%s)',
+    async (signedIn) => {
+      auth.session.current = signedIn ? SIGNED_IN : SIGNED_OUT
+      const { wrapper, router } = await mountAt('/browse')
+      await wrapper.get('[data-testid="nav-toggle"]').trigger('click')
+      await flushPromises()
+      await wrapper.get('.brand-menu__drawer-head a').trigger('click')
+      await flushPromises()
+      expect(router.currentRoute.value.name).toBe(signedIn ? 'browse' : 'landing')
+      if (signedIn) expect(router.currentRoute.value.query.view).toBe('list')
+      expect(wrapper.find('[data-testid="nav-menu"]').exists()).toBe(false)
+    },
+  )
 
-  it.each(['/browse', '/deals', '/account-required?tab=saved'])('opens standalone login directly from %s', async (origin) => {
-    const { router, wrapper } = await mountAt(origin)
-    await router.push('/login?redirect=/saved')
-    await flushPromises()
-    expect(router.currentRoute.value.name).toBe('sign-in')
-    expect(wrapper.find('[data-testid="standalone-auth"]').exists()).toBe(true)
-    expect(wrapper.find('.auth-prompt').exists()).toBe(false)
-  })
+  it.each(['/browse', '/deals', '/account-required?tab=saved'])(
+    'opens standalone login directly from %s',
+    async (origin) => {
+      const { router, wrapper } = await mountAt(origin)
+      await router.push('/login?redirect=/saved')
+      await flushPromises()
+      expect(router.currentRoute.value.name).toBe('sign-in')
+      expect(wrapper.find('[data-testid="standalone-auth"]').exists()).toBe(true)
+      expect(wrapper.find('.auth-prompt').exists()).toBe(false)
+    },
+  )
 
-  it.each([['/saved', 'saved', 'Saved'], ['/add', 'add-deal', 'Share'], ['/me/profile', 'profile', 'Account']])('selects the %s tab and displays its padded account prompt', async (path, tab, label) => {
+  it.each([
+    ['/saved', 'saved', 'Saved'],
+    ['/add', 'add-deal', 'Share'],
+    ['/me/profile', 'profile', 'Account'],
+  ])('selects the %s tab and displays its padded account prompt', async (path, tab, label) => {
     const { router, wrapper } = await mountAt('/browse')
     await router.push(path)
     await flushPromises()
@@ -132,32 +158,39 @@ describe('map shell routes', () => {
     expect(wrapper.find('[data-testid="standalone-auth"]').exists()).toBe(true)
   })
 
-  it.each(['/deals', '/'])('opens standalone login for a protected action from %s', async (origin) => {
-    const { wrapper, router } = await mountAt(origin)
-    const navigation = router.push('/saved')
-    await flushPromises()
-    expect(router.currentRoute.value.name).toBe('auth-required')
-    await wrapper.findAll('.auth-prompt button').find((button) => button.text() === 'Log in')!.trigger('click')
-    await navigation
-    await flushPromises()
-    expect(router.currentRoute.value.name).toBe('sign-in')
-    expect(wrapper.find('[data-testid="standalone-auth"]').exists()).toBe(true)
-    expect(wrapper.find(SHELL).exists()).toBe(false)
-    expect(wrapper.find('[data-testid="splash-screen"]').exists()).toBe(false)
-    expect(wrapper.find('#login-email').exists()).toBe(true)
-    expect(wrapper.find('#login-password').exists()).toBe(true)
-    wrapper.findComponent({ name: 'LoginForm' }).vm.$emit('signedIn')
-    await flushPromises()
-    expect(router.currentRoute.value.name).toBe('browse')
-    expect(router.currentRoute.value.query.view).toBe('list')
-  })
+  it.each(['/deals', '/'])(
+    'opens standalone login for a protected action from %s',
+    async (origin) => {
+      const { wrapper, router } = await mountAt(origin)
+      const navigation = router.push('/saved')
+      await flushPromises()
+      expect(router.currentRoute.value.name).toBe('auth-required')
+      await defined(
+        wrapper.findAll('.auth-prompt button').find((button) => button.text() === 'Log in'),
+      ).trigger('click')
+      await navigation
+      await flushPromises()
+      expect(router.currentRoute.value.name).toBe('sign-in')
+      expect(wrapper.find('[data-testid="standalone-auth"]').exists()).toBe(true)
+      expect(wrapper.find(SHELL).exists()).toBe(false)
+      expect(wrapper.find('[data-testid="splash-screen"]').exists()).toBe(false)
+      expect(wrapper.find('#login-email').exists()).toBe(true)
+      expect(wrapper.find('#login-password').exists()).toBe(true)
+      wrapper.findComponent({ name: 'LoginForm' }).vm.$emit('signedIn')
+      await flushPromises()
+      expect(router.currentRoute.value.name).toBe('browse')
+      expect(router.currentRoute.value.query.view).toBe('list')
+    },
+  )
 
   it('uses standalone login when saving from All Deals and supports switching to sign-up', async () => {
     const { wrapper, router } = await mountAt('/deals')
     await wrapper.get('[data-testid="item-save"]').trigger('click')
     await flushPromises()
     expect(router.currentRoute.value.name).toBe('auth-required')
-    await wrapper.findAll('.auth-prompt button').find((button) => button.text() === 'Log in')!.trigger('click')
+    await defined(
+      wrapper.findAll('.auth-prompt button').find((button) => button.text() === 'Log in'),
+    ).trigger('click')
     await flushPromises()
     expect(router.currentRoute.value.name).toBe('sign-in')
     await wrapper.get('[data-testid="standalone-auth"] a[href^="/sign-up"]').trigger('click')
@@ -172,7 +205,9 @@ describe('map shell routes', () => {
     const navigation = router.push('/saved')
     await flushPromises()
     expect(router.currentRoute.value.name).toBe('auth-required')
-    await wrapper.findAll('.auth-prompt button').find((button) => button.text() === 'Log in')!.trigger('click')
+    await defined(
+      wrapper.findAll('.auth-prompt button').find((button) => button.text() === 'Log in'),
+    ).trigger('click')
     await navigation
     await flushPromises()
     expect(router.currentRoute.value.name).toBe('sign-in')
@@ -180,14 +215,17 @@ describe('map shell routes', () => {
     expect(wrapper.find('[data-testid="standalone-auth"]').exists()).toBe(true)
   })
 
-  it.each(['/saved', '/me/profile', '/add', '/browse'])('opens All Deals after login instead of returning to %s', async (redirect) => {
-    const { wrapper, router } = await mountAt(`/login?redirect=${encodeURIComponent(redirect)}`)
-    wrapper.findComponent({ name: 'LoginForm' }).vm.$emit('signedIn')
-    await flushPromises()
-    expect(router.currentRoute.value.name).toBe('browse')
-    expect(router.currentRoute.value.query).toMatchObject({ view: 'list', discovery: '1' })
-    expect(wrapper.get(SHELL).classes()).toContain('map-shell--deals-page')
-  })
+  it.each(['/saved', '/me/profile', '/add', '/browse'])(
+    'opens All Deals after login instead of returning to %s',
+    async (redirect) => {
+      const { wrapper, router } = await mountAt(`/login?redirect=${encodeURIComponent(redirect)}`)
+      wrapper.findComponent({ name: 'LoginForm' }).vm.$emit('signedIn')
+      await flushPromises()
+      expect(router.currentRoute.value.name).toBe('browse')
+      expect(router.currentRoute.value.query).toMatchObject({ view: 'list', discovery: '1' })
+      expect(wrapper.get(SHELL).classes()).toContain('map-shell--deals-page')
+    },
+  )
 
   it('keeps the landing page accessible at About for signed-in visitors with a profile menu', async () => {
     auth.session.current = SIGNED_IN
@@ -215,7 +253,10 @@ describe('map shell routes', () => {
     expect(navbar.get('#landing-mobile-menu a[href="/deals"]').text()).toBe('All deals')
   })
 
-  it.each([['login', 'sign-in'], ['register', 'sign-up']])('redirects legacy %s links to standalone auth', async (legacy, destination) => {
+  it.each([
+    ['login', 'sign-in'],
+    ['register', 'sign-up'],
+  ])('redirects legacy %s links to standalone auth', async (legacy, destination) => {
     const { wrapper, router } = await mountAt(`/${legacy}?view=map&redirect=/saved`)
     expect(router.currentRoute.value.name).toBe(destination)
     expect(router.currentRoute.value.query.redirect).toBe('/saved')
@@ -226,25 +267,39 @@ describe('map shell routes', () => {
 
   it('keeps poster sizing stable when community feedback changes after a vote', async () => {
     const frames: FrameRequestCallback[] = []
-    const animationFrame = vi.spyOn(window, 'requestAnimationFrame').mockImplementation((callback) => { frames.push(callback); return frames.length })
+    const animationFrame = vi
+      .spyOn(window, 'requestAnimationFrame')
+      .mockImplementation((callback) => {
+        frames.push(callback)
+        return frames.length
+      })
     const cancelFrame = vi.spyOn(window, 'cancelAnimationFrame').mockImplementation(() => {})
     try {
-      const first = DEALS_RESPONSE.items[0]!
-      rest.list.mockResolvedValue({ ...DEALS_RESPONSE, items: [{ ...first, images: [{ url: 'https://example.com/poster.jpg', alt: 'Deal poster' }] }, ...DEALS_RESPONSE.items.slice(1)] })
+      const first = defined(DEALS_RESPONSE.items[0])
+      rest.list.mockResolvedValue({
+        ...DEALS_RESPONSE,
+        items: [
+          { ...first, images: [{ url: 'https://example.com/poster.jpg', alt: 'Deal poster' }] },
+          ...DEALS_RESPONSE.items.slice(1),
+        ],
+      })
       const { wrapper } = await mountAt(`/deals/${first.id}?view=list&discovery=1`)
       const popup = wrapper.get('[data-testid="deal-dialog"]')
       const body = popup.get('[data-testid="panel-body"]').element as HTMLElement
       const media = popup.get('.deal-panel__media').element as HTMLElement
       const image = popup.get('.deal-photo__img').element as HTMLImageElement
-      Object.defineProperties(image, { naturalWidth: { value: 800 }, naturalHeight: { value: 1000 } })
+      Object.defineProperties(image, {
+        naturalWidth: { value: 800 },
+        naturalHeight: { value: 1000 },
+      })
       Object.defineProperty(body, 'clientWidth', { value: 1100 })
       body.style.padding = '20px'
-      media.getBoundingClientRect = () => ({ top: 0 } as DOMRect)
+      media.getBoundingClientRect = () => ({ top: 0 }) as DOMRect
       // Community API is unavailable in this route fixture; supply its layout surface.
       const verification = document.createElement('div')
       verification.className = 'deal-community-verification'
       let bottom = 600
-      verification.getBoundingClientRect = () => ({ bottom } as DOMRect)
+      verification.getBoundingClientRect = () => ({ bottom }) as DOMRect
       popup.get('.deal-community-overview').element.append(verification)
       await flushPromises()
       frames.at(-1)?.(0)
@@ -264,14 +319,24 @@ describe('map shell routes', () => {
   })
 
   it('scrolls deal details to the top after selecting another participating outlet', async () => {
-    const first = DEALS_RESPONSE.items[0]!
-    const otherOutlet = DEALS_RESPONSE.items[1]!.venues[0]!
-    rest.list.mockResolvedValue({ ...DEALS_RESPONSE, items: [{ ...first, venues: [...first.venues, otherOutlet] }, ...DEALS_RESPONSE.items.slice(1)] })
-    const { wrapper, router } = await mountAt(`/deals/${first.id}?view=list&discovery=1&at=${first.venues[0]!.id}`)
+    const first = defined(DEALS_RESPONSE.items[0])
+    const otherOutlet = defined(defined(DEALS_RESPONSE.items[1]).venues[0])
+    rest.list.mockResolvedValue({
+      ...DEALS_RESPONSE,
+      items: [
+        { ...first, venues: [...first.venues, otherOutlet] },
+        ...DEALS_RESPONSE.items.slice(1),
+      ],
+    })
+    const { wrapper, router } = await mountAt(
+      `/deals/${first.id}?view=list&discovery=1&at=${defined(first.venues[0]).id}`,
+    )
     const dialog = wrapper.get('[data-testid="deal-dialog"]')
     const body = dialog.get('[data-testid="panel-body"]').element as HTMLElement
     body.scrollTop = 600
-    await dialog.get(`[data-testid="deal-outlets"] a[href*="at=${otherOutlet.id}"]`).trigger('click')
+    await dialog
+      .get(`[data-testid="deal-outlets"] a[href*="at=${otherOutlet.id}"]`)
+      .trigger('click')
     await flushPromises()
     expect(router.currentRoute.value.query.at).toBe(otherOutlet.id)
     expect(body.scrollTop).toBe(0)
@@ -279,8 +344,11 @@ describe('map shell routes', () => {
   })
 
   it('omits the poster placeholder and keeps the details and tags when a deal has no image', async () => {
-    const first = DEALS_RESPONSE.items[0]!
-    rest.list.mockResolvedValue({ ...DEALS_RESPONSE, items: [{ ...first, images: [], imageUrl: null }, ...DEALS_RESPONSE.items.slice(1)] })
+    const first = defined(DEALS_RESPONSE.items[0])
+    rest.list.mockResolvedValue({
+      ...DEALS_RESPONSE,
+      items: [{ ...first, images: [], imageUrl: null }, ...DEALS_RESPONSE.items.slice(1)],
+    })
     const { wrapper } = await mountAt(`/deals/${first.id}?view=list&discovery=1`)
     const dialog = wrapper.get('[data-testid="deal-dialog"]')
     expect(dialog.find('.deal-panel--no-image').exists()).toBe(true)
@@ -292,8 +360,14 @@ describe('map shell routes', () => {
   })
 
   it('uses the deal terms in the popup instead of description and highlights sections', async () => {
-    const first = DEALS_RESPONSE.items[0]!
-    rest.list.mockResolvedValue({ ...DEALS_RESPONSE, items: [{ ...first, terms: 'Valid for dine-in only. Not valid with other offers.' }, ...DEALS_RESPONSE.items.slice(1)] })
+    const first = defined(DEALS_RESPONSE.items[0])
+    rest.list.mockResolvedValue({
+      ...DEALS_RESPONSE,
+      items: [
+        { ...first, terms: 'Valid for dine-in only. Not valid with other offers.' },
+        ...DEALS_RESPONSE.items.slice(1),
+      ],
+    })
     const { wrapper } = await mountAt(`/deals/${first.id}?view=list&discovery=1`)
     const dialog = wrapper.get('[data-testid="deal-dialog"]')
     expect(dialog.get('.deal-panel__validity-field dt').text()).toBe('Valid')

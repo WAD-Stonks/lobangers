@@ -1,15 +1,15 @@
 <script setup lang="ts">
+import type { DealCuisine } from '@broke-oclock/contracts/deal-cuisines'
 import logoUrl from '@web/assets/lobangers-logo.png'
 import ProfileMenu from '@web/components/ProfileMenu.vue'
 import { authClient } from '@web/lib/auth-client'
-import { useShellNavigation } from '@web/modules/map-shell/use-shell-navigation'
-import type { DealCuisine } from '@broke-oclock/contracts/deal-cuisines'
 import type { BrowseFilters } from '@web/modules/browse-map/filters'
 import { countSheetFilters, updateFilters } from '@web/modules/browse-map/filters'
 import BrandMenu from '@web/modules/map-shell/BrandMenu.vue'
 import DiscoveryQuickFilters from '@web/modules/map-shell/DiscoveryQuickFilters.vue'
-import ShellIcon from '@web/modules/map-shell/ShellIcon.vue'
 import SearchField from '@web/modules/map-shell/SearchField.vue'
+import ShellIcon from '@web/modules/map-shell/ShellIcon.vue'
+import { useShellNavigation } from '@web/modules/map-shell/use-shell-navigation'
 import { computed, ref } from 'vue'
 import { RouterLink } from 'vue-router'
 
@@ -79,7 +79,7 @@ defineExpose({ focusAllFilters: () => {
     </template>
     <button ref="mobileFilters" class="shell-header__mobile-filters" type="button" aria-label="Filters" aria-haspopup="dialog" :aria-expanded="sheetOpen" aria-controls="filter-sheet" data-testid="mobile-all-filters" @click="emit('openSheet')">
       <ShellIcon name="filters" :size="23" />
-      <span v-if="filterCount" class="shell-header__filter-count" data-testid="mobile-filter-badge" aria-label="Active filters">{{ filterCount }}</span>
+      <span v-if="filterCount" class="shell-header__filter-count" data-testid="mobile-filter-badge">{{ filterCount }}<span class="visually-hidden"> active filters</span></span>
     </button>
     <nav v-if="discovery && !mapLayout && !dealsHeader" class="shell-header__nav" aria-label="Discover">
       <RouterLink :to="navigationTo('/deals')">All deals</RouterLink>

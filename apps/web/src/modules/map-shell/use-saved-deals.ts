@@ -26,7 +26,10 @@ export const createSavedDeals = (session: Session) => {
       const collected: string[] = []
       let cursor: string | undefined
       do {
-        const page = await api.account.bookmarks({ limit: BOOKMARK_PAGE_LIMIT, ...(cursor ? { cursor } : {}) })
+        const page = await api.account.bookmarks({
+          limit: BOOKMARK_PAGE_LIMIT,
+          ...(cursor ? { cursor } : {}),
+        })
         if (request !== latestRequest) return
         collected.push(...page.items.map((item) => item.dealId))
         cursor = page.nextCursor ?? undefined

@@ -64,30 +64,38 @@ describe('starter navigation', () => {
     wrapper.unmount()
   })
 
-  it.each([[390, false], [834, true]])('skips the split-view loading screen on phones (%spx)', async (width, expected) => {
+  it.each([
+    [390, false],
+    [834, true],
+  ])('skips the split-view loading screen on phones (%spx)', async (width, expected) => {
     vi.stubGlobal('matchMedia', (query: string) => ({
       matches: query.includes('min-width: 768px') && Number(width) >= 768,
-      media: query, addEventListener: vi.fn(), removeEventListener: vi.fn(),
+      media: query,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
     }))
     const { wrapper } = await mountAt('/browse?view=map&split=1')
     expect(wrapper.find('[data-testid="splash-screen"]').exists()).toBe(expected)
     wrapper.unmount()
   })
 
-  it.each(['/', '/deals'])('shows the loading animation when entering the map from %s', async (origin) => {
-    const { wrapper, router } = await mountAt(origin)
-    expect(wrapper.find('[data-testid="splash-screen"]').exists()).toBe(false)
-    await router.push('/browse')
-    await flushPromises()
-    expect(wrapper.find('[data-testid="splash-screen"]').exists()).toBe(true)
-    await router.push('/deals')
-    await flushPromises()
-    expect(wrapper.find('[data-testid="splash-screen"]').exists()).toBe(false)
-    await router.push('/browse')
-    await flushPromises()
-    expect(wrapper.find('[data-testid="splash-screen"]').exists()).toBe(true)
-    wrapper.unmount()
-  })
+  it.each(['/', '/deals'])(
+    'shows the loading animation when entering the map from %s',
+    async (origin) => {
+      const { wrapper, router } = await mountAt(origin)
+      expect(wrapper.find('[data-testid="splash-screen"]').exists()).toBe(false)
+      await router.push('/browse')
+      await flushPromises()
+      expect(wrapper.find('[data-testid="splash-screen"]').exists()).toBe(true)
+      await router.push('/deals')
+      await flushPromises()
+      expect(wrapper.find('[data-testid="splash-screen"]').exists()).toBe(false)
+      await router.push('/browse')
+      await flushPromises()
+      expect(wrapper.find('[data-testid="splash-screen"]').exists()).toBe(true)
+      wrapper.unmount()
+    },
+  )
 
   it('does not show the loading animation when switching from Saved to Deals on the visible map', async () => {
     const { wrapper, router } = await mountAt('/saved?view=map&split=1')

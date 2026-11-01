@@ -1,6 +1,7 @@
 import type { CommunitySummary } from '@broke-oclock/contracts/community'
 import { flushPromises, mount } from '@vue/test-utils'
 import DealCommunity from '@web/modules/community/DealCommunity.vue'
+import { defined } from '@web-tests/support/defined'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ref } from 'vue'
 import { createMemoryHistory, createRouter } from 'vue-router'
@@ -50,7 +51,10 @@ const render = async (explanationPopup = false) => {
     routes: [{ path: '/:pathMatch(.*)*', component: { template: '<div />' } }],
   })
   await router.push(`/deals/${dealId}`)
-  const wrapper = mount(DealCommunity, { props: { dealId, explanationPopup }, global: { plugins: [router] } })
+  const wrapper = mount(DealCommunity, {
+    props: { dealId, explanationPopup },
+    global: { plugins: [router] },
+  })
   wrappers.push(wrapper)
   await flushPromises()
   return wrapper
@@ -70,26 +74,42 @@ afterEach(() => {
 })
 
 describe('community deal panel (synthetic API fixtures)', () => {
-  it.each([false, true])('opens deal reporting in a popup rather than inline (details dialog: %s)', async (explanationPopup) => {
-    session.value = { data: { user: { id: 'synthetic-user' } } }
-    const wrapper = await render(explanationPopup)
-    const trigger = wrapper.get('.deal-community-report-link')
-    expect(trigger.attributes('aria-haspopup')).toBe('dialog')
-    await trigger.trigger('click')
-    await flushPromises()
-    expect(wrapper.get('.deal-community-report-dialog').element.tagName).toBe('DIALOG')
-    expect(wrapper.get('.deal-community-report-dialog .deal-community-report h2').text()).toBe('Report this deal')
-    expect(wrapper.find('.deal-community-overview .deal-community-report').exists()).toBe(false)
-    await wrapper.get('[aria-label="Close report"]').trigger('click')
-    await flushPromises()
-    expect(wrapper.find('.deal-community-report').exists()).toBe(false)
-  })
+  it.each([false, true])(
+    'opens deal reporting in a popup rather than inline (details dialog: %s)',
+    async (explanationPopup) => {
+      session.value = { data: { user: { id: 'synthetic-user' } } }
+      const wrapper = await render(explanationPopup)
+      const trigger = wrapper.get('.deal-community-report-link')
+      expect(trigger.attributes('aria-haspopup')).toBe('dialog')
+      await trigger.trigger('click')
+      await flushPromises()
+      expect(wrapper.get('.deal-community-report-dialog').element.tagName).toBe('DIALOG')
+      expect(wrapper.get('.deal-community-report-dialog .deal-community-report h2').text()).toBe(
+        'Report this deal',
+      )
+      expect(wrapper.find('.deal-community-overview .deal-community-report').exists()).toBe(false)
+      await wrapper.get('[aria-label="Close report"]').trigger('click')
+      await flushPromises()
+      expect(wrapper.find('.deal-community-report').exists()).toBe(false)
+    },
+  )
 
   it('shows brief inline vote feedback without reserving a separate notification row', async () => {
     vi.useFakeTimers()
     session.value = { data: { user: { id: 'synthetic-user' } } }
-    mocks.vote.mockResolvedValue({ ...summary, alive: 1, myVote: 'ALIVE', myVoteIsRecent: true, lastReportedAt: '2026-10-22T01:00:00.000Z' })
-    mocks.removeVote.mockResolvedValue({ ...summary, alive: 0, myVote: null, myVoteIsRecent: false })
+    mocks.vote.mockResolvedValue({
+      ...summary,
+      alive: 1,
+      myVote: 'ALIVE',
+      myVoteIsRecent: true,
+      lastReportedAt: '2026-10-22T01:00:00.000Z',
+    })
+    mocks.removeVote.mockResolvedValue({
+      ...summary,
+      alive: 0,
+      myVote: null,
+      myVoteIsRecent: false,
+    })
     const wrapper = await render()
     const help = wrapper.get('#deal-community-vote-help').element
     expect(wrapper.find('[data-testid="vote-receipt-slot"]').exists()).toBe(false)
@@ -196,12 +216,16 @@ describe('community deal panel (synthetic API fixtures)', () => {
   })
   it('likes, replies to, and edits comments using persistent API actions', async () => {
     session.value = { data: { user: { id: 'synthetic-user' } } }
-    mocks.comments.mockResolvedValue({ items: [{ ...comment, liked: false, likeCount: 0 }], nextCursor: null })
+    mocks.comments.mockResolvedValue({
+      items: [{ ...comment, liked: false, likeCount: 0 }],
+      nextCursor: null,
+    })
     mocks.likeComment.mockResolvedValue({ ok: true })
     mocks.editComment.mockResolvedValue({ ok: true })
     mocks.addComment.mockResolvedValue(comment)
     const wrapper = await render()
-    const button = (text: string) => wrapper.findAll('button').find(b => b.text() === text)!
+    const button = (text: string) =>
+      defined(wrapper.findAll('button').find((b) => b.text() === text))
     await button('Like').trigger('click')
     await flushPromises()
     expect(mocks.likeComment).toHaveBeenCalledWith(comment.id, true)
@@ -231,13 +255,13 @@ describe('community deal panel (synthetic API fixtures)', () => {
     expect(wrapper.get('.deal-community-body').text()).toBe('<script>plain text</script>')
     const byText = (text: string) =>
       wrapper.findAll('button').find((button) => button.text() === text)
-    await wrapper.findAll('[aria-label="Comment options"]')[0]!.trigger('click')
+    await defined(wrapper.findAll('[aria-label="Comment options"]')[0]).trigger('click')
     await byText('Delete comment')?.trigger('click')
     expect(mocks.deleteComment).not.toHaveBeenCalled()
     await byText('Confirm delete')?.trigger('click')
     await flushPromises()
     expect(mocks.deleteComment).toHaveBeenCalledWith(comment.id)
-    await wrapper.findAll('[aria-label="Comment options"]')[1]!.trigger('click')
+    await defined(wrapper.findAll('[aria-label="Comment options"]')[1]).trigger('click')
     await byText('Report comment')?.trigger('click')
     await wrapper.get('#deal-community-report-details').setValue('Synthetic report details')
     await wrapper.get('.deal-community-report').trigger('submit')

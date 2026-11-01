@@ -276,6 +276,7 @@ const toggleSave = async () => {
 .deal-panel :deep(.deal-gallery) { border-radius: 0; background: transparent; }
 .deal-panel :deep(.deal-photo__img) { object-fit: contain; object-position: center top; }
 
+/* biome-ignore lint/style/noDescendingSpecificity: the earlier, more specific rule is a modifier override for a different state of the same element */
 .deal-panel__status {
   display: flex;
   flex-wrap: wrap;

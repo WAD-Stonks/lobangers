@@ -1,6 +1,4 @@
 <script setup lang="ts">
-import LocationFilter from '@web/modules/browse-map/LocationFilter.vue'
-import { locationLabel } from '@web/modules/browse-map/location-filter'
 import { DEAL_CUISINE_LABELS, type DealCuisine } from '@broke-oclock/contracts/deal-cuisines'
 import { formatCategory } from '@web/modules/browse-map/deal-format'
 import {
@@ -13,6 +11,8 @@ import {
   updateFilters,
   WALK_MINUTE_OPTIONS,
 } from '@web/modules/browse-map/filters'
+import LocationFilter from '@web/modules/browse-map/LocationFilter.vue'
+import { locationLabel } from '@web/modules/browse-map/location-filter'
 import ShellIcon from '@web/modules/map-shell/ShellIcon.vue'
 import type { Breakpoint } from '@web/modules/map-shell/use-breakpoint'
 import { computed, nextTick, ref, watch } from 'vue'
@@ -60,7 +60,8 @@ const priceHistogram = computed(() => {
   for (const minor of props.priceValues ?? []) {
     if (!Number.isFinite(minor) || minor < 0) continue
     const index = Math.max(0, Math.min(bins.length - 1, Math.floor((minor / CENTS - BUDGET_MIN) / BUDGET_STEP)))
-    bins[index]!.count++
+    const bin = bins[index]
+    if (bin) bin.count++
   }
   const maximum = Math.max(1, ...bins.map((bin) => bin.count))
   return bins.map((bin, index) => ({

@@ -232,7 +232,9 @@ for (const width of [390, 1280]) {
     test('filters sheet: live count, badge, and focus back on Escape', async ({ page }) => {
       await page.goto('/browse')
       await expect(rows(page)).toHaveCount(3)
-      const allFilters = page.locator('[data-testid="all-filters"]:visible, [data-testid="mobile-all-filters"]:visible')
+      const allFilters = page.locator(
+        '[data-testid="all-filters"]:visible, [data-testid="mobile-all-filters"]:visible',
+      )
       await allFilters.click()
       const sheet = page.getByRole('dialog', { name: 'Filters' })
       await expect(sheet).toBeVisible()
@@ -241,7 +243,11 @@ for (const width of [390, 1280]) {
       await expect(page.getByTestId('filter-show')).toHaveText('Show 1 deal')
       await page.getByTestId('filter-show').click()
       await expect(sheet).toBeHidden()
-      await expect(page.locator('[data-testid="filter-badge"]:visible, [data-testid="mobile-filter-badge"]:visible')).toContainText('1')
+      await expect(
+        page.locator(
+          '[data-testid="filter-badge"]:visible, [data-testid="mobile-filter-badge"]:visible',
+        ),
+      ).toContainText('1')
 
       await allFilters.click()
       await expect(sheet).toBeVisible()

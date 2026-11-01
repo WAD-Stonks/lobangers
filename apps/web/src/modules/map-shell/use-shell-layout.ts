@@ -58,7 +58,10 @@ export const sheetHeights = (
   )
   const half = Math.min(
     full - SHEET_MIN_STEP_PX,
-    Math.max(SHEET_PEEK_PX + SHEET_MIN_STEP_PX, previewHeight ?? Math.round(viewportHeight * halfRatio)),
+    Math.max(
+      SHEET_PEEK_PX + SHEET_MIN_STEP_PX,
+      previewHeight ?? Math.round(viewportHeight * halfRatio),
+    ),
   )
   return [SHEET_PEEK_PX, half, full]
 }
@@ -108,7 +111,7 @@ export const useShellLayout = ({
   })
 
   const mode = computed(() => (breakpoint.value === 'desktop' ? 'side' : 'sheet'))
-  const navigationHeight = computed(() => bottomNavigation.value ? BOTTOM_NAV_HEIGHT_PX : 0)
+  const navigationHeight = computed(() => (bottomNavigation.value ? BOTTOM_NAV_HEIGHT_PX : 0))
   const heights = computed(() =>
     sheetHeights(
       viewport.value.height - navigationHeight.value,
@@ -155,17 +158,25 @@ export const useShellLayout = ({
           bottom: 0,
           left: leftPanel.value ? sideCover.value : 0,
         }
-      : { top: headerBottom.value, right: 0, bottom: sheetVisible.value + navigationHeight.value, left: 0 },
+      : {
+          top: headerBottom.value,
+          right: 0,
+          bottom: sheetVisible.value + navigationHeight.value,
+          left: 0,
+        },
   )
 
   // Searching follows the map viewport at its current zoom, even while the sheet covers it.
-  const searchPadding = computed(() => mode.value === 'sheet'
-    ? { top: headerBottom.value, right: 0, bottom: navigationHeight.value, left: 0 }
-    : viewPadding.value,
+  const searchPadding = computed(() =>
+    mode.value === 'sheet'
+      ? { top: headerBottom.value, right: 0, bottom: navigationHeight.value, left: 0 }
+      : viewPadding.value,
   )
 
   const cssVars = computed(() => ({
-    '--bottom-nav-h': bottomNavigation.value ? `calc(${BOTTOM_NAV_HEIGHT_PX}px + env(safe-area-inset-bottom, 0px))` : '0px',
+    '--bottom-nav-h': bottomNavigation.value
+      ? `calc(${BOTTOM_NAV_HEIGHT_PX}px + env(safe-area-inset-bottom, 0px))`
+      : '0px',
     '--shell-header-bottom': `${headerBottom.value}px`,
     '--sheet-visible': `${sheetVisible.value}px`,
     '--panel-w': `${widthFor(panelWide.value)}px`,

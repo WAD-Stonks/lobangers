@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { useShellNavigation } from '@web/modules/map-shell/use-shell-navigation'
 import { authClient } from '@web/lib/auth-client'
+import { useShellNavigation } from '@web/modules/map-shell/use-shell-navigation'
 import { RouterLink, useRouter } from 'vue-router'
 
 const navigationTo = useShellNavigation()

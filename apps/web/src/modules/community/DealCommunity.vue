@@ -250,7 +250,7 @@ const date = (value: string) => new Intl.DateTimeFormat('en-SG', { dateStyle: 'm
 .deal-community--all { border-top: 0; padding-block: 0; }
 .deal-community-overview { display: grid; gap: 16px; min-width: 0; }
 .deal-community--all .deal-community-overview:empty { display: none; }
-.deal-community-explanation-trigger { display: none !important; }
+.deal-community-text-button.deal-community-explanation-trigger { display: none; }
 .deal-community-explanation-trigger,
 .deal-community-explanation summary,
 #verification-explanation-title {
@@ -263,7 +263,7 @@ const date = (value: string) => new Intl.DateTimeFormat('en-SG', { dateStyle: 'm
 .deal-community-explanation-dialog::backdrop { background: rgb(29 29 34 / 0.45); }
 .deal-community-explanation-dialog p { margin: 16px 0 0; font-size: 0.875rem; line-height: 1.6; }
 @media (min-width: 768px) {
-  .deal-community-explanation-trigger { display: inline-flex !important; justify-self: start; }
+  .deal-community-text-button.deal-community-explanation-trigger { display: inline-flex; justify-self: start; }
   .deal-community-explanation--mobile { display: none; }
 }
 .deal-community-refresh { justify-self: start; }

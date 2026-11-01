@@ -267,10 +267,12 @@ onBeforeUnmount(() => {
   .deal-dialog__content :deep(.panel-frame__heading) { order: 2; }
 }
 
+/* biome-ignore lint/style/noDescendingSpecificity: the earlier, more specific rule is a modifier override for a different state of the same element */
 .deal-dialog__content :deep(.deal-panel__status) {
   margin-bottom: -10px;
 }
 
+/* biome-ignore lint/style/noDescendingSpecificity: the earlier, more specific rule is a modifier override for a different state of the same element */
 .deal-dialog__content :deep(.panel-frame__heading) {
   margin-bottom: -8px;
 }

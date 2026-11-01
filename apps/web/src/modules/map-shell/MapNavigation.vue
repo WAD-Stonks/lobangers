@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import { authClient } from '@web/lib/auth-client'
-import { useShellNavigation } from '@web/modules/map-shell/use-shell-navigation'
 import BrandMenu from '@web/modules/map-shell/BrandMenu.vue'
 import ShellIcon from '@web/modules/map-shell/ShellIcon.vue'
 import { shellQuery } from '@web/modules/map-shell/shell-routes'
+import { useShellNavigation } from '@web/modules/map-shell/use-shell-navigation'
 import { computed, nextTick, onBeforeUnmount, ref } from 'vue'
-import { isNavigationFailure, NavigationFailureType, type NavigationFailure, RouterLink, useRoute } from 'vue-router'
+import { isNavigationFailure, NavigationFailureType, RouterLink, useRoute } from 'vue-router'
 
 const session = authClient.useSession()
 const initial = computed(() => Array.from(session.value.data?.user.name?.trim() ?? '')[0]?.toUpperCase() || '?')
@@ -23,7 +23,7 @@ const isActive = (names: string[]) => props.panelOpen && (
     : route.name === 'browse' && route.query.view === 'list'
       ? names.includes('home') : names.includes(String(route.name))
 )
-const openPanel = async (event: MouseEvent, navigate: (event?: MouseEvent) => Promise<void | NavigationFailure>) => {
+const openPanel = async (event: MouseEvent, navigate: (event?: MouseEvent) => Promise<unknown>) => {
   const normalClick = event.button === 0 && !event.ctrlKey && !event.metaKey && !event.shiftKey && !event.altKey
   const failure = await navigate(event)
   if (!normalClick || (failure && !isNavigationFailure(failure, NavigationFailureType.duplicated))) return

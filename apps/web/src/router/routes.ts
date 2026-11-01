@@ -12,11 +12,11 @@ import AdminCataloguePage from '@web/pages/AdminCataloguePage.vue'
 import AdminDealsPage from '@web/pages/AdminDealsPage.vue'
 import AdminModerationPage from '@web/pages/AdminModerationPage.vue'
 import AdminOverviewPage from '@web/pages/AdminOverviewPage.vue'
+import AuthPage from '@web/pages/AuthPage.vue'
 import ForgotPasswordPage from '@web/pages/ForgotPasswordPage.vue'
 import GettingStartedPage from '@web/pages/GettingStartedPage.vue'
 import IngestionAdminPage from '@web/pages/IngestionAdminPage.vue'
 import LandingPage from '@web/pages/LandingPage.vue'
-import AuthPage from '@web/pages/AuthPage.vue'
 import MapShell from '@web/pages/MapShell.vue'
 import MerchantAccessPage from '@web/pages/MerchantAccessPage.vue'
 import MerchantDashboardPage from '@web/pages/MerchantDashboardPage.vue'
@@ -43,7 +43,12 @@ const routes: RouteRecordRaw[] = [
     component: MapShell,
     meta: { layout: 'canvas' },
     children: [
-      { path: '/account-required', name: 'auth-required', component: AuthPrompt, meta: { panelLabel: 'Log in or sign up' } },
+      {
+        path: '/account-required',
+        name: 'auth-required',
+        component: AuthPrompt,
+        meta: { panelLabel: 'Log in or sign up' },
+      },
       { path: '', name: 'browse', component: BrowseListPanel, meta: { panelLabel: 'Results' } },
       { path: '/deals/:dealId', name: 'deal', component: DealPanel, meta: { panelLabel: 'Deal' } },
       {
@@ -93,8 +98,20 @@ const routes: RouteRecordRaw[] = [
   },
   { path: '/', name: 'landing', component: LandingPage, meta: { layout: 'landing' } },
   { path: '/about', name: 'about', component: LandingPage, meta: { layout: 'landing' } },
-  { path: '/sign-in', name: 'sign-in', component: AuthPage, props: { mode: 'login' }, meta: { layout: 'auth', guestOnly: true } },
-  { path: '/sign-up', name: 'sign-up', component: AuthPage, props: { mode: 'register' }, meta: { layout: 'auth', guestOnly: true } },
+  {
+    path: '/sign-in',
+    name: 'sign-in',
+    component: AuthPage,
+    props: { mode: 'login' },
+    meta: { layout: 'auth', guestOnly: true },
+  },
+  {
+    path: '/sign-up',
+    name: 'sign-up',
+    component: AuthPage,
+    props: { mode: 'register' },
+    meta: { layout: 'auth', guestOnly: true },
+  },
   // The feed without a map is now the shell's list mode; old links keep working.
   {
     path: '/deals',

@@ -1,6 +1,7 @@
 import { mount } from '@vue/test-utils'
 import LocationFilter from '@web/modules/browse-map/LocationFilter.vue'
 import { locationLabel, matchesLocation } from '@web/modules/browse-map/location-filter'
+import { defined } from '@web-tests/support/defined'
 import { describe, expect, it } from 'vitest'
 
 describe('location selection', () => {
@@ -17,7 +18,9 @@ describe('location selection', () => {
 
   it('lets visitors choose a region or search and select a town', async () => {
     const wrapper = mount(LocationFilter, { props: { modelValue: '' } })
-    await wrapper.findAll('button').find((button) => button.text() === 'North')!.trigger('click')
+    await defined(wrapper.findAll('button').find((button) => button.text() === 'North')).trigger(
+      'click',
+    )
     expect(wrapper.emitted('update:modelValue')?.[0]).toEqual(['region:North'])
     await wrapper.get('input').setValue('bedok')
     expect(wrapper.findAll('.location-filter__towns button')).toHaveLength(1)
@@ -25,7 +28,9 @@ describe('location selection', () => {
     expect(wrapper.emitted('update:modelValue')?.[1]).toEqual(['town:Bedok'])
     await wrapper.setProps({ modelValue: 'town:Bedok' })
     expect(wrapper.get('.location-filter__towns button').attributes('aria-pressed')).toBe('true')
-    await wrapper.findAll('button').find((button) => button.text() === 'Anywhere')!.trigger('click')
+    await defined(wrapper.findAll('button').find((button) => button.text() === 'Anywhere')).trigger(
+      'click',
+    )
     expect(wrapper.emitted('update:modelValue')?.[2]).toEqual([''])
   })
 })

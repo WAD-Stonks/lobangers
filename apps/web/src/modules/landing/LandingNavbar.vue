@@ -2,8 +2,8 @@
 import logo from '@web/assets/lobangers-logo.png'
 import AccountMenu from '@web/components/AccountMenu.vue'
 import ProfileMenu from '@web/components/ProfileMenu.vue'
-import { authClient } from '@web/lib/auth-client'
 import { useSiteMenu } from '@web/components/use-site-menu'
+import { authClient } from '@web/lib/auth-client'
 import { ref } from 'vue'
 import { RouterLink } from 'vue-router'
 

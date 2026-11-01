@@ -1,5 +1,5 @@
 import { shellQuery } from '@web/modules/map-shell/shell-routes'
-import { useRoute, useRouter, type RouteLocationRaw } from 'vue-router'
+import { type RouteLocationRaw, useRoute, useRouter } from 'vue-router'
 
 // Keep browsing choices on navigation links. Panel-specific state, such as which saved
 // collection a deal came from, must not leak into other sections.
@@ -14,8 +14,11 @@ export const useShellNavigation = () => {
       hash: destination.hash,
       query: {
         ...choices,
-        ...(destination.path === '/browse' && route.query.view === 'list' && destination.query.view === undefined
-          ? { view: 'map', split: '1', results: 'list' } : {}),
+        ...(destination.path === '/browse' &&
+        route.query.view === 'list' &&
+        destination.query.view === undefined
+          ? { view: 'map', split: '1', results: 'list' }
+          : {}),
         ...destination.query,
       },
     }

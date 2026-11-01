@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { DEAL_CUISINE_LABELS, type DealCuisine } from '@broke-oclock/contracts/deal-cuisines'
+import { formatCategory } from '@web/modules/browse-map/deal-format'
 import {
   type BrowseFilters, countSheetFilters, createDefaultFilters,
   toggleValue,
 } from '@web/modules/browse-map/filters'
-import { formatCategory } from '@web/modules/browse-map/deal-format'
 import LocationFilter from '@web/modules/browse-map/LocationFilter.vue'
 import { locationLabel } from '@web/modules/browse-map/location-filter'
 import ShellIcon from '@web/modules/map-shell/ShellIcon.vue'
@@ -177,7 +177,7 @@ defineExpose({ focusAllFilters: () => allButton.value?.focus() })
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .discovery-filters__lobbie-icon { animation: none !important; }
+  .discovery-filters__lobbie:not(.is-on) .discovery-filters__lobbie-icon { animation: none; }
 }
 
 .discovery-filters__clear-all {

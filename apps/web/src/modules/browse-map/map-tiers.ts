@@ -1,6 +1,6 @@
-import { SINGAPORE_CENTER } from '@web/modules/browse-map/map-config'
 import { areaFor } from '@web/modules/browse-map/cluster-area'
 import { distanceMetres } from '@web/modules/browse-map/distance'
+import { SINGAPORE_CENTER } from '@web/modules/browse-map/map-config'
 import type { Coordinates, VenuePin } from '@web/modules/browse-map/types'
 
 // What the map shows at each zoom, from a student's point of view: deals within a short walk
@@ -93,7 +93,9 @@ export const planMapLayers = ({ pins, zoom, user, selectedVenueId }: PlanInput):
     return {
       tier,
       loose: selected,
-      groups: rest.length ? [{ ...makeGroup('region', 'Singapore', rest, SINGAPORE_CENTER), compact: true }] : [],
+      groups: rest.length
+        ? [{ ...makeGroup('region', 'Singapore', rest, SINGAPORE_CENTER), compact: true }]
+        : [],
     }
   }
   const isNear = (pin: VenuePin) => user !== null && distanceMetres(user, pin) <= WALK_RADIUS_METRES

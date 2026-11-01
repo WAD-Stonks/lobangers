@@ -112,8 +112,8 @@
   --hero-background: #fff9e6;
   --sunny: #ffda45;
   --sunny-deep: #f0c930;
-  --sunny-soft: rgb(255 218 69 / .35);
-  --sunny-ring: rgb(255 218 69 / .85);
+  --sunny-soft: rgb(255 218 69 / 0.35);
+  --sunny-ring: rgb(255 218 69 / 0.85);
   --sunny-wash: #fff9e6;
   --bs-body-bg: var(--page-background);
   --bs-light-bg-subtle: var(--page-background);
@@ -140,6 +140,7 @@ html.app-palette body {
   }
 }
 
+/* biome-ignore lint/style/noDescendingSpecificity: the earlier, more specific rule is a modifier override for a different state of the same element */
 body {
   min-width: 320px;
   margin: 0;

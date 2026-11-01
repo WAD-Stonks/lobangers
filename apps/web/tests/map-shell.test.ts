@@ -1,6 +1,7 @@
 import { flushPromises, type VueWrapper } from '@vue/test-utils'
 import { FOCUS_ZOOM, LOCATE_ZOOM } from '@web/modules/browse-map/map-config'
 import { MAP_SIDEBAR_STORAGE_KEY } from '@web/modules/map-shell/map-preferences'
+import { defined } from '@web-tests/support/defined'
 import {
   DEALS_RESPONSE,
   HAWKER_VENUE,
@@ -68,7 +69,10 @@ afterEach(() => {
 describe('browse panel', () => {
   it('keeps every saved deal visible when the map moves and restores area filtering on Deals', async () => {
     auth.session.current = SIGNED_IN
-    rest.bookmarks.mockResolvedValue({ items: [{ dealId: KOPI.id }, { dealId: NOODLES.id }], nextCursor: null })
+    rest.bookmarks.mockResolvedValue({
+      items: [{ dealId: KOPI.id }, { dealId: NOODLES.id }],
+      nextCursor: null,
+    })
     const { wrapper, router } = await mountAt('/saved')
     const savedTitles = rowTitles(wrapper)
     expect(savedTitles).toHaveLength(2)
@@ -85,7 +89,11 @@ describe('browse panel', () => {
     const { wrapper, router } = await mountAt('/deals')
     await wrapper.get('[data-testid="quick-location"]').trigger('click')
     await wrapper.get('[data-testid="quick-filter-popover"] input').setValue('Bugis')
-    await wrapper.findAll('[data-testid="quick-filter-popover"] button').find((button) => button.text() === 'Bugis')!.trigger('click')
+    await defined(
+      wrapper
+        .findAll('[data-testid="quick-filter-popover"] button')
+        .find((button) => button.text() === 'Bugis'),
+    ).trigger('click')
     await wrapper.get('[data-testid="quick-filter-apply"]').trigger('click')
     await flushPromises()
     expect(router.currentRoute.value.query.location).toBe('town:Bugis')
@@ -101,7 +109,11 @@ describe('browse panel', () => {
     await flushPromises()
     expect(wrapper.findAll('.food-deal-card')).toHaveLength(2)
     await wrapper.get('[data-testid="quick-location"]').trigger('click')
-    await wrapper.findAll('[data-testid="quick-filter-popover"] button').find((button) => button.text() === 'Clear')!.trigger('click')
+    await defined(
+      wrapper
+        .findAll('[data-testid="quick-filter-popover"] button')
+        .find((button) => button.text() === 'Clear'),
+    ).trigger('click')
     await flushPromises()
     expect(router.currentRoute.value.query.location).toBeUndefined()
     expect(map(wrapper).props('pins')).toHaveLength(2)
@@ -118,12 +130,18 @@ describe('browse panel', () => {
 
   it('clears filters on All Deals without changing the view or sort', async () => {
     auth.session.current = SIGNED_IN
-    const { wrapper, router } = await mountAt('/browse?view=list&discovery=1&q=synthetic&cat=drinks&max=5&sort=ending')
+    const { wrapper, router } = await mountAt(
+      '/browse?view=list&discovery=1&q=synthetic&cat=drinks&max=5&sort=ending',
+    )
     expect(wrapper.find('[data-testid="deals-greeting"]').exists()).toBe(false)
     expect(wrapper.text()).not.toContain('Great food, better prices')
     await wrapper.get('[data-testid="clear-all-filters"]').trigger('click')
     await flushPromises()
-    expect(router.currentRoute.value.query).toMatchObject({ view: 'list', discovery: '1', sort: 'ending' })
+    expect(router.currentRoute.value.query).toMatchObject({
+      view: 'list',
+      discovery: '1',
+      sort: 'ending',
+    })
     expect(router.currentRoute.value.query.q).toBeUndefined()
     expect(router.currentRoute.value.query.cat).toBeUndefined()
     expect(router.currentRoute.value.query.max).toBeUndefined()
@@ -135,8 +153,10 @@ describe('browse panel', () => {
   it('automatically filters to the visible map area and restores deals when the viewport expands', async () => {
     const { wrapper, router } = await mountAt('/browse')
     map(wrapper).vm.$emit('moved', {
-      south: KOPI_VENUE.lat - 0.00001, north: KOPI_VENUE.lat + 0.00001,
-      west: KOPI_VENUE.lng - 0.00001, east: KOPI_VENUE.lng + 0.00001,
+      south: KOPI_VENUE.lat - 0.00001,
+      north: KOPI_VENUE.lat + 0.00001,
+      west: KOPI_VENUE.lng - 0.00001,
+      east: KOPI_VENUE.lng + 0.00001,
     })
     await flushPromises()
     expect(rowTitles(wrapper)).toEqual(['Synthetic iced kopi'])
@@ -321,7 +341,13 @@ describe('collapsing the desktop panel', () => {
     const { wrapper, router } = await mountAt('/add')
     await tab(wrapper).trigger('click')
     let finishNavigation: (() => void) | undefined
-    router.beforeEach((to) => to.name === 'saved' ? new Promise<void>((resolve) => { finishNavigation = resolve }) : true)
+    router.beforeEach((to) =>
+      to.name === 'saved'
+        ? new Promise<void>((resolve) => {
+            finishNavigation = resolve
+          })
+        : true,
+    )
     await wrapper.get('[data-testid="map-navigation"] a[href^="/saved"]').trigger('click')
     await flushPromises()
     expect(router.currentRoute.value.name).toBe('add-deal')
@@ -476,7 +502,12 @@ describe('map tutorial', () => {
 describe('results display toggle', () => {
   it('opens the map Deals tab in List view even after choosing Cards', async () => {
     const { wrapper, router } = await mountAt('/browse?results=cards&cat=drinks')
-    await wrapper.get('[data-testid="map-navigation"]').findAll('a').find((link) => link.text() === 'Deals')!.trigger('click')
+    await defined(
+      wrapper
+        .get('[data-testid="map-navigation"]')
+        .findAll('a')
+        .find((link) => link.text() === 'Deals'),
+    ).trigger('click')
     await flushPromises()
     expect(router.currentRoute.value.query).toMatchObject({ results: 'list', cat: 'drinks' })
     expect(wrapper.get('[data-testid="results-list"]').attributes('aria-pressed')).toBe('true')
@@ -486,7 +517,10 @@ describe('results display toggle', () => {
   it('expands the shared panel/search width for cards and contracts it for rows even on split entry', async () => {
     vi.stubGlobal('innerWidth', 1440)
     const { wrapper } = await mountAt('/browse?view=map&discovery=1&split=1&results=cards')
-    const width = () => (wrapper.get('[data-testid="map-shell"]').element as HTMLElement).style.getPropertyValue('--panel-w')
+    const width = () =>
+      (wrapper.get('[data-testid="map-shell"]').element as HTMLElement).style.getPropertyValue(
+        '--panel-w',
+      )
     const cardWidth = parseFloat(width())
     expect(cardWidth).toBe(Math.round(1440 * 0.42))
     await wrapper.get('[data-testid="results-list"]').trigger('click')
@@ -505,7 +539,11 @@ describe('results display toggle', () => {
     expect(wrapper.find('[data-testid="deal-rows"]').exists()).toBe(true)
     await wrapper.get('[data-testid="results-cards"]').trigger('click')
     await flushPromises()
-    expect(router.currentRoute.value.query).toMatchObject({ cat: 'drinks', sort: 'ending', results: 'cards' })
+    expect(router.currentRoute.value.query).toMatchObject({
+      cat: 'drinks',
+      sort: 'ending',
+      results: 'cards',
+    })
     expect(wrapper.get('[data-testid="results-cards"]').attributes('aria-pressed')).toBe('true')
     expect(wrapper.find('[data-testid="food-deal-grid"]').exists()).toBe(true)
     expect(wrapper.find('[data-testid="deal-rows"]').exists()).toBe(false)
@@ -552,8 +590,12 @@ describe('opening deals and venues', () => {
     expect(detail.find('.deal-panel__facts').exists()).toBe(false)
     expect(detail.find('.deal-panel__description').exists()).toBe(false)
     const elements = [...detail.get('[data-testid="panel-body"]').element.children]
-    expect(elements.indexOf(detail.get('.deal-panel__media').element)).toBeLessThan(elements.indexOf(detail.get('.panel-frame__heading').element))
-    expect(elements.indexOf(detail.get('.deal-panel__status').element)).toBeLessThan(elements.indexOf(detail.get('.panel-frame__heading').element))
+    expect(elements.indexOf(detail.get('.deal-panel__media').element)).toBeLessThan(
+      elements.indexOf(detail.get('.panel-frame__heading').element),
+    )
+    expect(elements.indexOf(detail.get('.deal-panel__status').element)).toBeLessThan(
+      elements.indexOf(detail.get('.panel-frame__heading').element),
+    )
     expect(wrapper.find('[data-testid="deal-dialog"]').exists()).toBe(false)
     expect(wrapper.get('.panel-frame__back').attributes('href')).toBe('/browse?cat=drinks')
   })
@@ -703,57 +745,89 @@ describe('saving from the deal panel', () => {
 })
 
 describe('map navigation rail', () => {
-  it.each([390, 834])('keeps map search bounds and results stable when the sheet expands at %spx', async (width) => {
-    vi.stubGlobal('matchMedia', (query: string) => ({
-      matches: query.includes('min-width: 768px') && width >= 768,
-      media: query, addEventListener: vi.fn(), removeEventListener: vi.fn(),
-    }))
-    vi.stubGlobal('innerWidth', width)
-    const { wrapper } = await mountAt('/browse?view=map&split=1')
-    map(wrapper).vm.$emit('moved', { south: 0, north: 2, west: 100, east: 105 })
-    await flushPromises()
-    const searchPadding = map(wrapper).props('searchPadding')
-    const coveredBefore = map(wrapper).props('viewPadding').bottom
-    expect(rowTitles(wrapper)).toHaveLength(3)
-    await wrapper.get('[data-testid="sheet-handle"]').trigger('keydown', { key: 'ArrowUp' })
-    await flushPromises()
-    expect(map(wrapper).props('viewPadding').bottom).toBeGreaterThan(coveredBefore)
-    expect(map(wrapper).props('searchPadding')).toEqual(searchPadding)
-    expect(rowTitles(wrapper)).toHaveLength(3)
-    map(wrapper).vm.$emit('moved', {
-      south: KOPI_VENUE.lat - 0.00001, north: KOPI_VENUE.lat + 0.00001,
-      west: KOPI_VENUE.lng - 0.00001, east: KOPI_VENUE.lng + 0.00001,
-    })
-    await flushPromises()
-    expect(rowTitles(wrapper)).toEqual([KOPI.title])
-  })
+  it.each([390, 834])(
+    'keeps map search bounds and results stable when the sheet expands at %spx',
+    async (width) => {
+      vi.stubGlobal('matchMedia', (query: string) => ({
+        matches: query.includes('min-width: 768px') && width >= 768,
+        media: query,
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+      }))
+      vi.stubGlobal('innerWidth', width)
+      const { wrapper } = await mountAt('/browse?view=map&split=1')
+      map(wrapper).vm.$emit('moved', { south: 0, north: 2, west: 100, east: 105 })
+      await flushPromises()
+      const searchPadding = map(wrapper).props('searchPadding')
+      const coveredBefore = map(wrapper).props('viewPadding').bottom
+      expect(rowTitles(wrapper)).toHaveLength(3)
+      await wrapper.get('[data-testid="sheet-handle"]').trigger('keydown', { key: 'ArrowUp' })
+      await flushPromises()
+      expect(map(wrapper).props('viewPadding').bottom).toBeGreaterThan(coveredBefore)
+      expect(map(wrapper).props('searchPadding')).toEqual(searchPadding)
+      expect(rowTitles(wrapper)).toHaveLength(3)
+      map(wrapper).vm.$emit('moved', {
+        south: KOPI_VENUE.lat - 0.00001,
+        north: KOPI_VENUE.lat + 0.00001,
+        west: KOPI_VENUE.lng - 0.00001,
+        east: KOPI_VENUE.lng + 0.00001,
+      })
+      await flushPromises()
+      expect(rowTitles(wrapper)).toEqual([KOPI.title])
+    },
+  )
 
-  it.each([false, true])('opens All Deals from its navigation link, preserving filters (mobile: %s)', async (mobile) => {
-    if (mobile) vi.stubGlobal('matchMedia', (query: string) => ({ matches: false, media: query, addEventListener: vi.fn(), removeEventListener: vi.fn() }))
-    const { wrapper, router } = await mountAt('/browse?cat=drinks&view=map&split=1')
-    if (mobile) await wrapper.get('[data-testid="nav-home"]').trigger('click')
-    else {
-      expect(wrapper.find('[data-testid="nav-home"]').exists()).toBe(false)
-      await wrapper.get('[data-testid="nav-toggle"]').trigger('click')
-      await wrapper.get('[data-testid="nav-menu"] a[href^="/deals"]').trigger('click')
-    }
-    await flushPromises()
-    expect(router.currentRoute.value.query).toMatchObject({ cat: 'drinks', view: 'list', discovery: '1' })
-    expect(wrapper.find('[data-testid="food-deal-grid"]').exists()).toBe(true)
-    if (mobile) expect(wrapper.get('[data-testid="map-navigation"] a[aria-current="page"]').text()).toBe('All deals')
-  })
+  it.each([false, true])(
+    'opens All Deals from its navigation link, preserving filters (mobile: %s)',
+    async (mobile) => {
+      if (mobile)
+        vi.stubGlobal('matchMedia', (query: string) => ({
+          matches: false,
+          media: query,
+          addEventListener: vi.fn(),
+          removeEventListener: vi.fn(),
+        }))
+      const { wrapper, router } = await mountAt('/browse?cat=drinks&view=map&split=1')
+      if (mobile) await wrapper.get('[data-testid="nav-home"]').trigger('click')
+      else {
+        expect(wrapper.find('[data-testid="nav-home"]').exists()).toBe(false)
+        await wrapper.get('[data-testid="nav-toggle"]').trigger('click')
+        await wrapper.get('[data-testid="nav-menu"] a[href^="/deals"]').trigger('click')
+      }
+      await flushPromises()
+      expect(router.currentRoute.value.query).toMatchObject({
+        cat: 'drinks',
+        view: 'list',
+        discovery: '1',
+      })
+      expect(wrapper.find('[data-testid="food-deal-grid"]').exists()).toBe(true)
+      if (mobile)
+        expect(wrapper.get('[data-testid="map-navigation"] a[aria-current="page"]').text()).toBe(
+          'All deals',
+        )
+    },
+  )
 
   it('uses bottom navigation on phones and hides the unavailable sidebar switch', async () => {
     vi.stubGlobal('matchMedia', (query: string) => ({
-      matches: false, media: query, addEventListener: vi.fn(), removeEventListener: vi.fn(),
+      matches: false,
+      media: query,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
     }))
     vi.stubGlobal('innerWidth', 390)
     auth.session.current = SIGNED_IN
     const { wrapper, router } = await mountAt('/browse?view=map&split=1')
-    expect(wrapper.get('[data-testid="map-navigation"]').classes()).toContain('map-navigation--bottom')
+    expect(wrapper.get('[data-testid="map-navigation"]').classes()).toContain(
+      'map-navigation--bottom',
+    )
     expect(wrapper.get('[data-testid="map-navigation"] a[aria-current="page"]').text()).toBe('Map')
     expect(wrapper.get('.map-navigation__avatar').text()).toBe('S')
-    expect((wrapper.get('[data-testid="map-shell"]').element as HTMLElement).style.getPropertyValue('--bottom-nav-h')).toContain('68px')
+    expect(
+      (wrapper.get('[data-testid="map-shell"]').element as HTMLElement).style.getPropertyValue(
+        '--bottom-nav-h',
+      ),
+    ).toContain('68px')
     await wrapper.get('[data-testid="nav-toggle"]').trigger('click')
     expect(wrapper.find('[data-testid="show-sidebar"]').exists()).toBe(false)
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }))
@@ -761,14 +835,25 @@ describe('map navigation rail', () => {
     await wrapper.get('[data-testid="map-navigation"] a[href^="/saved"]').trigger('click')
     await flushPromises()
     expect(router.currentRoute.value.name).toBe('saved')
-    expect(wrapper.get('[data-testid="map-navigation"] a[aria-current="page"]').text()).toBe('Saved')
+    expect(wrapper.get('[data-testid="map-navigation"] a[aria-current="page"]').text()).toBe(
+      'Saved',
+    )
     expect(wrapper.get('[data-testid="shell-panel"]').classes()).toContain('shell-panel--sheet')
   })
 
   it('keeps filters and result preferences when navigating through account, share, saved and deals', async () => {
     auth.session.current = SIGNED_IN
-    const choices = { q: 'synthetic', cat: 'drinks', max: '5', when: 'week', sort: 'ending', results: 'list' }
-    const { wrapper, router } = await mountAt('/browse?q=synthetic&cat=drinks&max=5&when=week&sort=ending&results=list')
+    const choices = {
+      q: 'synthetic',
+      cat: 'drinks',
+      max: '5',
+      when: 'week',
+      sort: 'ending',
+      results: 'list',
+    }
+    const { wrapper, router } = await mountAt(
+      '/browse?q=synthetic&cat=drinks&max=5&when=week&sort=ending&results=list',
+    )
     const rail = () => wrapper.get('[data-testid="map-navigation"]')
     for (const path of ['/me/profile', '/add', '/saved', '/browse']) {
       await rail().get(`a[href^="${path}"]`).trigger('click')
@@ -786,16 +871,27 @@ describe('map navigation rail', () => {
     auth.session.current = SIGNED_IN
     const { wrapper, router } = await mountAt('/browse?view=map&split=1')
     const rail = () => wrapper.get('[data-testid="map-navigation"]')
-    const active = () => rail().findAll('a[aria-current="page"]').map((link) => link.get('span:last-child').text())
+    const active = () =>
+      rail()
+        .findAll('a[aria-current="page"]')
+        .map((link) => link.get('span:last-child').text())
     expect(active()).toEqual(['Deals'])
     await wrapper.get('[data-testid="panel-collapse"]').trigger('click')
     expect(active()).toEqual([])
-    await rail().findAll('a').find((link) => link.text() === 'Deals')!.trigger('click')
+    await defined(
+      rail()
+        .findAll('a')
+        .find((link) => link.text() === 'Deals'),
+    ).trigger('click')
     await flushPromises()
     expect(wrapper.get('[data-testid="panel-collapse"]').attributes('aria-expanded')).toBe('true')
     expect(active()).toEqual(['Deals'])
-    for (const [path, label] of [['/saved', 'Saved'], ['/add', 'Share'], ['/me/profile', 'Account']]) {
-      await router.push(path!)
+    for (const [path, label] of [
+      ['/saved', 'Saved'],
+      ['/add', 'Share'],
+      ['/me/profile', 'Account'],
+    ]) {
+      await router.push(defined(path))
       await flushPromises()
       expect(active()).toEqual([label])
     }
@@ -828,7 +924,11 @@ describe('brand menu', () => {
     await wrapper.get('[data-testid="nav-toggle"]').trigger('click')
     await wrapper.get('[data-testid="nav-menu"] a[href^="/browse"]').trigger('click')
     await flushPromises()
-    expect(router.currentRoute.value.query).toMatchObject({ view: 'map', split: '1', cat: 'drinks' })
+    expect(router.currentRoute.value.query).toMatchObject({
+      view: 'map',
+      split: '1',
+      cat: 'drinks',
+    })
     expect(wrapper.find('[data-testid="nav-menu"]').exists()).toBe(false)
   })
 

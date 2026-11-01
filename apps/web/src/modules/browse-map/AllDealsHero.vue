@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { useHeroEntrance } from './use-hero-entrance'
 import { authClient } from '@web/lib/auth-client'
+import { useHeroEntrance } from '@web/modules/browse-map/use-hero-entrance'
 import ShellIcon from '@web/modules/map-shell/ShellIcon.vue'
 import { useShell } from '@web/modules/map-shell/shell-state'
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
@@ -62,10 +62,11 @@ onBeforeUnmount(() => { fitRequest++; resizeObserver?.disconnect() })
 <template>
   <section ref="hero" :style="heroStyle" class="all-deals-hero" :class="{ 'all-deals-hero--stacked': stacked }" aria-labelledby="all-deals-hero-title" data-testid="all-deals-hero">
     <div class="all-deals-hero__copy">
-      <h2 ref="heading" :style="{ fontSize: `${headingSize}px` }" id="all-deals-hero-title" :aria-label="`${greeting} ready for a good lobang?`">
+      <h2 ref="heading" :style="{ fontSize: `${headingSize}px` }" id="all-deals-hero-title">
+        <span class="visually-hidden">{{ greeting }} ready for a good lobang?</span>
         <svg class="all-deals-hero__accent all-deals-hero__accent--coral" viewBox="0 0 80 90" aria-hidden="true"><path d="M12 65L35 68" pathLength="1" style="--ray-index: 0" /><path d="M23 29L45 46" pathLength="1" style="--ray-index: 1" /><path d="M57 9L66 31" pathLength="1" style="--ray-index: 2" /></svg>
         <span class="all-deals-hero__greeting" aria-hidden="true"><template v-for="(word, index) in greetingWords" :key="index"><span class="all-deals-hero__word" data-hero-word>{{ word + (index < greetingWords.length - 1 ? ' ' : '') }}</span></template></span>
-        <span class="all-deals-hero__headline" aria-hidden="true"><template v-for="(word, index) in headlineWords" :key="word"><span class="all-deals-hero__word" data-hero-word>{{ word + ' ' }}</span></template><span class="all-deals-hero__underlined"><template v-for="(word, index) in finalWords" :key="word"><span class="all-deals-hero__word" data-hero-word>{{ word + (index === 0 ? ' ' : '') }}</span></template><svg class="all-deals-hero__underline" viewBox="0 0 200 12" preserveAspectRatio="none" aria-hidden="true"><path data-hero-underline pathLength="1" d="M4 7Q65 2 112 6T196 5" /></svg><svg class="all-deals-hero__accent all-deals-hero__accent--yellow" viewBox="0 0 70 70" aria-hidden="true"><path d="M30 9L21 30" /><path d="M60 37L40 47" /></svg></span></span>
+        <span class="all-deals-hero__headline" aria-hidden="true"><template v-for="(word, index) in headlineWords" :key="word"><span class="all-deals-hero__word" data-hero-word>{{ `${word} ` }}</span></template><span class="all-deals-hero__underlined"><template v-for="(word, index) in finalWords" :key="word"><span class="all-deals-hero__word" data-hero-word>{{ word + (index === 0 ? ' ' : '') }}</span></template><svg class="all-deals-hero__underline" viewBox="0 0 200 12" preserveAspectRatio="none" aria-hidden="true"><path data-hero-underline pathLength="1" d="M4 7Q65 2 112 6T196 5" /></svg><svg class="all-deals-hero__accent all-deals-hero__accent--yellow" viewBox="0 0 70 70" aria-hidden="true"><path d="M30 9L21 30" /><path d="M60 37L40 47" /></svg></span></span>
       </h2>
       <p data-hero-subtitle>Explore nearby food deals, promos, and hidden gems around Singapore.</p>
       <div class="all-deals-hero__actions">

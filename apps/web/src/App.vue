@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { AppShell, BApp } from '@broke-oclock/ui'
 import { adminNavigation } from '@web/components/admin/admin-navigation'
-import { authPrompt } from '@web/modules/account/auth-prompt'
-import AuthPrompt from '@web/modules/account/AuthPrompt.vue'
 import SiteHeader from '@web/components/SiteHeader.vue'
 import SplashScreen from '@web/components/SplashScreen.vue'
+import AuthPrompt from '@web/modules/account/AuthPrompt.vue'
+import { authPrompt } from '@web/modules/account/auth-prompt'
 import { readSplit, readView } from '@web/modules/map-shell/filter-query'
 import { useBreakpoint } from '@web/modules/map-shell/use-breakpoint'
 import { routeLayout } from '@web/router/layouts'

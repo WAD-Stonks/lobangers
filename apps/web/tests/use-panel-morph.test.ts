@@ -94,7 +94,6 @@ describe('panelWidthFor', () => {
   })
 })
 
-
 describe('mobile result preview heights', () => {
   it('sizes the middle snap to one measured result row while preserving peek and full height', () => {
     expect(sheetHeights(776, 128, 0.58, 350)).toEqual([120, 350, 640])

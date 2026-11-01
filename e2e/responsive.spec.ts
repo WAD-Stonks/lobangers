@@ -265,7 +265,9 @@ test('the filter popup keeps its actions visible while its body scrolls', async 
   for (const width of [390, 768, 1024, 1280]) {
     await page.setViewportSize({ width, height: 800 })
     await page.goto('/browse')
-    await page.locator('[data-testid="all-filters"]:visible, [data-testid="mobile-all-filters"]:visible').click()
+    await page
+      .locator('[data-testid="all-filters"]:visible, [data-testid="mobile-all-filters"]:visible')
+      .click()
     const body = page.getByTestId('filter-sheet-body')
     await expect(body).toBeVisible()
     const apply = page.getByTestId('filter-show')
@@ -483,7 +485,9 @@ test('screenshots for review', async ({ page }, info) => {
     }
     await page.goto('/browse')
     await expect(page.getByTestId('splash-screen')).toBeHidden()
-    await page.locator('[data-testid="all-filters"]:visible, [data-testid="mobile-all-filters"]:visible').click()
+    await page
+      .locator('[data-testid="all-filters"]:visible, [data-testid="mobile-all-filters"]:visible')
+      .click()
     await settled('filter-sheet')
     await page.screenshot({ path: info.outputPath(`map-shell-filters-${width}.png`) })
     await page.keyboard.press('Escape')
@@ -564,18 +568,28 @@ test('split map panel fits three cards with verification badges on the posters',
   }
 })
 
-
-test('mobile quick filters stay on one swipeable row with full filters beside search', async ({ page }) => {
+test('mobile quick filters stay on one swipeable row with full filters beside search', async ({
+  page,
+}) => {
   await page.setViewportSize({ width: 390, height: 844 })
   await mockApi(page)
-  await page.route('**/api/deals*', (route) => route.fulfill({ json: { items: DEALS.map((deal) => ({ ...deal, cuisine: 'JAPANESE' })), categories: ['FOOD'] } }))
+  await page.route('**/api/deals*', (route) =>
+    route.fulfill({
+      json: {
+        items: DEALS.map((deal) => ({ ...deal, cuisine: 'JAPANESE' })),
+        categories: ['FOOD'],
+      },
+    }),
+  )
   await page.goto('/browse')
   const quickFilters = page.locator('.discovery-filters__chips')
   await expect(page.getByTestId('quick-category')).toBeVisible()
   const row = await quickFilters.evaluate((element) => ({
     width: element.clientWidth,
     scrollWidth: element.scrollWidth,
-    tops: [...element.querySelectorAll('[data-testid^="quick-"]')].map((button) => button.getBoundingClientRect().top),
+    tops: [...element.querySelectorAll('[data-testid^="quick-"]')].map(
+      (button) => button.getBoundingClientRect().top,
+    ),
     viewportWidth: window.innerWidth,
     pageWidth: document.documentElement.scrollWidth,
   }))

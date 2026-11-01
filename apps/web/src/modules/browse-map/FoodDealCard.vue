@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { walkMinutesFor } from '@web/modules/browse-map/apply-filters'
-import SaveDealButton from '@web/modules/browse-map/SaveDealButton.vue'
 import DealPhoto from '@web/modules/browse-map/DealPhoto.vue'
 import { dealFreshness, formatEnding, formatMoreOutlets } from '@web/modules/browse-map/deal-format'
+import SaveDealButton from '@web/modules/browse-map/SaveDealButton.vue'
 import type { DealRow } from '@web/modules/browse-map/types'
 import type { RouteLocationRaw } from 'vue-router'
 import { RouterLink } from 'vue-router'

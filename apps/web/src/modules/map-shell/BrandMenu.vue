@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { useShellNavigation } from '@web/modules/map-shell/use-shell-navigation'
 import logoUrl from '@web/assets/lobangers-logo.png'
 import { ACCOUNT_NAV_LINKS, SITE_MENU_ID, SITE_NAV_LINKS } from '@web/components/site-nav-links'
 import { TICKET_ICON_PATHS } from '@web/components/ticket-icon'
@@ -7,8 +6,9 @@ import { useSiteMenu } from '@web/components/use-site-menu'
 import { authClient } from '@web/lib/auth-client'
 import { useMapPreferences } from '@web/modules/map-shell/map-preferences'
 import ShellIcon, { type ShellIconName } from '@web/modules/map-shell/ShellIcon.vue'
-import { useSavedDeals } from '@web/modules/map-shell/use-saved-deals'
 import { useBreakpoint } from '@web/modules/map-shell/use-breakpoint'
+import { useSavedDeals } from '@web/modules/map-shell/use-saved-deals'
+import { useShellNavigation } from '@web/modules/map-shell/use-shell-navigation'
 import { useToast } from '@web/modules/map-shell/use-toast'
 import { computed, ref, watch } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
@@ -220,6 +220,7 @@ const logOut = async () => {
   transform: scale(0.97);
 }
 
+/* biome-ignore lint/style/noDescendingSpecificity: the earlier, more specific rule is a modifier override for a different state of the same element */
 .brand-menu__mark {
   display: inline-grid;
   place-items: center;
@@ -235,6 +236,7 @@ const logOut = async () => {
   height: 18px;
 }
 
+/* biome-ignore lint/style/noDescendingSpecificity: the earlier, more specific rule is a modifier override for a different state of the same element */
 .brand-menu__word {
   display: block;
   height: 26px;
@@ -277,6 +279,7 @@ const logOut = async () => {
   transform: translateY(-5px) rotate(-45deg);
 }
 
+/* biome-ignore lint/style/noDescendingSpecificity: the earlier, more specific rule is a modifier override for a different state of the same element */
 .brand-menu__count {
   position: absolute;
   top: -6px;
@@ -294,6 +297,7 @@ const logOut = async () => {
   border-radius: var(--radius-pill);
 }
 
+/* biome-ignore lint/style/noDescendingSpecificity: the earlier, more specific rule is a modifier override for a different state of the same element */
 .brand-menu__panel {
   position: absolute;
   top: calc(100% + 10px);

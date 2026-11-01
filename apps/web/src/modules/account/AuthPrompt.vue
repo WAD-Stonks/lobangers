@@ -1,7 +1,7 @@
 <script setup lang="ts">
+import { authPrompt } from '@web/modules/account/auth-prompt'
 import ShellIcon from '@web/modules/map-shell/ShellIcon.vue'
-import { authPrompt } from './auth-prompt'
-import { nextTick, ref, watch, computed } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
 const route = useRoute()

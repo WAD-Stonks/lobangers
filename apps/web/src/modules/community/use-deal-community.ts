@@ -64,7 +64,8 @@ export const useDealCommunity = (
       // Likes and edits should not collapse pages the visitor has already opened.
       while (page.nextCursor && page.items.length < loadedCount) {
         const next = await api.community.comments(dealId.value, {
-          cursor: page.nextCursor, limit: Math.min(50, loadedCount - page.items.length),
+          cursor: page.nextCursor,
+          limit: Math.min(50, loadedCount - page.items.length),
         })
         page.items.push(...next.items)
         page.nextCursor = next.nextCursor

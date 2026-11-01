@@ -43,7 +43,10 @@ describe('planMapLayers', () => {
     expect(plan.loose).toEqual([])
     expect(plan.groups).toHaveLength(1)
     expect(plan.groups[0]).toMatchObject({
-      centre: SINGAPORE_CENTER, compact: true, label: 'Singapore', dealCount: 13,
+      centre: SINGAPORE_CENTER,
+      compact: true,
+      label: 'Singapore',
+      dealCount: 13,
     })
   })
 

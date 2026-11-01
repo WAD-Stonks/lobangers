@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import type { CommunityComment } from '@broke-oclock/contracts/community'
-import CommentBody from './CommentBody.vue'
+import CommentBody from '@web/modules/community/CommentBody.vue'
 import { computed, nextTick, ref } from 'vue'
-import { RouterLink, type RouteLocationRaw } from 'vue-router'
+import { type RouteLocationRaw, RouterLink } from 'vue-router'
 
 const props = defineProps<{
   comment: CommunityComment
@@ -61,7 +61,7 @@ const postReply = async () => {
       <p v-if="comment.parentId" class="comment-card__reply-to">Replying to {{ comment.replyToName || 'a comment' }}</p>
       <form v-if="editing" class="comment-card__form" @submit.prevent="save">
         <textarea ref="editor" v-model="editBody" aria-label="Edit comment" maxlength="2000" rows="3" required :disabled="busy" />
-        <div><button class="lb-btn" type="button" :disabled="busy" @click="editing = false">Cancel</button><button class="lb-btn lb-btn--primary" :disabled="busy || !editBody.trim()">Save changes</button></div>
+        <div><button class="lb-btn" type="button" :disabled="busy" @click="editing = false">Cancel</button><button class="lb-btn lb-btn--primary" type="submit" :disabled="busy || !editBody.trim()">Save changes</button></div>
       </form>
       <CommentBody v-else :body="comment.body" />
       <div class="comment-card__actions">
@@ -74,10 +74,11 @@ const postReply = async () => {
       <form v-if="replying" class="comment-card__form" @submit.prevent="postReply">
         <label :for="`reply-${comment.id}`">Reply to {{ comment.authorName }}</label>
         <textarea :id="`reply-${comment.id}`" ref="replier" v-model="replyBody" maxlength="2000" rows="2" required :disabled="busy" />
-        <div><button class="lb-btn" type="button" :disabled="busy" @click="replying = false">Cancel</button><button class="lb-btn lb-btn--primary" :disabled="busy || !replyBody.trim()">Post reply</button></div>
+        <div><button class="lb-btn" type="button" :disabled="busy" @click="replying = false">Cancel</button><button class="lb-btn lb-btn--primary" type="submit" :disabled="busy || !replyBody.trim()">Post reply</button></div>
       </form>
       <slot />
     </div>
+    <!-- biome-ignore lint/a11y/noStaticElementInteractions: the wrapper only closes its menu on Escape or focus leaving; the buttons inside are the interactive controls -->
     <div v-if="loggedIn" class="comment-card__menu" @keydown.esc.stop="menu = false" @focusout="leaveMenu">
       <button type="button" class="comment-card__more" aria-label="Comment options" :aria-expanded="menu" :disabled="busy" @click="menu = !menu">•••</button>
       <div v-if="menu" class="comment-card__menu-items">

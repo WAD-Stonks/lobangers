@@ -25,8 +25,8 @@ import {
   type ShellView,
   withFilters,
 } from '@web/modules/map-shell/filter-query'
-import type { SavedDeals } from '@web/modules/map-shell/use-saved-deals'
 import { shellQuery } from '@web/modules/map-shell/shell-routes'
+import type { SavedDeals } from '@web/modules/map-shell/use-saved-deals'
 import {
   computed,
   type InjectionKey,
@@ -82,7 +82,13 @@ type Deps = {
   readonly saved?: SavedDeals
 }
 
-export const createShellState = ({ router, route, geolocation, saved, now = () => new Date() }: Deps) => {
+export const createShellState = ({
+  router,
+  route,
+  geolocation,
+  saved,
+  now = () => new Date(),
+}: Deps) => {
   const deals = shallowRef<readonly DealPin[]>([])
   const categories = shallowRef<readonly string[]>([])
   // Cuisine options follow the fixed list's order, limited to cuisines some loaded deal has.
@@ -97,7 +103,7 @@ export const createShellState = ({ router, route, geolocation, saved, now = () =
   let latestRequest = 0
 
   // Login always opens beside the map, even when its entry link carries All Deals' view.
-  const view = computed(() => route.name === 'login' ? 'map' : readView(route.query))
+  const view = computed(() => (route.name === 'login' ? 'map' : readView(route.query)))
   const filters = computed(() => {
     const parsed = filtersFromQuery(route.query)
     return view.value === 'list' ? parsed : { ...parsed, location: '' }
@@ -105,9 +111,9 @@ export const createShellState = ({ router, route, geolocation, saved, now = () =
   const sort = computed(() => readSort(route.query))
   const split = computed(() => readSplit(route.query))
   // All Deals uses cards; map results start as a list unless Cards is explicitly selected.
-  const cardMode = computed(() =>
-    route.query.results === 'cards' || (route.query.results !== 'list' &&
-      view.value === 'list'),
+  const cardMode = computed(
+    () =>
+      route.query.results === 'cards' || (route.query.results !== 'list' && view.value === 'list'),
   )
 
   const clock = ref(now())
@@ -134,7 +140,17 @@ export const createShellState = ({ router, route, geolocation, saved, now = () =
   }))
 
   const pinsFor = (next: BrowseFilters): readonly VenuePin[] =>
-    filterVenues(toVenuePins(filterDeals(savedOnly.value ? deals.value.filter((deal) => saved?.isSaved(deal.id)) : deals.value, next, context.value)), view.value === 'map' ? { ...next, location: '' } : next, context.value)
+    filterVenues(
+      toVenuePins(
+        filterDeals(
+          savedOnly.value ? deals.value.filter((deal) => saved?.isSaved(deal.id)) : deals.value,
+          next,
+          context.value,
+        ),
+      ),
+      view.value === 'map' ? { ...next, location: '' } : next,
+      context.value,
+    )
 
   // Every outlet with any loaded deal, unfiltered: deal and venue panels still resolve their
   // target when a filter hides it from the list.
@@ -181,16 +197,23 @@ export const createShellState = ({ router, route, geolocation, saved, now = () =
   // panel) and only shell keys travel along, never `at`, `redirect` or `notice`.
   const navigate = (query: Record<string, unknown>, mode: HistoryMode) => {
     if (route.name !== 'browse' && route.name !== 'saved') {
-      return router.push({ name: savedOnly.value ? 'saved' : 'browse', query: shellQuery(query as LocationQuery) })
+      return router.push({
+        name: savedOnly.value ? 'saved' : 'browse',
+        query: shellQuery(query as LocationQuery),
+      })
     }
     const location = { query: query as LocationQuery }
     return mode === 'push' ? router.push(location) : router.replace(location)
   }
 
   const applyFilters = (next: BrowseFilters, mode: HistoryMode = 'push') =>
-    navigate(withFilters(route.query, view.value === 'map'
-      ? { ...next, location: filtersFromQuery(route.query).location }
-      : next), mode)
+    navigate(
+      withFilters(
+        route.query,
+        view.value === 'map' ? { ...next, location: filtersFromQuery(route.query).location } : next,
+      ),
+      mode,
+    )
 
   const setSort = (next: SortKey) => navigate({ ...route.query, sort: next }, 'replace')
 
@@ -232,7 +255,11 @@ export const createShellState = ({ router, route, geolocation, saved, now = () =
     deals,
     categories,
     cuisines,
-    status: computed(() => savedOnly.value && saved && saved.status.value !== 'ready' ? saved.status.value : status.value),
+    status: computed(() =>
+      savedOnly.value && saved && saved.status.value !== 'ready'
+        ? saved.status.value
+        : status.value,
+    ),
     savedOnly,
     filters,
     sort,
@@ -250,7 +277,10 @@ export const createShellState = ({ router, route, geolocation, saved, now = () =
     geoStatus: geo.status,
     locationMessage,
     countFor,
-    reload: () => { if (savedOnly.value) void saved?.reload(); return reload() },
+    reload: () => {
+      if (savedOnly.value) void saved?.reload()
+      return reload()
+    },
     applyFilters,
     setSort,
     setView,

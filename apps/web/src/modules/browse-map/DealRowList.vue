@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import SaveDealButton from '@web/modules/browse-map/SaveDealButton.vue'
 import DealImage from '@web/components/DealImage.vue'
 import { walkMinutesFor } from '@web/modules/browse-map/apply-filters'
 import CategoryBubble from '@web/modules/browse-map/CategoryBubble.vue'
 import { dealFreshness, dealNoticeTags, formatEnding, formatMoreOutlets, OUTLET_NOT_CONFIRMED } from '@web/modules/browse-map/deal-format'
+import SaveDealButton from '@web/modules/browse-map/SaveDealButton.vue'
 import type { DealRow } from '@web/modules/browse-map/types'
 import ShellIcon from '@web/modules/map-shell/ShellIcon.vue'
 import { ref } from 'vue'
@@ -189,6 +189,7 @@ const isHot = (row: DealRow) => {
   background: #e1e4e8;
 }
 
+/* biome-ignore lint/style/noDescendingSpecificity: the earlier, more specific rule is a modifier override for a different state of the same element */
 .deal-rows__text {
   display: flex;
   flex-direction: column;

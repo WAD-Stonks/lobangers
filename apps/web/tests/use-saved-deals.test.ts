@@ -35,7 +35,9 @@ beforeEach(() => {
 
 describe('saved deals', () => {
   it('loads all bookmark pages so Saved does not omit older deals', async () => {
-    rest.bookmarks.mockResolvedValueOnce({ ...page(['d1']), nextCursor: 'older' }).mockResolvedValueOnce(page(['d2']))
+    rest.bookmarks
+      .mockResolvedValueOnce({ ...page(['d1']), nextCursor: 'older' })
+      .mockResolvedValueOnce(page(['d2']))
     const { saved } = setup({ data: { user: { id: 'u1' } } })
     await flushPromises()
     expect(rest.bookmarks).toHaveBeenLastCalledWith({ limit: 50, cursor: 'older' })

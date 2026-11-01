@@ -6,6 +6,7 @@ import HotCard from '@web/modules/map-shell/HotCard.vue'
 import MapControls from '@web/modules/map-shell/MapControls.vue'
 import QuickChips from '@web/modules/map-shell/QuickChips.vue'
 import ShellPanel from '@web/modules/map-shell/ShellPanel.vue'
+import { defined } from '@web-tests/support/defined'
 import { HAWKER_VENUE, KOPI, KOPI_VENUE, NOODLES } from '@web-tests/support/shell-fixtures'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -56,9 +57,13 @@ describe('DiscoveryQuickFilters', () => {
   }
 
   it('updates the quick-filter badge as selections are added and removed', async () => {
-    const wrapper = mount(DiscoveryQuickFilters, { props: { ...props, filters: createDefaultFilters() } })
+    const wrapper = mount(DiscoveryQuickFilters, {
+      props: { ...props, filters: createDefaultFilters() },
+    })
     expect(wrapper.find('[data-testid="filter-badge"]').exists()).toBe(false)
-    await wrapper.setProps({ filters: { ...createDefaultFilters(), priceMaxMinor: 500, ending: 'today' } })
+    await wrapper.setProps({
+      filters: { ...createDefaultFilters(), priceMaxMinor: 500, ending: 'today' },
+    })
     expect(wrapper.get('[data-testid="filter-badge"]').text()).toBe('2 active')
     await wrapper.setProps({ filters: { ...createDefaultFilters(), ending: 'today' } })
     expect(wrapper.get('[data-testid="filter-badge"]').text()).toBe('1 active')
@@ -71,7 +76,7 @@ describe('DiscoveryQuickFilters', () => {
     const wrapper = mount(DiscoveryQuickFilters, { props })
     expect(wrapper.find('[data-testid="quick-offer"]').exists()).toBe(false)
     await wrapper.get('[data-testid="quick-category"]').trigger('click')
-    const drinks = wrapper.findAll('button').find((button) => button.text() === 'Drinks')!
+    const drinks = defined(wrapper.findAll('button').find((button) => button.text() === 'Drinks'))
     await drinks.trigger('click')
     expect(drinks.attributes('aria-pressed')).toBe('true')
     expect(wrapper.emitted('apply')).toBeUndefined()
@@ -81,7 +86,9 @@ describe('DiscoveryQuickFilters', () => {
     await wrapper.setProps({ filters: applied })
     expect(wrapper.get('[data-testid="quick-category"]').text()).toContain('Category · 1')
     await wrapper.get('[data-testid="quick-category"]').trigger('click')
-    await wrapper.findAll('button').find((button) => button.text() === 'Clear')!.trigger('click')
+    await defined(wrapper.findAll('button').find((button) => button.text() === 'Clear')).trigger(
+      'click',
+    )
     expect(wrapper.emitted('apply')?.[1]?.[0]).toEqual({ ...props.filters, categories: [] })
     wrapper.unmount()
   })
@@ -210,7 +217,9 @@ describe('FilterSheet', () => {
   })
 
   it('plots actual fixed prices and highlights bars as the budget changes', async () => {
-    const wrapper = mount(FilterSheet, { props: { ...props, open: true, priceValues: [190, 200, 500, 650, 2000] } })
+    const wrapper = mount(FilterSheet, {
+      props: { ...props, open: true, priceValues: [190, 200, 500, 650, 2000] },
+    })
     const chart = wrapper.get('[data-testid="price-histogram"]')
     expect(chart.attributes('aria-label')).toBe('Price distribution of 5 fixed-price deals')
     const first = chart.get('[title="Under $2.50: 2 deals"]')

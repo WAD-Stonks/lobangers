@@ -83,6 +83,7 @@ const clearAll = () => {
     </template>
 
     <div v-if="!fullPage" class="browse-list__toolbar">
+      <!-- biome-ignore lint/a11y/useSemanticElements: a fieldset would add form semantics and default styling to a plain button group -->
       <div class="browse-list__view-toggle" :class="{ 'is-card': cardMode }" role="group" aria-label="Results view">
         <button type="button" aria-label="List view" title="List view" :aria-pressed="!cardMode" data-testid="results-list" @click="setResultView('list')">
           <ShellIcon name="list" :size="18" />
@@ -287,6 +288,7 @@ const clearAll = () => {
 }
 
 /* Outlined sort pill beside the segmented view toggle. */
+/* biome-ignore lint/style/noDescendingSpecificity: the earlier, more specific rule is a modifier override for a different state of the same element */
 .browse-list__sort {
   position: relative;
   display: inline-flex;
@@ -302,6 +304,7 @@ const clearAll = () => {
   transition: background-color var(--dur-small) var(--ease-out);
 }
 
+/* biome-ignore lint/style/noDescendingSpecificity: the earlier, more specific rule is a modifier override for a different state of the same element */
 .browse-list__heading-actions {
   display: flex;
   flex-wrap: wrap;
@@ -309,6 +312,7 @@ const clearAll = () => {
   gap: 8px;
 }
 
+/* biome-ignore lint/style/noDescendingSpecificity: the earlier, more specific rule is a modifier override for a different state of the same element */
 .browse-list__map-button {
   box-sizing: border-box;
   width: 132px;
@@ -335,6 +339,7 @@ const clearAll = () => {
   box-shadow: 0 0 0 3px var(--coral-ring);
 }
 
+/* biome-ignore lint/style/noDescendingSpecificity: the earlier, more specific rule is a modifier override for a different state of the same element */
 .browse-list__select {
   min-height: 36px;
   padding: 0 26px 0 6px;
