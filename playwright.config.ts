@@ -11,7 +11,7 @@ export default defineConfig({
     ['json', { outputFile: 'test-results/results.json' }],
   ],
   use: { baseURL: 'http://127.0.0.1:5180', trace: 'retain-on-failure' },
-  projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
+  projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'], channel: 'chromium' } }],
   webServer: {
     command: 'pnpm --dir apps/web run dev --host 127.0.0.1 --port 5180',
     url: 'http://127.0.0.1:5180',
