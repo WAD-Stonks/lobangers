@@ -1,4 +1,5 @@
 import { DEAL_CUISINE_LABELS } from '@broke-oclock/contracts/deal-cuisines'
+import { formatMoneyMinor } from '@web/lib/format'
 import { formatCategory } from '@web/modules/browse-map/deal-format'
 import {
   type BrowseFilters,
@@ -17,7 +18,6 @@ export type FilterToken = {
 }
 
 const ENDING_LABELS = { today: 'Expiry today', week: 'Expiry this week' } as const
-const CENTS = 100
 
 export const activeFilterTokens = (filters: BrowseFilters): readonly FilterToken[] => {
   const defaults = createDefaultFilters()
@@ -33,7 +33,7 @@ export const activeFilterTokens = (filters: BrowseFilters): readonly FilterToken
   if (filters.priceMaxMinor !== null) {
     tokens.push({
       key: 'max',
-      label: `Up to $${(filters.priceMaxMinor / CENTS).toFixed(2)}`,
+      label: `Up to ${formatMoneyMinor(filters.priceMaxMinor)}`,
       next: updateFilters(filters, 'priceMaxMinor', null),
     })
   }

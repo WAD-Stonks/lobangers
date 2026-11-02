@@ -38,6 +38,7 @@
 }
 .lobangers-landing button {
   cursor: pointer;
+  touch-action: manipulation;
 }
 .lobangers-landing :is(button, a, select):focus-visible {
   outline: 3px solid #b24d2e;
@@ -68,9 +69,9 @@
 .landing-header {
   position: fixed;
   z-index: 1200;
-  top: 24px;
-  left: 4%;
-  right: 4%;
+  top: max(24px, env(safe-area-inset-top));
+  left: max(4%, env(safe-area-inset-left));
+  right: max(4%, env(safe-area-inset-right));
   max-width: 1500px;
   margin: auto;
 }
@@ -112,13 +113,15 @@
   position: absolute;
   left: 0;
   bottom: -5px;
-  width: 0;
+  width: 100%;
   height: 3px;
   background: var(--landing-yellow);
-  transition: width 0.2s;
+  transform: scaleX(0);
+  transform-origin: left center;
+  transition: transform 0.2s;
 }
 .landing-nav-links a:hover:after {
-  width: 100%;
+  transform: scaleX(1);
 }
 .landing-account {
   display: flex;
@@ -140,12 +143,18 @@
   background: none;
   border: 0;
   font-weight: 700;
+  touch-action: manipulation;
+  white-space: nowrap;
 }
 .landing-mobile-menu {
   position: absolute;
   top: 88px;
   right: 0;
   left: 0;
+  /* Short landscape phones scroll the menu, not the page behind it. */
+  max-height: calc(100svh - 120px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
   padding: 20px;
   background: white;
   box-shadow: var(--shadow-card);
@@ -155,6 +164,9 @@
   gap: 12px;
 }
 .landing-mobile-menu a {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
   padding: 8px;
 }
 .landing-eyebrow {
@@ -262,36 +274,6 @@
   margin: 30px 0 26px;
   font-weight: 500;
 }
-.hero-benefits {
-  display: flex;
-  gap: 18px;
-  margin-top: 43px;
-  flex-wrap: wrap;
-}
-.hero-benefits > span {
-  display: flex;
-  gap: 7px;
-  align-items: center;
-  font-size: 10px;
-  font-weight: 700;
-}
-.hero-benefits b {
-  font-weight: 400;
-  display: grid;
-  place-items: center;
-  font-size: 18px;
-  width: 33px;
-  height: 33px;
-  background: #fae7dc;
-  border-radius: 50%;
-}
-.hero-benefits > span:nth-child(2) b {
-  background: #f9edbc;
-}
-.hero-benefits > span:nth-child(3) b {
-  background: #deebd4;
-  color: #54815b;
-}
 .hero-map-area {
   position: relative;
   width: 121%;
@@ -342,24 +324,6 @@
   scale: 1.17;
   z-index: 5;
 }
-.pin-shape {
-  width: 44px;
-  height: 44px;
-  border: 3px solid white;
-  background: var(--pin-color);
-  border-radius: 50% 50% 50% 10%;
-  transform: rotate(-45deg);
-  box-shadow: -4px 5px 10px #293b2a28;
-  display: grid;
-  place-items: center;
-  position: relative;
-  z-index: 1;
-}
-.pin-shape > span {
-  transform: rotate(45deg);
-  font-size: 23px;
-  line-height: 1;
-}
 .pin-ring {
   position: absolute;
   width: 48px;
@@ -374,7 +338,7 @@
 }
 .pin-label {
   margin-top: 9px;
-  font-size: 8px;
+  font-size: 11px;
   letter-spacing: 0.3px;
   font-weight: 800;
   white-space: nowrap;
@@ -385,10 +349,6 @@
 }
 .island-marker:focus-visible {
   outline: none;
-}
-.island-marker:focus-visible .pin-shape {
-  outline: 3px solid #24271e;
-  outline-offset: 5px;
 }
 @keyframes landing-pulse {
   0% {
@@ -432,7 +392,7 @@
   min-width: 0;
 }
 .hero-deal-copy > small {
-  font-size: 9px;
+  font-size: 11px;
   font-weight: 800;
   letter-spacing: 0.5px;
   color: #78796e;
@@ -462,18 +422,6 @@
   font-weight: 500;
   color: #8c8d85;
   margin-left: 6px;
-}
-.hero-deal-badge {
-  position: absolute;
-  right: 10px;
-  top: -13px;
-  padding: 6px 13px;
-  background: var(--landing-yellow);
-  font-size: 11px;
-  font-weight: 800;
-  border: 2px solid white;
-  border-radius: 25px;
-  transform: rotate(5deg);
 }
 
 .deal-swap-enter-active,
@@ -555,7 +503,7 @@
   top: 40px;
   display: flex;
   justify-content: space-between;
-  font-size: 9px;
+  font-size: 11px;
   letter-spacing: 1.7px;
   font-weight: 700;
   color: #817f70;
@@ -588,12 +536,6 @@
   line-height: 1.8;
   max-width: 350px;
 }
-.story-hint {
-  font-size: 10px;
-  letter-spacing: 0.3px;
-  color: #7c7d6d;
-  margin-top: 28px;
-}
 .scene-copy-enter-active,
 .scene-copy-leave-active {
   transition:
@@ -618,14 +560,6 @@
   max-width: 1000px;
   isolation: isolate;
 }
-.story-map {
-  position: absolute;
-  inset: 0;
-  z-index: 1;
-}
-.story-map .island-marker {
-  transition: scale 0.3s;
-}
 .neighbourhood-anchor {
   position: absolute;
   top: 39%;
@@ -644,12 +578,6 @@
   max-height: 0;
   overflow: hidden;
 }
-.neighbourhood-controls.controls-visible {
-  opacity: 1;
-  transform: translateY(0);
-  max-height: 260px;
-  margin-top: 22px;
-}
 .neighbourhood-controls .landing-button {
   font-size: 12px;
   min-height: 46px;
@@ -665,20 +593,6 @@
   font-size: 12px;
   min-height: 44px;
   max-width: 100%;
-}
-.neighbourhood-controls .location-message {
-  font-size: 10px;
-  line-height: 1.6;
-  flex-basis: 100%;
-  margin: 0;
-  color: #68715e;
-  max-width: 320px;
-}
-.story-live-link {
-  font-size: 10px;
-  font-weight: 700;
-  text-decoration: underline;
-  text-underline-offset: 4px;
 }
 .social-post {
   position: absolute;
@@ -813,68 +727,6 @@
 .social-2 {
   width: 180px;
 }
-.map-scanner {
-  position: absolute;
-  z-index: 3;
-  width: 37%;
-  aspect-ratio: 1;
-  border: 2px solid #688f57;
-  border-radius: 50%;
-  background: repeating-radial-gradient(
-    circle,
-    transparent 0 27%,
-    #65945344 28% 29%,
-    transparent 30% 48%
-  );
-  pointer-events: none;
-}
-.map-scanner > span {
-  position: absolute;
-  inset: 0;
-  border-radius: 50%;
-  background: conic-gradient(
-    transparent 0deg,
-    transparent 260deg,
-    #83b86977 340deg,
-    #719c66b0 360deg
-  );
-}
-.map-scanner > i {
-  position: absolute;
-  left: 50%;
-  top: 0;
-  height: 50%;
-  width: 2px;
-  background: #5b8248;
-}
-.scan-label {
-  position: absolute;
-  left: 40%;
-  bottom: 0;
-  background: white;
-  padding: 12px 16px;
-  border-radius: 12px;
-  font-size: 8px;
-  letter-spacing: 1px;
-  z-index: 4;
-  box-shadow: var(--shadow-card);
-}
-.scan-label > b {
-  margin-left: 20px;
-}
-.scan-label > span {
-  height: 3px;
-  display: block;
-  margin-top: 8px;
-  background: #e8e9df;
-  border-radius: 5px;
-  overflow: hidden;
-}
-.scan-label i {
-  height: 100%;
-  display: block;
-  background: #749e58;
-}
 .travelling-deal {
   position: absolute;
   z-index: 6;
@@ -885,34 +737,13 @@
   transform-origin: center;
   overflow: visible;
 }
-.travelling-photo {
-  height: var(--photo-height);
-  overflow: hidden;
-  position: relative;
-  border-radius: 22px 22px 0 0;
-}
-.travelling-photo > img {
-  width: 100%;
-  height: 160px;
-  object-fit: cover;
-}
-.travelling-photo > span {
-  position: absolute;
-  right: 15px;
-  top: 15px;
-  background: var(--landing-yellow);
-  font-size: 10px;
-  font-weight: 800;
-  border-radius: 20px;
-  padding: 6px 12px;
-  transform: rotate(5deg);
-}
 .travelling-content {
   padding: 22px;
 }
 .sample-label {
-  font-size: 8px;
+  font-size: 11px;
   letter-spacing: 1.5px;
+  text-transform: uppercase;
   color: #a05d44;
   font-weight: 800;
 }
@@ -922,7 +753,7 @@
   margin: 12px 0 5px;
 }
 .travelling-content > p {
-  font-size: 10px;
+  font-size: 11px;
   color: #6e7566;
   margin-bottom: 12px;
 }
@@ -949,105 +780,10 @@
 }
 .travelling-price > span {
   margin-left: auto;
-  font-size: 8px;
+  font-size: 11px;
   padding: 4px 7px;
   border: 1px dashed #babcaa;
   border-radius: 5px;
-}
-.receipt-details {
-  overflow: hidden;
-  font-family: ui-monospace, monospace;
-  line-height: 1.6;
-}
-.receipt-details > p {
-  font-size: 8px;
-  letter-spacing: 1px;
-  margin: 0 0 12px;
-}
-.receipt-details > h4 {
-  font-size: 14px;
-  font-weight: 700;
-  margin: 0 0 9px;
-}
-.receipt-details > span {
-  display: block;
-  font-size: 10px;
-  color: #626957;
-}
-.receipt-rule {
-  border-top: 1px dashed #c1c1ae;
-  margin: 17px 0;
-}
-.receipt-details > small {
-  font-size: 8px;
-  color: #7f806f;
-}
-.receipt-barcode {
-  height: 25px;
-  width: 70%;
-  margin: 15px auto 10px;
-  background: repeating-linear-gradient(
-    90deg,
-    #4b4c40 0 2px,
-    transparent 2px 4px,
-    #4b4c40 4px 5px,
-    transparent 5px 8px,
-    #4b4c40 8px 12px,
-    transparent 12px 14px
-  );
-  opacity: 0.7;
-}
-.receipt-details > p:last-child {
-  text-align: center;
-  margin: 0;
-}
-.is-receipt:after {
-  content: "";
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: -8px;
-  height: 10px;
-  background:
-    linear-gradient(135deg, #fffef9 25%, transparent 25%) -5px 0 / 10px 10px,
-    linear-gradient(225deg, #fffef9 25%, transparent 25%) -5px 0 / 10px 10px;
-}
-.receipt-comment {
-  position: absolute;
-  z-index: 7;
-  width: 184px;
-  display: flex;
-  gap: 10px;
-  background: white;
-  padding: 13px;
-  border: 1px solid #e6e7d9;
-  border-radius: 15px;
-  box-shadow: 0 8px 20px #33333309;
-  font-size: 10px;
-  font-weight: 600;
-  pointer-events: none;
-}
-.receipt-comment > b {
-  font-size: 21px;
-}
-.receipt-comment small {
-  display: block;
-  font-size: 7px;
-  font-weight: 400;
-  color: #7b8074;
-  margin-top: 5px;
-}
-.comment-0 {
-  top: 5%;
-  left: 0;
-}
-.comment-1 {
-  right: -2%;
-  top: 35%;
-}
-.comment-2 {
-  left: -1%;
-  bottom: 0;
 }
 .story-bottom {
   position: absolute;
@@ -1058,7 +794,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 20px;
-  font-size: 8px;
+  font-size: 11px;
   letter-spacing: 1px;
   font-weight: 700;
   color: #7e806f;
@@ -1158,14 +894,14 @@
 }
 .deal-grid-toolbar > p > span {
   color: #8a8d80;
-  font-size: 10px;
+  font-size: 11px;
 }
 .deal-grid-toolbar > div {
   display: flex;
   gap: 8px;
 }
 .deal-grid-toolbar select {
-  font-size: 10px;
+  font-size: 11px;
   padding: 8px 10px;
   min-height: 40px;
 }
@@ -1198,32 +934,11 @@
   object-fit: cover;
   transition: transform 0.6s;
 }
-.food-offer {
-  position: absolute;
-  top: 13px;
-  left: 13px;
-  background: var(--landing-yellow);
-  font-size: 10px;
-  font-weight: 800;
-  border-radius: 30px;
-  padding: 5px 10px;
-}
-.food-sample {
-  position: absolute;
-  right: 12px;
-  bottom: 10px;
-  background: #fffdf1e6;
-  border-radius: 4px;
-  padding: 2px 5px;
-  font-size: 6px;
-  font-weight: 800;
-  letter-spacing: 1px;
-}
 .landing-food-content {
   padding: 20px 17px;
 }
 .landing-food-content > small {
-  font-size: 9px;
+  font-size: 11px;
   color: #b55437;
   font-weight: 600;
   display: block;
@@ -1239,7 +954,7 @@
   margin-bottom: 5px;
 }
 .landing-food-content > p {
-  font-size: 10px;
+  font-size: 11px;
   color: #7d8273;
   margin-bottom: 17px;
 }
@@ -1255,7 +970,7 @@
   font-weight: 900;
 }
 .landing-food-content del {
-  font-size: 10px;
+  font-size: 11px;
   color: #8a8d83;
 }
 .landing-food-content a {
@@ -1321,109 +1036,6 @@
   text-align: center;
   line-height: 1.8;
 }
-.live-deal-preview {
-  margin-top: 55px;
-  border-top: 1px solid #e6e5d9;
-  padding-top: 35px;
-}
-.live-deal-heading {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 20px;
-}
-.live-deal-heading h3 {
-  font-family: "Lobang Pop", "Arial Black", sans-serif;
-  font-size: 30px;
-  font-weight: 900;
-  margin-top: 10px;
-}
-.live-deal-preview > p {
-  font-size: 12px;
-  color: #767d6a;
-}
-.live-deal-list {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 18px;
-  margin-top: 20px;
-}
-.live-deal-list article {
-  border: 1px solid #e0e2d5;
-  border-radius: 15px;
-  padding: 20px;
-  font-size: 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-.live-deal-list h4 {
-  font-size: 16px;
-}
-.live-deal-list a {
-  color: #925438;
-  text-decoration: underline;
-}
-.live-deal-list small {
-  color: #707a61;
-}
-.landing-final {
-  position: relative;
-  isolation: isolate;
-  text-align: center;
-  overflow: hidden;
-  background: #f8d957;
-  padding: 95px 20px 105px;
-  border-radius: 36px 36px 0 0;
-  margin: 0 18px;
-}
-.landing-final > .landing-eyebrow {
-  color: #63542c;
-}
-.landing-final h2 {
-  font-size: clamp(55px, 6vw, 92px);
-  margin: 23px auto;
-  line-height: 1;
-}
-.landing-final > p {
-  font-size: 14px;
-  color: #67603b;
-  line-height: 1.8;
-  margin-bottom: 28px;
-}
-.landing-final > div {
-  display: flex;
-  justify-content: center;
-  gap: 12px;
-}
-.landing-final .replay {
-  border: 1px solid #a88d38;
-  background: transparent;
-  font-size: 12px;
-}
-.final-food {
-  position: absolute;
-  font-size: 85px;
-  z-index: -1;
-  filter: drop-shadow(0 8px 2px #8777211c);
-}
-.food-one {
-  left: 10%;
-  top: 24%;
-  transform: rotate(-20deg);
-}
-.food-two {
-  right: 10%;
-  bottom: 21%;
-  transform: rotate(18deg);
-}
-.final-spark {
-  position: absolute;
-  right: 18%;
-  top: 16%;
-  font-size: 38px;
-  color: #ec7351;
-}
 .landing-footer {
   padding: 45px 6%;
   display: grid;
@@ -1464,7 +1076,7 @@
   grid-column: 2;
   grid-row: 2;
   text-align: right;
-  font-size: 9px;
+  font-size: 11px;
   color: #a5ad97;
 }
 @media (min-width: 1680px) {
@@ -1499,10 +1111,6 @@
   }
   .landing-hero h1 {
     font-size: 8.5vw;
-  }
-  .hero-benefits {
-    gap: 10px;
-    max-width: 300px;
   }
   .hero-map-area {
     width: 121%;
@@ -1544,23 +1152,6 @@
   .social-1 .social-photo {
     height: 111px;
   }
-  .receipt-comment {
-    width: 155px;
-    font-size: 9px;
-    padding: 10px;
-  }
-  .comment-0 {
-    left: 0;
-    top: -13%;
-  }
-  .comment-1 {
-    right: 1%;
-    top: 1%;
-  }
-  .comment-2 {
-    left: 8%;
-    bottom: -18%;
-  }
   .landing-deal-grid {
     gap: 15px;
   }
@@ -1574,7 +1165,7 @@
     font-size: 21px;
   }
   .landing-food-content > small {
-    font-size: 8px;
+    font-size: 11px;
   }
   .landing-food-content > div {
     gap: 5px;
@@ -1585,7 +1176,7 @@
     --landing-nav-clearance: 97px;
   }
   .landing-header {
-    top: 16px;
+    top: max(16px, env(safe-area-inset-top));
   }
   .landing-nav {
     height: 65px;
@@ -1624,15 +1215,6 @@
     font-size: 17px;
     margin: 23px 0;
   }
-  .hero-benefits {
-    justify-content: center;
-    max-width: none;
-    margin: 28px auto 0;
-    gap: 17px;
-  }
-  .hero-benefits > span {
-    font-size: 9px;
-  }
   .hero-map-area {
     width: 116%;
     max-width: 740px;
@@ -1646,7 +1228,7 @@
   }
 
   .landing-eyebrow {
-    font-size: 9px;
+    font-size: 11px;
     letter-spacing: 1.5px;
   }
   .story-intro {
@@ -1666,11 +1248,11 @@
     top: 24px;
     left: 6%;
     right: 6%;
-    font-size: 7px;
+    font-size: 11px;
     letter-spacing: 1px;
   }
   .story-topline > span:last-child {
-    font-size: 6px;
+    font-size: 11px;
   }
   .story-copy {
     top: 10%;
@@ -1689,18 +1271,10 @@
     max-width: 430px;
     margin: 0 auto;
   }
-  .story-hint {
-    font-size: 8px;
-    margin-top: 13px;
-  }
   .neighbourhood-controls {
     justify-content: center;
     max-width: 420px;
     margin-inline: auto;
-  }
-  .neighbourhood-controls.controls-visible {
-    margin-top: 13px;
-    gap: 8px;
   }
   .neighbourhood-controls .landing-button {
     font-size: 11px;
@@ -1711,14 +1285,6 @@
     font-size: 11px;
     min-height: 40px;
     padding-block: 8px;
-  }
-  .neighbourhood-controls .location-message {
-    font-size: 8px;
-    max-width: 380px;
-    line-height: 1.4;
-  }
-  .story-live-link {
-    font-size: 8px;
   }
   .story-field {
     top: auto;
@@ -1736,7 +1302,7 @@
     bottom: 27px;
     left: 6%;
     right: 6%;
-    font-size: 6px;
+    font-size: 11px;
     gap: 10px;
     flex-wrap: wrap;
   }
@@ -1758,49 +1324,10 @@
     font-size: 17px;
   }
   .travelling-content > strong {
-    font-size: 10px;
+    font-size: 11px;
   }
   .travelling-price > b {
     font-size: 26px;
-  }
-  .receipt-comment {
-    width: 140px;
-    font-size: 8px;
-    padding: 9px;
-    border-radius: 12px;
-    gap: 7px;
-  }
-  .receipt-comment > b {
-    font-size: 17px;
-  }
-  .receipt-comment small {
-    font-size: 6px;
-  }
-  .comment-0 {
-    left: -1%;
-    top: -14%;
-  }
-  .comment-1 {
-    right: -1%;
-    top: -2%;
-  }
-  .comment-2 {
-    left: 4%;
-    bottom: -7%;
-  }
-  .receipt-details > h4 {
-    font-size: 12px;
-  }
-  .receipt-details > span {
-    font-size: 9px;
-  }
-  .map-scanner {
-    width: 32%;
-  }
-  .scan-label {
-    left: 42%;
-    bottom: -10%;
-    font-size: 7px;
   }
   .cuisine-discovery {
     padding: 75px 6% 65px;
@@ -1836,7 +1363,7 @@
     font-size: 14px;
   }
   .landing-food-content > small {
-    font-size: 9px;
+    font-size: 11px;
   }
   .deal-grid-toolbar {
     flex-wrap: wrap;
@@ -1847,53 +1374,12 @@
   .deal-grid-toolbar > p > span {
     display: none;
   }
-  .live-deal-list {
-    grid-template-columns: repeat(2, 1fr);
-  }
-  .live-deal-heading h3 {
-    font-size: 25px;
-  }
-  .live-deal-heading .landing-button {
-    font-size: 10px;
-    padding: 12px 17px;
-  }
-  .landing-final {
-    margin: 0 10px;
-    padding: 75px 20px 80px;
-  }
-  .landing-final h2 {
-    font-size: 68px;
-  }
-  .final-food {
-    font-size: 50px;
-    opacity: 0.65;
-  }
-  .food-one {
-    left: 3%;
-    top: 28%;
-  }
-  .food-two {
-    right: 3%;
-    bottom: 25%;
-  }
-  .final-spark {
-    right: 10%;
-    top: 9%;
-    font-size: 26px;
-  }
-  .landing-final > p {
-    font-size: 12px;
-  }
-  .landing-final .landing-button {
-    font-size: 11px;
-    padding: 13px 18px;
-  }
   .landing-footer {
     padding: 35px 6%;
   }
   .landing-footer > div {
     gap: 15px;
-    font-size: 9px;
+    font-size: 11px;
   }
 }
 @media (max-width: 480px) {
@@ -1903,18 +1389,6 @@
   .landing-hero h1 {
     font-size: 17vw;
     letter-spacing: -0.045em;
-  }
-  .hero-benefits {
-    gap: 9px;
-  }
-  .hero-benefits > span {
-    gap: 5px;
-    font-size: 8px;
-  }
-  .hero-benefits b {
-    width: 28px;
-    height: 28px;
-    font-size: 15px;
   }
   .hero-map-area {
     width: 116%;
@@ -1935,10 +1409,10 @@
     font-size: 14px;
   }
   .hero-deal-copy > small {
-    font-size: 7px;
+    font-size: 11px;
   }
   .hero-deal-copy span {
-    font-size: 10px;
+    font-size: 11px;
   }
   .hero-deal-copy b {
     font-size: 25px;
@@ -1947,14 +1421,6 @@
   .island-marker {
     width: 38px;
     height: 54px;
-  }
-  .pin-shape {
-    width: 36px;
-    height: 36px;
-    border-width: 2px;
-  }
-  .pin-shape > span {
-    font-size: 19px;
   }
   .pin-ring {
     width: 38px;
@@ -1986,12 +1452,6 @@
     left: 2%;
     bottom: 19%;
     aspect-ratio: 1.4;
-  }
-  .story-map {
-    top: 0;
-    bottom: auto;
-    width: 100%;
-    aspect-ratio: 3 / 2;
   }
   .social-post {
     width: 119px;
@@ -2058,54 +1518,17 @@
     margin-top: 8px;
   }
   .travelling-content > p {
-    font-size: 8px;
+    font-size: 11px;
     margin-bottom: 8px;
   }
   .travelling-price > b {
     font-size: 24px;
   }
   .travelling-price > span {
-    font-size: 6px;
+    font-size: 11px;
   }
   .sample-label {
-    font-size: 6px;
-  }
-  .receipt-details > p {
-    font-size: 6px;
-  }
-  .receipt-details > small {
-    font-size: 6px;
-  }
-  .receipt-rule {
-    margin: 12px 0;
-  }
-  .receipt-barcode {
-    height: 20px;
-    margin: 10px auto;
-  }
-  .receipt-comment {
-    width: 114px;
-    font-size: 7px;
-    padding: 8px;
-    gap: 5px;
-  }
-  .receipt-comment > b {
-    font-size: 13px;
-  }
-  .receipt-comment small {
-    font-size: 5px;
-  }
-  .comment-0 {
-    top: -16%;
-    left: 0;
-  }
-  .comment-1 {
-    right: 0;
-    top: -5%;
-  }
-  .comment-2 {
-    left: 0;
-    bottom: -25%;
+    font-size: 11px;
   }
   .cuisine-intro h2 {
     font-size: 37px;
@@ -2118,13 +1541,13 @@
     gap: 10px;
   }
   .deal-grid-toolbar > p {
-    font-size: 9px;
+    font-size: 11px;
   }
   .deal-grid-toolbar > div {
     gap: 5px;
   }
   .deal-grid-toolbar select {
-    font-size: 9px;
+    font-size: 11px;
     padding: 7px;
     max-width: 160px;
   }
@@ -2138,10 +1561,10 @@
     font-size: 11px;
   }
   .landing-food-content > small {
-    font-size: 7px;
+    font-size: 11px;
   }
   .landing-food-content > p {
-    font-size: 8px;
+    font-size: 11px;
     min-height: 26px;
     margin-bottom: 8px;
   }
@@ -2149,55 +1572,15 @@
     font-size: 21px;
   }
   .landing-food-content del {
-    font-size: 8px;
+    font-size: 11px;
   }
   .landing-food-content a {
     width: 27px;
     height: 27px;
     font-size: 13px;
   }
-  .food-offer {
-    top: 9px;
-    left: 9px;
-    font-size: 8px;
-    padding: 4px 8px;
-  }
   .sample-disclosure {
     font-size: 8px;
-  }
-  .live-deal-heading {
-    align-items: start;
-  }
-  .live-deal-heading h3 {
-    font-size: 22px;
-  }
-  .live-deal-heading .landing-button {
-    white-space: normal;
-    font-size: 9px;
-    min-height: 43px;
-  }
-  .live-deal-list {
-    grid-template-columns: 1fr;
-  }
-  .landing-final h2 {
-    font-size: 57px;
-  }
-  .landing-final > .landing-eyebrow {
-    font-size: 7px;
-  }
-  .landing-final > div {
-    flex-wrap: wrap;
-  }
-  .final-food {
-    font-size: 32px;
-  }
-  .food-one {
-    left: 2%;
-    top: 28%;
-  }
-  .food-two {
-    right: 2%;
-    bottom: 29%;
   }
   .landing-footer {
     grid-template-columns: 1fr;
@@ -2219,7 +1602,7 @@
     justify-self: center;
   }
   .landing-footer > p {
-    font-size: 9px;
+    font-size: 11px;
   }
 }
 @media (max-height: 740px) and (min-width: 801px) {
@@ -2235,16 +1618,6 @@
   }
   .travelling-deal {
     width: 270px;
-  }
-  .receipt-comment {
-    font-size: 8px;
-    width: 150px;
-  }
-  .comment-0 {
-    top: -10%;
-  }
-  .comment-2 {
-    bottom: -17%;
   }
 }
 @media (prefers-reduced-motion: reduce) {
@@ -2272,8 +1645,7 @@
     flex-direction: column;
   }
   .story-reduced .story-topline,
-  .story-reduced .story-bottom,
-  .story-reduced .story-hint {
+  .story-reduced .story-bottom {
     display: none;
   }
   .story-reduced .story-copy {
@@ -2297,9 +1669,6 @@
     margin-inline: auto;
     max-width: 500px;
   }
-  .story-reduced .neighbourhood-controls .location-message {
-    max-width: none;
-  }
   .story-reduced .story-field {
     position: relative;
     top: auto;
@@ -2316,12 +1685,6 @@
     margin: 0 auto;
     padding-bottom: 120px;
   }
-  .story-reduced .story-map {
-    position: relative;
-    inset: auto;
-    width: 100%;
-    aspect-ratio: 3 / 2;
-  }
   .story-reduced .travelling-deal {
     position: relative;
     /* biome-ignore lint/complexity/noImportantStyles: Reduced motion must override generated inline styles and component animations. */
@@ -2333,16 +1696,6 @@
     margin-top: 25px;
     width: 280px;
   }
-  .story-reduced .receipt-comment {
-    position: relative;
-    inset: auto;
-    margin-top: 12px;
-    width: 280px;
-    font-size: 10px;
-  }
-  .story-reduced .receipt-comment small {
-    font-size: 7px;
-  }
   .cuisine-grid-leave-active {
     position: static;
   }
@@ -2352,27 +1705,15 @@
 }
 
 /* Blend the raster's white paper into the page without changing the supplied artwork. */
-.hero-map-scene > .illustrated-map,
-.story-map {
+.hero-map-scene > .illustrated-map {
   mix-blend-mode: multiply;
 }
 .lobangers-landing .landing-account > .nav-link:last-child {
   /* biome-ignore lint/complexity/noImportantStyles: The shared account links use Bootstrap's px-0 utility. */
   padding-inline: 24px !important;
 }
-.nearby-live-deal {
-  flex-basis: 100%;
-  font-size: 10px;
-  padding: 8px 12px;
-  border: 1px solid #d9e0cc;
-  border-radius: 12px;
-  background: #f0f4e5;
-}
 .illustrated-map {
   background: var(--landing-paper);
-}
-.story-map .illustrated-map {
-  background: #f6f3e9;
 }
 @media (max-width: 480px) {
   .island-marker {
@@ -2385,24 +1726,10 @@
     font-size: 13px;
   }
   .landing-food-content > p {
-    font-size: 10px;
+    font-size: 11px;
     min-height: 32px;
   }
   .landing-food-content > small {
-    font-size: 9px;
-  }
-  .receipt-comment {
-    width: 74px;
-    padding: 7px;
-    display: block;
-    font-size: 7px;
-    line-height: 1.4;
-  }
-  .receipt-comment > b {
-    display: block;
-    margin-bottom: 4px;
-  }
-  .receipt-comment small {
-    font-size: 6px;
+    font-size: 11px;
   }
 }

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import logo from '@web/assets/lobangers-logo.png'
+import logo from '@web/assets/lobangers-logo.svg'
 import CuisineDiscovery from '@web/modules/landing/CuisineDiscovery.vue'
 import HeroSection from '@web/modules/landing/HeroSection.vue'
 import LandingNavbar from '@web/modules/landing/LandingNavbar.vue'
@@ -25,8 +25,10 @@ const { deals, status, retry } = useLandingDeals()
 <template>
   <div ref="root" class="lobangers-landing">
     <div class="landing-reading-progress" :style="{ transform: `scaleX(${pageProgress})` }" aria-hidden="true" />
-    <a class="landing-skip" href="#hero-heading">Skip to content</a>
+    <a class="landing-skip" href="#main">Skip to content</a>
     <LandingNavbar />
+    <!-- The page's own main landmark: the navbar and footer sit outside it. -->
+    <main id="main" tabindex="-1" class="landing-main">
     <HeroSection :live="deals" :live-state="status" @retry="retry" />
     <div class="story-intro" data-reveal data-scroll-reveal>
       <p class="story-intro-copy">A great meal shouldn't take<br />
@@ -36,6 +38,7 @@ const { deals, status, retry } = useLandingDeals()
     </div>
     <ScrollStory />
     <CuisineDiscovery :live="deals" :live-state="status" @retry="retry" />
+    </main>
     <footer class="landing-footer">
       <RouterLink to="/" class="footer-wordmark" aria-label="Lobangers home"><img :src="logo" alt="LOBANGERS" width="200" height="44" /></RouterLink>
       <p>Good food. Better prices. Little red dot.</p>
@@ -46,3 +49,10 @@ const { deals, status, retry } = useLandingDeals()
     </footer>
   </div>
 </template>
+
+<style scoped>
+/* Focus target for the skip link; the content after it shows where focus landed. */
+.landing-main:focus {
+  outline: none;
+}
+</style>

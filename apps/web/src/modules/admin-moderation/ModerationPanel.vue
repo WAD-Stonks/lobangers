@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import TicketLoading from '@web/components/TicketLoading.vue'
+import { formatDateTime } from '@web/lib/format'
 import { useModeration } from '@web/modules/admin-moderation/use-moderation'
 
 const emit = defineEmits<{ denied: [code: 'UNAUTHORIZED' | 'FORBIDDEN'] }>()
@@ -43,28 +45,28 @@ const {
    <div class="col-sm-4"><label for="mod-reason" class="form-label">Reason</label><select id="mod-reason" v-model="reason" class="form-select" :disabled="pending"><option value="">All reasons</option><option>SPAM</option><option>MISLEADING</option><option>INAPPROPRIATE</option><option>OTHER</option></select></div>
   </template>
   <div v-else class="col-sm-4"><label for="mod-state" class="form-label">Comment state</label><select id="mod-state" v-model="state" class="form-select" :disabled="pending" @change="load(false)"><option>VISIBLE</option><option>HIDDEN</option><option>AUTHOR_DELETED</option></select></div>
-  <div class="col-sm-6"><label for="mod-deal" class="form-label">Deal ID (optional)</label><input id="mod-deal" v-model="dealId" class="form-control" pattern="[a-f0-9]{24}" :disabled="pending" /></div>
+  <div class="col-sm-6"><label for="mod-deal" class="form-label">Deal ID (optional)</label><input id="mod-deal" v-model="dealId" name="dealId" class="form-control" pattern="[a-f0-9]{24}" spellcheck="false" autocomplete="off" autocapitalize="none" translate="no" :disabled="pending" /></div>
   <div class="col-sm-2 align-self-end"><button type="submit" class="btn btn-outline-primary" :disabled="pending||loading">Apply filters</button></div>
  </form>
  <p v-if="error" role="alert">{{error}}</p><p v-if="notice" role="status">{{notice}}</p>
  <div class="row g-4">
  <section class="col-lg-5" aria-label="Moderation queue" :aria-busy="loading">
  <h2 class="h4">{{mode==='REPORTS'?'Report queue':'Comment queue'}}</h2>
- <p v-if="loading" role="status">Loading queue…</p>
+ <TicketLoading v-if="loading" label="Loading queue…" />
  <p v-else-if="!(mode==='REPORTS'?reports.length:comments.length)" role="status">No records match these filters.</p>
  <ul class="list-group">
- <template v-if="mode==='REPORTS'"><li v-for="r in reports" :key="r.id" class="list-group-item"><strong>{{r.reason}} · {{r.status}}</strong><p class="text-break small">{{r.deal?.title??'Target unavailable'}} · {{r.id}}</p><button type="button" class="btn btn-outline-primary btn-sm" data-testid="inspect-report" :disabled="pending" @click="inspect(r)">Inspect report</button></li></template>
- <template v-else><li v-for="c in comments" :key="c.id" class="list-group-item"><p class="evidence-text">{{c.body}}</p><span>{{c.state}}</span> <button type="button" class="btn btn-outline-primary btn-sm" data-testid="inspect-comment" :disabled="pending" @click="inspect(c)">Inspect comment</button></li></template>
+ <template v-if="mode==='REPORTS'"><li v-for="r in reports" :key="r.id" class="list-group-item"><strong>{{r.reason}} · {{r.status}}</strong><p class="text-break small">{{r.deal?.title??'Target unavailable'}} · <span translate="no">{{r.id}}</span></p><button type="button" class="btn btn-outline-primary btn-sm" data-testid="inspect-report" :disabled="pending" @click="inspect(r)">Inspect report<span class="visually-hidden">: {{r.reason}}, {{r.deal?.title??'target unavailable'}}</span></button></li></template>
+ <template v-else><li v-for="c in comments" :key="c.id" class="list-group-item"><p class="evidence-text">{{c.body}}</p><span>{{c.state}}</span> <button type="button" class="btn btn-outline-primary btn-sm" data-testid="inspect-comment" :disabled="pending" @click="inspect(c)">Inspect comment<span class="visually-hidden">: {{c.body.slice(0, 60)}}</span></button></li></template>
  </ul><button v-if="nextCursor" type="button" class="btn btn-outline-primary mt-3" :disabled="loading||pending" @click="load(true)">Load more</button>
  </section>
  <section class="col-lg-7" aria-label="Selected evidence" :aria-busy="detailLoading">
- <h2 class="h4">Investigation</h2><p v-if="detailLoading" role="status">Loading selected evidence…</p>
+ <h2 class="h4">Investigation</h2><TicketLoading v-if="detailLoading" label="Loading selected evidence…" />
  <template v-else-if="selected">
- <p class="small text-break">{{selected.id}} · moderation version {{selected.moderationVersion}}</p>
+ <p class="small text-break"><span translate="no">{{selected.id}}</span> · moderation version {{selected.moderationVersion}}</p>
  <button type="button" class="btn btn-outline-primary btn-sm mb-3" data-testid="refresh-detail" :disabled="pending" @click="inspect(selected)">Refresh selected evidence</button>
  <template v-if="report"><h3 class="h5">{{report.reason}} · {{report.status}}</h3><p>Reporter (staff only): {{report.reporter?.name??'Unavailable'}} <span class="small text-break">{{report.reporter?.id}}</span></p><p class="evidence-text">{{report.details??'No additional evidence supplied.'}}</p><p v-if="report.resolution">Recorded resolution: {{report.resolution}}</p><p v-if="report.comment" class="evidence-text">Target comment: {{report.comment.body}} · {{report.comment.state}}</p></template>
  <template v-if="comment"><p class="evidence-text">{{comment.body}}</p><p>Author: {{comment.author?.name??'Unavailable'}} · {{comment.state}}</p><p v-if="comment.deletedAt">Author deleted this comment. It cannot be restored.</p></template>
- <div v-if="selected.deal" class="mb-3"><h3 class="h5">{{selected.deal.title}}</h3><dl><dt>Deal review</dt><dd>{{selected.deal.reviewStatus}} · content {{selected.deal.contentVersion}} / reviewed {{selected.deal.reviewedVersion??'none'}}</dd><dt>Published at</dt><dd>{{selected.deal.publishedAt??'Unpublished'}}</dd><dt>Deleted at</dt><dd>{{selected.deal.deletedAt??'Not deleted'}}</dd><dt>Scope</dt><dd>{{selected.deal.applicability}}</dd></dl></div>
+ <div v-if="selected.deal" class="mb-3"><h3 class="h5">{{selected.deal.title}}</h3><dl><dt>Deal review</dt><dd>{{selected.deal.reviewStatus}} · content {{selected.deal.contentVersion}} / reviewed {{selected.deal.reviewedVersion??'none'}}</dd><dt>Published at</dt><dd><time v-if="selected.deal.publishedAt" :datetime="selected.deal.publishedAt">{{formatDateTime(selected.deal.publishedAt)}}</time><template v-else>Unpublished</template></dd><dt>Deleted at</dt><dd><time v-if="selected.deal.deletedAt" :datetime="selected.deal.deletedAt">{{formatDateTime(selected.deal.deletedAt)}}</time><template v-else>Not deleted</template></dd><dt>Scope</dt><dd>{{selected.deal.applicability}}</dd></dl></div>
  <p v-else>Deal context is unavailable. Report evidence remains investigable.</p>
  <p v-if="lockMessage" role="alert">{{lockMessage}}</p>
  <form data-testid="decision-form" @submit.prevent="submit">
@@ -80,5 +82,5 @@ const {
 </section>
 </template>
 <style scoped>
-.scope-note{border-inline-start:3px solid var(--bs-primary);padding-inline-start:1rem}.evidence-text{white-space:pre-wrap;overflow-wrap:anywhere}.moderation-panel{overflow-wrap:anywhere}.list-group-item{background:transparent}.moderation-panel dd{margin-block-end:.75rem}
+.scope-note{border-inline-start:3px solid var(--bs-primary);padding-inline-start:1rem}.evidence-text{white-space:pre-wrap;overflow-wrap:anywhere}.moderation-panel{overflow-wrap:anywhere}.list-group-item{background:transparent;min-width:0}.moderation-panel dd{margin-block-end:.75rem}
 </style>

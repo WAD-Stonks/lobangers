@@ -1,9 +1,12 @@
 import type { PlacedGroup } from '@web/modules/browse-map/declutter'
+import type { FoodKind } from '@web/modules/browse-map/food-kind'
+import { createFoodSprite } from '@web/modules/browse-map/food-sprite'
+import { pinBadgeText, pinFoodKind } from '@web/modules/browse-map/venue-pin'
 import L from 'leaflet'
 
-// A group is a sunny pill naming its neighbourhood or region with the deal count on a white
-// inset; "Near you" is sky blue to match the visitor's dot. Groups carry no food, so a 3D food
-// sprite on the map always means one real outlet. Styled in DealMap.vue.
+// A group is the same dark oval as a pin, holding up to three of its foods, its neighbourhood or
+// region and "n deals · from $x"; "Near you" is sky blue to match the visitor's dot. Several
+// foods side by side inside the oval tell a group apart from one outlet. Styled in DealMap.vue.
 export const CLUSTER_CLASS = 'deal-map-cluster'
 // Outlets in the same building (a mall's food court) stack into one chip; neighbouring shops
 // stay separate pins even when they overlap a little.
@@ -33,8 +36,30 @@ export const describeGroup = (group: PlacedGroup): string =>
     ? `${deals(group.dealCount)} within a 10-minute walk`
     : `${deals(group.dealCount)} in ${group.label}`
 
+const MAX_GROUP_FOODS = 3
+
+// The group's most common foods, most common first, without repeats.
+export const groupFoods = (
+  group: Pick<PlacedGroup, 'venues'>,
+  limit = MAX_GROUP_FOODS,
+): FoodKind[] => {
+  const counts = group.venues.reduce<ReadonlyMap<FoodKind, number>>((acc, venue) => {
+    const kind = pinFoodKind(venue)
+    return new Map(acc).set(kind, (acc.get(kind) ?? 0) + 1)
+  }, new Map())
+  return [...counts]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, limit)
+    .map(([kind]) => kind)
+}
+
+export const groupMeta = (group: Pick<PlacedGroup, 'venues' | 'dealCount'>): string => {
+  const lead = pinBadgeText(group.venues.flatMap((venue) => venue.deals))
+  return lead.startsWith('from ') ? `${deals(group.dealCount)} · ${lead}` : deals(group.dealCount)
+}
+
 // Built from DOM nodes; the name and count are set as text, never HTML. The icon is a
-// zero-size anchor so the pill can centre itself on the point whatever its width.
+// zero-size anchor so the oval can centre itself on the point whatever its width.
 export const createGroupIcon = (group: PlacedGroup): L.DivIcon => {
   const chip = document.createElement('div')
   chip.className = [
@@ -43,8 +68,18 @@ export const createGroupIcon = (group: PlacedGroup): L.DivIcon => {
     ...(group.compact ? [`${CLUSTER_CLASS}__chip--compact`] : []),
   ].join(' ')
   chip.setAttribute('aria-label', describeGroup(group))
-  if (!group.compact) chip.append(span(`${CLUSTER_CLASS}__name`, group.label))
-  chip.append(span(`${CLUSTER_CLASS}__count`, String(group.dealCount)))
+  const fan = span(`${CLUSTER_CLASS}__fan`, '')
+  for (const kind of groupFoods(group, group.compact ? 1 : MAX_GROUP_FOODS))
+    fan.append(createFoodSprite(kind, { animated: false, phase: 0 }))
+  if (fan.childElementCount > 0) chip.append(fan)
+  if (group.compact) {
+    chip.append(span(`${CLUSTER_CLASS}__count`, String(group.dealCount)))
+  } else {
+    const text = span(`${CLUSTER_CLASS}__text`, '')
+    text.append(span(`${CLUSTER_CLASS}__name`, group.label))
+    text.append(span(`${CLUSTER_CLASS}__count`, groupMeta(group)))
+    chip.append(text)
+  }
   // A negative anchor draws the pill `offset` px away from the group's point.
   const anchor: L.PointTuple = [-group.offset.x || 0, -group.offset.y || 0]
   return L.divIcon({ className: CLUSTER_CLASS, html: chip, iconSize: [0, 0], iconAnchor: anchor })

@@ -1,0 +1,81 @@
+/* Breakpoints for the admin Flash Drop review (loaded after both base sheets). */
+@media (max-width: 1199.98px) {
+  .fd-metric {
+    padding: 20px;
+  }
+  .fd-ops {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .fd-records {
+    border-right: 0;
+    border-bottom: 1px solid var(--fd-line);
+  }
+}
+@media (max-width: 991.98px) {
+  .fd-metrics {
+    gap: 12px;
+  }
+  .fd-metric strong {
+    font-size: 34px;
+  }
+  .fd-panel .btn,
+  .fd-panel .form-control {
+    min-height: 44px;
+  }
+  .fd-record {
+    min-height: 44px;
+  }
+  .fd-confirm {
+    min-height: 44px;
+    align-items: center;
+  }
+  .fd-confirm input {
+    margin-top: 0;
+  }
+}
+@media (max-width: 767.98px) {
+  .fd-metrics {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .fd-metric strong {
+    font-size: 30px;
+  }
+  .fd-queue.card {
+    padding: 20px 16px;
+  }
+  .fd-ops {
+    margin: 0 -16px -20px;
+  }
+  .fd-record {
+    padding: 14px 16px;
+  }
+  .fd-detail {
+    padding: 20px 16px;
+  }
+  .fd-state {
+    padding: 20px 16px;
+  }
+  .fd-tabs {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    width: 100%;
+  }
+  .fd-facts {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 2px;
+  }
+  .fd-facts dd {
+    margin-bottom: 8px;
+  }
+  .fd-live {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .fd-choices .btn {
+    flex: 1 1 auto;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .fd-metric {
+    transition: none;
+  }
+}

@@ -39,7 +39,7 @@ const moreOutlets = computed(() => formatMoreOutlets(props.row.outletCount))
         v-if="photo"
         class="deal-cards__photo"
         :src="photo.url"
-        :alt="photo.alt ?? props.row.deal.title"
+        :alt="photo.alt ?? ''"
         @ratio="ratio = $event"
         @error="failed = true"
       />
@@ -114,7 +114,7 @@ const moreOutlets = computed(() => formatMoreOutlets(props.row.outletCount))
   max-width: 60%;
   padding: 2px 9px;
   font: 600 0.9375rem/1.3 var(--font-display);
-  color: var(--paper-white);
+  color: var(--on-ink);
   text-align: right;
   overflow-wrap: anywhere;
   background: var(--ink-strong);

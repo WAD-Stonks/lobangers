@@ -3,8 +3,6 @@ import type { Coordinates } from '@web/modules/browse-map/types'
 export type WithDistance<T> = T & { readonly distanceMetres: number }
 
 const EARTH_RADIUS_METRES = 6_371_000
-const KILOMETRE = 1000
-const METRE_ROUNDING = 10
 
 const toRadians = (degrees: number) => (degrees * Math.PI) / 180
 
@@ -27,8 +25,6 @@ export const sortByDistance = <T extends Coordinates>(
     .map((item) => ({ ...item, distanceMetres: distanceMetres(origin, item) }))
     .sort((a, b) => a.distanceMetres - b.distanceMetres)
 
-export const formatDistance = (metres: number): string => {
-  const rounded = Math.round(metres / METRE_ROUNDING) * METRE_ROUNDING
-  if (rounded < KILOMETRE) return `${rounded} m`
-  return `${(metres / KILOMETRE).toFixed(1)} km`
-}
+// Kept here so existing callers keep importing from the distance module; the Intl copy lives in
+// the shared formatter.
+export { formatDistance } from '@web/lib/format'

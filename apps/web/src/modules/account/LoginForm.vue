@@ -1,9 +1,8 @@
 <script setup lang="ts">
-import { BButton } from '@broke-oclock/ui'
-import { authClient } from '@web/lib/auth-client'
-import { computed, reactive, ref } from 'vue'
+import SharedSignIn from '@web/components/auth/SharedSignIn.vue'
 import { RouterLink } from 'vue-router'
 
+withDefaults(defineProps<{ destination?: string; embedded?: boolean }>(), { destination: '/', embedded: false })
 const emit = defineEmits<{ signedIn: [] }>()
 
 const form = reactive({ email: '', password: '' })

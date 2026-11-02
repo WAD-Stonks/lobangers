@@ -85,9 +85,12 @@ onBeforeUnmount(() => { fitRequest++; resizeObserver?.disconnect() })
   font-style: normal;
   font-display: swap;
 }
-.all-deals-hero { --hero-radius: 26px; position: relative; isolation: isolate; overflow: hidden; display: flex; align-items: center; min-height: var(--hero-min-height, 230px); border: 1px solid #f5e9bd; border-radius: var(--hero-radius); background: var(--hero-background, #fff9e6); }
-.all-deals-hero__copy { position: relative; z-index: 1; text-shadow: 0 1px 8px #fffbed, 0 0 16px #fffbed; width: 50%; max-width: 760px; padding: 18px 36px 18px 44px; }
-h2 { position: relative; margin: 0 0 10px; font-family: "Lobang Pop", "Arial Black", sans-serif; font-weight: 900; font-size: 2.25rem; line-height: 1.08; letter-spacing: 0; color: #000; text-shadow: none; }
+/* Banner colours as local roles: cream with black type by day, a warm dark-gold card with light
+   type at night. The yellow and coral strokes are brand artwork and stay put. */
+.all-deals-hero { --hero-radius: 26px; --hero-edge: #f5e9bd; --hero-glow: #fffbed; --hero-title: #000; --hero-body: #454a44; position: relative; isolation: isolate; overflow: hidden; display: flex; align-items: center; min-height: var(--hero-min-height, 230px); border: 1px solid var(--hero-edge); border-radius: var(--hero-radius); background: var(--hero-background, #fff9e6); }
+.app-palette[data-theme='dark'] .all-deals-hero { --hero-edge: #3d3620; --hero-glow: var(--hero-background); --hero-title: var(--ink); --hero-body: #cfc9b8; }
+.all-deals-hero__copy { position: relative; z-index: 1; text-shadow: 0 1px 8px var(--hero-glow), 0 0 16px var(--hero-glow); width: 50%; max-width: 760px; padding: 18px 36px 18px 44px; }
+h2 { position: relative; margin: 0 0 10px; font-family: "Lobang Pop", "Arial Black", sans-serif; font-weight: 900; font-size: 2.25rem; line-height: 1.08; letter-spacing: 0; color: var(--hero-title); text-shadow: none; }
 .all-deals-hero__greeting { display: block; white-space: nowrap; }
 .all-deals-hero__headline { position: relative; display: block; width: 100%; padding-right: 36px; white-space: nowrap; }
 .all-deals-hero__word { position: relative; display: inline-block; white-space: pre; }
@@ -97,12 +100,12 @@ h2 { position: relative; margin: 0 0 10px; font-family: "Lobang Pop", "Arial Bla
 .all-deals-hero__accent { position: absolute; width: 42px; height: 45px; fill: none; stroke-width: 9px; stroke-linecap: round; pointer-events: none; }
 .all-deals-hero__accent--coral { width: 30px; height: 36px; top: -10px; left: -32px; stroke: #f77559; }
 .all-deals-hero__accent--yellow { width: 33px; height: 33px; right: -36px; top: -16px; stroke: #ffda58; }
-p { margin: 0 0 12px; font-size: 1rem; line-height: 1.45; color: #454a44; font-weight: 550; }
+p { margin: 0 0 12px; font-size: 1rem; line-height: 1.45; color: var(--hero-body); font-weight: 550; }
 /* Keep the pin cluster inside the banner: fixed artwork size, enough vertical clearance,
    and a stacked layout before the image would collide with the heading. */
 .all-deals-hero__art { position: absolute; right: clamp(-280px, calc(50% - 730px), -20px); bottom: -24px; width: var(--hero-art-width, 760px); max-width: none; height: auto; min-height: 0; object-position: right bottom; pointer-events: none; }
 .all-deals-hero__actions { display: flex; align-items: center; flex-wrap: wrap; gap: 12px 26px; }
-.all-deals-hero__actions .lb-btn { gap: 12px; min-width: 200px; min-height: 44px; justify-content: center; padding: 9px 22px; color: #171b13; background: var(--sunny); border-color: var(--sunny); border-radius: var(--hero-radius); font-size: 1rem; font-weight: 750; }
+.all-deals-hero__actions .lb-btn { gap: 12px; min-width: 200px; min-height: 44px; justify-content: center; padding: 9px 22px; color: var(--on-accent); background: var(--sunny); border-color: var(--sunny); border-radius: var(--hero-radius); font-size: 1rem; font-weight: 750; }
 .all-deals-hero__actions .lb-btn {
   transition: transform 200ms ease, box-shadow 200ms ease, background-color 200ms ease;
 }

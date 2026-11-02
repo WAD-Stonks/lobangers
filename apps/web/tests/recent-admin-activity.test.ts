@@ -16,6 +16,8 @@ vi.mock('@web/lib/api-client', () => ({
 const entry: PlatformAuditEntry = {
   id: '0123456789abcdef01234567',
   actorId: '1123456789abcdef01234567',
+  actorKind: 'HUMAN',
+  actorSource: 'ADMIN',
   actorName: 'Synthetic admin',
   action: 'ROLE_CHANGED',
   targetUserId: '2123456789abcdef01234567',

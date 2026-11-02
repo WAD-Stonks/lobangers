@@ -6,7 +6,13 @@ const id = '0123456789abcdef01234567'
 const methods = { password: true, google: false, emailOtp: false, passwordRecovery: false }
 const overview = {
   generatedAt: '2026-10-10T10:00:00.000Z',
-  counts: { pendingMerchantRequests: 1, pendingImportedDrafts: 2, failedImportedPosts: 3 },
+  counts: {
+    pendingMerchantRequests: 1,
+    pendingImportedDrafts: 2,
+    failedImportedPosts: 3,
+    pendingFlashDrops: 4,
+    liveFlashDrops: 5,
+  },
   recentRuns: [],
   readiness: {
     googleConfigured: false,

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import AdminIcon from '@web/components/admin/AdminIcon.vue'
 import { adminNavigation } from '@web/components/admin/admin-navigation'
+import ThemeToggle from '@web/components/ThemeToggle.vue'
 
 defineProps<{ path?: string; collapsed?: boolean }>()
 const emit = defineEmits<{ navigate: [event: MouseEvent, href: string] }>()
@@ -23,6 +24,7 @@ const emit = defineEmits<{ navigate: [event: MouseEvent, href: string] }>()
       </ul>
     </nav>
     <footer class="admin-sidebar-footer">
+      <ThemeToggle variant="admin" :collapsed="collapsed" />
       <a class="admin-map-link" href="/browse" aria-label="Back to map" :title="collapsed ? 'Back to map' : undefined" @click="emit('navigate', $event, '/browse')"><AdminIcon name="back" /><span class="admin-navigation-label">Back to map</span></a>
     </footer>
   </div>

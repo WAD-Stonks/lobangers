@@ -1,10 +1,14 @@
 import type { AccessTransaction } from '@api/modules/platform-admin/transaction'
 
+export type RequestInvalidationActor =
+  | { id: string; name: string; kind?: 'HUMAN'; source?: 'ADMIN' }
+  | { id: null; name: string; kind: 'SYSTEM'; source: 'NATIVE_AUTH' }
+
 // Must run within the shared fenced role/revoke transaction. A later approval
 // cannot resurrect a request reviewed against a superseded permission context.
 export const invalidatePendingRequests = async (
   tx: AccessTransaction,
-  actor: { id: string; name: string },
+  actor: RequestInvalidationActor,
   userId: string,
   reason: string,
   venueId?: string,
@@ -26,6 +30,8 @@ export const invalidatePendingRequests = async (
     await tx.platformAudit.create({
       data: {
         actorId: actor.id,
+        actorKind: actor.kind ?? 'HUMAN',
+        actorSource: actor.source ?? 'ADMIN',
         actorName: actor.name,
         action: 'REQUEST_REJECTED',
         targetUserId: userId,
@@ -36,4 +42,5 @@ export const invalidatePendingRequests = async (
       },
     })
   }
+  return requests.length
 }

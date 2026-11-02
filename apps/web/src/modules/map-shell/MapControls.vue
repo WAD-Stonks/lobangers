@@ -1,7 +1,9 @@
 <script setup lang="ts">
+import NearbyToggle from '@web/modules/hungry-nearby/NearbyToggle.vue'
 import ShellIcon from '@web/modules/map-shell/ShellIcon.vue'
 
-// Map location and zoom controls. Phones use pinch gestures instead of zoom buttons.
+// Map location, Lobangers nearby and zoom controls. Zoom buttons stay on touch screens too, so
+// people who can't pinch can still zoom; every control is a 44px (--hit) target.
 withDefaults(defineProps<{ locating?: boolean; showZoom?: boolean }>(), {
   locating: false,
   showZoom: true,
@@ -23,14 +25,15 @@ const emit = defineEmits<{ nearMe: []; zoomIn: []; zoomOut: [] }>()
     >
       <ShellIcon name="locate" />
     </button>
-    <template v-if="showZoom">
+    <NearbyToggle />
+    <div v-if="showZoom" class="map-controls__zoom">
       <button type="button" class="lb-ctrl" aria-label="Zoom in" title="Zoom in" data-testid="zoom-in" @click="emit('zoomIn')">
         <ShellIcon name="plus" :size="18" />
       </button>
       <button type="button" class="lb-ctrl" aria-label="Zoom out" title="Zoom out" @click="emit('zoomOut')">
         <ShellIcon name="minus" :size="18" />
       </button>
-    </template>
+    </div>
   </div>
 </template>
 
@@ -39,6 +42,23 @@ const emit = defineEmits<{ nearMe: []; zoomIn: []; zoomOut: [] }>()
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
+  /* Clear the notch when a phone is held in landscape. */
+  margin-right: env(safe-area-inset-right, 0px);
+}
+
+.map-controls__zoom {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+/* On a short touch screen (a phone in landscape) the column would reach the header, so the
+   zoom pair sits beside the other controls instead of below them. */
+@media (pointer: coarse) and (max-height: 520px) {
+  .map-controls {
+    flex-direction: row;
+    align-items: flex-end;
+  }
 }
 
 .map-controls__locate {

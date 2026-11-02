@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { PlatformAuditEntry } from '@broke-oclock/contracts/platform-admin'
 import AdminIcon from '@web/components/admin/AdminIcon.vue'
+import TicketLoading from '@web/components/TicketLoading.vue'
 import { createAdminReadFence } from '@web/lib/admin-session'
 import { api } from '@web/lib/api-client'
 import { errorCode } from '@web/modules/ingestion-admin/errors'
@@ -50,7 +51,7 @@ onUnmounted(() => fence.dispose())
       </div>
       <button type="button" class="btn btn-outline-primary" data-testid="refresh-admin-activity" :disabled="loading" @click="load">{{ loading ? 'Refreshing…' : 'Refresh activity' }}</button>
     </header>
-    <p v-if="loading" class="mt-3" role="status">Loading recent activity…</p>
+    <TicketLoading v-if="loading" class="mt-3" label="Loading recent activity…" />
     <div v-else-if="failed" class="mt-3" role="alert">
       <p>Recent activity is unavailable. The rest of the overview is still available.</p>
       <button type="button" class="btn btn-outline-primary" @click="load">Retry activity</button>
@@ -86,20 +87,20 @@ onUnmounted(() => fence.dispose())
 .activity-heading h2 { letter-spacing: -0.02em; }
 .activity-heading h2::before { display: inline-block; content: ""; width: 4px; height: 14px; margin-right: 9px; border-radius: 3px; background: var(--admin-accent); vertical-align: -1px; }
 .activity-feed { list-style: none; padding: 0; margin: 24px 0 0; }
-.activity-feed > li { display: flex; align-items: start; gap: 14px; padding: 20px 0; border-top: 1px solid #edf0f3; }
-.activity-icon { display: grid; place-items: center; flex: 0 0 36px; height: 36px; background: #fff8dc; color: #826517; border: 1px solid #f1e6b9; border-radius: 10px; }
+.activity-feed > li { display: flex; align-items: start; gap: 14px; padding: 20px 0; border-top: 1px solid var(--admin-line); }
+.activity-icon { display: grid; place-items: center; flex: 0 0 36px; height: 36px; background: var(--admin-accent-soft); color: var(--admin-accent-ink); border: 1px solid var(--admin-accent-border); border-radius: 10px; }
 .activity-content { flex: 1; min-width: 0; overflow-wrap: anywhere; }
 .activity-row-heading h3 { margin: 0; font-size: 14px; }
 .activity-row-heading time { color: var(--admin-muted); font-size: 12px; }
 .activity-actor { margin: 6px 0; font-size: 13px; }
 .activity-target { color: var(--admin-muted); font-size: 12px; margin: 0 0 8px; }
 .activity-details { font-size: 12px; }
-.activity-details summary { width: fit-content; color: #535e6e; cursor: pointer; text-underline-offset: 3px; }
+.activity-details summary { width: fit-content; color: var(--admin-secondary-text); cursor: pointer; text-underline-offset: 3px; }
 .activity-details summary:hover { text-decoration: underline; }
 .activity-details p { margin: 10px 0 0; }
 .activity-note { white-space: pre-wrap; }
 .activity-empty { color: var(--admin-muted); padding: 24px 0 0; }
-.activity-footer { border-top: 1px solid #edf0f3; padding-top: 16px; margin-top: 8px; font-size: 12px; font-weight: 600; }
+.activity-footer { border-top: 1px solid var(--admin-line); padding-top: 16px; margin-top: 8px; font-size: 12px; font-weight: 600; }
 @media (max-width: 767.98px) {
   .recent-admin-activity { padding: 20px; }
   .activity-feed > li { gap: 10px; }

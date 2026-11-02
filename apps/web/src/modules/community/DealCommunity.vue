@@ -1,5 +1,7 @@
 <script setup lang="ts">
+import TicketLoading from '@web/components/TicketLoading.vue'
 import { api } from '@web/lib/api-client'
+import { formatCount, formatDateTime } from '@web/lib/format'
 import CommunityCommentCard from '@web/modules/community/CommunityCommentCard.vue'
 import { useDealCommunity } from '@web/modules/community/use-deal-community'
 import ShellIcon from '@web/modules/map-shell/ShellIcon.vue'
@@ -133,7 +135,9 @@ const post = async () => {
   pending.value = null
 }
 watch([() => props.dealId, () => session.value.data?.user.id], () => { reportDialog.value?.close?.(); report.value = null; removeId.value = null; pending.value = null; reportTrigger = null })
-const date = (value: string) => new Intl.DateTimeFormat('en-SG', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Asia/Singapore' }).format(new Date(value))
+const date = (value: string) => formatDateTime(value)
+const COMMENT_MAX = 2000
+const commentLimit = formatCount(COMMENT_MAX)
 </script>
 
 <template>
@@ -143,7 +147,7 @@ const date = (value: string) => new Intl.DateTimeFormat('en-SG', { dateStyle: 'm
       <h2 id="deal-community-title">Community verification</h2>
       <button type="button" class="deal-community-text-button" :disabled="loading || refreshing || busy || loadingMore" @click="state.refresh"><ShellIcon name="refresh" :size="16" />{{ refreshing ? 'Refreshing…' : 'Refresh' }}</button>
     </header>
-    <p v-if="loading" class="deal-community-loading" role="status">Loading community updates…</p>
+    <TicketLoading v-if="loading" class="deal-community-loading" label="Loading community updates…" />
     <div v-if="error" class="deal-community-notice deal-community-error" role="alert">
       <p>{{ error }}</p>
       <button type="button" class="deal-community-text-button" :disabled="busy" @click="state.refresh">Refresh updates</button>
@@ -198,9 +202,9 @@ const date = (value: string) => new Intl.DateTimeFormat('en-SG', { dateStyle: 'm
       <button v-if="allComments" type="button" class="deal-community-text-button deal-community-refresh" :disabled="refreshing || busy || loadingMore" @click="state.refresh">{{ refreshing ? 'Refreshing…' : 'Refresh comments' }}</button>
       <form v-if="session.data && summary" class="deal-community-comment-form" @submit.prevent="post">
         <label for="deal-community-comment" class="visually-hidden">Share your experience</label>
-        <textarea id="deal-community-comment" ref="commentInput" v-model="draft" maxlength="2000" rows="3" required :disabled="busy" aria-describedby="deal-community-comment-help deal-community-comment-count" placeholder="Which outlet did you visit? Were there any conditions?" />
+        <textarea id="deal-community-comment" ref="commentInput" v-model="draft" name="comment" :maxlength="COMMENT_MAX" rows="3" required :disabled="busy" aria-describedby="deal-community-comment-help deal-community-comment-count" placeholder="Which outlet did you visit? Were there any conditions?" />
         <p id="deal-community-comment-help" class="deal-community-help">Keep it helpful and respectful. Avoid sharing personal information.</p>
-        <div class="deal-community-actions"><small id="deal-community-comment-count" class="deal-community-help">{{ draft.length.toLocaleString() }} / 2,000</small><button type="submit" class="lb-btn lb-btn--primary deal-community-post" :disabled="busy || !draft.trim()">{{ pending === 'comment' ? 'Posting…' : 'Post comment' }}</button></div>
+        <div class="deal-community-actions"><small id="deal-community-comment-count" class="deal-community-help">{{ formatCount(draft.length) }} / {{ commentLimit }}</small><button type="submit" class="lb-btn lb-btn--primary deal-community-post" :disabled="busy || !draft.trim()">{{ pending === 'comment' ? 'Posting…' : 'Post comment' }}</button></div>
       </form>
       <div v-else-if="summary" class="deal-community-sign-in"><RouterLink :to="login">Log in to join the conversation</RouterLink><span class="deal-community-help">You can read comments without an account.</span></div>
       <div v-if="summary && !loading && !comments.length" class="deal-community-empty"><strong>No comments yet</strong><p>Be the first to share a tip from your visit.</p></div>
@@ -227,9 +231,9 @@ const date = (value: string) => new Intl.DateTimeFormat('en-SG', { dateStyle: 'm
       <p v-if="error" class="deal-community-error" role="alert">{{ error }}</p>
       <p class="deal-community-help">For spam or inappropriate content. Use “Gone” to report availability.</p>
       <label for="deal-community-reason">Reason</label>
-      <select id="deal-community-reason" ref="reasonInput" v-model="reason" :disabled="busy"><option value="INAPPROPRIATE">Inappropriate content</option><option value="SPAM">Spam</option><option value="MISLEADING">Misleading information</option><option value="OTHER">Other</option></select>
+      <select id="deal-community-reason" ref="reasonInput" v-model="reason" name="reason" :disabled="busy"><option value="INAPPROPRIATE">Inappropriate content</option><option value="SPAM">Spam</option><option value="MISLEADING">Misleading information</option><option value="OTHER">Other</option></select>
       <label for="deal-community-report-details">Details (optional)</label>
-      <textarea id="deal-community-report-details" v-model="details" maxlength="500" rows="3" :disabled="busy" />
+      <textarea id="deal-community-report-details" v-model="details" name="details" maxlength="500" rows="3" :disabled="busy" />
       <div class="deal-community-actions deal-community-actions--end"><button class="lb-btn" type="button" :disabled="busy" @click="closeReport">Cancel</button><button class="lb-btn lb-btn--primary" type="submit" :disabled="busy">{{ pending === 'report' ? 'Sending…' : 'Send report' }}</button></div>
     </form>
     </dialog>
@@ -257,10 +261,10 @@ const date = (value: string) => new Intl.DateTimeFormat('en-SG', { dateStyle: 'm
   font-variant-ligatures: none;
   font-feature-settings: 'liga' 0, 'clig' 0;
 }
-.deal-community-report-dialog { width: min(480px, calc(100vw - 32px)); max-height: calc(100dvh - 48px); overflow-y: auto; padding: 24px; border: 1px solid var(--hairline); border-radius: 20px; background: var(--paper-white); color: var(--ink); box-shadow: 0 24px 80px rgb(0 0 0 / 0.22); }
-.deal-community-report-dialog::backdrop { background: rgb(29 29 34 / 0.45); }
-.deal-community-explanation-dialog { width: min(480px, calc(100vw - 32px)); max-height: calc(100dvh - 48px); padding: 24px; border: 1px solid var(--hairline); border-radius: 20px; background: var(--paper-white); color: var(--ink); box-shadow: 0 24px 80px rgb(0 0 0 / 0.22); }
-.deal-community-explanation-dialog::backdrop { background: rgb(29 29 34 / 0.45); }
+.deal-community-report-dialog { width: min(480px, calc(100vw - 32px)); max-height: calc(100dvh - 48px); overflow-y: auto; overscroll-behavior: contain; padding: 24px; border: 1px solid var(--hairline); border-radius: 20px; background: var(--paper-white); color: var(--ink); box-shadow: 0 24px 80px rgb(0 0 0 / 0.22); }
+.deal-community-report-dialog::backdrop { background: var(--scrim); }
+.deal-community-explanation-dialog { width: min(480px, calc(100vw - 32px)); max-height: calc(100dvh - 48px); overflow-y: auto; overscroll-behavior: contain; padding: 24px; border: 1px solid var(--hairline); border-radius: 20px; background: var(--paper-white); color: var(--ink); box-shadow: 0 24px 80px rgb(0 0 0 / 0.22); }
+.deal-community-explanation-dialog::backdrop { background: var(--scrim); }
 .deal-community-explanation-dialog p { margin: 16px 0 0; font-size: 0.875rem; line-height: 1.6; }
 @media (min-width: 768px) {
   .deal-community-text-button.deal-community-explanation-trigger { display: inline-flex; justify-self: start; }
@@ -278,8 +282,12 @@ const date = (value: string) => new Intl.DateTimeFormat('en-SG', { dateStyle: 'm
 .deal-community-vote-group { min-width: 0; margin: 8px 0 0; padding: 0; border: 0; }
 .deal-community-vote-group legend { float: none; width: auto; margin: 0 0 10px; font: 700 0.875rem/1.5 var(--font-sans); }
 .deal-community-votes { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-.deal-community-vote { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 7px; min-height: 48px; padding: 10px 8px; border: 1px solid var(--hairline-strong); border-radius: 12px; background: var(--paper-white); color: var(--ink); font: 700 0.875rem/1.4 var(--font-sans); cursor: pointer; }
-.deal-community-vote:hover { background: var(--paper-hover); }
+.deal-community-vote { touch-action: manipulation; display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 7px; min-height: 48px; padding: 10px 8px; border: 1px solid var(--hairline-strong); border-radius: 12px; background: var(--paper-white); color: var(--ink); font: 700 0.875rem/1.4 var(--font-sans); cursor: pointer; }
+@media (hover: hover) and (pointer: fine) {
+  .deal-community-vote:hover:not(:disabled) { background: var(--paper-hover); }
+  .deal-community-text-button:hover:not(:disabled) { color: var(--ink); background: var(--paper-hover); }
+  .deal-community-report-link:hover:not(:disabled) { color: var(--coral-deep); text-decoration: none; }
+}
 .deal-community-vote[aria-pressed="true"] { background: var(--coral-soft); border-color: var(--coral-deep); box-shadow: inset 0 0 0 1px var(--coral-deep); color: var(--coral-deep); }
 .deal-community-vote--alive[aria-pressed="true"] { background: var(--tag-ok-bg); border-color: var(--tag-ok-ink); box-shadow: inset 0 0 0 1px var(--tag-ok-ink); color: var(--tag-ok-ink); }
 .deal-community-vote-count { font-family: var(--font-sans); font-variant-numeric: tabular-nums; font-weight: 700; }
@@ -289,10 +297,8 @@ const date = (value: string) => new Intl.DateTimeFormat('en-SG', { dateStyle: 'm
 .deal-community-explanation summary { min-height: 44px; align-content: center; cursor: pointer; font-size: 0.8125rem; font-weight: 600; }
 .deal-community-explanation p { margin: 4px 0 10px; color: var(--ink-muted); font-size: 0.8125rem; line-height: 1.6; }
 .deal-community-text-button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; border: 0; border-radius: 6px; background: transparent; color: var(--ink-muted); min-height: 44px; padding: 8px; font: 600 0.8125rem/1.5 var(--font-sans); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
-.deal-community-text-button:hover { color: var(--ink); background: var(--paper-hover); }
 .deal-community-text-button:disabled { cursor: not-allowed; opacity: 0.6; }
-.deal-community-report-link { text-decoration: none; flex: none; margin-left: auto; white-space: nowrap; color: var(--bs-danger); }
-.deal-community-report-link:hover { color: var(--bs-danger); text-decoration: none; }
+.deal-community-report-link { text-decoration: none; flex: none; margin-left: auto; white-space: nowrap; color: var(--coral-deep); }
 .deal-community-login { white-space: normal; text-align: center; }
 .deal-community-discussion { display: grid; gap: 14px; padding-top: 8px; min-width: 0; }
 .deal-community-comment-total { display: inline-grid; place-items: center; min-width: 24px; min-height: 24px; padding: 0 6px; border-radius: 8px; background: var(--paper-sunk); color: var(--ink-muted); font: 600 0.75rem/1 var(--font-sans); vertical-align: middle; }
@@ -320,7 +326,7 @@ const date = (value: string) => new Intl.DateTimeFormat('en-SG', { dateStyle: 'm
 .deal-community-report h3 { font: 700 0.9375rem/1.5 var(--font-sans); margin: 0; }
 .deal-community-notice { display: flex; align-items: start; gap: 8px; margin: 0; padding: 12px; border-radius: 12px; color: var(--tag-ok-ink); background: var(--tag-ok-bg); font-size: 0.8125rem; line-height: 1.6; overflow-wrap: anywhere; }
 .deal-community-notice p { margin: 0; }
-.deal-community-notice--removed { color: var(--bs-danger); background: var(--tag-end-bg); }
+.deal-community-notice--removed { color: var(--tag-end-ink); background: var(--tag-end-bg); }
 .deal-community-vote-feedback {
   display: flex;
   align-items: center;
@@ -334,15 +340,21 @@ const date = (value: string) => new Intl.DateTimeFormat('en-SG', { dateStyle: 'm
 .vote-feedback--saved .deal-community-vote-feedback { background: var(--tag-ok-bg); }
 .vote-feedback--removed .deal-community-vote-feedback { background: var(--tag-end-bg); }
 .vote-feedback--saved { color: var(--tag-ok-ink); }
-.vote-feedback--removed { color: var(--bs-danger); }
+.vote-feedback--removed { color: var(--tag-end-ink); }
 .deal-community-last-update { min-height: 1.6em; }
 #deal-community-vote-help { min-height: 3.2em; }
 @media (max-width: 599.98px) {
   .deal-community-last-update { min-height: 3.2em; }
+  .deal-community-report-dialog, .deal-community-explanation-dialog { padding: 18px; }
+}
+/* 320px: the report link drops under the explanation instead of squeezing it. */
+@media (max-width: 359.98px) {
+  .deal-community-verification-links { flex-wrap: wrap; }
+  .deal-community-report-link { margin-left: 0; }
 }
 .deal-community-error { flex-direction: column; color: var(--ink); background: var(--paper-sunk); border: 1px solid var(--hairline-strong); }
 .deal-community-loading { margin: 0; font-size: 0.875rem; color: var(--ink-muted); }
 .deal-community :is(button, a, summary, textarea, select):focus-visible { outline: 3px solid var(--coral-deep); outline-offset: 3px; }
 .deal-community .lb-btn { min-height: 44px; }
-.deal-community-post:disabled { cursor: default; background: var(--sunny); color: var(--ink); transform: none; transition: none; animation: none; box-shadow: none; }
+.deal-community-post:disabled { cursor: default; background: var(--sunny); color: var(--on-accent); transform: none; transition: none; animation: none; box-shadow: none; }
 </style>

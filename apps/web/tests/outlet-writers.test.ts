@@ -119,6 +119,7 @@ it('blocks programmatic physical approval submits without disabling rejection', 
   const { wrapper, calls } = await setup(ctx)
   await wrapper.get('article > form').trigger('submit')
   expect(calls.filter((method) => method === 'post')).toEqual([])
+  await wrapper.get('#reject-confirmation').setValue(true)
   expect(wrapper.get('[data-testid="reject-draft"]').attributes('disabled')).toBeUndefined()
 })
 

@@ -1,0 +1,441 @@
+/* Flash Drop on the map (flash-layer.ts): the dashed coral circle of who sees the banner, the
+   coral pin with its countdown, and the black banner that pops up over the circle. Global
+   because Leaflet draws these outside any component. */
+
+/* The banner and pin are dark by day and invert to light on the dark basemap (as the deal pins
+   do), so their secondary colours swap to darker partners there. Shared with FlashEdgeBanner. */
+:root {
+  --flash-kicker: #f3a58e;
+  --flash-meta: #c9c6bf;
+  --flash-track: rgb(255 255 255 / 0.14);
+  --flash-stem: rgb(29 29 34 / 0.85);
+  --flash-fake-ink: #7a5a00;
+  --flash-fake-edge: #b98a12;
+}
+
+.app-palette[data-theme="dark"] {
+  --flash-kicker: #a8391a;
+  --flash-meta: #55545a;
+  --flash-track: rgb(27 27 31 / 0.14);
+  --flash-stem: rgb(243 241 236 / 0.85);
+  --flash-fake-ink: var(--tag-build-ink);
+  --flash-fake-edge: #8a6d1c;
+}
+
+.flash-zone {
+  fill: var(--coral);
+  fill-opacity: 0.12;
+  stroke: var(--coral);
+  stroke-opacity: 0.75;
+  stroke-width: 2.5;
+  stroke-dasharray: 8 7;
+  /* Ripples out from the pin just after it lands, so the circle reads as the pin's reach. */
+  transform-box: fill-box;
+  transform-origin: center;
+  animation:
+    flash-zone-in 600ms var(--ease-out) 220ms both,
+    flash-zone-spin 14s linear infinite;
+}
+
+/* Spin stays second in both lists so the dashes keep turning while the circle leaves. */
+.flash-zone.is-leaving {
+  animation:
+    flash-zone-out 360ms var(--ease-in-out) both,
+    flash-zone-spin 14s linear infinite;
+}
+
+@keyframes flash-zone-spin {
+  to {
+    stroke-dashoffset: -150;
+  }
+}
+
+@keyframes flash-zone-in {
+  from {
+    opacity: 0;
+    transform: scale(0.2);
+  }
+}
+
+@keyframes flash-zone-out {
+  to {
+    opacity: 0;
+    transform: scale(0.2);
+  }
+}
+
+.flash-pin,
+.flash-banner-anchor {
+  background: transparent;
+  border: 0;
+}
+
+.flash-pin__stack {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  /* Placed with `translate` so `transform` is free to grow the pin up out of its dot. */
+  translate: -50% calc(-100% + 5.5px);
+  transform-origin: 50% calc(100% - 5.5px);
+  animation: flash-pin-in 560ms linear both;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.flash-pin__stack.is-leaving {
+  pointer-events: none;
+  animation: flash-pin-out 360ms var(--ease-in-out) both;
+}
+
+/* Falls onto its dot, squashes a touch on landing, then settles. */
+@keyframes flash-pin-in {
+  0% {
+    opacity: 0;
+    transform: translateY(-40px) scale(0.5);
+    animation-timing-function: var(--ease-out);
+  }
+  45% {
+    opacity: 1;
+    transform: translateY(0) scale(1.08, 0.9);
+    animation-timing-function: var(--ease-out);
+  }
+  72% {
+    transform: translateY(-5px) scale(0.98, 1.03);
+    animation-timing-function: var(--ease-in-out);
+  }
+  100% {
+    transform: none;
+  }
+}
+
+/* Lifts slightly, then sinks into its dot; stays solid long enough to be seen going. */
+@keyframes flash-pin-out {
+  30% {
+    opacity: 1;
+    transform: translateY(-6px) scale(1.04);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.3);
+  }
+}
+
+.flash-pin__oval {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 36px;
+  margin-top: 22px;
+  padding: 0 6px 0 40px;
+  white-space: nowrap;
+  color: var(--on-ink);
+  background: var(--ink-strong);
+  border-radius: var(--radius-pill);
+  box-shadow:
+    0 0 0 3px rgba(216, 96, 63, 0.45),
+    0 8px 20px rgba(27, 27, 31, 0.28);
+}
+
+.flash-pin__food {
+  position: absolute;
+  top: -24px;
+  left: -14px;
+  width: 52px;
+  height: 52px;
+  filter: drop-shadow(0 4px 4px rgba(27, 27, 31, 0.25));
+}
+
+.flash-pin__price {
+  font-family: var(--font-display);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  line-height: 1;
+}
+
+.flash-pin__timer {
+  padding: 5px 7px;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  color: var(--on-ink);
+  background: var(--coral);
+  border-radius: 8px;
+}
+
+.flash-pin__stem {
+  width: 2px;
+  height: 12px;
+  background: var(--flash-stem);
+}
+
+.flash-pin__dot {
+  position: relative;
+  box-sizing: border-box;
+  width: 11px;
+  height: 11px;
+  background: var(--paper-white);
+  border: 3px solid var(--coral);
+  border-radius: 50%;
+}
+
+/* A single coral ring spreads from the dot as the pin lands. */
+.flash-pin__dot::after {
+  position: absolute;
+  inset: -3px;
+  content: "";
+  border: 2px solid var(--coral);
+  border-radius: 50%;
+  opacity: 0;
+  animation: flash-dot-ripple 700ms var(--ease-out) 250ms;
+  pointer-events: none;
+}
+
+@keyframes flash-dot-ripple {
+  from {
+    opacity: 0.9;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(5);
+  }
+}
+
+/* The banner sits on the circle's top edge with its tail pointing down at it. */
+.flash-banner-wrap {
+  position: absolute;
+  left: 0;
+  transform: translateX(calc(-50% + var(--flash-shift, 0px)));
+}
+
+/* Under the circle, tail pointing up, when the top is too close to the header. */
+.flash-banner-wrap--above {
+  bottom: 8px;
+}
+
+.flash-banner-wrap--below {
+  top: 8px;
+}
+
+.flash-banner-wrap--pin {
+  bottom: 76px;
+}
+
+.flash-banner-wrap--under {
+  top: 14px;
+}
+
+.flash-banner {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: max-content;
+  max-width: min(330px, calc(100vw - 32px));
+  padding: 10px 12px 14px 8px;
+  text-align: left;
+  color: var(--on-ink);
+  background: var(--ink-strong);
+  border: 0;
+  border-radius: 18px;
+  box-shadow: 0 14px 30px rgba(27, 27, 31, 0.32);
+  transform-origin: 50% 100%;
+  animation: flash-banner-in 420ms cubic-bezier(0.34, 1.4, 0.64, 1) both;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.flash-banner::after {
+  position: absolute;
+  left: calc(50% - var(--flash-shift, 0px));
+  margin-left: -8px;
+  content: "";
+  border: 8px solid transparent;
+}
+
+.flash-banner--above::after,
+.flash-banner--pin::after {
+  bottom: -8px;
+  border-bottom: 0;
+  border-top-color: var(--ink-strong);
+}
+
+.flash-banner--below,
+.flash-banner--under {
+  transform-origin: 50% 0;
+}
+
+.flash-banner--below::after,
+.flash-banner--under::after {
+  top: -8px;
+  border-top: 0;
+  border-bottom-color: var(--ink-strong);
+}
+
+.flash-banner:active {
+  transform: scale(0.97);
+}
+
+.flash-banner:focus-visible {
+  outline: 3px solid var(--sunny);
+  outline-offset: 3px;
+}
+
+.flash-banner.is-leaving {
+  animation: flash-banner-out 200ms var(--ease-out) both;
+}
+
+.flash-banner__food {
+  flex: none;
+  width: 46px;
+  height: 46px;
+}
+
+.flash-banner__text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.flash-banner__kicker {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--flash-kicker);
+}
+
+.flash-banner__title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--font-display);
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+.flash-banner__meta {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  color: var(--flash-meta);
+}
+
+.flash-banner__timer {
+  flex: none;
+  align-self: center;
+  padding: 5px 8px;
+  font-size: 12px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  background: var(--coral);
+  border-radius: 9px;
+}
+
+/* How long the banner has left before it closes itself; hovering pauses it. */
+.flash-banner__life {
+  position: absolute;
+  right: 14px;
+  bottom: 6px;
+  left: 14px;
+  height: 3px;
+  overflow: hidden;
+  background: var(--flash-track);
+  border-radius: 2px;
+}
+
+.flash-banner__life i {
+  display: block;
+  height: 100%;
+  background: var(--coral);
+  transform-origin: left;
+  animation: flash-banner-life var(--flash-life, 5000ms) linear forwards;
+}
+
+.flash-banner.is-paused .flash-banner__life i {
+  animation-play-state: paused;
+}
+
+/* "Fake deal": every demonstration drop says so wherever it shows. */
+.flash-fake {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 6px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: none;
+  white-space: nowrap;
+  color: var(--flash-fake-ink);
+  background: var(--sunny-wash, #fdf6dc);
+  border: 1px dashed var(--flash-fake-edge);
+  border-radius: 6px;
+}
+
+@keyframes flash-banner-in {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.75);
+  }
+}
+
+@keyframes flash-banner-out {
+  to {
+    opacity: 0;
+    transform: translateY(18px) scale(0.6);
+  }
+}
+
+@keyframes flash-banner-life {
+  to {
+    transform: scaleX(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .flash-zone,
+  .flash-pin__stack {
+    animation: flash-banner-fade 150ms ease both;
+  }
+
+  .flash-zone.is-leaving,
+  .flash-pin__stack.is-leaving {
+    animation: flash-banner-fade 150ms ease reverse both;
+  }
+
+  .flash-pin__dot::after {
+    animation: none;
+  }
+
+  .flash-banner,
+  .flash-banner.is-leaving {
+    animation: flash-banner-fade 150ms ease both;
+  }
+
+  .flash-banner.is-leaving {
+    animation-direction: reverse;
+  }
+
+  .flash-banner:active {
+    transform: none;
+  }
+}
+
+@keyframes flash-banner-fade {
+  from {
+    opacity: 0;
+  }
+}

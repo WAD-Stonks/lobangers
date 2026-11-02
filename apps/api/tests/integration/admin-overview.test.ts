@@ -127,7 +127,13 @@ it('requires real cookie and current ADMIN and reads empty readiness without boo
   expect(response.headers['cache-control']).toBe('no-store')
   expect(response.data).toEqual({
     generatedAt: '2026-10-10T00:00:00.000Z',
-    counts: { pendingMerchantRequests: 0, pendingImportedDrafts: 0, failedImportedPosts: 0 },
+    counts: {
+      pendingMerchantRequests: 0,
+      pendingImportedDrafts: 0,
+      failedImportedPosts: 0,
+      pendingFlashDrops: 0,
+      liveFlashDrops: 0,
+    },
     recentRuns: [],
     readiness: {
       googleConfigured: false,
@@ -257,6 +263,8 @@ it('counts exact pending queues and failed posts and projects the newest ten fix
     pendingMerchantRequests: 2,
     pendingImportedDrafts: 2,
     failedImportedPosts: 3,
+    pendingFlashDrops: 0,
+    liveFlashDrops: 0,
   })
   expect(overview.recentRuns).toEqual(
     (await http(admin.cookie).get('/api/ingestion/runs?limit=10')).data.items,

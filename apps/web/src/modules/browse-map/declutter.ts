@@ -19,11 +19,13 @@ type Box = {
 }
 type Placed = { readonly group: PlacedGroup; readonly box: Box }
 
-// Rough rendered sizes (px) of the pill in DealMap.vue; a few px of slack is fine.
-const PILL_HEIGHT_PX = 36
+// Rough rendered sizes (px) of the group oval in DealMap.vue; a few px of slack is fine. The
+// second line ("12 deals · from $1.20") sets a floor on the text width.
+const PILL_HEIGHT_PX = 46
 const PILL_CHAR_PX = 8.6
-const PILL_CHROME_PX = 66
-const DOT_PX = 34
+const PILL_META_PX = 140
+const PILL_CHROME_PX = 96
+const DOT_PX = 44
 const GAP_PX = 6
 const NUDGE_PX = PILL_HEIGHT_PX + GAP_PX
 const NO_OFFSET: Point = { x: 0, y: 0 }
@@ -56,7 +58,11 @@ const absorb = (target: PlacedGroup, extra: PinGroup): PlacedGroup => ({
 })
 
 const pillBox = (group: PinGroup, at: Point): Box =>
-  boxAround(at, group.label.length * PILL_CHAR_PX + PILL_CHROME_PX, PILL_HEIGHT_PX)
+  boxAround(
+    at,
+    Math.max(group.label.length * PILL_CHAR_PX, PILL_META_PX) + PILL_CHROME_PX,
+    PILL_HEIGHT_PX,
+  )
 
 const shift = (at: Point, by: Point): Point => ({ x: at.x + by.x, y: at.y + by.y })
 

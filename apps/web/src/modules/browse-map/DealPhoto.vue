@@ -75,13 +75,18 @@ onMounted(() => {
   background: linear-gradient(
     100deg,
     transparent 20%,
-    rgb(255 255 255 / 0.45) 50%,
+    var(--photo-shimmer, rgb(255 255 255 / 0.45)) 50%,
     transparent 80%
   );
   background-size: 220% 100%;
   opacity: 0;
   transition: opacity 200ms var(--ease-out);
   pointer-events: none;
+}
+
+/* The tints are deep in dark mode, so the sweep dims to stay a glint rather than a flash. */
+.app-palette[data-theme='dark'] .deal-photo {
+  --photo-shimmer: rgb(255 255 255 / 0.1);
 }
 
 .deal-photo.is-loading::before {

@@ -46,6 +46,7 @@ it('uses concise navigation and changes routes without a document reload', async
   expect(wrapper.findAll('nav[aria-label="Administration"] a').map((link) => link.text())).toEqual([
     'Overview',
     'Deals',
+    'Flash drops',
     'Catalogue',
     'Moderation',
     'Accounts',

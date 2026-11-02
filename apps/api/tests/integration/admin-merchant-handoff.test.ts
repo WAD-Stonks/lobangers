@@ -30,12 +30,14 @@ const clientFor = (cookie: string, requestOrigin = origin) => {
   Object.assign(client.http.defaults.headers.common, { Cookie: cookie, Origin: requestOrigin })
   return client
 }
+let syntheticIP = 1
 const signUp = async (name: string) => {
+  const clientIP = `198.51.100.${syntheticIP++}`
   const email = `lane-e-${randomUUID()}@example.test`
   const password = randomBytes(24).toString('base64url')
   const response = await fetch(`${baseURL}/api/auth/sign-up/email`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', Origin: origin },
+    headers: { 'Content-Type': 'application/json', Origin: origin, 'X-Forwarded-For': clientIP },
     body: JSON.stringify({
       name,
       email,
@@ -52,14 +54,19 @@ const signUp = async (name: string) => {
     (
       await fetch(`${baseURL}/api/auth/sign-out`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Origin: origin, Cookie: signupCookie },
+        headers: {
+          'Content-Type': 'application/json',
+          Origin: origin,
+          Cookie: signupCookie,
+          'X-Forwarded-For': clientIP,
+        },
         body: '{}',
       })
     ).status,
   ).toBe(200)
   const signedIn = await fetch(`${baseURL}/api/auth/sign-in/email`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', Origin: origin },
+    headers: { 'Content-Type': 'application/json', Origin: origin, 'X-Forwarded-For': clientIP },
     body: JSON.stringify({ email, password }),
   })
   expect(signedIn.status).toBe(200)
@@ -194,7 +201,199 @@ afterAll(async () => {
   vi.unstubAllEnvs()
 })
 
+type RetirementTransaction = import('@api/modules/platform-admin/transaction').AccessTransaction
+const retirementDatabase = (before: () => Promise<void>, model: string, operation: string) =>
+  new Proxy(db, {
+    get(target, key, receiver) {
+      if (key === '$transaction')
+        return (work: (tx: RetirementTransaction) => Promise<unknown>) =>
+          db.$transaction((tx) =>
+            work(
+              new Proxy(tx, {
+                get(target, key, receiver) {
+                  const delegate = Reflect.get(target, key, receiver)
+                  if (key !== model) return delegate
+                  return new Proxy(delegate, {
+                    get(target, key, receiver) {
+                      const value = Reflect.get(target, key, receiver)
+                      return key === operation
+                        ? async (...args: unknown[]) => {
+                            await before()
+                            return Reflect.apply(value, target, args)
+                          }
+                        : typeof value === 'function'
+                          ? value.bind(target)
+                          : value
+                    },
+                  })
+                },
+              }),
+            ),
+          )
+      const value = Reflect.get(target, key, receiver)
+      return typeof value === 'function' ? value.bind(target) : value
+    },
+  })
+
 describe('connected native identity -> internal request -> actual admin Axios HTTP -> transactional capability', () => {
+  it('rolls back merchant approval, grant and retirement when intent audit fails', async () => {
+    const target = await signUp('Rollback intent target')
+    const outlet = await venueFixture('Rollback intent')
+    await seedSyntheticOccupancy(db, outlet.venue.id)
+    const identity = await freshIdentity(target.cookie)
+    const actor = await freshIdentity(admin.cookie)
+    const userRow = await db.user.findUniqueOrThrow({ where: { id: target.id } })
+    const approval = await db.adminEmail.create({
+      data: { email: userRow.email, active: true, version: 1 },
+    })
+    const pending = await submitMerchantAccessRequest(db, identity.actor, {
+      venueId: outlet.venue.id,
+      message: 'Synthetic rollback request',
+    })
+    const before = await db.user.findUniqueOrThrow({ where: { id: target.id } })
+    const database = retirementDatabase(
+      async () => {
+        throw new Error('Controlled intent audit failure')
+      },
+      'adminEmailEvent',
+      'create',
+    )
+    const { reviewRequest } = await import('@api/modules/platform-admin/requests')
+    await expect(
+      reviewRequest(database, actor.actor, {
+        requestId: pending.id,
+        confirmed: true,
+        expectedVersion: pending.version,
+        decision: 'APPROVE',
+        note: 'Rollback all facts',
+      }),
+    ).rejects.toThrow('Controlled intent audit failure')
+    expect(await db.user.findUnique({ where: { id: target.id } })).toEqual(before)
+    expect(await db.adminEmail.findUnique({ where: { id: approval.id } })).toMatchObject({
+      active: true,
+      version: 1,
+    })
+    expect(await db.merchantAccessRequest.findUnique({ where: { id: pending.id } })).toMatchObject({
+      status: 'PENDING',
+      version: 1,
+      reviewedById: null,
+    })
+    expect(await db.stallGrant.count({ where: { userId: target.id } })).toBe(0)
+    expect(await db.adminEmailEvent.count({ where: { approvalId: approval.id } })).toBe(0)
+    expect(
+      await db.platformAudit.count({
+        where: { targetUserId: target.id, action: 'REQUEST_APPROVED' },
+      }),
+    ).toBe(0)
+  })
+  it('merchant review observes a revocation committed before its shared transaction fence', async () => {
+    const target = await signUp('Revocation race target')
+    const outlet = await venueFixture('Revocation race')
+    await seedSyntheticOccupancy(db, outlet.venue.id)
+    const identity = await freshIdentity(target.cookie)
+    const actor = await freshIdentity(admin.cookie)
+    const userRow = await db.user.findUniqueOrThrow({ where: { id: target.id } })
+    const approval = await db.adminEmail.create({
+      data: { email: userRow.email, active: true, version: 1 },
+    })
+    const pending = await submitMerchantAccessRequest(db, identity.actor, {
+      venueId: outlet.venue.id,
+      message: 'Synthetic race request',
+    })
+    let arrived!: () => void
+    let release!: () => void
+    const waiting = new Promise<void>((resolve) => {
+      arrived = resolve
+    })
+    const gate = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    const database = retirementDatabase(
+      async () => {
+        arrived()
+        await gate
+      },
+      'platformAccessFence',
+      'upsert',
+    )
+    const { reviewRequest } = await import('@api/modules/platform-admin/requests')
+    const { operateAdminEmail } = await import('@api/modules/platform-admin/admin-emails')
+    const result = reviewRequest(database, actor.actor, {
+      requestId: pending.id,
+      confirmed: true,
+      expectedVersion: pending.version,
+      decision: 'APPROVE',
+      note: 'Observe latest retired policy',
+    })
+    try {
+      await Promise.race([
+        waiting,
+        result.then(() => {
+          throw new Error('Missed transaction barrier')
+        }),
+      ])
+      await operateAdminEmail(competingDb, {
+        action: 'revoke',
+        email: userRow.email,
+        apply: true,
+        expectedVersion: 1,
+        operatorLabel: 'Synthetic operator',
+        reason: 'Revoke before merchant approval',
+      })
+      release()
+      await result
+      expect(await db.adminEmail.findUnique({ where: { id: approval.id } })).toMatchObject({
+        active: false,
+        version: 2,
+      })
+      expect(
+        await db.adminEmailEvent.findMany({ where: { approvalId: approval.id } }),
+      ).toMatchObject([{ source: 'OPERATOR', action: 'REVOKED' }])
+      expect(await db.user.findUnique({ where: { id: target.id } })).toMatchObject({
+        role: 'MERCHANT',
+        platformVersion: 1,
+      })
+    } finally {
+      release()
+      await result
+    }
+  })
+
+  it('merchant review retires active admin-email intent in the same guarded transaction', async () => {
+    const target = await signUp('Intent retirement target')
+    const outlet = await venueFixture('Intent retirement')
+    await seedSyntheticOccupancy(db, outlet.venue.id)
+    const identity = await freshIdentity(target.cookie)
+    const userRow = await db.user.findUniqueOrThrow({ where: { id: target.id } })
+    await db.adminEmail.create({ data: { email: userRow.email, active: true, version: 1 } })
+    const pending = await submitMerchantAccessRequest(db, identity.actor, {
+      venueId: outlet.venue.id,
+      message: 'Synthetic request',
+    })
+    await clientFor(admin.cookie).platformAdmin.reviewRequest(pending.id, {
+      confirmed: true,
+      expectedVersion: pending.version,
+      decision: 'APPROVE',
+      note: 'Deliberate merchant assignment',
+    })
+    expect(await db.adminEmail.findUnique({ where: { email: userRow.email } })).toMatchObject({
+      active: false,
+      version: 2,
+    })
+    expect(
+      await db.adminEmailEvent.findFirst({ where: { targetUserId: target.id, action: 'REVOKED' } }),
+    ).toMatchObject({
+      actorUserId: admin.id,
+      source: 'ADMIN_ROLE_CHANGE',
+      roleBefore: 'USER',
+      roleAfter: 'MERCHANT',
+    })
+    expect(await db.user.findUnique({ where: { id: target.id } })).toMatchObject({
+      role: 'MERCHANT',
+      platformVersion: 1,
+    })
+  })
+
   it('approves only outlet A, records exact review/version/audit state and revokes through actual HTTP', async () => {
     const a = await venueFixture('A')
     const b = await venueFixture('B')

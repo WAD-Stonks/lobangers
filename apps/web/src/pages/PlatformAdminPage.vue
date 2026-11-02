@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import AdminShell from '@web/components/admin/AdminShell.vue'
 import SharedSignIn from '@web/components/auth/SharedSignIn.vue'
+import TicketLoading from '@web/components/TicketLoading.vue'
 import AccountActivityWorkspace from '@web/modules/platform-admin/AccountActivityWorkspace.vue'
 import AccountsDirectory from '@web/modules/platform-admin/AccountsDirectory.vue'
 import MerchantRequestsWorkspace from '@web/modules/platform-admin/MerchantRequestsWorkspace.vue'
@@ -57,7 +58,7 @@ const workspaceTabs = [{ id: 'accounts', label: 'Directory' }, { id: 'requests',
 <template>
   <AdminShell @click.capture="s.logoutStarting" title="Accounts" :refresh-key="s.sessionRefreshKey" @closing="s.close" @signed-out="s.anonymous" @access-reload="s.load">
   <section ref="workspaceRoot" aria-label="Platform administration" class="platform-admin">
-    <p v-if="s.access === 'loading'" role="status">Loading accounts…</p>
+    <TicketLoading v-if="s.access === 'loading'" label="Loading accounts…" />
     <SharedSignIn v-else-if="s.access === 'UNAUTHORIZED'" title="Sign in to manage accounts" destination="/admin/accounts" @signed-in="s.signedIn" />
     <p v-else-if="s.access === 'closed'" role="status">Access is closed. Use the session controls to retry or recheck.</p>
     <p v-else-if="s.access === 'FORBIDDEN'" role="alert">You do not have permission to manage platform accounts.</p>

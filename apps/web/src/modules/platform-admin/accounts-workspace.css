@@ -64,6 +64,7 @@
 }
 .records-scroll {
   overflow-x: auto;
+  overscroll-behavior-x: contain;
 }
 .account-records {
   width: 100%;
@@ -117,6 +118,12 @@
   font-size: 0.8125rem;
   white-space: nowrap;
   min-height: 2.25rem;
+  touch-action: manipulation;
+}
+@media (pointer: coarse) {
+  .record-action {
+    min-height: 44px;
+  }
 }
 .workspace-message,
 .workspace-pagination {
@@ -141,8 +148,9 @@
   .record-email {
     overflow-wrap: anywhere;
   }
+  /* Roles are read, not decoration: keep them at the 11px floor on phones. */
   .record-role {
-    font-size: 0.625rem;
+    font-size: 0.6875rem;
   }
 }
 

@@ -2,6 +2,7 @@
 import type { IngestionDashboardResponse, IngestionRunResponse } from '@broke-oclock/contracts/ingestion'
 import { BButton } from '@broke-oclock/ui'
 import AdminShell from '@web/components/admin/AdminShell.vue'
+import TicketLoading from '@web/components/TicketLoading.vue'
 import { confirmAdminIdentity } from '@web/lib/admin-recovery'
 import { createAdminReadFence } from '@web/lib/admin-session'
 import { api } from '@web/lib/api-client'
@@ -113,7 +114,7 @@ onUnmounted(() => { fence.dispose(); operationFence.dispose(); nativeFence.dispo
 <template>
   <AdminShell @click.capture="logoutStarting" title="Ingestion admin" :refresh-key="sessionRefreshKey" @closing="close" @signed-out="anonymous" @access-reload="reload">
   <section aria-label="Ingestion administration">
-    <p v-if="access === 'loading'" role="status">Loading ingestion…</p>
+    <TicketLoading v-if="access === 'loading'" label="Loading ingestion…" />
     <AdminSignIn v-else-if="access === 'unauthorized'" @signed-in="signedIn" />
     <p v-else-if="access === 'closed'" role="status">Access is closed. Use the session controls to retry or recheck.</p>
     <p v-else-if="access === 'forbidden'" role="alert">You do not have permission to review ingestion.</p>

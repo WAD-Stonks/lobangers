@@ -4,6 +4,7 @@ import {
   pinBadgeText,
   pinFlag,
   pinLabel,
+  pinTag,
 } from '@web/modules/browse-map/venue-pin'
 import { describe, expect, it } from 'vitest'
 
@@ -24,15 +25,74 @@ describe('pinLabel', () => {
   })
 })
 
+const offer = (overrides: Record<string, unknown>) =>
+  ({
+    title: 'Kopi',
+    label: '$1',
+    offerType: 'FIXED_PRICE',
+    priceMinor: 100,
+    discountPercent: null,
+    ...overrides,
+  }) as never
+
 describe('pinBadgeText', () => {
-  it('shows the price for one deal and a count for several', () => {
-    expect(pinBadgeText([{ title: 'Kopi', label: '$1' }])).toBe('$1')
+  it('shows the price for one deal', () => {
+    expect(pinBadgeText([offer({})])).toBe('$1')
+  })
+
+  it('shows the cheapest price for several, or a count when none has a price', () => {
     expect(
       pinBadgeText([
-        { title: 'Kopi', label: '$1' },
-        { title: 'Toast', label: '$2' },
+        offer({ label: '$2', priceMinor: 200 }),
+        offer({ label: '$1.50', priceMinor: 150 }),
+      ]),
+    ).toBe('from $1.50')
+    expect(
+      pinBadgeText([
+        offer({ label: '1-for-1', priceMinor: null }),
+        offer({ label: 'Free kopi', priceMinor: null }),
       ]),
     ).toBe('2 deals')
+  })
+})
+
+describe('pinTag', () => {
+  it('names the offer when the badge shows a price', () => {
+    expect(pinTag([offer({ offerType: 'BUY_ONE_GET_ONE' })])).toEqual({
+      text: '1-for-1',
+      tone: 'promo',
+    })
+    expect(pinTag([offer({ offerType: 'PERCENT_OFF', discountPercent: 40 })])).toEqual({
+      text: '−40%',
+      tone: 'promo',
+    })
+  })
+
+  it('never repeats what the badge already says', () => {
+    expect(
+      pinTag([offer({ label: '1-for-1', priceMinor: null, offerType: 'BUY_ONE_GET_ONE' })]),
+    ).toBeNull()
+    expect(
+      pinTag([
+        offer({
+          label: '20% off',
+          priceMinor: null,
+          offerType: 'PERCENT_OFF',
+          discountPercent: 20,
+        }),
+      ]),
+    ).toBeNull()
+    expect(pinTag([offer({})])).toBeNull()
+  })
+
+  it('counts the deals when several share an outlet and one price leads', () => {
+    expect(pinTag([offer({}), offer({ label: '$2', priceMinor: 200 })])).toEqual({
+      text: '2 deals',
+      tone: 'plain',
+    })
+    expect(
+      pinTag([offer({ priceMinor: null, label: 'A' }), offer({ priceMinor: null, label: 'B' })]),
+    ).toBeNull()
   })
 })
 
@@ -60,6 +120,28 @@ describe('createVenuePinIcon', () => {
     expect(element.querySelector(`.${DEAL_PIN_CLASS}__badge`)?.textContent).toBe('<b>$12</b>')
     expect(element.querySelector('b')).toBeNull()
     expect(element.querySelector('img')).toBeNull()
+  })
+
+  it('hangs the oval on a stem and a dot that marks the exact spot', () => {
+    const element = createVenuePinIcon({
+      deals: [
+        {
+          ...(offer({ offerType: 'BUY_ONE_GET_ONE' }) as object),
+          category: 'FOOD',
+          validUntil: null,
+          votes: { alive: 0, dead: 0 },
+        },
+      ] as never,
+    }).createIcon()
+    const stack = element.querySelector(`.${DEAL_PIN_CLASS}__stack`) as HTMLElement
+    expect([...stack.children].map((child) => child.className)).toEqual([
+      `${DEAL_PIN_CLASS}__bubble`,
+      `${DEAL_PIN_CLASS}__stem`,
+      `${DEAL_PIN_CLASS}__dot`,
+    ])
+    const tag = element.querySelector(`.${DEAL_PIN_CLASS}__tag`) as HTMLElement
+    expect(tag.textContent).toBe('1-for-1')
+    expect(tag.classList).toContain(`${DEAL_PIN_CLASS}__tag--promo`)
   })
 })
 

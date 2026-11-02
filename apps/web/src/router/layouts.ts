@@ -1,8 +1,8 @@
 import type { RouteMeta } from 'vue-router'
 
-// `shell` wraps the page in the shared container with header clearance.
+// `page` puts the page under the All Deals header in the shared container.
 // `canvas` hands the whole viewport to the page so the floating header sits on top of it.
-export type SiteLayout = 'shell' | 'canvas' | 'landing' | 'auth'
+export type SiteLayout = 'page' | 'canvas' | 'landing' | 'auth'
 
 declare module 'vue-router' {
   interface RouteMeta {
@@ -11,4 +11,4 @@ declare module 'vue-router' {
 }
 
 export const routeLayout = (route: { readonly meta: RouteMeta }): SiteLayout =>
-  route.meta.layout ?? 'shell'
+  route.meta.layout ?? 'page'

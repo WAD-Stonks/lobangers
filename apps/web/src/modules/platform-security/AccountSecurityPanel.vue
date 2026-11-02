@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import TicketLoading from '@web/components/TicketLoading.vue'
+import { formatDateTime } from '@web/lib/format'
 import AccountSessionsPanel from '@web/modules/platform-security/AccountSessionsPanel.vue'
 import FreshLoginNotice from '@web/modules/platform-security/FreshLoginNotice.vue'
 import { type SecurityProps, useAccountSecurity } from '@web/modules/platform-security/use-account-security'
@@ -28,7 +30,7 @@ const {
       @click="reload"
     >Reload security</button>
     <p v-if="success" role="status">{{ success }}</p>
-    <p v-if="loading" role="status">Loading security…</p>
+    <TicketLoading v-if="loading" label="Loading security…" />
     <p v-if="error" role="alert">{{ error }}</p>
     <p v-if="uncertain && !error" role="alert">
       Result unknown. Do not repeat this action; reload security and wait for a newer account version.
@@ -49,7 +51,7 @@ const {
       <p class="small text-muted">Account ID: {{ userId }} · Version {{ safeVersion }}</p>
       <p class="fw-semibold">{{ account.state }}</p>
       <p v-if="account.suspendedAt" class="small">
-        Suspended at: <time :datetime="account.suspendedAt">{{ account.suspendedAt }}</time>
+        Suspended at: <time :datetime="account.suspendedAt">{{ formatDateTime(account.suspendedAt) }}</time>
       </p>
       <div class="security-methods mb-3">
         <p>Email verified: {{ account.emailVerified ? 'Yes' : 'No' }}</p>
