@@ -100,8 +100,20 @@ const dealBody = (outletIds: string[], overrides: Record<string, unknown> = {}) 
   startDate: '',
   endDate: '',
   terms: 'Dine-in only',
+  photoKey: null,
   ...overrides,
 })
+
+const photo = async (uploaderId: string) =>
+  db.uploadedFile.create({
+    data: {
+      key: `synthetic-${randomUUID()}`,
+      url: 'https://synthetic.example.test/photo.webp',
+      mimeType: 'image/webp',
+      sizeBytes: 128,
+      uploaderId,
+    },
+  })
 
 const scopeOf = async (dealId: string) => {
   const deal = await db.deal.findUniqueOrThrow({
@@ -364,18 +376,128 @@ describe('merchant promotions', () => {
   })
 })
 
-describe('community deal submission', () => {
-  const photo = async (uploaderId: string) =>
-    db.uploadedFile.create({
-      data: {
-        key: `synthetic-${randomUUID()}`,
-        url: 'https://synthetic.example.test/photo.webp',
-        mimeType: 'image/webp',
-        sizeBytes: 128,
-        uploaderId,
-      },
-    })
+describe('merchant deal photos', () => {
+  it('saves a deal with the merchant’s own unused photo', async () => {
+    const [outlet] = await brand('Photo create', 1)
+    await grant(merchant.id, outlet.id)
+    const file = await photo(merchant.id)
 
+    const created = await call(
+      merchant,
+      'POST',
+      '/merchant/deals',
+      dealBody([outlet.id], { photoKey: file.key }),
+    )
+    expect(created.status).toBe(201)
+    expect(created.body.photo).toEqual({ key: file.key, url: file.url })
+    const stored = await db.uploadedFile.findUniqueOrThrow({ where: { key: file.key } })
+    expect(stored.dealId).toBe(created.body.id)
+
+    const listed = await call(merchant, 'GET', '/merchant/deals')
+    const item = listed.body.items.find((deal: { id: string }) => deal.id === created.body.id)
+    expect(item.photo).toEqual({ key: file.key, url: file.url })
+  })
+
+  it('saves a deal without a photo, since it is optional', async () => {
+    const [outlet] = await brand('Photo none', 1)
+    await grant(merchant.id, outlet.id)
+    const created = await call(merchant, 'POST', '/merchant/deals', dealBody([outlet.id]))
+    expect(created.status).toBe(201)
+    expect(created.body.photo).toBeNull()
+  })
+
+  it('refuses someone else’s, a used or an unknown photo, writing nothing', async () => {
+    const [outlet] = await brand('Photo refuse', 1)
+    await grant(merchant.id, outlet.id)
+    const someoneElses = await photo(member.id)
+    const used = await photo(merchant.id)
+    expect(
+      (
+        await call(
+          merchant,
+          'POST',
+          '/merchant/deals',
+          dealBody([outlet.id], { photoKey: used.key }),
+        )
+      ).status,
+    ).toBe(201)
+    const before = await db.deal.count()
+
+    for (const photoKey of [someoneElses.key, used.key, 'never-uploaded']) {
+      const refused = await call(
+        merchant,
+        'POST',
+        '/merchant/deals',
+        dealBody([outlet.id], { photoKey }),
+      )
+      expect(refused.status).toBe(400)
+      expect(refused.body.error.message).toBe('The photo was not found. Please upload it again.')
+    }
+    expect(await db.deal.count()).toBe(before)
+    expect(
+      (await db.uploadedFile.findUniqueOrThrow({ where: { key: someoneElses.key } })).dealId,
+    ).toBeNull()
+  })
+
+  it('keeps, replaces and removes the photo when editing', async () => {
+    const [outlet] = await brand('Photo edit', 1)
+    await grant(merchant.id, outlet.id)
+    const first = await photo(merchant.id)
+    const created = await call(
+      merchant,
+      'POST',
+      '/merchant/deals',
+      dealBody([outlet.id], { photoKey: first.key }),
+    )
+    const path = `/merchant/deals/${created.body.id}`
+
+    // Sending the current key, or leaving the field out, keeps the photo as it is.
+    const kept = await call(merchant, 'PATCH', path, dealBody([outlet.id], { photoKey: first.key }))
+    expect(kept.status).toBe(200)
+    expect(kept.body.photo).toEqual({ key: first.key, url: first.url })
+    const { photoKey: _left, ...withoutPhoto } = dealBody([outlet.id])
+    const untouched = await call(merchant, 'PATCH', path, withoutPhoto)
+    expect(untouched.status).toBe(200)
+    expect(untouched.body.photo).toEqual({ key: first.key, url: first.url })
+    expect((await db.uploadedFile.findUniqueOrThrow({ where: { key: first.key } })).deletedAt).toBe(
+      null,
+    )
+
+    // A new key replaces it; the old photo is marked deleted but stays linked for history.
+    const second = await photo(merchant.id)
+    const replaced = await call(
+      merchant,
+      'PATCH',
+      path,
+      dealBody([outlet.id], { photoKey: second.key }),
+    )
+    expect(replaced.status).toBe(200)
+    expect(replaced.body.photo).toEqual({ key: second.key, url: second.url })
+    const old = await db.uploadedFile.findUniqueOrThrow({ where: { key: first.key } })
+    expect(old.deletedAt).toBeInstanceOf(Date)
+    expect(old.dealId).toBe(created.body.id)
+
+    // A refused new photo leaves the current one in place.
+    const someoneElses = await photo(member.id)
+    expect(
+      (await call(merchant, 'PATCH', path, dealBody([outlet.id], { photoKey: someoneElses.key })))
+        .status,
+    ).toBe(400)
+    expect(
+      (await db.uploadedFile.findUniqueOrThrow({ where: { key: second.key } })).deletedAt,
+    ).toBe(null)
+
+    // null removes it.
+    const removed = await call(merchant, 'PATCH', path, dealBody([outlet.id], { photoKey: null }))
+    expect(removed.status).toBe(200)
+    expect(removed.body.photo).toBeNull()
+    expect(
+      (await db.uploadedFile.findUniqueOrThrow({ where: { key: second.key } })).deletedAt,
+    ).toBeInstanceOf(Date)
+  })
+})
+
+describe('community deal submission', () => {
   const submission = (stallIds: string[], photoKey: string, overrides = {}) => ({
     title: '50% off kopi',
     description: 'Half-price kopi all day.',

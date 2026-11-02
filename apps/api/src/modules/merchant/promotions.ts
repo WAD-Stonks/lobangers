@@ -38,6 +38,13 @@ const merchantDealSelect = {
   validUntil: true,
   contentVersion: true,
   venues: { select: { venueId: true } },
+  // The deal's current photo: its first upload that has not been removed.
+  images: {
+    where: activeRecord,
+    orderBy: { createdAt: 'asc' },
+    take: 1,
+    select: { id: true, key: true, url: true },
+  },
 } as const
 
 type MerchantDealRow = {
@@ -54,6 +61,7 @@ type MerchantDealRow = {
   validUntil: Date | null
   contentVersion: number
   venues: { venueId: string }[]
+  images: { id: string; key: string; url: string }[]
 }
 
 const toMerchantDeal = (row: MerchantDealRow, now: Date): MerchantDeal => ({
@@ -70,6 +78,7 @@ const toMerchantDeal = (row: MerchantDealRow, now: Date): MerchantDeal => ({
   endDate: row.validUntil ? lastDayBefore(row.validUntil) : '',
   terms: row.terms ?? '',
   endedAt: row.validUntil && row.validUntil <= now ? row.validUntil.toISOString() : null,
+  photo: row.images[0] ? { key: row.images[0].key, url: row.images[0].url } : null,
 })
 
 const hasEnded = (row: { validUntil: Date | null }, now: Date) =>
@@ -191,6 +200,28 @@ const rejectPastEnd = (input: MerchantDealBody, now: Date) => {
     throw new DomainError('BAD_REQUEST', 'The last day cannot be in the past')
 }
 
+const unsetOrNull = (field: string) => ({ OR: [{ [field]: null }, { [field]: { isSet: false } }] })
+
+// Attaches the photo only if it is still this merchant's unused upload, like community
+// submissions do.
+const claimPhoto = async (
+  tx: AccessTransaction,
+  userId: string,
+  dealId: string,
+  photoKey: string,
+) => {
+  const claimed = await tx.uploadedFile.updateMany({
+    where: {
+      key: photoKey,
+      uploaderId: userId,
+      AND: [unsetOrNull('dealId'), unsetOrNull('deletedAt')],
+    },
+    data: { dealId },
+  })
+  if (claimed.count !== 1)
+    throw new DomainError('BAD_REQUEST', 'The photo was not found. Please upload it again.')
+}
+
 // Each change is a new content version that the merchant's grants approve at once.
 const approvedAs = (userId: string, version: number, now: Date) => ({
   contentVersion: version,
@@ -222,9 +253,14 @@ export const createMerchantDeal = async (
         scopeConfirmation: confirmedScope(merchantId, input.outletIds, grantIds, 1, now),
         venues: { create: input.outletIds.map((venueId) => ({ venueId })) },
       },
+      select: { id: true },
+    })
+    if (input.photoKey) await claimPhoto(tx, userId, deal.id, input.photoKey)
+    const created = await tx.deal.findUniqueOrThrow({
+      where: { id: deal.id },
       select: merchantDealSelect,
     })
-    return toMerchantDeal(deal, now)
+    return toMerchantDeal(created, now)
   })
 }
 
@@ -260,6 +296,15 @@ export const updateMerchantDeal = async (
       ...input.outletIds,
     ])
     const version = deal.contentVersion + 1
+    // Leaving photoKey out, or sending the current photo's key, keeps it; a new key replaces it
+    // and null removes it. A removed photo is marked deleted, not unlinked, so the deal's
+    // history keeps it.
+    const current = deal.images[0]
+    if (input.photoKey !== undefined && input.photoKey !== (current?.key ?? null)) {
+      if (current)
+        await tx.uploadedFile.update({ where: { id: current.id }, data: { deletedAt: now } })
+      if (input.photoKey) await claimPhoto(tx, userId, dealId, input.photoKey)
+    }
     await tx.dealVenue.deleteMany({ where: { dealId } })
     const updated = await tx.deal.update({
       where: { id: dealId },

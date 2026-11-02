@@ -4,6 +4,7 @@ import {
   dealDateSchema,
   dealLocationIdsSchema,
   dealObjectIdSchema,
+  dealPhotoKeySchema,
 } from '@contracts/deal-forms'
 import { offerTypeSchema } from '@contracts/deals'
 import { z } from 'zod'
@@ -31,8 +32,16 @@ export const merchantDealBodySchema = z
     startDate: dealDateSchema.or(z.literal('')),
     endDate: dealDateSchema.or(z.literal('')),
     terms: z.string().trim().max(1000),
+    // The deal's one optional photo. A key attaches that photo (replacing any other) and null
+    // removes it. Leaving it out keeps the deal's current photo, or none for a new deal.
+    photoKey: dealPhotoKeySchema.nullable().optional(),
   })
   .superRefine(checkDealFields)
+
+export const merchantDealPhotoSchema = z.strictObject({
+  key: z.string(),
+  url: z.string().url(),
+})
 
 export const merchantDealSchema = z.strictObject({
   id: dealObjectIdSchema,
@@ -49,6 +58,7 @@ export const merchantDealSchema = z.strictObject({
   terms: z.string(),
   // When the deal stopped running, once its end has passed (ended early or ran out).
   endedAt: z.string().datetime().nullable(),
+  photo: merchantDealPhotoSchema.nullable(),
 })
 export const merchantDealsResponseSchema = z.strictObject({
   items: z.array(merchantDealSchema),
