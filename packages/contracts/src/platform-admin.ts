@@ -140,7 +140,9 @@ export const platformAuditQuerySchema = z
   })
 export const platformAuditEntrySchema = z.object({
   id: platformObjectIdSchema,
-  actorId: platformObjectIdSchema,
+  actorId: platformObjectIdSchema.nullable(),
+  actorKind: z.enum(['HUMAN', 'SYSTEM']).default('HUMAN'),
+  actorSource: z.enum(['ADMIN', 'NATIVE_AUTH']).default('ADMIN'),
   actorName: z.string(),
   action: z.string(),
   targetUserId: platformObjectIdSchema.nullable(),

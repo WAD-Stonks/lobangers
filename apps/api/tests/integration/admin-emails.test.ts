@@ -78,7 +78,7 @@ const request = (
       Origin: origin,
       'Content-Type': 'application/json',
       Cookie: cookie,
-      'X-Forwarded-For': `198.51.100.${ip++}`,
+      'X-Forwarded-For': `198.18.${Math.floor(ip / 250)}.${(ip++ % 250) + 1}`,
     },
     ...(body ? { body: JSON.stringify(body) } : {}),
     redirect: 'manual',
@@ -366,6 +366,323 @@ const alterDelegate = <T extends object>(
   })
 
 describe('admin email intent through production native HTTP and disposable database', () => {
+  it.each([1, 2])(
+    'rolls back automatic grant when platform audit write %s fails',
+    async (failureAt) => {
+      const target = await signup()
+      expect((await verificationOTP(target.email)).status).toBe(200)
+      const pending = await db.merchantAccessRequest.create({
+        data: {
+          userId: target.user.id,
+          venueId: '000000000000000000000001',
+          userName: 'Synthetic',
+          userEmail: target.email,
+          venueName: 'Synthetic',
+          merchantName: 'Synthetic',
+          message: 'Pending',
+        },
+      })
+      await approve(target.email)
+      let writes = 0
+      grantDatabase = transactionDatabase((tx) =>
+        alterDelegate(tx, 'platformAudit', 'create', async () => {
+          if (++writes === failureAt) throw new Error('Controlled platform audit failure')
+        }),
+      )
+      try {
+        const login = await request('/sign-in/email', {
+          email: target.email,
+          password: target.password,
+        })
+        expect(login.status).toBe(200)
+        expect((await login.json()).user.role).toBe('USER')
+        expect(writes).toBe(failureAt)
+        expect(await db.user.findUnique({ where: { id: target.user.id } })).toMatchObject({
+          role: 'USER',
+          platformVersion: null,
+        })
+        expect(
+          await db.merchantAccessRequest.findUnique({ where: { id: pending.id } }),
+        ).toMatchObject({ status: 'PENDING', version: 1, reviewedById: null })
+        expect(await db.platformAudit.count({ where: { targetUserId: target.user.id } })).toBe(0)
+        expect(await auditCount(target.user.id)).toBe(0)
+      } finally {
+        grantDatabase = undefined
+      }
+    },
+  )
+  it.each(['verification', 'primary'] as const)(
+    'rechecks approval after positive %s preflight and concurrent revocation',
+    async (path) => {
+      const target = await signup()
+      if (path === 'primary') expect((await verificationOTP(target.email)).status).toBe(200)
+      await approve(target.email)
+      const gate = barrier()
+      const database = transactionDatabase((tx) =>
+        alterDelegate(tx, 'platformAccessFence', 'upsert', gate.pause),
+      )
+      if (path === 'primary') grantDatabase = database
+      else preparationDatabase = database
+      const pending =
+        path === 'primary'
+          ? request('/sign-in/email', { email: target.email, password: target.password })
+          : verificationOTP(target.email)
+      try {
+        await Promise.race([
+          gate.waiting,
+          pending.then(() => {
+            throw new Error('Missed positive-preflight barrier')
+          }),
+        ])
+        const { operateAdminEmail } = await import('@api/modules/platform-admin/admin-emails')
+        await operateAdminEmail(db, {
+          email: target.email,
+          action: 'revoke',
+          apply: true,
+          expectedVersion: 1,
+          operatorLabel: 'Synthetic operator',
+          reason: 'Revoke between preflight and transaction',
+        })
+        gate.release()
+        expect((await pending).status).toBe(200)
+        expect(await db.user.findUnique({ where: { id: target.user.id } })).toMatchObject({
+          role: 'USER',
+          platformVersion: null,
+          authVersion: null,
+          emailVerified: true,
+        })
+        expect(
+          await db.account.count({ where: { userId: target.user.id, providerId: 'credential' } }),
+        ).toBe(1)
+        expect(await auditCount(target.user.id)).toBe(0)
+        expect(await db.platformAudit.count({ where: { targetUserId: target.user.id } })).toBe(0)
+        expect(await db.adminEmail.findUnique({ where: { email: target.email } })).toMatchObject({
+          active: false,
+          version: 2,
+        })
+      } finally {
+        gate.release()
+        await pending
+        grantDatabase = undefined
+        preparationDatabase = undefined
+      }
+    },
+  )
+
+  it.each(['CONFLICT', 'BAD_REQUEST', 'UNAUTHORIZED', 'PRECONDITION_FAILED', 'database'] as const)(
+    'classifies %s preparation failure without leaking private error facts',
+    async (code) => {
+      const target = await signup()
+      await approve(target.email)
+      const { DomainError } = await import('@api/modules/domain-error')
+      const secret =
+        'PRIVATE password=secret token=123456 mongodb://credential@host/db https://private.example/verify?token=SECRET mailbox@example.test'
+      const error = code === 'database' ? new Error(secret) : new DomainError(code, secret)
+      const warning = vi.spyOn(console, 'warn').mockImplementation(() => {})
+      preparationDatabase = transactionDatabase((tx) =>
+        alterDelegate(tx, 'user', 'findUnique', async () => {
+          throw error
+        }),
+      )
+      const before = await db.user.findUniqueOrThrow({ where: { id: target.user.id } })
+      try {
+        const response = await verificationOTP(target.email)
+        expect(response.status).toBe(500)
+        expect(await response.json()).toMatchObject({
+          message: 'Email verification could not be completed',
+        })
+        const category =
+          code === 'database'
+            ? 'UNEXPECTED_DATABASE_FAILURE'
+            : code === 'PRECONDITION_FAILED'
+              ? 'IDENTITY_ERROR'
+              : code
+        expect(warning).toHaveBeenCalledWith(
+          JSON.stringify({ event: 'admin-email-verification-preparation-failed', category }),
+        )
+        expect(JSON.stringify(warning.mock.calls)).not.toContain('PRIVATE')
+        expect(warning.mock.calls).toHaveLength(1)
+        expect(await db.user.findUnique({ where: { id: target.user.id } })).toEqual(before)
+        expect(await auditCount(target.user.id)).toBe(0)
+      } finally {
+        preparationDatabase = undefined
+        warning.mockRestore()
+      }
+    },
+  )
+
+  it('publishes automatic grant and request retirement in the admin audit with system attribution', async () => {
+    const target = await signup()
+    const pending = await db.merchantAccessRequest.create({
+      data: {
+        userId: target.user.id,
+        venueId: '000000000000000000000001',
+        userName: 'Synthetic',
+        userEmail: target.email,
+        venueName: 'Synthetic',
+        merchantName: 'Synthetic',
+        message: 'Pending',
+      },
+    })
+    await approve(target.email)
+    const login = await otpLogin(target.email)
+    expect(login.status).toBe(200)
+    const audit = await nativeFetch(`${baseURL}/api/admin/audit?userId=${target.user.id}`, {
+      headers: { Cookie: cookies(login) },
+    })
+    expect(audit.status).toBe(200)
+    const body = await audit.json()
+    expect(body.items).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          action: 'ROLE_CHANGED',
+          actorId: null,
+          actorKind: 'SYSTEM',
+          actorSource: 'NATIVE_AUTH',
+          actorName: 'Native authentication admin-email policy',
+          roleBefore: 'USER',
+          roleAfter: 'ADMIN',
+        }),
+        expect.objectContaining({
+          action: 'REQUEST_REJECTED',
+          actorId: null,
+          actorKind: 'SYSTEM',
+          actorSource: 'NATIVE_AUTH',
+          actorName: 'Native authentication admin-email policy',
+        }),
+      ]),
+    )
+    expect(body.items).toHaveLength(2)
+    expect(await db.merchantAccessRequest.findUnique({ where: { id: pending.id } })).toMatchObject({
+      status: 'REJECTED',
+      reviewedById: null,
+    })
+  })
+
+  it.each(['absent', 'inactive'] as const)(
+    'keeps %s ordinary primary grant callback read-only',
+    async (state) => {
+      const target = await signup()
+      expect((await verificationOTP(target.email)).status).toBe(200)
+      if (state === 'inactive') {
+        await approve(target.email)
+        await db.adminEmail.update({ where: { email: target.email }, data: { active: false } })
+      }
+      const transactions = vi.fn(async () => {
+        throw new Error('Ordinary sign-in must not enter policy transaction')
+      })
+      grantDatabase = new Proxy(db, {
+        get: (target, key, receiver) =>
+          key === '$transaction' ? transactions : Reflect.get(target, key, receiver),
+      })
+      const before = await db.platformAccessFence.findUnique({ where: { id: 'platform-access' } })
+      try {
+        const result = await request('/sign-in/email', {
+          email: target.email,
+          password: target.password,
+        })
+        expect(result.status).toBe(200)
+        expect((await result.json()).user.role).toBe('USER')
+        expect(transactions).not.toHaveBeenCalled()
+        expect(
+          await db.platformAccessFence.findUnique({ where: { id: 'platform-access' } }),
+        ).toEqual(before)
+      } finally {
+        grantDatabase = undefined
+      }
+    },
+  )
+
+  it.each(['malformed', 'collision'] as const)(
+    'demotes %s legacy ADMIN and retires normalized intent without grant validation',
+    async (kind) => {
+      const admin = await adminActor()
+      const target = await signup()
+      const email = kind === 'malformed' ? `legacy-${randomUUID()}@localhost` : target.email
+      await db.user.update({
+        where: { id: target.user.id },
+        data: { email: kind === 'collision' ? email.toUpperCase() : email, role: 'ADMIN' },
+      })
+      if (kind === 'collision') await signup(email)
+      await approve(email)
+      await roleChange(admin.id, target.user.id, 'USER')
+      expect(await db.user.findUnique({ where: { id: target.user.id } })).toMatchObject({
+        role: 'USER',
+        platformVersion: 1,
+      })
+      expect(await db.adminEmail.findUnique({ where: { email } })).toMatchObject({
+        active: false,
+        version: 2,
+      })
+      expect(
+        await db.adminEmailEvent.findFirst({
+          where: { targetUserId: target.user.id, action: 'REVOKED' },
+        }),
+      ).toMatchObject({ actorUserId: admin.id })
+      await expect(roleChange(admin.id, target.user.id, 'ADMIN', 1)).rejects.toMatchObject({
+        code: kind === 'malformed' ? 'BAD_REQUEST' : 'PRECONDITION_FAILED',
+      })
+      expect(await db.user.findUnique({ where: { id: target.user.id } })).toMatchObject({
+        role: 'USER',
+        platformVersion: 1,
+      })
+    },
+  )
+
+  it.each(['absent', 'inactive'] as const)(
+    'skips verification policy entirely for %s legacy intent',
+    async (state) => {
+      const { prepareAdminEmailVerification } = await import(
+        '@api/modules/platform-admin/admin-emails'
+      )
+      for (const kind of ['malformed', 'collision'] as const) {
+        const email = kind === 'malformed' ? `legacy-${randomUUID()}@localhost` : mailbox()
+        const user = await db.user.create({
+          data: {
+            email,
+            name: 'Legacy',
+            role: 'USER',
+            emailVerified: false,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          },
+        })
+        if (kind === 'collision')
+          await db.user.create({
+            data: {
+              email: email.toUpperCase(),
+              name: 'Collision',
+              emailVerified: false,
+              createdAt: new Date(),
+              updatedAt: new Date(),
+            },
+          })
+        if (state === 'inactive') {
+          await approve(email)
+          await db.adminEmail.update({ where: { email }, data: { active: false } })
+        }
+        const transactions = vi.fn(async () => {
+          throw new Error('Ordinary verification must not enter a transaction')
+        })
+        const database = new Proxy(db, {
+          get: (target, key, receiver) =>
+            key === '$transaction' ? transactions : Reflect.get(target, key, receiver),
+        })
+        const before = await db.user.findUniqueOrThrow({ where: { id: user.id } })
+        await expect(
+          prepareAdminEmailVerification(database, {
+            userId: user.id,
+            email,
+            authVersion: -1,
+            platformVersion: -1,
+          }),
+        ).resolves.toBeNull()
+        expect(transactions).not.toHaveBeenCalled()
+        expect(await db.user.findUnique({ where: { id: user.id } })).toEqual(before)
+      }
+    },
+  )
+
   it('does not dispatch provision for requestless native helpers or foreign verification Request identity', async () => {
     const target = await signup()
     await approve(target.email)
@@ -767,6 +1084,7 @@ describe('admin email intent through production native HTTP and disposable datab
         await db.merchantAccessRequest.findUnique({ where: { id: pending.id } }),
       ).toMatchObject({ status: 'PENDING', version: 1 })
       expect(await auditCount(target.user.id)).toBe(0)
+      expect(await db.platformAudit.count({ where: { targetUserId: target.user.id } })).toBe(0)
     } finally {
       grantDatabase = undefined
     }
@@ -830,7 +1148,8 @@ describe('admin email intent through production native HTTP and disposable datab
     await roleChange(admin.id, target.user.id, 'USER', 1)
     if (!event) throw new Error('Missing issued event')
     const { provisionVerifiedAdminEmail } = await import('@api/modules/platform-admin/admin-emails')
-    await expect(provisionVerifiedAdminEmail(db, event)).rejects.toMatchObject({ code: 'CONFLICT' })
+    // Inactive policy is now a read-only no-op, even for stale evidence.
+    await expect(provisionVerifiedAdminEmail(db, event)).resolves.toBeNull()
     expect(await db.adminEmail.findUnique({ where: { email: target.email } })).toMatchObject({
       active: false,
       version: 2,

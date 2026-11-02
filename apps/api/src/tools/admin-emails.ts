@@ -6,6 +6,7 @@ import {
   canonicalAdminEmail,
   inspectAdminEmail,
   operateAdminEmail,
+  validateAdminEmailOperatorText,
 } from '@api/modules/platform-admin/admin-emails'
 
 const invalid = () =>
@@ -48,22 +49,15 @@ export const parseAdminEmailArgs = (args: string[]) => {
   const expectedVersion = flags.has('--expected-version')
     ? integer(flags.get('--expected-version'))
     : undefined
-  const operatorLabel = flags.get('--operator')?.trim()
-  const reason = flags.get('--reason')?.trim()
+  const operatorLabel = flags.has('--operator')
+    ? validateAdminEmailOperatorText(flags.get('--operator') ?? '', 'label')
+    : undefined
+  const reason = flags.has('--reason')
+    ? validateAdminEmailOperatorText(flags.get('--reason') ?? '', 'reason')
+    : undefined
   const database = flags.get('--database')
   if (apply && (!database || expectedVersion === undefined || !operatorLabel || !reason))
     throw invalid()
-  for (const [value, max] of [
-    [operatorLabel, 80],
-    [reason, 500],
-  ] as const)
-    if (
-      value !== undefined &&
-      (!value ||
-        value.length > max ||
-        [...value].some((char) => char.charCodeAt(0) < 32 || char.charCodeAt(0) === 127))
-    )
-      throw invalid()
   return { action, email, apply, limit, database, expectedVersion, operatorLabel, reason } as const
 }
 

@@ -4,6 +4,7 @@ import {
 } from '@api/modules/account/security-access'
 import { isSelectableCatalogueVenue } from '@api/modules/deals/outlet-eligibility'
 import { DomainError } from '@api/modules/domain-error'
+import { syncRoleAdminEmail } from '@api/modules/platform-admin/admin-emails'
 import { activateGrant } from '@api/modules/platform-admin/grants'
 import { requestSubmission } from '@api/modules/platform-admin/schemas'
 import {
@@ -104,6 +105,7 @@ export const reviewRequest = (
       const { venue } = await activeVenue(tx, request.venueId)
       if (!isSelectableCatalogueVenue(venue))
         throw new DomainError('PRECONDITION_FAILED', 'Verified current outlet occupancy required')
+      await syncRoleAdminEmail(tx, target, 'MERCHANT', actorId, input.note)
       await activateGrant(tx, target.id, request.venueId)
       await tx.user.update({
         where: { id: target.id },

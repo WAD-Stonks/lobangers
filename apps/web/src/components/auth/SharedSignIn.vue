@@ -82,14 +82,16 @@ const google = async () => {
   const current = ++generation
   pending.value = true; error.value = ''; password.value = ''; code.value = ''
   // Keep the admin exact allowlist. Only the public account entry accepts safe SPA paths.
-  const destination = safeRedirect(props.destination)
-  const candidate = new URL(destination, window.location.origin)
-  const callback = props.context === 'account'
-    ? candidate.origin === window.location.origin ? candidate.href : new URL('/', window.location.origin).href
-    : safeAuthDestination(props.destination, window.location.origin)
-  const errorCallback = props.context === 'account'
-    ? new URL(`/login?redirect=${encodeURIComponent(candidate.origin === window.location.origin ? destination : '/')}`, window.location.origin).href
-    : callback
+  let callback: string
+  let errorCallback: string
+  if (props.context === 'account') {
+    const destination = safeRedirect(props.destination)
+    callback = new URL(destination, window.location.origin).href
+    errorCallback = new URL(`/login?redirect=${encodeURIComponent(destination)}`, window.location.origin).href
+  } else {
+    callback = safeAuthDestination(props.destination, window.location.origin)
+    errorCallback = callback
+  }
   try {
     const result = await authClient.signIn.social({ provider: 'google', callbackURL: callback, newUserCallbackURL: callback, errorCallbackURL: errorCallback })
     if (alive && current === generation && result.error) error.value = 'Google sign-in could not be completed. Please try again.'
@@ -134,7 +136,7 @@ const switchMethod = async (next: 'code' | 'password', focusEmail = false) => {
     input?.focus()
   }
 }
-const recovered = () => { recovery.value = false; notice.value = 'Password reset. Sign in again with your new password.' }
+const recovered = () => { method.value = 'password'; recovery.value = false; notice.value = 'Password reset. Sign in again with your new password.' }
 </script>
 
 <template>

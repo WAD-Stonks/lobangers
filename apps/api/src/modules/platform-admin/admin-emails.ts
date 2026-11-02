@@ -5,6 +5,7 @@ import {
   requireActiveSessionWrite,
 } from '@api/modules/account/security-access'
 import { DomainError } from '@api/modules/domain-error'
+import { invalidatePendingRequests } from '@api/modules/platform-admin/invalidation'
 import {
   type AccessTransaction,
   accessTransaction,
@@ -32,7 +33,8 @@ const uniqueIdentity = async (db: Pick<Database, 'user'>, email: string) => {
 }
 
 type OperatorAction = 'preapprove' | 'revoke'
-const operatorText = (value: string, max: number) => {
+export const validateAdminEmailOperatorText = (value: string, kind: 'label' | 'reason') => {
+  const max = kind === 'label' ? 80 : 500
   const result = z
     .string()
     .trim()
@@ -124,8 +126,8 @@ export const operateAdminEmail = async (
     expectedVersion < 0
   )
     throw new DomainError('BAD_REQUEST', 'Expected approval version is required')
-  const operatorLabel = operatorText(input.operatorLabel ?? '', 80)
-  const reason = operatorText(input.reason ?? '', 500)
+  const operatorLabel = validateAdminEmailOperatorText(input.operatorLabel ?? '', 'label')
+  const reason = validateAdminEmailOperatorText(input.reason ?? '', 'reason')
   return accessTransaction(db, async (tx) => {
     const state = await inspectAdminEmail(tx, email)
     checkOperatorTarget(state, input.action)
@@ -170,10 +172,14 @@ export const syncRoleAdminEmail = async (
   actorUserId: string,
   reason: string,
 ) => {
-  const email = canonicalAdminEmail(target.email)
-  if ((await uniqueIdentity(tx, email))?.id !== target.id) throw conflict()
-  if (role === 'ADMIN' && !target.emailVerified)
-    throw new DomainError('PRECONDITION_FAILED', 'Verify the target email before assigning ADMIN')
+  // Removal is fail-safe even for malformed or ambiguous legacy identity.
+  const email =
+    role === 'ADMIN' ? canonicalAdminEmail(target.email) : target.email.trim().toLowerCase()
+  if (role === 'ADMIN') {
+    if ((await uniqueIdentity(tx, email))?.id !== target.id) throw conflict()
+    if (!target.emailVerified)
+      throw new DomainError('PRECONDITION_FAILED', 'Verify the target email before assigning ADMIN')
+  }
   const existing = await tx.adminEmail.findUnique({ where: { email } })
   const active = role === 'ADMIN'
   if ((!existing && !active) || existing?.active === active) return
@@ -207,8 +213,17 @@ type VerificationIdentity = Pick<
 
 // The caller is the native ownership-proof callback, never a public request-body dispatcher.
 // Commit retirement before native emailVerified=true; failure must abort that transition.
-export const prepareAdminEmailVerification = (db: Database, identity: VerificationIdentity) =>
-  accessTransaction(db, async (tx): Promise<VerificationIdentity | null> => {
+export const prepareAdminEmailVerification = async (
+  db: Database,
+  identity: VerificationIdentity,
+) => {
+  // Absence is ordinary auth, not a grant: do not validate legacy grant eligibility or write.
+  if (
+    !(await db.adminEmail.findUnique({ where: { email: identity.email.trim().toLowerCase() } }))
+      ?.active
+  )
+    return null
+  return accessTransaction(db, async (tx): Promise<VerificationIdentity | null> => {
     const email = canonicalAdminEmail(identity.email)
     if (identity.email !== email) throw conflict()
     const user = await tx.user.findUnique({ where: { id: identity.userId } })
@@ -245,9 +260,18 @@ export const prepareAdminEmailVerification = (db: Database, identity: Verificati
     await tx.session.deleteMany({ where: { userId: user.id } })
     return { ...identity, authVersion: version + 1 }
   })
+}
 
-export const provisionVerifiedAdminEmail = (db: Database, event: VerifiedAuthenticationEvent) =>
-  accessTransaction(db, async (tx) => {
+export const provisionVerifiedAdminEmail = async (
+  db: Database,
+  event: VerifiedAuthenticationEvent,
+) => {
+  if (
+    !(await db.adminEmail.findUnique({ where: { email: event.email.trim().toLowerCase() } }))
+      ?.active
+  )
+    return null
+  return accessTransaction(db, async (tx) => {
     const email = canonicalAdminEmail(event.email)
     // Native identity is already canonical; do not repair malformed internal evidence.
     if (event.email !== email) throw conflict()
@@ -270,20 +294,37 @@ export const provisionVerifiedAdminEmail = (db: Database, event: VerifiedAuthent
       })
       if (touched.count !== 1) throw conflict()
     }
-    const invalidated = await tx.merchantAccessRequest.updateMany({
-      where: { userId: user.id, status: 'PENDING' },
-      data: {
-        status: 'REJECTED',
-        version: { increment: 1 },
-        reviewedById: null,
-        reviewedAt: new Date(),
-        reviewNote:
-          'Approved admin-email policy changed permission context; submit a fresh request',
-      },
-    })
+    const actor = {
+      id: null,
+      name: 'Native authentication admin-email policy',
+      kind: 'SYSTEM',
+      source: 'NATIVE_AUTH',
+    } as const
+    const invalidated = await invalidatePendingRequests(
+      tx,
+      actor,
+      user.id,
+      'Approved admin-email policy changed permission context; submit a fresh request',
+    )
     await tx.user.update({
       where: { id: user.id },
       data: { role: 'ADMIN', platformVersion: (user.platformVersion ?? 0) + 1 },
+    })
+    await tx.platformAudit.create({
+      data: {
+        actorId: actor.id,
+        actorName: actor.name,
+        actorKind: actor.kind,
+        actorSource: actor.source,
+        action: 'ROLE_CHANGED',
+        targetUserId: user.id,
+        subjectType: 'USER',
+        subjectId: user.id,
+        venueId: null,
+        note: 'Verified owner claimed approved admin-email policy',
+        roleBefore: 'USER',
+        roleAfter: 'ADMIN',
+      },
     })
     await tx.adminEmailEvent.create({
       data: {
@@ -297,8 +338,9 @@ export const provisionVerifiedAdminEmail = (db: Database, event: VerifiedAuthent
         reason: 'Verified owner claimed approved admin-email policy',
         roleBefore: 'USER',
         roleAfter: 'ADMIN',
-        invalidatedRequestCount: invalidated.count,
+        invalidatedRequestCount: invalidated,
       },
     })
     return { userId: user.id, role: 'ADMIN' as const }
   })
+}

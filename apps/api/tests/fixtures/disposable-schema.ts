@@ -12,7 +12,11 @@ export const pushDisposableSchema = async (databaseUrl: string) => {
   if (!/^mongodb:\/\/127\.0\.0\.1:\d+\/[A-Za-z0-9_]+\?/.test(databaseUrl))
     throw new Error('Disposable loopback replica URL required')
   const root = fileURLToPath(new URL('../../../../', import.meta.url))
-  const scratch = resolve(tmpdir(), 'lobangers-app-security', `schema-${randomUUID()}`)
+  const scratch = resolve(
+    tmpdir(),
+    'lobangers-pr47-review-followup/backend/disposable-schema',
+    `schema-${randomUUID()}`,
+  )
   await mkdir(scratch, { recursive: true })
   await copyFile(`${root}/packages/db/prisma/schema.prisma`, `${scratch}/schema.prisma`)
   await promisify(execFile)(

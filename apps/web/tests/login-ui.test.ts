@@ -2,7 +2,7 @@ import { flushPromises, mount } from '@vue/test-utils'
 import SharedSignIn from '@web/components/auth/SharedSignIn.vue'
 import LoginForm from '@web/modules/account/LoginForm.vue'
 import LoginPanel from '@web/modules/account/LoginPanel.vue'
-import LoginPage from '@web/pages/LoginPage.vue'
+import AuthPage from '@web/pages/AuthPage.vue'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { createMemoryHistory, createRouter } from 'vue-router'
 
@@ -55,18 +55,25 @@ async function loginPage(destination: string) {
   const router = createRouter({
     history: createMemoryHistory(),
     routes: [
-      { path: '/login', component: LoginPage },
+      { path: '/login', component: AuthPage, props: { mode: 'login' } },
       { path: '/:pathMatch(.*)*', component: { template: '<div />' } },
       { path: '/register', name: 'register', component: { template: '<div />' } },
+      { path: '/sign-up', name: 'sign-up', component: { template: '<div />' } },
       { path: '/forgot-password', name: 'forgot-password', component: { template: '<div />' } },
     ],
   })
   await router.push({ path: '/login', query: { redirect: destination } })
   await router.isReady()
-  const wrapper = mount(LoginPage, { global: { plugins: [router] } })
+  const wrapper = mount(AuthPage, { props: { mode: 'login' }, global: { plugins: [router] } })
   wrappers.push(wrapper)
   await flushPromises()
   return { wrapper, router }
+}
+async function accountForm(destination: string) {
+  const wrapper = mount(SharedSignIn, { props: { context: 'account', destination } })
+  wrappers.push(wrapper)
+  await flushPromises()
+  return { wrapper }
 }
 it.each(['account', 'admin'] as const)(
   'starts %s login with email only and reveals password only after an explicit switch',
@@ -96,7 +103,77 @@ it.each(['account', 'admin'] as const)(
   },
 )
 
-it('integrates email-first login into the current map panel without duplicate headings or lost callbacks', async () => {
+it('standalone authentication embeds shared login once and returns Google sign-in to All Deals', async () => {
+  const stub = { template: '<div />' }
+  const router = createRouter({
+    history: createMemoryHistory(),
+    routes: [
+      { path: '/sign-in', name: 'sign-in', component: AuthPage, props: { mode: 'login' } },
+      { path: '/sign-up', name: 'sign-up', component: stub },
+      { path: '/register', name: 'register', component: stub },
+      { path: '/forgot-password', name: 'forgot-password', component: stub },
+      { path: '/deals', component: stub },
+      { path: '/', component: stub },
+    ],
+  })
+  await router.push('/sign-in?redirect=/saved')
+  await router.isReady()
+  const wrapper = mount(AuthPage, { props: { mode: 'login' }, global: { plugins: [router] } })
+  wrappers.push(wrapper)
+  await flushPromises()
+  expect(wrapper.findAll('h1')).toHaveLength(1)
+  expect(wrapper.find('.auth-card').exists()).toBe(false)
+  expect(wrapper.findAll('a').filter((link) => link.text() === 'Create an account')).toHaveLength(1)
+  expect(wrapper.find('#login-password').exists()).toBe(false)
+  await wrapper.get('[data-testid="google-sign-in"]').trigger('click')
+  await flushPromises()
+  expect(sdk.social).toHaveBeenCalledWith(
+    expect.objectContaining({
+      callbackURL: new URL('/deals', window.location.origin).href,
+      newUserCallbackURL: new URL('/deals', window.location.origin).href,
+    }),
+  )
+})
+
+it.each(['account', 'admin'] as const)(
+  'characterization: completed recovery returns %s sign-in to the new-password form with its notice',
+  async (context) => {
+    const wrapper = mount(SharedSignIn, { props: { context } })
+    wrappers.push(wrapper)
+    await flushPromises()
+    const emailId = context === 'account' ? '#login-email' : '#admin-email'
+    const passwordId = context === 'account' ? '#login-password' : '#admin-password'
+    await wrapper.get(emailId).setValue('person@example.test')
+    await wrapper.get('[data-testid="use-password"]').trigger('click')
+    await wrapper.get('[data-testid="recovery-open"]').trigger('click')
+    await wrapper.get('#recovery-email').setValue('person@example.test')
+    await wrapper.get('[data-testid="recovery-request"]').trigger('submit')
+    await flushPromises()
+    await wrapper.get('#recovery-code').setValue('012345')
+    await wrapper.get('#recovery-password').setValue('synthetic-new-password')
+    await wrapper.get('[data-testid="recovery-reset"]').trigger('submit')
+    await flushPromises()
+    expect(wrapper.find('#recovery-title').exists()).toBe(false)
+    expect(wrapper.find(passwordId).exists()).toBe(true)
+    expect(wrapper.find('[data-testid="use-password"]').exists()).toBe(false)
+    expect(wrapper.get('[role="status"]').text()).toBe(
+      'Password reset. Sign in again with your new password.',
+    )
+    expect(wrapper.get<HTMLInputElement>(passwordId).element.value).toBe('')
+    expect(sdk.password).not.toHaveBeenCalled()
+    expect(wrapper.emitted('signedIn')).toBeUndefined()
+    await wrapper.get(passwordId).setValue('synthetic-new-password')
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+    expect(sdk.password).toHaveBeenCalledWith({
+      email: 'person@example.test',
+      password: 'synthetic-new-password',
+    })
+    expect(wrapper.emitted('signedIn')).toHaveLength(1)
+  },
+)
+
+it('embeds shared login in the legacy panel without duplicate headings and with the All Deals callback', async () => {
   const stub = { template: '<div />' }
   const router = createRouter({
     history: createMemoryHistory(),
@@ -121,7 +198,7 @@ it('integrates email-first login into the current map panel without duplicate he
   await flushPromises()
   expect(sdk.social).toHaveBeenCalledWith(
     expect.objectContaining({
-      callbackURL: new URL(destination, window.location.origin).href,
+      callbackURL: new URL('/deals', window.location.origin).href,
     }),
   )
 })
@@ -142,7 +219,7 @@ it('normal Google preserves same-site destination query/hash and OAuth-error cle
     '',
     `/login?redirect=${encodeURIComponent(destination)}&error=access_denied&token=private`,
   )
-  const { wrapper } = await loginPage(destination)
+  const { wrapper } = await accountForm(destination)
   expect(new URL(window.location.href).searchParams.get('redirect')).toBe(destination)
   expect(window.location.search).not.toContain('private')
   expect(wrapper.text()).toContain('Google sign-in could not be completed')
@@ -160,7 +237,7 @@ it('normal Google preserves same-site destination query/hash and OAuth-error cle
   })
 })
 it.each(['/saved?tab=all#top', '/submit-deal', 'https://evil.test', '//evil.test', '/\\evil.test'])(
-  'normal password retains safe redirect for %s',
+  'normal password follows the current All Deals completion policy for %s',
   async (destination) => {
     const { wrapper, router } = await loginPage(destination)
     await wrapper.get('[data-testid="use-password"]').trigger('click')
@@ -168,9 +245,7 @@ it.each(['/saved?tab=all#top', '/submit-deal', 'https://evil.test', '//evil.test
     await wrapper.get('#login-password').setValue('synthetic-password')
     await wrapper.get('form').trigger('submit')
     await flushPromises()
-    expect(router.currentRoute.value.fullPath).toBe(
-      destination.startsWith('/saved') || destination === '/submit-deal' ? destination : '/',
-    )
+    expect(router.currentRoute.value.fullPath).toBe('/deals')
   },
 )
 it('code sign-in is a dedicated step with cooldown, retry, change-email and password return', async () => {
@@ -222,7 +297,7 @@ it('locks recovery cancel while pending and ignores a result after unmount', asy
 it.each(['https://evil.test', '//evil.test', '/\\evil.test', '/\n/evil.test'])(
   'normal Google rejects untrusted callback destination %s',
   async (destination) => {
-    const { wrapper } = await loginPage(destination)
+    const { wrapper } = await accountForm(destination)
     await wrapper.get('[data-testid="google-sign-in"]').trigger('click')
     await flushPromises()
     expect(sdk.social).toHaveBeenCalledWith({
@@ -249,7 +324,12 @@ it.each(['disabled', 'unavailable'])(
     expect(wrapper.find('[data-testid="otp-send"]').exists()).toBe(false)
     expect(wrapper.find('[data-testid="recovery-open"]').exists()).toBe(false)
     expect(wrapper.find('a[href="/forgot-password"]').exists()).toBe(true)
-    expect(wrapper.find('a[href="/register"]').exists()).toBe(true)
+    const registration = new URL(
+      wrapper.get('.auth-page__switch a').attributes('href') ?? '',
+      window.location.origin,
+    )
+    expect(registration.pathname).toBe('/sign-up')
+    expect(registration.searchParams.get('redirect')).toBe('/')
     await wrapper.get('#login-email').setValue('person@example.test')
     await wrapper.get('#login-password').setValue('synthetic-password')
     await wrapper.get('form').trigger('submit')
@@ -286,7 +366,7 @@ it('locks the normal-login mailbox during password sign-in and completes the req
   pending.resolve({ error: null })
   await flushPromises()
   expect(wrapper.findComponent(LoginForm).emitted('signedIn')).toHaveLength(1)
-  expect(router.currentRoute.value.fullPath).toBe('/saved')
+  expect(router.currentRoute.value.fullPath).toBe('/deals')
   expect(wrapper.get<HTMLInputElement>('#login-email').element.disabled).toBe(false)
   expect(wrapper.get<HTMLInputElement>('#login-password').element.value).toBe('')
 })

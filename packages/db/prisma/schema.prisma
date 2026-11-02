@@ -186,22 +186,34 @@ enum AdminSubjectType {
   INGESTION_RECOVERY
 }
 
+enum PlatformAuditActorKind {
+  HUMAN
+  SYSTEM
+}
+
+enum PlatformAuditActorSource {
+  ADMIN
+  NATIVE_AUTH
+}
+
 // Append-only through the application. No edit/delete procedure is exposed.
 // Snapshot names and allowlisted facts, never auth Account/Session/secret payloads.
 model PlatformAudit {
-  id           String              @id @default(auto()) @map("_id") @db.ObjectId
-  actorId      String              @db.ObjectId
+  id           String                   @id @default(auto()) @map("_id") @db.ObjectId
+  actorId      String?                  @db.ObjectId
+  actorKind    PlatformAuditActorKind   @default(HUMAN)
+  actorSource  PlatformAuditActorSource @default(ADMIN)
   actorName    String
   action       PlatformAuditAction
-  targetUserId String?             @db.ObjectId
+  targetUserId String?                  @db.ObjectId
   subjectType  AdminSubjectType?
-  subjectId    String?             @db.ObjectId
+  subjectId    String?                  @db.ObjectId
   detailsJson  Json?
-  venueId      String?             @db.ObjectId
+  venueId      String?                  @db.ObjectId
   note         String
   roleBefore   UserRole?
   roleAfter    UserRole?
-  createdAt    DateTime            @default(now())
+  createdAt    DateTime                 @default(now())
 
   @@index([targetUserId, id])
   @@index([actorId, id])

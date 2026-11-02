@@ -19,6 +19,43 @@ const write = [
   'Deliberate approval',
 ]
 describe('admin email operator input and import boundary', () => {
+  it('shares service-owned operator text bounds and normalization with the CLI', async () => {
+    const service = await import('@api/modules/platform-admin/admin-emails')
+    const validate = Reflect.get(service, 'validateAdminEmailOperatorText') as (
+      value: string,
+      kind: 'label' | 'reason',
+    ) => string
+    expect(validate).toBeTypeOf('function')
+    for (const [kind, flag, max] of [
+      ['label', '--operator', 80],
+      ['reason', '--reason', 500],
+    ] as const) {
+      for (const value of [
+        '  okay  ',
+        'x'.repeat(max),
+        '',
+        'x'.repeat(max + 1),
+        'bad\ntext',
+        'bad\u007ftext',
+      ]) {
+        const args = ['preapprove', '--email', 'owner@example.test', flag, value]
+        if (
+          value.trim() &&
+          value.trim().length <= max &&
+          ![...value].some((char) => char.charCodeAt(0) < 32 || char.charCodeAt(0) === 127)
+        ) {
+          expect(validate(value, kind)).toBe(value.trim())
+          expect(parseAdminEmailArgs(args)[kind === 'label' ? 'operatorLabel' : 'reason']).toBe(
+            value.trim(),
+          )
+        } else {
+          expect(() => validate(value, kind)).toThrow()
+          expect(() => parseAdminEmailArgs(args)).toThrow()
+        }
+      }
+    }
+  })
+
   it('defaults to dry-run and normalizes only explicit operator email whitespace/case', () => {
     expect(
       parseAdminEmailArgs(['preapprove', '--email', '  Owner+Tag@Example.Test  ']),

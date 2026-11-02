@@ -16,7 +16,7 @@ defineProps<{ s: ReturnType<typeof usePlatformAdmin> }>()
         <p v-if="!s.audit.loading && !s.audit.error && !s.audit.data?.items.length">No audit events match this filter.</p>
         <ul class="list-unstyled"><li v-for="event in s.audit.data?.items" :key="event.id" class="border-top py-3">
           <p class="fw-semibold mb-1">{{ event.action }} <span v-if="event.roleBefore && event.roleAfter">{{ event.roleBefore }} → {{ event.roleAfter }}</span></p>
-          <p class="mb-1">By {{ event.actorName }} ({{ event.actorId }}) for {{ event.targetUserId }}<span v-if="event.venueId"> | Stall {{ event.venueId }}</span></p>
+          <p class="mb-1">By {{ event.actorName }} <span v-if="event.actorKind === 'SYSTEM'">(System policy / {{ event.actorSource }})</span><span v-else>({{ event.actorId }})</span> for {{ event.targetUserId }}<span v-if="event.venueId"> | Stall {{ event.venueId }}</span></p>
           <p class="mb-1">{{ event.note }}</p><p class="small mb-0">{{ event.createdAt }}</p>
         </li></ul>
         <button type="button" v-if="s.audit.data?.nextCursor" data-testid="more-audit" class="btn btn-outline-secondary" :disabled="s.busy || s.audit.loading" @click="s.loadAudit(true)">Load more audit</button>

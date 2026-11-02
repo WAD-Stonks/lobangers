@@ -530,7 +530,19 @@ export const createAuth = (config: AuthConfig) => {
             authVersion: generation(security.authVersion),
             platformVersion: generation(security.platformVersion),
           })
-          .catch(() => {
+          .catch((error: unknown) => {
+            // Log only an allowlisted classification. Error messages/stacks can contain secrets.
+            const code =
+              typeof error === 'object' && error !== null && 'code' in error ? error.code : null
+            const category =
+              code === 'CONFLICT' || code === 'BAD_REQUEST' || code === 'UNAUTHORIZED'
+                ? code
+                : code === 'PRECONDITION_FAILED' || code === 'NOT_FOUND'
+                  ? 'IDENTITY_ERROR'
+                  : 'UNEXPECTED_DATABASE_FAILURE'
+            console.warn(
+              JSON.stringify({ event: 'admin-email-verification-preparation-failed', category }),
+            )
             throw APIError.fromStatus('INTERNAL_SERVER_ERROR', {
               message: 'Email verification could not be completed',
             })

@@ -43,7 +43,7 @@ const onSignedIn = async () => {
   <PanelFrame :title="title" :back="{ name: 'browse' }" back-label="Back to deals">
     <div v-if="notice" class="account-panel__notice" role="status">{{ notice }}</div>
     <div class="account-panel__form">
-      <LoginForm :destination="redirect" embedded @signed-in="onSignedIn" />
+      <LoginForm destination="/deals" embedded @signed-in="onSignedIn" />
     </div>
     <p class="lb-meta account-panel__switch">
       New here?
