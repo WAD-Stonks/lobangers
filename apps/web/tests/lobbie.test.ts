@@ -47,6 +47,7 @@ const reply = (overrides: Partial<AssistantChatResponse> = {}): AssistantChatRes
   reply: 'Shiok, here are some lobangs!',
   deals: [],
   filters: NO_FILTERS,
+  place: null,
   ...overrides,
 })
 
@@ -162,6 +163,19 @@ describe('createLobbieChat', () => {
       [HAWKER_VENUE.id, [NOODLES.id, RICE.id]],
       [KOPI_VENUE.id, [KOPI.id]],
     ])
+  })
+
+  it('shows the outlet nearest a station the question named, not the visitor', async () => {
+    const chain = { ...KOPI, venues: [KOPI_VENUE, HAWKER_VENUE] }
+    const place = { name: 'Synthetic MRT station', lat: HAWKER_VENUE.lat, lng: HAWKER_VENUE.lng }
+    const chat = createLobbieChat({
+      position: ref({ lat: KOPI_VENUE.lat, lng: KOPI_VENUE.lng }),
+      send: async () => reply({ deals: [chain], place }),
+    })
+    await chat.ask('kopi near synthetic mrt')
+    expect(chat.rowsFor([chain], place).map((row) => row.venue.id)).toEqual([HAWKER_VENUE.id])
+    expect(chat.rowsFor([chain]).map((row) => row.venue.id)).toEqual([KOPI_VENUE.id])
+    expect(chat.resultPins.value.map((pin) => pin.id)).toEqual([HAWKER_VENUE.id])
   })
 
   it('carries filters between questions, and removing or clearing them sticks', async () => {

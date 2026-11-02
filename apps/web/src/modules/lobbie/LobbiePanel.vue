@@ -101,7 +101,7 @@ watch(
           <DealRowList
             v-if="entry.deals.length > 0"
             class="lobbie__deals"
-            :rows="chat.rowsFor(entry.deals)"
+            :rows="chat.rowsFor(entry.deals, entry.place)"
             :to="toDeal"
             :hot-venue-id="shell.hoveredVenueId.value"
             test-id="lobbie-deals"
