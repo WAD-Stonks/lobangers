@@ -78,7 +78,20 @@ describe('admin audit investigation contract', () => {
       roleAfter: 'ADMIN',
       createdAt: '2026-01-01T00:00:00Z',
     }
-    expect(platformAuditEntrySchema.safeParse(legacy).success).toBe(true)
+    expect(platformAuditEntrySchema.parse(legacy)).toMatchObject({
+      actorId: id,
+      actorKind: 'HUMAN',
+      actorSource: 'ADMIN',
+    })
+    expect(
+      platformAuditEntrySchema.parse({
+        ...legacy,
+        actorId: null,
+        actorKind: 'SYSTEM',
+        actorSource: 'NATIVE_AUTH',
+        actorName: 'Native authentication admin-email policy',
+      }),
+    ).toMatchObject({ actorId: null, actorKind: 'SYSTEM', actorSource: 'NATIVE_AUTH' })
     expect(
       platformAuditEntrySchema.safeParse({
         ...legacy,

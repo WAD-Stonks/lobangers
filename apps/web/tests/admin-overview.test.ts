@@ -1,5 +1,7 @@
 import { flushPromises, mount } from '@vue/test-utils'
 import App from '@web/App.vue'
+import SharedSignIn from '@web/components/auth/SharedSignIn.vue'
+import { confirmAdminIdentity } from '@web/lib/admin-recovery'
 import { ApiClientError } from '@web/lib/api-client'
 import routes from '@web/router/routes'
 import { beforeEach, expect, it, vi } from 'vitest'
@@ -52,6 +54,7 @@ const overview = {
   },
 }
 beforeEach(() => {
+  confirmAdminIdentity(null)
   vi.resetAllMocks()
   rest.analytics.mockRejectedValue(new Error('Synthetic analytics unavailable'))
   rest.activity.mockResolvedValue({ items: [], nextCursor: null })
@@ -83,6 +86,81 @@ async function open() {
   await flushPromises()
   return w
 }
+it('characterization: repeated confirmed anonymous probes preserve an open recovery view', async () => {
+  rest.session.mockResolvedValue({ data: null, error: null })
+  rest.methods.mockResolvedValue({
+    password: true,
+    google: true,
+    emailOtp: true,
+    passwordRecovery: true,
+  })
+  const w = await open()
+  try {
+    await w.get('[data-testid="use-password"]').trigger('click')
+    await w.get('[data-testid="recovery-open"]').trigger('click')
+    await w.get('#recovery-email').setValue('recovery@example.test')
+    const signIn = w.getComponent(SharedSignIn).element
+    const reads = rest.session.mock.calls.length
+    window.dispatchEvent(new Event('focus'))
+    await flushPromises()
+    expect(rest.session.mock.calls.length).toBeGreaterThan(reads)
+    expect(w.getComponent(SharedSignIn).element).toBe(signIn)
+    expect(w.find('[data-testid="recovery-request"]').exists()).toBe(true)
+    expect(w.get<HTMLInputElement>('#recovery-email').element.value).toBe('recovery@example.test')
+    expect(rest.overview).not.toHaveBeenCalled()
+  } finally {
+    w.unmount()
+  }
+})
+
+it.each(['page-first', 'shell-first'] as const)(
+  'characterization: first native identity settles server forbidden with %s probes',
+  async (order) => {
+    const identity = {
+      data: {
+        user: { id: 'fresh-user', name: 'Fresh USER', email: 'fresh@example.test', role: 'USER' },
+        session: { id: 'fresh-native-session' },
+      },
+      error: null,
+    }
+    let pageResult!: (value: typeof identity) => void
+    let shellResult!: (value: typeof identity) => void
+    rest.session
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            pageResult = resolve
+          }),
+      )
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            shellResult = resolve
+          }),
+      )
+    rest.overview.mockRejectedValue(new ApiClientError('FORBIDDEN', 403, 'Forbidden'))
+    const w = await open()
+    try {
+      expect(rest.session).toHaveBeenCalledTimes(2)
+      if (order === 'page-first') pageResult(identity)
+      else shellResult(identity)
+      await flushPromises()
+      if (order === 'page-first') expect(w.text()).toContain('You do not have permission')
+      else expect(rest.overview).not.toHaveBeenCalled()
+      if (order === 'page-first') shellResult(identity)
+      else pageResult(identity)
+      await flushPromises()
+      expect(rest.overview).toHaveBeenCalledTimes(1)
+      expect(w.text()).toContain('You do not have permission')
+      expect(w.text()).toContain('fresh@example.test')
+      expect(w.text()).not.toContain('Loading admin overview')
+      expect(w.find('.overview-summary').exists()).toBe(false)
+    } finally {
+      w.unmount()
+    }
+  },
+)
+
 it('renders protected operational counts and exact actionable links without live-readiness claims', async () => {
   const w = await open()
   expect(w.get('h1').text()).toBe('Admin overview')
