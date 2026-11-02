@@ -36,6 +36,7 @@ import {
   STREET_FROM_ZOOM,
 } from '@web/modules/browse-map/map-tiers'
 import { SINGAPORE_BOUNDS, toBoundsTuple } from '@web/modules/browse-map/singapore-bounds'
+import { mountStations, type StationLayer } from '@web/modules/browse-map/station-layer'
 import type { Coordinates, VenuePin } from '@web/modules/browse-map/types'
 import { createVenuePinIcon, type PinState } from '@web/modules/browse-map/venue-pin'
 import { type Ambient, mountAmbient } from '@web/modules/map-ambient/ambient-layer'
@@ -90,6 +91,7 @@ let groupMarkers = new Map<string, { marker: L.Marker; group: PlacedGroup }>()
 let userLayer: L.LayerGroup | null = null
 let resizeObserver: ResizeObserver | null = null
 let ambient: Ambient | null = null
+let stations: StationLayer | null = null
 const markers = new Map<string, { marker: L.Marker; pin: VenuePin; key: string }>()
 
 const observeResize = (element: HTMLElement) => {
@@ -347,6 +349,7 @@ onMounted(() => {
     maxZoom: MAX_ZOOM,
     maxNativeZoom: basemap.maxNativeZoom,
   }).addTo(map)
+  stations = mountStations(map)
   pinLayer = L.markerClusterGroup({
     animate: !props.reducedMotion,
     maxClusterRadius: stackRadiusFor,
@@ -402,6 +405,8 @@ onBeforeUnmount(() => {
   resizeObserver = null
   ambient?.dispose()
   ambient = null
+  stations?.dispose()
+  stations = null
   map?.remove()
   map = null
   pinLayer = null
@@ -742,6 +747,111 @@ defineExpose({
   border: 3px solid var(--paper-white);
   border-radius: 50%;
   box-shadow: 0 2px 6px rgba(27, 27, 31, 0.3);
+}
+
+/* MRT/LRT landmarks: a white dot inside a ring of its line colour (the ring is the dot's inline
+   background, a white centre covers the middle). Interchanges are a size up with a split ring.
+   The icon is a zero-size anchor; the mark gives a finger-sized hover and tap target. */
+.deal-map :deep(.deal-map-station) {
+  background: transparent;
+  border: 0;
+}
+
+.deal-map :deep(.deal-map-station__mark) {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  transform: translate(-50%, -50%);
+  cursor: default;
+}
+
+.deal-map :deep(.deal-map-station__dot) {
+  position: relative;
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  box-shadow: 0 0 0 1.5px var(--paper-white);
+  transition: transform 120ms ease-out;
+}
+
+.deal-map :deep(.deal-map-station__dot::after) {
+  position: absolute;
+  inset: 3px;
+  content: '';
+  background: var(--paper-white);
+  border-radius: 50%;
+}
+
+.deal-map :deep(.deal-map-station__mark--interchange .deal-map-station__dot) {
+  width: 14px;
+  height: 14px;
+}
+
+.deal-map :deep(.deal-map-station__mark--interchange .deal-map-station__dot::after) {
+  inset: 3.5px;
+}
+
+.deal-map :deep(.deal-map-station__mark--lrt .deal-map-station__dot) {
+  width: 9px;
+  height: 9px;
+}
+
+.deal-map :deep(.deal-map-station__mark--lrt .deal-map-station__dot::after) {
+  inset: 2.5px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .deal-map :deep(.deal-map-station__mark:hover .deal-map-station__dot) {
+    transform: scale(1.3);
+  }
+}
+
+.deal-map :deep(.deal-map-station-tooltip) {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 6px 4px 9px;
+  font-family: var(--font-sans);
+  white-space: nowrap;
+  color: var(--ink);
+  background: var(--paper-white);
+  border: 0;
+  border-radius: var(--radius-pill);
+  box-shadow: var(--shadow-pill);
+}
+
+.deal-map :deep(.deal-map-station-tooltip > div) {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.deal-map :deep(.deal-map-station-tooltip::before) {
+  display: none;
+}
+
+.deal-map :deep(.deal-map-station-tooltip__name) {
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.deal-map :deep(.deal-map-station-tooltip__lines) {
+  display: flex;
+  gap: 3px;
+}
+
+.deal-map :deep(.deal-map-station-tooltip__line) {
+  padding: 1px 5px;
+  font-size: 0.625rem;
+  font-weight: 700;
+  line-height: 1.4;
+  color: var(--paper-white);
+  border-radius: 4px;
 }
 
 .deal-map :deep(.leaflet-control-attribution) {

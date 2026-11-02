@@ -1,5 +1,5 @@
 import type { Coordinates } from '@api/modules/assistant/catalogue'
-import { RAIL_STATIONS } from '@api/modules/assistant/rail-stations'
+import { RAIL_STATIONS } from '@broke-oclock/contracts/rail-stations'
 
 export type Place = Coordinates & { readonly name: string }
 
