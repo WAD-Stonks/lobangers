@@ -21,6 +21,7 @@ The shell loads `GET /api/deals` once per validity setting: only `validNow` goes
 - `load-deals.ts`: `toDealsQuery`, `toVenuePins` and `toDealRows`.
 - `deal-format.ts`: `formatValidity`, `formatEnding`, `formatCategory`, `formatMoreOutlets`, `dealFreshness` (the status tag) and `priceText`.
 - `DealMap.vue`: Leaflet lifecycle, CARTO or OneMap tiles (`basemap.ts`), opens fitted to Singapore (free to pan and zoom out beyond it), pins with verified and ending-today flags, tiered area pills (see below), the "you are here" dot, selected/dimmed/hovered pin states, `flyTo` for far jumps and `panTo` for short hops, offset so a focused pin lands beside the panel. Emits `select`, `hover` and `moved` (a drag by the visitor). Exposes `zoomIn`, `zoomOut` and `getArea`. Reduced motion turns Leaflet animation off.
+- `station-layer.ts`: MRT/LRT stations (from `@broke-oclock/contracts/rail-stations`, shared with the chatbot) as landmarks below the pins from zoom 14, ringed in their line colours (split for interchanges); hovering or tapping one shows its name and lines.
 - `venue-pin.ts`: `createVenuePinIcon`, built from DOM nodes so deal text is never parsed as HTML.
 - `BrowseListPanel.vue`: count heading, sort, location notice, filter tokens, rows (map view) or cards (list view), and loading, error and empty states.
 - `DealRowList.vue` / `DealCardGrid.vue`: rows and cards that link to the deal panel; hovering a row lights its pin.
