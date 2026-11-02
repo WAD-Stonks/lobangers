@@ -11,26 +11,29 @@ import SquadCreatePanel from '@web/modules/squad/SquadCreatePanel.vue'
 import SquadJoinPanel from '@web/modules/squad/SquadJoinPanel.vue'
 import SquadRoomPanel from '@web/modules/squad/SquadRoomPanel.vue'
 import VenuePanel from '@web/modules/venues-feed/VenuePanel.vue'
-import AdminAuditPage from '@web/pages/AdminAuditPage.vue'
-import AdminCataloguePage from '@web/pages/AdminCataloguePage.vue'
-import AdminDealsPage from '@web/pages/AdminDealsPage.vue'
-import AdminFlashDropsPage from '@web/pages/AdminFlashDropsPage.vue'
-import AdminModerationPage from '@web/pages/AdminModerationPage.vue'
-import AdminOverviewPage from '@web/pages/AdminOverviewPage.vue'
 import AuthPage from '@web/pages/AuthPage.vue'
-import ForgotPasswordPage from '@web/pages/ForgotPasswordPage.vue'
-import GettingStartedPage from '@web/pages/GettingStartedPage.vue'
-import IngestionAdminPage from '@web/pages/IngestionAdminPage.vue'
 import LandingPage from '@web/pages/LandingPage.vue'
 import MapShell from '@web/pages/MapShell.vue'
-import MerchantAccessPage from '@web/pages/MerchantAccessPage.vue'
-import MerchantDashboardPage from '@web/pages/MerchantDashboardPage.vue'
-import MySubmissionsPage from '@web/pages/MySubmissionsPage.vue'
 import NotFoundPage from '@web/pages/NotFoundPage.vue'
-import PlatformAdminPage from '@web/pages/PlatformAdminPage.vue'
-import ResetPasswordPage from '@web/pages/ResetPasswordPage.vue'
 import SubmissionForm from '@web/pages/SubmissionForm.vue'
 import type { RouteRecordRaw } from 'vue-router'
+
+// Pages most visitors never open (admin, merchant, own submissions, password reset) load on
+// demand, so the map and landing page do not pay for them in the first download.
+const AdminAuditPage = () => import('@web/pages/AdminAuditPage.vue')
+const AdminCataloguePage = () => import('@web/pages/AdminCataloguePage.vue')
+const AdminDealsPage = () => import('@web/pages/AdminDealsPage.vue')
+const AdminFlashDropsPage = () => import('@web/pages/AdminFlashDropsPage.vue')
+const AdminModerationPage = () => import('@web/pages/AdminModerationPage.vue')
+const AdminOverviewPage = () => import('@web/pages/AdminOverviewPage.vue')
+const IngestionAdminPage = () => import('@web/pages/IngestionAdminPage.vue')
+const PlatformAdminPage = () => import('@web/pages/PlatformAdminPage.vue')
+const MerchantAccessPage = () => import('@web/pages/MerchantAccessPage.vue')
+const MerchantDashboardPage = () => import('@web/pages/MerchantDashboardPage.vue')
+const MySubmissionsPage = () => import('@web/pages/MySubmissionsPage.vue')
+const ForgotPasswordPage = () => import('@web/pages/ForgotPasswordPage.vue')
+const ResetPasswordPage = () => import('@web/pages/ResetPasswordPage.vue')
+const GettingStartedPage = () => import('@web/pages/GettingStartedPage.vue')
 
 declare module 'vue-router' {
   interface RouteMeta {

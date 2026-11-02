@@ -28,6 +28,8 @@ export const listActiveFlashDrops = async (
     select: dropSelect,
   })
   const live = rows.filter((row) => isLive(row, now))
+  // Most of the time nothing is running; skip the three lookups that would find nothing.
+  if (live.length === 0) return { serverTime: now.toISOString(), items: [] }
   const context = await loadContext(database, live)
   const items = live.flatMap((row): PublicFlashDrop[] => {
     const deal = context.deals.get(row.dealId)
