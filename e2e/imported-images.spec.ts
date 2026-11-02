@@ -406,10 +406,17 @@ for (const width of [320, 768, 1024, 1440]) {
     // Current mobile routes open a half-height sheet. Expand it with the actual accessible
     // handle before inspecting cards below the viewport; never force eager loading in tests.
     await expandSheet(page, width)
-    const ongoing = page.getByRole('list', { name: 'Ongoing deals' })
+    const ongoing = page
+      .getByRole('tabpanel', { name: 'Now', exact: true })
+      .getByTestId('food-deal-grid')
     await painted(ongoing.locator('img').first())
     await painted(ongoing.getByRole('img', { name: 'Synthetic archive GIF', exact: true }))
-    await expect(ongoing.getByRole('img', { name: 'No photo for this deal yet' })).toBeVisible()
+    // A deal without a photo keeps its card with a decorative placeholder in the photo slot.
+    await expect(
+      ongoing
+        .getByRole('article', { name: `Synthetic no-image offer at ${venue.name}`, exact: true })
+        .locator('.food-deal-card__placeholder'),
+    ).toBeVisible()
     await ongoing.screenshot({
       path: test.info().outputPath(`synthetic-venue-${width}.png`),
       style: '[data-synthetic-fixture-note] { visibility: hidden !important; }',

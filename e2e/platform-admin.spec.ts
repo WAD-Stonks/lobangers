@@ -615,8 +615,15 @@ for (const width of [320, 390, 1280, 1440]) {
     const errors: string[] = []
     page.on('pageerror', (error) => errors.push(error.message))
     await page.setViewportSize({ width, height: 850 })
-    await page.goto('/browse')
-    await page.getByTestId('nav-toggle').click()
+    // The site menu is the brand menu on desktop and the Account page's More tab on phones.
+    if (width < 992) {
+      await page.goto('/me/profile')
+      await expect(page.getByTestId('account-more')).toBeVisible()
+    } else {
+      await page.goto('/browse')
+      await page.getByTestId('nav-toggle').click()
+      await expect(page.getByTestId('nav-menu')).toBeVisible()
+    }
     await expect(page.getByRole('link', { name: 'Platform admin', exact: true })).toHaveCount(0)
     await page.goto('/admin/accounts')
     await expect(page).toHaveURL('/admin/accounts')

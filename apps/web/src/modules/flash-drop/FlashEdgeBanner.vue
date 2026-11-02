@@ -5,13 +5,19 @@ import { computed } from 'vue'
 
 // A Flash Drop whose circle is off screen: the black banner docks to the map's edge with an
 // arrow pointing the way and how far it is. Tapping flies the map there and opens the deal.
-const props = defineProps<{ banner: EdgeBanner; now: number; lifeMs: number }>()
+// `inset` is how much of the map's left and right a side panel covers.
+const props = withDefaults(
+  defineProps<{ banner: EdgeBanner; now: number; lifeMs: number; inset?: { left: number; right: number } }>(),
+  { inset: () => ({ left: 0, right: 0 }) },
+)
 const emit = defineEmits<{ open: []; hover: [paused: boolean] }>()
 
-// The banner's x is kept clear of the map's edges in CSS (see .flash-edge `left`), so it follows
-// the map's real width through resizes and rotation without measuring the window.
+// The banner's x is kept clear of the map's uncovered edges in CSS (see .flash-edge `left`), so it
+// follows the map's real width through resizes and rotation without measuring the window.
 const style = computed(() => ({
   '--flash-x': `${props.banner.point.x}px`,
+  '--flash-inset-left': `${props.inset.left}px`,
+  '--flash-inset-right': `${props.inset.right}px`,
   top: `${props.banner.point.y}px`,
   '--flash-life': `${props.lifeMs}ms`,
 }))
@@ -57,7 +63,11 @@ const label = computed(
   --flash-edge-gap: min(158px, 50%);
 
   position: absolute;
-  left: clamp(var(--flash-edge-gap), var(--flash-x, 50%), calc(100% - var(--flash-edge-gap)));
+  left: clamp(
+    calc(var(--flash-inset-left, 0px) + var(--flash-edge-gap)),
+    var(--flash-x, 50%),
+    calc(100% - var(--flash-inset-right, 0px) - var(--flash-edge-gap))
+  );
   z-index: 6;
   display: flex;
   align-items: center;

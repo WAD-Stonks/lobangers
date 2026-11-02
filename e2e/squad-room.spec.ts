@@ -214,11 +214,16 @@ test('a phone can tuck the room away, other deals stay locked, and the bar opens
   await openRoom(page)
   await page.getByTestId('squad-minimise').click()
   await expect(page.getByTestId('squad-mini')).toBeVisible()
-  // The camera follows the room's deal, so this pin may sit off screen; tap it directly.
-  await page.locator('.deal-map-pin', { has: page.getByText('$1.20') }).dispatchEvent('click')
-  await expect(
-    page.getByText(`You're in Room ${CODE}. Leave the room to open other deals.`),
-  ).toBeVisible()
+  // The camera follows the room's deal and the map only draws pins in view; the kopi stall sits
+  // just above the header, so pan north with the map's arrow keys until its pin is drawn.
+  const otherPin = page.locator('.deal-map-pin', { has: page.getByText('$1.20') })
+  const locked = page.getByText(`You're in Room ${CODE}. Leave the room to open other deals.`)
+  await page.locator('.leaflet-container').focus()
+  await expect(async () => {
+    if ((await otherPin.count()) === 0) await page.keyboard.press('ArrowUp')
+    await otherPin.dispatchEvent('click', undefined, { timeout: 1000 })
+    await expect(locked).toBeVisible({ timeout: 1000 })
+  }).toPass({ timeout: 15_000 })
   await page.getByTestId('squad-mini').click()
   await expect(page.getByTestId('squad-yay')).toBeVisible()
 })

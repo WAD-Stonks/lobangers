@@ -104,6 +104,10 @@ const ROUTES = [
 ]
 const TOUCH_MAX_WIDTH = 992
 const MIN_TARGET_PX = 44
+// The swipeable quick-filter row uses compact chips on phones; they still clear the WCAG 2.2 AA
+// target-size minimum.
+const COMPACT_TARGET_SELECTOR = '[data-testid="discovery-quick-filters"] button'
+const MIN_COMPACT_TARGET_PX = 24
 
 // Measure native layout only after the covering splash, fonts and finite motion settle.
 const settled = async (page: Page) => {
@@ -226,16 +230,21 @@ for (const width of WIDTHS) {
       // entrance that has not played yet (GSAP, invisible to getAnimations) is not measured.
       if (width < TOUCH_MAX_WIDTH) {
         const small = await page.getByRole('button').evaluateAll(
-          (els, min) =>
+          (els, { min, compactMin, compactSelector }) =>
             els
               .filter((el): el is HTMLElement => el instanceof HTMLElement)
               .filter((el) => {
                 const w = el.offsetWidth
                 const h = el.offsetHeight
-                return w > 0 && (w < min || h < min)
+                const floor = el.matches(compactSelector) ? compactMin : min
+                return w > 0 && (w < floor || h < floor)
               })
               .map((el) => el.getAttribute('aria-label') ?? el.textContent),
-          MIN_TARGET_PX,
+          {
+            min: MIN_TARGET_PX,
+            compactMin: MIN_COMPACT_TARGET_PX,
+            compactSelector: COMPACT_TARGET_SELECTOR,
+          },
         )
         expect(small).toEqual([])
       }

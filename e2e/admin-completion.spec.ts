@@ -2,7 +2,7 @@ import { postsPageSchema } from '@broke-oclock/contracts/ingestion-recovery'
 import type { AdminOverviewResponse } from '@broke-oclock/contracts/platform-admin'
 import { expect, type Page, test } from '@playwright/test'
 // biome-ignore lint/style/noRestrictedImports: E2E-only helper; no E2E alias exists and config is outside this UI adoption scope.
-import { openAdminAccount, openAdminNavigation } from './admin-ui'
+import { ADMIN_ACCOUNT_NAME, openAdminAccount, openAdminNavigation } from './admin-ui'
 
 // Evidence only: observe actual Chromium output without replacing SPA or browser behavior.
 const browserObservations = new WeakMap<
@@ -158,7 +158,7 @@ for (const width of [320, 390, 1280]) {
     await page.goto('/admin')
     await expect(page.getByRole('heading', { name: 'Admin overview', exact: true })).toBeVisible()
     const readinessToggle = page.getByRole('button', {
-      name: 'Expand configuration readiness',
+      name: 'Show details of configuration readiness',
       exact: true,
     })
     await expect(readinessToggle).toHaveAttribute('aria-expanded', 'false')
@@ -193,7 +193,9 @@ for (const width of [320, 390, 1280]) {
     await expect(page.locator('#queue-status')).toHaveValue('PENDING')
     await expect(page.locator('#queue-title')).toBeVisible()
     await page.goto('/admin')
-    await page.getByRole('button', { name: 'Expand recent ingestion runs', exact: true }).click()
+    await page
+      .getByRole('button', { name: 'Show details of recent ingestion runs', exact: true })
+      .click()
     await page.locator('a[href="/admin/ingestion#runs-title"]').click()
     await expect(page.locator('#runs-title')).toBeVisible()
     expect(
@@ -398,7 +400,7 @@ for (const width of [320, 390]) {
     await page.getByTestId('admin-sign-out').focus()
     await page.keyboard.press('Escape')
     await expect(page.getByTestId('admin-sign-out')).toBeHidden()
-    await expect(page.getByRole('button', { name: 'Admin account', exact: true })).toBeFocused()
+    await expect(page.getByRole('button', { name: ADMIN_ACCOUNT_NAME })).toBeFocused()
     expect(
       await page.evaluate(
         () => document.documentElement.scrollWidth <= document.documentElement.clientWidth,

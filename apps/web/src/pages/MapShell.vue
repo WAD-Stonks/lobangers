@@ -498,6 +498,7 @@ onBeforeUnmount(() => document.documentElement.classList.remove('is-canvas'))
         :banner="flashMap.edge.value"
         :now="flash.now.value"
         :life-ms="BANNER_LIFE_MS"
+        :inset="{ left: layout.viewPadding.value.left, right: layout.viewPadding.value.right }"
         :inert="backgroundInert"
         @open="flashMap.edge.value && flashMap.openDrop(flashMap.edge.value.drop)"
         @hover="flashMap.setPaused"

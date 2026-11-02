@@ -91,7 +91,7 @@ test('a deal starts a room with itself picked; the lobby waits for a friend', as
   await page.getByTestId('squad-confirm').click()
   await expect(page.getByTestId('squad-ended')).toContainText('You closed Room KOPI')
   await shoot(page, info, 'ended')
-  await page.getByRole('button', { name: 'Back to the map' }).click()
+  await page.getByRole('link', { name: 'Back to the map' }).click()
   await expect(page).toHaveURL(/\/browse/)
   await expect(page.getByTestId('squad-header-button')).toHaveText(/^\s*Room\s*$/)
 })
