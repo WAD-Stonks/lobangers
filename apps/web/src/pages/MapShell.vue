@@ -482,6 +482,7 @@ onBeforeUnmount(() => document.documentElement.classList.remove('is-canvas'))
         :user-position="shell.position.value"
         :user-accuracy-metres="shell.accuracyMetres.value"
         :selected-venue-id="selectedVenueId"
+        :preserve-browse-context="!isSquadPanel"
         :hovered-venue-id="shell.hoveredVenueId.value"
         :hover-enabled="finePointer"
         :reduced-motion="reducedMotion"

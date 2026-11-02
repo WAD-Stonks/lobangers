@@ -56,6 +56,7 @@ const props = withDefaults(
     userPosition?: Coordinates | null
     userAccuracyMetres?: number | null
     selectedVenueId?: string | null
+    preserveBrowseContext?: boolean
     hoveredVenueId?: string | null
     hoverEnabled?: boolean
     reducedMotion?: boolean
@@ -70,6 +71,7 @@ const props = withDefaults(
     userPosition: null,
     userAccuracyMetres: null,
     selectedVenueId: null,
+    preserveBrowseContext: true,
     hoveredVenueId: null,
     hoverEnabled: true,
     reducedMotion: false,
@@ -339,7 +341,7 @@ const getArea = (): AreaBounds | null => {
 const publishArea = () => {
   // Detail cameras are presentation, not a new geographic browse filter. This also
   // covers padding/resize moveends while the detail panel is open or closing.
-  if (props.selectedVenueId !== null || restoringCamera) return
+  if ((props.preserveBrowseContext && props.selectedVenueId !== null) || restoringCamera) return
   const area = getArea()
   if (area) emit('moved', area)
 }
@@ -414,11 +416,21 @@ watch(
   },
 )
 watch(
-  () => [props.selectedVenueId, props.focus] as const,
+  () => [props.preserveBrowseContext ? props.selectedVenueId : null, props.focus] as const,
   ([selected, focus], [previousSelected, previousFocus]) => {
     const current = map
     if (!current) return
     const revision = ++cameraRevision
+    // Room highlights are not detail cameras: exploring must keep loading visible pins.
+    if (!props.preserveBrowseContext) {
+      explorationView = null
+      restoringCamera = false
+      if (focus && (focus !== previousFocus || previousSelected !== null)) {
+        current.stop()
+        focusOn(focus, props.focusZoom)
+      } else publishArea()
+      return
+    }
     // Capture before focusing, and keep the original view when switching outlets or
     // selecting again before a queued restore has run.
     if (selected !== null && previousSelected === null && !explorationView) {

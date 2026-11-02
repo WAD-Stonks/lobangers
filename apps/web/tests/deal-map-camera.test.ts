@@ -136,6 +136,21 @@ describe('map selection camera and search area', () => {
     expect(view.emitted('moved')).toHaveLength(4)
   })
 
+  it('keeps the geographic search live when a room highlights a venue without opening details', async () => {
+    const view = mountMap({ preserveBrowseContext: false })
+    const initialArea = lastArea(view)
+    await view.setProps({ selectedVenueId: 'room-venue', focus: north })
+    expect(lastArea(view)).not.toEqual(initialArea)
+    map.move(L.latLng(west.lat, west.lng), 16)
+    const explored = camera()
+    const exploredArea = lastArea(view)
+    expect(exploredArea).not.toEqual(initialArea)
+    await view.setProps({ selectedVenueId: null, focus: null })
+    await flushPromises()
+    expect(camera()).toEqual(explored)
+    expect(lastArea(view)).toEqual(exploredArea)
+  })
+
   it('does not turn detail focus, resize, or selection padding into a new search area', async () => {
     const view = mountMap()
     const area = lastArea(view)
