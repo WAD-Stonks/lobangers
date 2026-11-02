@@ -11,6 +11,7 @@ const form = reactive({ name: '', email: '', password: '', confirm: '' })
 const touched = reactive({ name: false, email: false, password: false, confirm: false })
 const pending = ref(false)
 const submitError = ref('')
+const formEl = ref<HTMLFormElement | null>(null)
 const shown = reactive({ password: false, confirm: false })
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
@@ -114,17 +115,61 @@ const register = async () => {
     <div class="mb-3">
       <label for="reg-password" class="form-label">Password</label>
       <div class="input-group has-validation">
-        <input id="reg-password" v-model="form.password" :type="shown.password ? 'text' : 'password'" autocomplete="new-password" class="form-control" :class="{ 'is-invalid': touched.password && errors.password }" :disabled="pending" @blur="touched.password = true" />
-        <button type="button" class="btn btn-outline-secondary" aria-controls="reg-password" :aria-pressed="shown.password" :aria-label="shown.password ? 'Hide password' : 'Show password'" data-testid="reg-password-toggle" @click="shown.password = !shown.password">{{ shown.password ? 'Hide' : 'Show' }}</button>
-        <div class="invalid-feedback">{{ errors.password }}</div>
+        <input
+          id="reg-password"
+          v-model="form.password"
+          name="password"
+          :type="shown.password ? 'text' : 'password'"
+          autocomplete="new-password"
+          class="form-control"
+          :class="{ 'is-invalid': touched.password && errors.password }"
+          :aria-invalid="touched.password && !!errors.password"
+          aria-describedby="reg-password-feedback"
+          :disabled="pending"
+          @blur="touched.password = true"
+        />
+        <button
+          type="button"
+          class="btn btn-outline-secondary"
+          aria-controls="reg-password"
+          :aria-pressed="shown.password"
+          :aria-label="shown.password ? 'Hide password' : 'Show password'"
+          data-testid="reg-password-toggle"
+          @click="shown.password = !shown.password"
+        >
+          {{ shown.password ? 'Hide' : 'Show' }}
+        </button>
+        <div id="reg-password-feedback" class="invalid-feedback">{{ errors.password }}</div>
       </div>
     </div>
     <div class="mb-3">
       <label for="reg-confirm" class="form-label">Confirm password</label>
       <div class="input-group has-validation">
-        <input id="reg-confirm" v-model="form.confirm" :type="shown.confirm ? 'text' : 'password'" autocomplete="new-password" class="form-control" :class="{ 'is-invalid': touched.confirm && errors.confirm }" :disabled="pending" @blur="touched.confirm = true" />
-        <button type="button" class="btn btn-outline-secondary" aria-controls="reg-confirm" :aria-pressed="shown.confirm" :aria-label="shown.confirm ? 'Hide confirm password' : 'Show confirm password'" data-testid="reg-confirm-toggle" @click="shown.confirm = !shown.confirm">{{ shown.confirm ? 'Hide' : 'Show' }}</button>
-        <div class="invalid-feedback">{{ errors.confirm }}</div>
+        <input
+          id="reg-confirm"
+          v-model="form.confirm"
+          name="confirm"
+          :type="shown.confirm ? 'text' : 'password'"
+          autocomplete="new-password"
+          class="form-control"
+          :class="{ 'is-invalid': touched.confirm && errors.confirm }"
+          :aria-invalid="touched.confirm && !!errors.confirm"
+          aria-describedby="reg-confirm-feedback"
+          :disabled="pending"
+          @blur="touched.confirm = true"
+        />
+        <button
+          type="button"
+          class="btn btn-outline-secondary"
+          aria-controls="reg-confirm"
+          :aria-pressed="shown.confirm"
+          :aria-label="shown.confirm ? 'Hide confirm password' : 'Show confirm password'"
+          data-testid="reg-confirm-toggle"
+          @click="shown.confirm = !shown.confirm"
+        >
+          {{ shown.confirm ? 'Hide' : 'Show' }}
+        </button>
+        <div id="reg-confirm-feedback" class="invalid-feedback">{{ errors.confirm }}</div>
       </div>
     </div>
 

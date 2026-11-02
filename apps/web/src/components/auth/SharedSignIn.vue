@@ -19,6 +19,7 @@ const props = withDefaults(defineProps<{
 const emit = defineEmits<{ signedIn: [] }>()
 const email = ref('')
 const password = ref('')
+const showPassword = ref(false)
 const pending = ref(false)
 const error = ref(consumeOAuthError(props.context === 'account'))
 const notice = ref('')
@@ -75,7 +76,7 @@ const signIn = async () => {
         : 'Sign-in failed. Check your credentials and try again.'
     else emit('signedIn')
   } catch { if (alive && current === generation) error.value = 'Sign-in failed. Please try again.' }
-  finally { password.value = ''; if (alive) pending.value = false }
+  finally { password.value = ''; showPassword.value = false; if (alive) pending.value = false }
 }
 const google = async () => {
   if (pending.value || !methods.value?.google) return
@@ -163,7 +164,10 @@ const recovered = () => { method.value = 'password'; recovery.value = false; not
               <button v-if="methods?.passwordRecovery" data-testid="recovery-open" type="button" class="auth-link" :disabled="pending" @click="recovery = true">Forgot password?</button>
               <slot v-else name="forgot" />
             </div>
-            <input :id="passwordId" ref="passwordInput" v-model="password" type="password" autocomplete="current-password" class="form-control" :disabled="pending" required />
+            <div class="input-group">
+              <input :id="passwordId" ref="passwordInput" v-model="password" :type="showPassword ? 'text' : 'password'" autocomplete="current-password" class="form-control" :disabled="pending" required />
+              <button type="button" class="btn btn-outline-secondary" :aria-controls="passwordId" :aria-pressed="showPassword" :aria-label="showPassword ? 'Hide password' : 'Show password'" :data-testid="`${passwordId}-toggle`" @click="showPassword = !showPassword">{{ showPassword ? 'Hide' : 'Show' }}</button>
+            </div>
           </div>
           <button v-if="passwordMode" class="btn auth-primary" type="submit" :disabled="pending || !password">{{ pending ? 'Signing in…' : context === 'account' ? 'Log in' : 'Sign in' }}</button>
           <button v-else data-testid="otp-send" type="submit" class="btn auth-primary" :disabled="pending || !methods?.emailOtp || cooldown > 0">{{ pending ? 'Sending code…' : cooldown ? `Resend in ${cooldown}s` : methods ? 'Email me a sign-in code' : 'Checking sign-in options…' }}</button>

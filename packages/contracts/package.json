@@ -26,7 +26,10 @@
     "./account": "./src/account.ts",
     "./community": "./src/community.ts",
     "./community-policy": "./src/community-policy.ts",
-    "./rail-stations": "./src/rail-stations.ts"
+    "./flash-drops": "./src/flash-drops.ts",
+    "./presence": "./src/presence.ts",
+    "./rail-stations": "./src/rail-stations.ts",
+    "./squad": "./src/squad.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit -p tsconfig.json"

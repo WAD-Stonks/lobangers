@@ -41,6 +41,7 @@ const cancel = () => {
 <template>
   <section v-if="visible" class="auth-prompt" aria-labelledby="auth-prompt-title" @keydown.esc="cancel">
     <div class="auth-prompt__content auth-prompt__content--saved">
+      <button class="auth-prompt__back" type="button" @click="cancel"><ShellIcon name="back" :size="16" />Back</button>
       <svg class="saved-prompt__illustration" viewBox="0 0 540 330" aria-hidden="true" focusable="false">
         <defs>
           <linearGradient id="saved-yellow" x2="1" y2="1"><stop stop-color="#ffe976" /><stop offset="1" stop-color="#f8cc35" /></linearGradient>
@@ -85,22 +86,19 @@ const cancel = () => {
           </span>
           <div><h3>{{ benefit.title }}</h3><p>{{ benefit.text }}</p></div>
         </div>
-        <button class="auth-prompt__primary saved-prompt__signup" type="button" @click="choose('register')">Create a free account</button>
-        <button class="auth-prompt__secondary" type="button" @click="choose('login')">Log in</button>
-      </template>
-      <template v-else>
-      <button class="auth-prompt__back" type="button" @click="cancel"><ShellIcon name="back" :size="16" />Back</button>
-      <h2 id="auth-prompt-title" ref="heading" tabindex="-1">Log in or sign up</h2>
-      <p>Save your favourite deals and join the community with a free account.</p>
-      <button class="auth-prompt__primary" type="button" @click="choose('login')">Log in</button>
-      <button class="auth-prompt__secondary" type="button" @click="choose('register')">Create an account</button>
-      </template>
+      </div>
+      <button class="auth-prompt__primary saved-prompt__signup" type="button" @click="choose('register')">Create a free account</button>
+      <button class="auth-prompt__secondary" type="button" @click="choose('login')">Log in</button>
+      <AccountMoreList v-if="showMore" class="auth-prompt__more" />
     </div>
   </section>
 </template>
 
 <style scoped>
-.auth-prompt { height: 100%; overflow-y: auto; color: var(--ink); background: var(--page-background, var(--paper-white)); }
+/* Light values are the original literals; dark mode swaps the pale washes for warm charcoal so the
+   illustration and benefit rows do not glare on the dark card. */
+.auth-prompt { --saved-blob: #fff8e6; --saved-benefit-bg: var(--paper-white); --saved-icon-bg: #fff0b4; height: 100%; overflow-y: auto; color: var(--ink); background: var(--page-background, var(--paper-white)); }
+.app-palette[data-theme='dark'] .auth-prompt { --saved-blob: var(--sunny-wash); --saved-benefit-bg: var(--paper-hover); --saved-icon-bg: var(--sunny-soft); }
 .auth-prompt__content { position: relative; display: grid; gap: 12px; padding: 40px 28px 24px; }
 .auth-prompt__more { margin-top: 16px; padding-top: 8px; border-top: 1px solid var(--hairline); text-align: left; }
 h2 { outline: none; margin: 0; font-size: 1.5rem; }
@@ -108,16 +106,22 @@ p { margin: 0 0 12px; color: var(--ink-muted); line-height: 1.5; }
 button { min-height: 44px; border-radius: 12px; font-weight: 650; }
 .auth-prompt__back { display: inline-flex; align-items: center; justify-self: start; gap: 6px; min-height: var(--hit); margin: -12px 0 0; padding: 0; border: 0; background: transparent; font: 700 0.8125rem/1 var(--font-sans); color: var(--ink-muted); cursor: pointer; }
 .auth-prompt__back:hover { color: var(--ink); }
-.auth-prompt__primary { border: 1px solid var(--sunny); background: var(--sunny); color: var(--ink); }
-.auth-prompt__secondary { border: 1px solid var(--hairline); background: white; color: var(--ink); }
+.auth-prompt__primary { border: 1px solid var(--sunny); background: var(--sunny); color: var(--on-accent); }
+.auth-prompt__secondary { border: 1px solid var(--hairline); background: var(--paper-white); color: var(--ink); }
+.auth-prompt__primary, .auth-prompt__secondary { cursor: pointer; touch-action: manipulation; transition: background-color 150ms ease, border-color 150ms ease; }
+@media (hover: hover) and (pointer: fine) {
+  .auth-prompt__primary:hover { border-color: var(--sunny-deep); background: var(--sunny-deep); }
+  .auth-prompt__secondary:hover { border-color: var(--hairline-strong); background: var(--paper-hover); }
+}
 
 .saved-prompt__illustration { display: block; width: 100%; height: auto; max-height: 260px; margin: 0 auto 4px; }
 .saved-prompt__blob { fill: var(--saved-blob); }
 .auth-prompt__content--saved h2 { font-family: var(--font-sans); font-size: clamp(1.75rem, 2.3vw, 2.25rem); font-weight: 750; line-height: 1.15; letter-spacing: -.035em; }
 .saved-prompt__intro { font-size: 1rem; margin: 4px 0 12px; }
 .saved-prompt__benefits { display: grid; gap: 12px; margin: 0 0 12px; }
-.saved-prompt__benefit { display: flex; align-items: center; gap: 16px; padding: 16px; border-radius: 18px; background: var(--paper-white); }
-.saved-prompt__icon { display: grid; place-items: center; flex: 0 0 52px; height: 52px; border-radius: 50%; background: #fff0b4; }
+.saved-prompt__benefit { display: flex; align-items: center; gap: 16px; padding: 16px; border-radius: 18px; background: var(--saved-benefit-bg); }
+.saved-prompt__icon { display: grid; place-items: center; flex: 0 0 52px; height: 52px; border-radius: 50%; background: var(--saved-icon-bg); }
+.saved-prompt__benefit > div { min-width: 0; overflow-wrap: anywhere; }
 .saved-prompt__benefit h3 { margin: 0 0 4px; font-size: 1rem; line-height: 1.3; font-weight: 700; }
 .saved-prompt__benefit p { margin: 0; font-size: .9375rem; line-height: 1.4; }
 .auth-prompt__content--saved button { min-height: 48px; }
