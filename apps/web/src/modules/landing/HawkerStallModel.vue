@@ -30,7 +30,9 @@ const load = async () => {
     engine = createHawker(canvas.value, props.deal, props.area)
     observer = new ResizeObserver(([entry]) => {
       if (!entry || !engine) return
-      engine.resize(entry.contentRect.width, entry.contentRect.height); emit('anchors', engine.anchors()); draw()
+      const { width, height } = entry.contentRect
+      if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) return
+      engine.resize(width, height); emit('anchors', engine.anchors()); draw()
     })
     observer.observe(canvas.value)
     ready.value = true; emit('ready', true)

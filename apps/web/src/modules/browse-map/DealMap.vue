@@ -39,7 +39,7 @@ import { SINGAPORE_BOUNDS, toBoundsTuple } from '@web/modules/browse-map/singapo
 import type { Coordinates, VenuePin } from '@web/modules/browse-map/types'
 import { createVenuePinIcon, type PinState } from '@web/modules/browse-map/venue-pin'
 import { type Ambient, mountAmbient } from '@web/modules/map-ambient/ambient-layer'
-import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 
 export type MapOffset = { readonly x: number; readonly y: number }
 
@@ -78,6 +78,9 @@ const emit = defineEmits<{ select: [id: string]; hover: [id: string | null]; mov
 
 const container = ref<HTMLDivElement | null>(null)
 let map: L.Map | null = null
+let explorationView: { centre: L.LatLng; zoom: number } | null = null
+let restoringCamera = false
+let cameraRevision = 0
 let pinLayer: L.MarkerClusterGroup | null = null
 let groupLayer: L.LayerGroup | null = null
 let selectedLayer: L.LayerGroup | null = null
@@ -318,6 +321,9 @@ const getArea = (): AreaBounds | null => {
   return { south: southEast.lat, west: northWest.lng, north: northWest.lat, east: southEast.lng }
 }
 const publishArea = () => {
+  // Detail cameras are presentation, not a new geographic browse filter. This also
+  // covers padding/resize moveends while the detail panel is open or closing.
+  if (props.selectedVenueId !== null || restoringCamera) return
   const area = getArea()
   if (area) emit('moved', area)
 }
@@ -391,13 +397,45 @@ watch(
   },
 )
 watch(
-  () => props.focus,
-  (focus) => {
-    if (focus) focusOn(focus, props.focusZoom)
+  () => [props.selectedVenueId, props.focus] as const,
+  ([selected, focus], [previousSelected, previousFocus]) => {
+    const current = map
+    if (!current) return
+    const revision = ++cameraRevision
+    // Capture before focusing, and keep the original view when switching outlets or
+    // selecting again before a queued restore has run.
+    if (selected !== null && previousSelected === null && !explorationView) {
+      const centre = current.getCenter()
+      explorationView = { centre: L.latLng(centre.lat, centre.lng), zoom: current.getZoom() }
+    }
+    if (selected === null && previousSelected !== null) {
+      restoringCamera = true
+      current.stop()
+      // Let the returning browse panel supply its final padding before publishing.
+      void nextTick(() => {
+        if (map !== current || revision !== cameraRevision || props.selectedVenueId !== null) return
+        if (explorationView) {
+          current.setView(explorationView.centre, explorationView.zoom, { animate: false })
+        }
+        explorationView = null
+        restoringCamera = false
+        // Direct-entry details have no browse snapshot: search the current view.
+        publishArea()
+      })
+      return
+    }
+    restoringCamera = false
+    if (focus && (focus !== previousFocus || selected !== previousSelected)) {
+      current.stop()
+      focusOn(focus, props.focusZoom)
+    }
   },
 )
 
 onBeforeUnmount(() => {
+  cameraRevision++
+  restoringCamera = true
+  explorationView = null
   resizeObserver?.disconnect()
   resizeObserver = null
   ambient?.dispose()

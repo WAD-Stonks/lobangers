@@ -2,7 +2,7 @@ import type { DealPin } from '@broke-oclock/contracts/deals'
 import { flushPromises, mount } from '@vue/test-utils'
 import App from '@web/App.vue'
 import { authGuard } from '@web/router/guards'
-import routes from '@web/router/routes'
+import routes from '@web-tests/support/loaded-routes'
 import { createMemoryHistory, createRouter } from 'vue-router'
 
 // Synthetic deals for the map-shell tests. Not real outlets or prices.

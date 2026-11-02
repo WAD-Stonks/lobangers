@@ -12,7 +12,7 @@ import { confirmAdminIdentity } from '@web/lib/admin-recovery'
 type Page<T> = { items: T[]; nextCursor: string | null }
 
 import { ApiClientError } from '@web/lib/api-client'
-import routes from '@web/router/routes'
+import routes from '@web-tests/support/loaded-routes'
 import { beforeEach, expect, it, vi } from 'vitest'
 import { createMemoryHistory, createRouter } from 'vue-router'
 

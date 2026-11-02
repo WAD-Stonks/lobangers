@@ -1,5 +1,5 @@
 import { authGuard } from '@web/router/guards'
-import routes from '@web/router/routes'
+import routes from '@web-tests/support/loaded-routes'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createMemoryHistory, createRouter } from 'vue-router'
 

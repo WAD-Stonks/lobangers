@@ -6,7 +6,7 @@ Web formats: WOFF2 (preferred) and WOFF. Desktop format: TTF. Weight: 900. Famil
 
 ## Files used by the app
 
-- `LobangPop-Heavy.woff2` — preferred web font; preloaded by `apps/web/index.html`.
+- `LobangPop-Heavy.woff2`: preferred web font; loaded by CSS when used.
 - `LobangPop-Heavy.woff` — web fallback.
 - `OFL-LICENSE.txt` — SIL Open Font License 1.1 and upstream notices; retain with the fonts.
 - `QA-report.json` — original revision 6 export verification, including the historical desktop TTF checksum. The desktop export is no longer shipped.

@@ -11,6 +11,7 @@ import { api } from '@web/lib/api-client'
 import { authClient } from '@web/lib/auth-client'
 import { errorCode } from '@web/modules/ingestion-admin/errors'
 import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { RouterLink } from 'vue-router'
 
 const access = ref('loading')
 const overview = ref<AdminOverviewResponse | null>(null)
@@ -118,8 +119,8 @@ onUnmounted(() => { fence.dispose(); nativeFence.dispose() })
       <section class="admin-work-panel" aria-labelledby="work-title">
         <h2 id="work-title" class="h4">Work awaiting review</h2>
         <ul class="overview-summary">
-          <li class="card"><a class="overview-summary-link" href="/admin/accounts?requestStatus=PENDING#merchant-requests"><span class="overview-metric-label"><span>Pending merchant requests: </span><span class="overview-metric-icon"><AdminIcon name="accounts" /></span></span><strong>{{ overview.counts.pendingMerchantRequests }}</strong><span class="overview-card-hint">Review merchant access →</span></a></li>
-          <li class="card"><a class="overview-summary-link" href="/admin/ingestion?status=PENDING#queue-title"><span class="overview-metric-label"><span>Pending imported drafts: </span><span class="overview-metric-icon"><AdminIcon name="deals" /></span></span><strong>{{ overview.counts.pendingImportedDrafts }}</strong><span class="overview-card-hint">Review imported deals →</span></a></li>
+          <li class="card"><RouterLink class="overview-summary-link" to="/admin/accounts?requestStatus=PENDING#merchant-requests"><span class="overview-metric-label"><span>Pending merchant requests: </span><span class="overview-metric-icon"><AdminIcon name="accounts" /></span></span><strong>{{ overview.counts.pendingMerchantRequests }}</strong><span class="overview-card-hint">Review merchant access →</span></RouterLink></li>
+          <li class="card"><RouterLink class="overview-summary-link" to="/admin/ingestion?status=PENDING#queue-title"><span class="overview-metric-label"><span>Pending imported drafts: </span><span class="overview-metric-icon"><AdminIcon name="deals" /></span></span><strong>{{ overview.counts.pendingImportedDrafts }}</strong><span class="overview-card-hint">Review imported deals →</span></RouterLink></li>
           <li class="card overview-summary-static"><span class="overview-metric-label"><span>Failed imported posts: </span><span class="overview-metric-icon overview-metric-icon--neutral"><AdminIcon name="ingestion" /></span></span><strong>{{ overview.counts.failedImportedPosts }}</strong><span class="overview-card-hint">Stored posts requiring investigation</span></li>
         </ul>
         <p class="small mb-0">Failures count imported posts, not ingestion runs.</p>
@@ -132,7 +133,7 @@ onUnmounted(() => { fence.dispose(); nativeFence.dispose() })
           <ul v-if="attentionItems.length" class="overview-attention-list">
             <li v-for="item in attentionItems" :key="item.href">
               <div><strong>{{ item.count }}</strong> {{ item.label }}</div>
-              <a :href="item.href">{{ item.action }} →</a>
+              <RouterLink :to="item.href">{{ item.action }} →</RouterLink>
             </li>
           </ul>
           <p v-else class="overview-queue-clear mb-0">No pending merchant requests, imported drafts or failed imported posts in this snapshot.</p>
@@ -141,7 +142,7 @@ onUnmounted(() => { fence.dispose(); nativeFence.dispose() })
           <h2 id="quick-actions-title">Quick actions</h2>
           <ul class="overview-shortcut-list">
             <li v-for="action in quickActions" :key="action.href">
-              <a :href="action.href"><span class="overview-shortcut-icon" aria-hidden="true"><AdminIcon :name="action.icon" /></span><span class="overview-shortcut-copy"><strong>{{ action.label }} →</strong><span>{{ action.description }}</span></span></a>
+              <RouterLink :to="action.href"><span class="overview-shortcut-icon" aria-hidden="true"><AdminIcon :name="action.icon" /></span><span class="overview-shortcut-copy"><strong>{{ action.label }} →</strong><span>{{ action.description }}</span></span></RouterLink>
             </li>
           </ul>
         </nav>
@@ -188,7 +189,7 @@ onUnmounted(() => { fence.dispose(); nativeFence.dispose() })
         </header>
         <p class="small text-secondary mb-0">{{ overview.recentRuns.length ? `${overview.recentRuns.length} recent runs available. Expand for timestamps, status and post counts.` : 'No ingestion runs yet.' }}</p>
         <div id="overview-runs-content" :hidden="!runsExpanded" class="overview-collapse-content">
-        <p><a href="/admin/ingestion#runs-title">View ingestion run history</a></p>
+        <p><RouterLink to="/admin/ingestion#runs-title">View ingestion run history</RouterLink></p>
         <!-- biome-ignore lint/a11y/noNoninteractiveTabindex: Keyboard users need to focus and horizontally scroll the table on small screens. -->
         <section v-if="overview.recentRuns.length" class="table-responsive overview-runs-scroll" aria-label="Recent ingestion runs table" tabindex="0">
           <table class="table mb-0 overview-runs-table">

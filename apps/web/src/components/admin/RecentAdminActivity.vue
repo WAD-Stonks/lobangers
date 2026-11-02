@@ -5,6 +5,7 @@ import { createAdminReadFence } from '@web/lib/admin-session'
 import { api } from '@web/lib/api-client'
 import { errorCode } from '@web/modules/ingestion-admin/errors'
 import { onMounted, onUnmounted, ref } from 'vue'
+import { RouterLink } from 'vue-router'
 
 const emit = defineEmits<{ denied: [code: 'UNAUTHORIZED' | 'FORBIDDEN'] }>()
 const entries = ref<PlatformAuditEntry[]>([])
@@ -74,7 +75,7 @@ onUnmounted(() => fence.dispose())
         </div>
       </li>
     </ol>
-    <footer class="activity-footer"><a href="/admin/audit">View full audit history →</a></footer>
+    <footer class="activity-footer"><RouterLink to="/admin/audit">View full audit history →</RouterLink></footer>
   </section>
 </template>
 

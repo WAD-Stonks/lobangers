@@ -1,9 +1,9 @@
 import { flushPromises, mount } from '@vue/test-utils'
 import App from '@web/App.vue'
 import { ApiClientError } from '@web/lib/api-client'
-import routes from '@web/router/routes'
+import routes from '@web-tests/support/loaded-routes'
 import { beforeEach, expect, it, vi } from 'vitest'
-import { createMemoryHistory, createRouter } from 'vue-router'
+import { createMemoryHistory, createRouter, type RouteLocationNormalized } from 'vue-router'
 
 // Synthetic REST/native boundaries: SPA projection and races, not live authentication.
 // The overview never mounts the landing page; avoid its unrelated Windows public-asset transform.
@@ -108,6 +108,50 @@ it('renders protected operational counts and exact actionable links without live
   expect(w.text()).toContain('not publisher permission')
   expect(w.text()).toContain('No ingestion runs yet')
   w.unmount()
+})
+it('routes every overview action through SPA navigation while preserving native modified clicks', async () => {
+  const w = await open()
+  const destinations: string[] = []
+  // Keep the mounted overview available to exercise every real link; destination UI is covered in E2E.
+  const removeGuard = w.vm.$router.beforeEach((to: RouteLocationNormalized) => {
+    destinations.push(to.fullPath)
+    return false
+  })
+  const links = w.findAll(
+    '.overview-summary a, .overview-attention a, .overview-shortcuts a, #overview-runs-content a, .activity-footer a',
+  )
+  expect(links.map((link) => link.attributes('href'))).toEqual([
+    '/admin/accounts?requestStatus=PENDING#merchant-requests',
+    '/admin/ingestion?status=PENDING#queue-title',
+    '/admin/ingestion#failed-posts',
+    '/admin/accounts?requestStatus=PENDING#merchant-requests',
+    '/admin/ingestion?status=PENDING#queue-title',
+    '/admin/deals',
+    '/admin/accounts',
+    '/admin/moderation',
+    '/admin/ingestion#runs-title',
+    '/admin/audit',
+  ])
+  try {
+    for (const link of links) {
+      const previous = [...destinations]
+      for (const modifier of ['ctrlKey', 'metaKey', 'shiftKey', 'altKey']) {
+        const modified = new MouseEvent('click', { cancelable: true, [modifier]: true })
+        link.element.dispatchEvent(modified)
+        expect(modified.defaultPrevented).toBe(false)
+      }
+      await flushPromises()
+      expect(destinations).toEqual(previous)
+      const click = new MouseEvent('click', { cancelable: true, button: 0 })
+      link.element.dispatchEvent(click)
+      expect(click.defaultPrevented).toBe(true)
+      await flushPromises()
+      expect(destinations).toEqual([...previous, link.attributes('href')])
+    }
+  } finally {
+    removeGuard()
+    w.unmount()
+  }
 })
 it('shows sign-in on confirmed absent native identity without a protected read', async () => {
   rest.session.mockResolvedValue({ data: null, error: null })

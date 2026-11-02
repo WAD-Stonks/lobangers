@@ -1,5 +1,5 @@
 import { routeLayout } from '@web/router/layouts'
-import routes from '@web/router/routes'
+import routes from '@web-tests/support/loaded-routes'
 import { describe, expect, it } from 'vitest'
 
 describe('route layouts', () => {

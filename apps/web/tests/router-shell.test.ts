@@ -1,6 +1,6 @@
 import { flushPromises } from '@vue/test-utils'
-import routes from '@web/router/routes'
 import { defined } from '@web-tests/support/defined'
+import routes from '@web-tests/support/loaded-routes'
 import {
   DEALS_RESPONSE,
   mountShell,
@@ -101,7 +101,14 @@ describe('map shell routes', () => {
       const { wrapper, router } = await mountAt('/browse')
       await wrapper.get('[data-testid="nav-toggle"]').trigger('click')
       await flushPromises()
+      const navigated = new Promise<void>((resolve) => {
+        const remove = router.afterEach(() => {
+          remove()
+          resolve()
+        })
+      })
       await wrapper.get('.brand-menu__drawer-head a').trigger('click')
+      await navigated
       await flushPromises()
       expect(router.currentRoute.value.name).toBe(signedIn ? 'browse' : 'landing')
       if (signedIn) expect(router.currentRoute.value.query.view).toBe('list')

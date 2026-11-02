@@ -261,6 +261,14 @@ test('the sticky action bar never covers the last item', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 667 })
   await mockApi(page)
   await page.goto(`/deals/${DEALS[0]?.id}`)
+  await expect(page.getByTestId('shell-panel').locator('[data-panel-heading]')).toHaveText(
+    LONG_TITLE,
+  )
+  await expect(page.locator('.panel-frame__actions')).toBeVisible()
+  const community = page.getByTestId('deal-community')
+  await expect(community.locator('.deal-community-status')).toHaveText('Likely still on')
+  await expect(community.locator('.deal-community-comments > li')).toHaveCount(2)
+  await settled(page)
   const body = page.getByTestId('panel-body')
   await body.evaluate((element) => {
     element.scrollTop = element.scrollHeight
@@ -300,9 +308,11 @@ test('map quick filters sit beside search on desktop and below it on mobile with
   page,
 }) => {
   await mockApi(page)
+  await page.goto('/browse')
+  await expect(page.getByTestId('map-shell')).toBeVisible()
   for (const width of WIDTHS) {
     await page.setViewportSize({ width, height: 800 })
-    await page.goto('/browse')
+    await settled(page)
     const search = await page.getByRole('search').boundingBox()
     const toolbar = page.getByTestId('discovery-quick-filters')
     const chips = await toolbar.boundingBox()
@@ -393,12 +403,14 @@ test('sidebar choice survives reload and can be reversed from the remaining menu
   await page.setViewportSize({ width: 1280, height: 844 })
   await mockApi(page)
   await page.goto('/browse')
+  await expect(page.getByTestId('map-shell')).toBeVisible()
   await expect(page.getByTestId('splash-screen')).toBeHidden()
   await page.getByTestId('nav-toggle').click()
   await page.getByTestId('show-sidebar').click()
   await expect(page.getByTestId('map-navigation')).toHaveCount(0)
   await expect(page.getByTestId('nav-toggle')).toBeFocused()
   await page.reload()
+  await expect(page.getByTestId('map-shell')).toBeVisible()
   await expect(page.getByTestId('splash-screen')).toBeHidden()
   await expect(page.getByTestId('map-navigation')).toHaveCount(0)
   await page.getByTestId('nav-toggle').click()

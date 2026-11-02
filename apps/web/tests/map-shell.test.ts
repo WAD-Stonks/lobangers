@@ -14,6 +14,7 @@ import {
 } from '@web-tests/support/shell-fixtures'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ref } from 'vue'
+import type { Router } from 'vue-router'
 
 const rest = vi.hoisted(() => ({
   list: vi.fn(),
@@ -49,6 +50,14 @@ const mountAt = async (path: string) => {
 const rowTitles = (wrapper: VueWrapper) =>
   wrapper.findAll('[data-testid="deal-rows"] .deal-rows__title').map((title) => title.text())
 const map = (wrapper: VueWrapper) => wrapper.findComponent({ name: 'DealMap' })
+
+const nextNavigation = (router: Router) =>
+  new Promise<void>((resolve) => {
+    const stop = router.afterEach(() => {
+      stop()
+      resolve()
+    })
+  })
 
 beforeEach(() => {
   window.localStorage.removeItem(MAP_SIDEBAR_STORAGE_KEY)
@@ -602,11 +611,15 @@ describe('opening deals and venues', () => {
 
   it('opens the deal straight from a pin with one deal, and the venue for a pin with several', async () => {
     const { router, wrapper } = await mountAt('/browse')
+    const dealNavigation = nextNavigation(router)
     map(wrapper).vm.$emit('select', KOPI_VENUE.id)
+    await dealNavigation
     await flushPromises()
     expect(router.currentRoute.value.fullPath).toBe(`/deals/${KOPI.id}?at=${KOPI_VENUE.id}`)
 
+    const venueNavigation = nextNavigation(router)
     map(wrapper).vm.$emit('select', HAWKER_VENUE.id)
+    await venueNavigation
     await flushPromises()
     expect(router.currentRoute.value.fullPath).toBe(`/venues/${HAWKER_VENUE.id}`)
   })
@@ -694,11 +707,15 @@ describe('saving from result items', () => {
 
   it('sends signed-out visitors to login with their current results as the return destination', async () => {
     const { wrapper, router } = await mountAt('/browse?results=cards')
+    const promptNavigation = nextNavigation(router)
     await wrapper.get('[data-testid="item-save"]').trigger('click')
+    await promptNavigation
     await flushPromises()
     expect(wrapper.find('[data-testid="shell-panel"] .auth-prompt').exists()).toBe(true)
     expect(wrapper.find('dialog.auth-prompt').exists()).toBe(false)
+    const loginNavigation = nextNavigation(router)
     await wrapper.get('.auth-prompt__primary').trigger('click')
+    await loginNavigation
     await flushPromises()
     expect(router.currentRoute.value.name).toBe('sign-in')
     expect(router.currentRoute.value.query.redirect).toBe('/browse?results=cards')
@@ -708,11 +725,15 @@ describe('saving from result items', () => {
 describe('saving from the deal panel', () => {
   it('sends a signed-out visitor to log in and back', async () => {
     const { router, wrapper } = await mountAt(`/deals/${KOPI.id}`)
+    const promptNavigation = nextNavigation(router)
     await wrapper.get('[data-testid="save-deal"]').trigger('click')
+    await promptNavigation
     await flushPromises()
     expect(wrapper.find('[data-testid="shell-panel"] .auth-prompt').exists()).toBe(true)
     expect(wrapper.find('dialog.auth-prompt').exists()).toBe(false)
+    const loginNavigation = nextNavigation(router)
     await wrapper.get('.auth-prompt__primary').trigger('click')
+    await loginNavigation
     await flushPromises()
     expect(router.currentRoute.value.name).toBe('sign-in')
     expect(router.currentRoute.value.query.redirect).toBe(`/deals/${KOPI.id}`)
@@ -870,7 +891,9 @@ describe('map navigation rail', () => {
   it('opens the full add-deal page from the Share tab', async () => {
     auth.session.current = SIGNED_IN
     const { wrapper, router } = await mountAt('/browse')
+    const navigation = nextNavigation(router)
     await wrapper.get('[data-testid="map-share"]').trigger('click')
+    await navigation
     await flushPromises()
     expect(router.currentRoute.value.name).toBe('submit-deal')
     expect(wrapper.find('[data-testid="map-navigation"]').exists()).toBe(false)
@@ -948,7 +971,9 @@ describe('brand menu', () => {
     })
     const { wrapper, router } = await mountAt('/browse')
     await wrapper.get('[data-testid="nav-toggle"]').trigger('click')
+    const navigation = nextNavigation(router)
     await wrapper.get('[data-testid="log-out"]').trigger('click')
+    await navigation
     await flushPromises()
     expect(auth.signOut).toHaveBeenCalled()
     expect(router.currentRoute.value.name).toBe('landing')

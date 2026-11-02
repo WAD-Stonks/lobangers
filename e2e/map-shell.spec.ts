@@ -131,9 +131,13 @@ for (const width of [390, 1280]) {
       await expect(page).toHaveURL(/\/deals\//)
       await expect(panelHeading(page)).toHaveText('Synthetic kopi set')
 
+      // Detail focus must not replace the island-wide browse area with Woodlands.
+      await expect.poll(() => mappedDeals(page)).toBe(2)
+
       await page.goBack()
       await expect(page).toHaveURL(/max=5/)
       await expect(rows(page)).toHaveCount(2)
+      await expect.poll(() => mappedDeals(page)).toBe(2)
     })
 
     test('Lobbie: a suggestion shows typing, then deals in the chat and framed pins on the map', async ({
@@ -231,8 +235,11 @@ for (const width of [390, 1280]) {
       await showRegions(page)
       await openGroup(page, '2 deals in West')
       await expect(page.locator('.deal-map-pin')).toHaveCount(2)
+      // Group opening remains ordinary exploration and narrows geographic results.
+      await expect(rows(page)).toHaveCount(2)
       await page.locator('.deal-map-pin[title^="Synthetic fishball"]').dispatchEvent('click')
       await expect(panelHeading(page)).toHaveText('Synthetic fishball noodles')
+      await expect(page.locator('.deal-map-pin')).toHaveCount(2)
       const body = page.getByTestId('panel-body')
       await body.evaluate((element) => {
         element.scrollTop = element.scrollHeight
@@ -240,6 +247,9 @@ for (const width of [390, 1280]) {
       await page.locator('.deal-map-pin[title^="Synthetic kaya"]').dispatchEvent('click')
       await expect(panelHeading(page)).toHaveText('Synthetic kaya toast')
       await expect.poll(() => body.evaluate((element) => element.scrollTop)).toBe(0)
+      await page.getByRole('link', { name: 'Back to results' }).click()
+      await expect(rows(page)).toHaveCount(2)
+      await expect.poll(() => mappedDeals(page)).toBe(2)
     })
 
     test('filters sheet: live count, badge, and focus back on Escape', async ({ page }) => {
@@ -297,6 +307,8 @@ for (const width of [390, 1280]) {
       page,
     }) => {
       await page.goto('/browse')
+      await expect(page.getByTestId('map-shell')).toBeVisible()
+      await expect(page.getByTestId('splash-screen')).toHaveCount(0)
       await page.keyboard.press('Tab')
       const toggle = page.getByTestId('nav-toggle')
       await expect(toggle).toBeFocused()

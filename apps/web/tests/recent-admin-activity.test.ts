@@ -3,6 +3,7 @@ import { flushPromises, mount } from '@vue/test-utils'
 import RecentAdminActivity from '@web/components/admin/RecentAdminActivity.vue'
 import { ApiClientError } from '@web/lib/api-client'
 import { beforeEach, expect, it, vi } from 'vitest'
+import { createMemoryHistory, createRouter } from 'vue-router'
 
 const mocks = vi.hoisted(() => ({ list: vi.fn() }))
 vi.mock('@web/lib/api-client', () => ({
@@ -29,8 +30,16 @@ beforeEach(() => {
   vi.resetAllMocks()
   mocks.list.mockResolvedValue({ items: [entry], nextCursor: null })
 })
+async function openActivity() {
+  const router = createRouter({
+    history: createMemoryHistory(),
+    routes: [{ path: '/admin/:section?', component: RecentAdminActivity }],
+  })
+  await router.push('/admin')
+  return mount(RecentAdminActivity, { global: { plugins: [router] } })
+}
 it('requests the latest five entries, displays safe details and links to the complete audit history', async () => {
-  const w = mount(RecentAdminActivity)
+  const w = await openActivity()
   await flushPromises()
   expect(mocks.list).toHaveBeenCalledWith({ limit: 5 })
   expect(w.get('h3').text()).toBe('Role changed')
@@ -54,7 +63,7 @@ it('preserves API order, caps the feed at five and supports non-account subjects
     targetUserId: null,
   }))
   mocks.list.mockResolvedValueOnce({ items: entries, nextCursor: 'next' })
-  const w = mount(RecentAdminActivity)
+  const w = await openActivity()
   await flushPromises()
   expect(w.findAll('[data-testid="recent-activity-entry"]')).toHaveLength(5)
   expect(w.findAll('h3').every((heading) => heading.text() === 'Deal approved')).toBe(true)
@@ -65,7 +74,7 @@ it('preserves API order, caps the feed at five and supports non-account subjects
 })
 it('shows an honest empty state and can refresh into populated results', async () => {
   mocks.list.mockResolvedValueOnce({ items: [], nextCursor: null })
-  const w = mount(RecentAdminActivity)
+  const w = await openActivity()
   await flushPromises()
   expect(w.text()).toContain('No recorded activity yet')
   await w.get('[data-testid="refresh-admin-activity"]').trigger('click')
@@ -76,7 +85,7 @@ it('shows an honest empty state and can refresh into populated results', async (
 })
 it('contains an independent safe error and retry without exposing diagnostics', async () => {
   mocks.list.mockRejectedValueOnce(new Error('private diagnostic'))
-  const w = mount(RecentAdminActivity)
+  const w = await openActivity()
   await flushPromises()
   expect(w.text()).toContain('The rest of the overview is still available')
   expect(w.text()).not.toContain('private diagnostic')
@@ -90,7 +99,7 @@ it.each(['UNAUTHORIZED', 'FORBIDDEN'] as const)(
   'signals %s so the overview clears all protected data',
   async (code) => {
     mocks.list.mockRejectedValueOnce(new ApiClientError(code, 403, code))
-    const w = mount(RecentAdminActivity)
+    const w = await openActivity()
     await flushPromises()
     expect(w.emitted('denied')).toEqual([[code]])
     expect(w.find('[data-testid="recent-activity-entry"]').exists()).toBe(false)
@@ -105,7 +114,7 @@ it('disables duplicate reads and ignores a late failure after unmount', async ()
         reject = fail
       }),
   )
-  const w = mount(RecentAdminActivity)
+  const w = await openActivity()
   await flushPromises()
   expect(w.get('[data-testid="refresh-admin-activity"]').attributes('disabled')).toBeDefined()
   expect(w.text()).toContain('Loading recent activity')

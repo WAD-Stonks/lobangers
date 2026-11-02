@@ -146,6 +146,11 @@ async function boundary(page: Page) {
 for (const width of [320, 390, 1280]) {
   test(`synthetic admin overview and actionable deep links fit ${width}px`, async ({ page }) => {
     const reads = await boundary(page)
+    const documents: string[] = []
+    page.on('request', (request) => {
+      if (request.isNavigationRequest() && request.frame() === page.mainFrame())
+        documents.push(request.url())
+    })
     const errors: string[] = []
     page.on('pageerror', (error) => errors.push(error.message))
     await page.setViewportSize({ width, height: 850 })
@@ -168,8 +173,10 @@ for (const width of [320, 390, 1280]) {
       await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
     ).toBe(true)
     await requestLink.focus()
+    const requestDocuments = [...documents]
     await requestLink.press('Enter')
     await expect(page).toHaveURL('/admin/accounts?requestStatus=PENDING#merchant-requests')
+    expect(documents).toEqual(requestDocuments)
     await expect(page.locator('#request-status')).toHaveValue('PENDING')
     await expect(page.locator('#merchant-requests')).toBeVisible()
     expect(
@@ -181,14 +188,20 @@ for (const width of [320, 390, 1280]) {
       ),
     ).toBe(true)
     await page.goto('/admin')
+    const draftDocuments = [...documents]
     await page
       .locator('.overview-summary a[href="/admin/ingestion?status=PENDING#queue-title"]')
       .click()
+    await expect(page).toHaveURL('/admin/ingestion?status=PENDING#queue-title')
+    expect(documents).toEqual(draftDocuments)
     await expect(page.locator('#queue-status')).toHaveValue('PENDING')
     await expect(page.locator('#queue-title')).toBeVisible()
     await page.goto('/admin')
     await page.getByRole('button', { name: 'Expand recent ingestion runs', exact: true }).click()
+    const runDocuments = [...documents]
     await page.locator('a[href="/admin/ingestion#runs-title"]').click()
+    await expect(page).toHaveURL('/admin/ingestion#runs-title')
+    expect(documents).toEqual(runDocuments)
     await expect(page.locator('#runs-title')).toBeVisible()
     expect(
       await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),

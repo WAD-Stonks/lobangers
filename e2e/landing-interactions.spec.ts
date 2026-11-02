@@ -15,6 +15,31 @@ const scrollStoryTo = async (page: Page, progress: number) => {
   }, progress)
 }
 
+const expectFiniteSignalCoordinates = async (page: Page) => {
+  // Include the ResizeObserver delivery caused by hiding/showing the canvas.
+  await page.evaluate(
+    () =>
+      new Promise<void>((resolve) => {
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
+      }),
+  )
+  await expect
+    .poll(() =>
+      page.locator('.community-signals circle, .community-signals text').evaluateAll(
+        (signals) =>
+          signals.length > 0 &&
+          signals.every((signal) => {
+            const x = signal.getAttribute('cx') ?? signal.getAttribute('x')
+            const y = signal.getAttribute('cy') ?? signal.getAttribute('y')
+            return (
+              x !== null && y !== null && Number.isFinite(Number(x)) && Number.isFinite(Number(y))
+            )
+          }),
+      ),
+    )
+    .toBe(true)
+}
+
 for (const key of ['Enter', 'Space']) {
   test(`story playback starts and pauses with native ${key} activation`, async ({ page }) => {
     await page.goto('/')
@@ -39,17 +64,26 @@ for (const key of ['Enter', 'Space']) {
 test('the WebGL stall disappears on reverse scrolling and after leaving reduced motion', async ({
   page,
 }) => {
+  const invalidCoordinateErrors: string[] = []
+  page.on('console', (message) => {
+    if (message.type() === 'error' && /NaN|Infinity|Expected length/.test(message.text())) {
+      invalidCoordinateErrors.push(message.text())
+    }
+  })
   await page.goto('/')
   await scrollStoryTo(page, 0.96)
   const renderer = page.locator('.hawker-renderer')
   const canvas = renderer.locator('canvas')
   await expect(renderer).toHaveAttribute('data-renderer', 'three')
   await expect(canvas).toBeVisible()
+  await expectFiniteSignalCoordinates(page)
   await scrollStoryTo(page, 0.4)
   await expect(page.locator('.community-freshness')).toHaveAttribute('aria-hidden', 'true')
   await expect(canvas).toBeHidden()
+  await expectFiniteSignalCoordinates(page)
   await scrollStoryTo(page, 0.96)
   await expect(canvas).toBeVisible()
+  await expectFiniteSignalCoordinates(page)
   await page.emulateMedia({ reducedMotion: 'reduce' })
   await expect(page.locator('#story')).toHaveClass(/story-reduced/)
   await expect(canvas).toBeVisible()
@@ -59,4 +93,6 @@ test('the WebGL stall disappears on reverse scrolling and after leaving reduced 
   await page.emulateMedia({ reducedMotion: 'no-preference' })
   await expect(page.locator('#story')).not.toHaveClass(/story-reduced/)
   await expect(canvas).toBeHidden()
+  await expectFiniteSignalCoordinates(page)
+  expect(invalidCoordinateErrors).toEqual([])
 })

@@ -1,7 +1,7 @@
 import { flushPromises, mount } from '@vue/test-utils'
 import App from '@web/App.vue'
 import SiteHeader from '@web/components/SiteHeader.vue'
-import routes from '@web/router/routes'
+import routes from '@web-tests/support/loaded-routes'
 import { describe, expect, it, vi } from 'vitest'
 import { ref } from 'vue'
 import { createMemoryHistory, createRouter } from 'vue-router'

@@ -1,31 +1,33 @@
-import AuthPrompt from '@web/modules/account/AuthPrompt.vue'
-import LoginPanel from '@web/modules/account/LoginPanel.vue'
-import ProfilePanel from '@web/modules/account/ProfilePanel.vue'
-import RegisterPanel from '@web/modules/account/RegisterPanel.vue'
-// import AddDealPanel from '@web/modules/add-deal/AddDealPanel.vue'
-import BrowseListPanel from '@web/modules/browse-map/BrowseListPanel.vue'
-import DealPanel from '@web/modules/browse-map/DealPanel.vue'
-import LobbiePanel from '@web/modules/lobbie/LobbiePanel.vue'
-import VenuePanel from '@web/modules/venues-feed/VenuePanel.vue'
-import AdminAuditPage from '@web/pages/AdminAuditPage.vue'
-import AdminCataloguePage from '@web/pages/AdminCataloguePage.vue'
-import AdminDealsPage from '@web/pages/AdminDealsPage.vue'
-import AdminModerationPage from '@web/pages/AdminModerationPage.vue'
-import AdminOverviewPage from '@web/pages/AdminOverviewPage.vue'
-import AuthPage from '@web/pages/AuthPage.vue'
-import ForgotPasswordPage from '@web/pages/ForgotPasswordPage.vue'
-import GettingStartedPage from '@web/pages/GettingStartedPage.vue'
-import IngestionAdminPage from '@web/pages/IngestionAdminPage.vue'
-import LandingPage from '@web/pages/LandingPage.vue'
-import MapShell from '@web/pages/MapShell.vue'
-import MerchantAccessPage from '@web/pages/MerchantAccessPage.vue'
-import MerchantDashboardPage from '@web/pages/MerchantDashboardPage.vue'
-import MySubmissionsPage from '@web/pages/MySubmissionsPage.vue'
-import NotFoundPage from '@web/pages/NotFoundPage.vue'
-import PlatformAdminPage from '@web/pages/PlatformAdminPage.vue'
-import ResetPasswordPage from '@web/pages/ResetPasswordPage.vue'
-import SubmissionForm from '@web/pages/SubmissionForm.vue'
 import type { RouteRecordRaw } from 'vue-router'
+
+// Fetch only the matched destination. In particular, administration must not load
+// the map, landing animation and every other workspace before it can start.
+const AuthPrompt = () => import('@web/modules/account/AuthPrompt.vue')
+const LoginPanel = () => import('@web/modules/account/LoginPanel.vue')
+const ProfilePanel = () => import('@web/modules/account/ProfilePanel.vue')
+const RegisterPanel = () => import('@web/modules/account/RegisterPanel.vue')
+const BrowseListPanel = () => import('@web/modules/browse-map/BrowseListPanel.vue')
+const DealPanel = () => import('@web/modules/browse-map/DealPanel.vue')
+const LobbiePanel = () => import('@web/modules/lobbie/LobbiePanel.vue')
+const VenuePanel = () => import('@web/modules/venues-feed/VenuePanel.vue')
+const AdminAuditPage = () => import('@web/pages/AdminAuditPage.vue')
+const AdminCataloguePage = () => import('@web/pages/AdminCataloguePage.vue')
+const AdminDealsPage = () => import('@web/pages/AdminDealsPage.vue')
+const AdminModerationPage = () => import('@web/pages/AdminModerationPage.vue')
+const AdminOverviewPage = () => import('@web/pages/AdminOverviewPage.vue')
+const AuthPage = () => import('@web/pages/AuthPage.vue')
+const ForgotPasswordPage = () => import('@web/pages/ForgotPasswordPage.vue')
+const GettingStartedPage = () => import('@web/pages/GettingStartedPage.vue')
+const IngestionAdminPage = () => import('@web/pages/IngestionAdminPage.vue')
+const LandingPage = () => import('@web/pages/LandingPage.vue')
+const MapShell = () => import('@web/pages/MapShell.vue')
+const MerchantAccessPage = () => import('@web/pages/MerchantAccessPage.vue')
+const MerchantDashboardPage = () => import('@web/pages/MerchantDashboardPage.vue')
+const MySubmissionsPage = () => import('@web/pages/MySubmissionsPage.vue')
+const NotFoundPage = () => import('@web/pages/NotFoundPage.vue')
+const PlatformAdminPage = () => import('@web/pages/PlatformAdminPage.vue')
+const ResetPasswordPage = () => import('@web/pages/ResetPasswordPage.vue')
+const SubmissionForm = () => import('@web/pages/SubmissionForm.vue')
 
 declare module 'vue-router' {
   interface RouteMeta {

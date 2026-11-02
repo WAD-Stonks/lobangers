@@ -533,6 +533,7 @@ export function createHawker(canvas: HTMLCanvasElement, deal: SampleDeal, area: 
       status: project(new T.Vector3(2.1, 1.19, 1.74)),
     }),
     resize(w: number, h: number) {
+      if (!Number.isFinite(w) || !Number.isFinite(h) || w <= 0 || h <= 0) return
       renderer.setSize(w, h, false)
       renderLastSize(w, h)
     },

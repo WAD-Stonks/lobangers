@@ -12,9 +12,25 @@ const engine = vi.hoisted(() => ({
 }))
 const create = vi.hoisted(() => vi.fn())
 vi.mock('@web/modules/landing/hawker-three', () => ({ createHawker: create }))
+const renderer = vi.hoisted(() => ({
+  setSize: vi.fn(),
+  setPixelRatio: vi.fn(),
+  shadowMap: { enabled: false, type: 0 },
+  capabilities: { getMaxAnisotropy: () => 1 },
+  dispose: vi.fn(),
+}))
+vi.mock('three', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('three')>()),
+  WebGLRenderer: class {
+    constructor() {
+      Object.assign(this, renderer)
+    }
+  },
+}))
 afterEach(() => {
   vi.unstubAllGlobals()
   vi.clearAllMocks()
+  vi.restoreAllMocks()
 })
 
 const props = {
@@ -24,11 +40,31 @@ const props = {
   active: false,
   reduced: false,
 }
+const notifyResize = vi.fn<ResizeObserverCallback>()
+const resizeCanvas = (width: number, height: number) => {
+  notifyResize([{ contentRect: { width, height } } as ResizeObserverEntry], {} as ResizeObserver)
+}
+const invalidSizes = [
+  [0, 0],
+  [0, 420],
+  [440, 0],
+  [-1, 420],
+  [440, -1],
+  [Number.NaN, 420],
+  [440, Number.NaN],
+  [Number.POSITIVE_INFINITY, 420],
+  [440, Number.POSITIVE_INFINITY],
+  [Number.NEGATIVE_INFINITY, 420],
+  [440, Number.NEGATIVE_INFINITY],
+] as const
 const enableWebGL = () => {
   vi.stubGlobal('WebGLRenderingContext', class {})
   vi.stubGlobal(
     'ResizeObserver',
     class {
+      constructor(callback: ResizeObserverCallback) {
+        notifyResize.mockImplementation(callback)
+      }
       observe = vi.fn()
       disconnect = vi.fn()
     },
@@ -41,6 +77,39 @@ const enableWebGL = () => {
   create.mockReturnValue(engine)
 }
 describe('hawker renderer lifecycle', () => {
+  it.each(invalidSizes)(
+    'preserves valid anchors for an invalid observer size (%s, %s)',
+    async (width, height) => {
+      enableWebGL()
+      const wrapper = mount(HawkerStallModel, { props: { ...props, active: true } })
+      try {
+        await flushPromises()
+        resizeCanvas(440, 420)
+        const anchors = wrapper.emitted('anchors')?.[0]
+        expect(anchors).toEqual([engine.anchors()])
+        engine.anchors.mockClear()
+
+        await wrapper.setProps({ active: false })
+        resizeCanvas(width, height)
+        expect(engine.resize).toHaveBeenCalledTimes(1)
+        expect(engine.anchors).not.toHaveBeenCalled()
+        expect(wrapper.emitted('anchors')).toEqual([anchors])
+        expect(wrapper.attributes('data-renderer')).toBe('three')
+
+        await wrapper.setProps({ active: true })
+        resizeCanvas(640, 480)
+        expect(engine.resize).toHaveBeenLastCalledWith(640, 480)
+        expect(engine.resize).toHaveBeenCalledTimes(2)
+        expect(engine.anchors).toHaveBeenCalledTimes(1)
+        expect(wrapper.emitted('anchors')).toHaveLength(2)
+        expect(wrapper.emitted('anchors')?.[1]).toEqual(anchors)
+        expect(create).toHaveBeenCalledTimes(1)
+        expect(wrapper.attributes('data-renderer')).toBe('three')
+      } finally {
+        wrapper.unmount()
+      }
+    },
+  )
   it.each([{ deviceMemory: 2 }, { connection: { saveData: true } }])(
     'keeps the light vector fallback for constrained devices: %j',
     async (device) => {
@@ -102,5 +171,44 @@ describe('hawker renderer lifecycle', () => {
     expect(engine.dispose).toHaveBeenCalledTimes(1)
     wrapper.unmount()
     expect(engine.dispose).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('hawker engine projection', () => {
+  it('retains the last valid size and finite anchors until a positive resize recovers', async () => {
+    // Keep real Three.js scene/camera/projection math; stub only unavailable drawing APIs.
+    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue({
+      fillRect: vi.fn(),
+      fillText: vi.fn(),
+      createRadialGradient: () => ({ addColorStop: vi.fn() }),
+    } as unknown as CanvasRenderingContext2D)
+    const { createHawker } = await vi.importActual<
+      typeof import('@web/modules/landing/hawker-three')
+    >('@web/modules/landing/hawker-three')
+    const hawker = createHawker(document.createElement('canvas'), samples[4], 'Novena')
+    try {
+      hawker.resize(440, 420)
+      const valid = hawker.anchors()
+      expect(
+        Object.values(valid).every(({ x, y }) => Number.isFinite(x) && Number.isFinite(y)),
+      ).toBe(true)
+      renderer.setSize.mockClear()
+
+      for (const [width, height] of invalidSizes) {
+        hawker.resize(width, height)
+        expect(renderer.setSize).not.toHaveBeenCalled()
+        expect(hawker.anchors()).toEqual(valid)
+      }
+
+      hawker.resize(640, 480)
+      expect(renderer.setSize).toHaveBeenCalledExactlyOnceWith(640, 480, false)
+      const recovered = hawker.anchors()
+      expect(
+        Object.values(recovered).every(({ x, y }) => Number.isFinite(x) && Number.isFinite(y)),
+      ).toBe(true)
+      expect(recovered).not.toEqual(valid)
+    } finally {
+      hawker.dispose()
+    }
   })
 })
