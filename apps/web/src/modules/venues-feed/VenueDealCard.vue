@@ -61,6 +61,7 @@ const validity = computed(() => validityLabel(props.deal))
   flex: 1;
   flex-direction: column;
   gap: var(--space-2);
+  min-width: 0;
   padding: var(--space-3);
 }
 
@@ -76,6 +77,7 @@ const validity = computed(() => validityLabel(props.deal))
   font-size: var(--text-sm);
   font-weight: 700;
   line-height: 1.3;
+  overflow-wrap: anywhere;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
   line-clamp: 2;

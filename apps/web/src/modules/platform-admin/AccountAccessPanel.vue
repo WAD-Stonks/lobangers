@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import TicketLoading from '@web/components/TicketLoading.vue'
+import { formatDateTime } from '@web/lib/format'
 import type { usePlatformAdmin } from '@web/modules/platform-admin/use-platform-admin'
 
 defineProps<{ s: ReturnType<typeof usePlatformAdmin> }>()
@@ -7,7 +9,7 @@ defineProps<{ s: ReturnType<typeof usePlatformAdmin> }>()
 <div v-if="s.detail.data" class="access-panel">
         <h3 class="h5">Active stall grants</h3>
         <p v-if="!s.detail.data.grants.length">No active stall grants.</p>
-        <ul><li v-for="grant in s.detail.data.grants" :key="grant.id">{{ grant.venueName }} / {{ grant.merchantName }} | Version {{ grant.version }} | {{ grant.createdAt }}</li></ul>
+        <ul><li v-for="grant in s.detail.data.grants" :key="grant.id">{{ grant.venueName }} / {{ grant.merchantName }} | Version {{ grant.version }} | <time :datetime="grant.createdAt">{{ formatDateTime(grant.createdAt) }}</time></li></ul>
         <label for="account-action" class="form-label">Account action</label>
         <select id="account-action" v-model="s.action" :disabled="s.busy" class="form-select mb-3"><option value="role">Change role</option><option value="grant" :disabled="s.detail.data.role !== 'MERCHANT'">Grant stall access</option><option value="revoke">Revoke stall access</option></select>
         <div v-if="s.action === 'grant'">
@@ -18,7 +20,7 @@ defineProps<{ s: ReturnType<typeof usePlatformAdmin> }>()
             <button type="submit" class="btn btn-outline-primary" :disabled="s.busy">Search stalls</button>
           </form>
           <button type="button" v-if="s.venues.data?.nextCursor" data-testid="more-venues" class="btn btn-outline-secondary mb-3" :disabled="s.busy || s.venues.loading" @click="s.loadVenues(true)">Load more stalls</button>
-          <p v-if="s.venues.loading" role="status">Loading stalls…</p>
+          <TicketLoading v-if="s.venues.loading" label="Loading stalls…" />
           <p v-if="s.venues.error" role="alert">{{ s.venues.error }}</p>
           <p v-if="s.venues.data && !s.venues.loading && !s.venues.error && !s.venues.data.items.length" role="status">
             <template v-if="s.venues.data.nextCursor">No verified stalls on this page. Load more stalls to continue searching.</template>

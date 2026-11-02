@@ -1,0 +1,839 @@
+/* ----- Squad screens around the live room: create, join, lobby, countdown and ended -----
+   Imported by squad.css so every screen shares the room's dark tokens (--squad-*). Motion is
+   transform and opacity only and calms down under prefers-reduced-motion. */
+
+.squad-form {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.squad-form--stack {
+  flex: none;
+  gap: var(--space-4);
+}
+
+.squad-room__body--with-foot {
+  padding-bottom: var(--space-5);
+}
+
+.squad-foot {
+  display: grid;
+  flex: none;
+  gap: 8px;
+  padding: 12px max(20px, env(safe-area-inset-right))
+    calc(16px + var(--sheet-offset, 0px) + env(safe-area-inset-bottom, 0px))
+    max(20px, env(safe-area-inset-left));
+  background: var(--squad-bg);
+  border-top: 1px solid var(--squad-line);
+}
+
+.squad-back {
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;
+  gap: 6px;
+  min-height: var(--hit);
+  font: 600 0.875rem / 1 var(--font-sans);
+  color: var(--squad-muted);
+  text-decoration: none;
+}
+
+.squad-back:hover {
+  color: var(--squad-text);
+}
+
+.squad-intro {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.squad-intro__aside {
+  font-size: var(--text-xs);
+  font-style: italic;
+  font-weight: 300;
+}
+
+.squad-intro__link {
+  font-weight: 300;
+  color: var(--sunny-deep);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+}
+
+.squad-intro__link:hover {
+  color: var(--sunny);
+}
+
+.squad-room__title--small {
+  font-size: 1.3rem;
+}
+
+.squad-btn-big {
+  min-height: 56px;
+  font-size: var(--text-md);
+}
+
+/* Disabled primary on dark: dimmed sunny, still readable, with a not-allowed cursor. */
+.squad-room .lb-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.squad-room .squad-btn-quiet-danger {
+  color: var(--squad-accent);
+  background: transparent;
+  border-color: transparent;
+}
+
+.squad-room .squad-btn-quiet-danger:hover {
+  color: var(--squad-accent);
+  background: var(--squad-surface);
+}
+
+/* Fields */
+.squad-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.squad-field__label {
+  font-size: var(--text-sm);
+  font-weight: 700;
+  color: var(--squad-text);
+}
+
+.squad-room .squad-field__hint {
+  font-size: var(--text-xs);
+  color: var(--squad-dim);
+}
+
+.squad-namebox {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 56px;
+  padding: 0 12px;
+  background: var(--squad-surface);
+  border: 2px solid var(--squad-edge);
+  border-radius: 16px;
+  transition: border-color 150ms ease;
+}
+
+.squad-namebox:focus-within {
+  border-color: var(--sky);
+}
+
+.squad-namebox.is-bad {
+  border-color: var(--coral);
+}
+
+.squad-namebox img {
+  flex: none;
+  width: 34px;
+  height: 34px;
+  object-fit: contain;
+}
+
+/* The box's sky border already shows focus, so the input skips the room's outline. */
+.squad-room .squad-namebox input:focus-visible,
+.squad-room .squad-code-input:focus-visible {
+  outline: none;
+}
+
+/* 17px so iOS does not zoom in on focus. */
+.squad-namebox input {
+  flex: 1;
+  min-width: 0;
+  font: 600 1.0625rem / 1.2 var(--font-sans);
+  color: var(--squad-text);
+  background: transparent;
+  border: 0;
+  outline: 0;
+}
+
+.squad-namebox input::placeholder,
+.squad-code-input::placeholder {
+  color: var(--squad-placeholder);
+}
+
+.squad-code-input {
+  box-sizing: border-box;
+  width: 100%;
+  height: 72px;
+  font: 700 2.25rem / 1 var(--font-display);
+  letter-spacing: 0.3em;
+  text-align: center;
+  text-indent: 0.3em;
+  text-transform: uppercase;
+  color: var(--squad-text);
+  background: var(--squad-surface);
+  border: 2px solid var(--squad-edge);
+  border-radius: 18px;
+  outline: 0;
+}
+
+.squad-code-input:focus {
+  border-color: var(--sky);
+}
+
+.squad-code-input.is-bad {
+  border-color: var(--coral);
+  animation: squad-shake 300ms ease;
+}
+
+/* Avatar radio group */
+.squad-faces,
+.squad-picker {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.squad-faces legend,
+.squad-picker legend,
+.squad-stepper-row legend {
+  float: none;
+  width: 100%;
+  margin: 0 0 8px;
+  padding: 0;
+  font-size: inherit;
+  line-height: inherit;
+}
+
+.squad-faces__grid {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.squad-face {
+  position: relative;
+  display: grid;
+  place-items: center;
+  aspect-ratio: 1;
+  min-height: var(--hit);
+  background: var(--squad-surface);
+  border: 2px solid transparent;
+  border-radius: 16px;
+  cursor: pointer;
+  transition:
+    border-color 150ms ease,
+    transform 140ms var(--ease-out);
+  touch-action: manipulation;
+}
+
+.squad-face img {
+  width: 72%;
+  height: 72%;
+  object-fit: contain;
+}
+
+.squad-face:active {
+  transform: scale(0.95);
+}
+
+.squad-face.is-on {
+  background: var(--squad-chosen);
+  border-color: var(--sunny);
+}
+
+.squad-face:has(input:focus-visible),
+.squad-dchip:has(input:focus-visible) {
+  outline: 3px solid var(--sunny);
+  outline-offset: 2px;
+}
+
+/* Deal picker */
+.squad-picker {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.squad-picker .squad-picker__legend {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.squad-picker__count {
+  font-size: var(--text-xs);
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  color: var(--sunny);
+}
+
+.squad-picker__note {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: var(--text-xs);
+}
+
+.squad-picker__section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.squad-picker__heading {
+  margin: 0;
+  font: 700 0.75rem / 1.2 var(--font-sans);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--squad-dim);
+}
+
+.squad-picker__list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.squad-dchip {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 56px;
+  padding: 10px 12px;
+  color: var(--squad-text);
+  background: var(--squad-surface);
+  border: 2px solid var(--squad-edge);
+  border-radius: 16px;
+  cursor: pointer;
+  transition:
+    border-color 150ms ease,
+    background-color 150ms ease;
+  touch-action: manipulation;
+}
+
+.squad-dchip:hover {
+  background: var(--squad-surface-hover);
+}
+
+.squad-dchip.is-on {
+  background: var(--squad-chosen);
+  border-color: var(--sunny);
+}
+
+.squad-dchip.is-off {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.squad-dchip__text {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.squad-dchip__text strong {
+  font-size: var(--text-sm);
+  overflow-wrap: anywhere;
+}
+
+.squad-dchip__text span {
+  font-size: var(--text-xs);
+  color: var(--squad-muted);
+  overflow-wrap: anywhere;
+}
+
+.squad-dchip__check {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--ink);
+  border: 2px solid var(--squad-check-edge);
+  border-radius: 50%;
+}
+
+.squad-dchip.is-on .squad-dchip__check {
+  color: var(--on-accent);
+  background: var(--sunny);
+  border-color: var(--sunny);
+}
+
+/* Room size stepper */
+.squad-stepper-row {
+  display: flex;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.squad-stepper {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.squad-stepper__btn {
+  display: grid;
+  place-items: center;
+  width: var(--hit);
+  height: var(--hit);
+  font: 700 1.25rem / 1 var(--font-display);
+  color: var(--squad-text);
+  background: var(--squad-surface);
+  border: 1px solid var(--squad-edge);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: background-color 150ms ease;
+  touch-action: manipulation;
+}
+
+.squad-stepper__btn:hover:not(:disabled) {
+  background: var(--squad-surface-hover);
+}
+
+.squad-stepper__btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+.squad-stepper__value {
+  min-width: 28px;
+  font: 700 1.4rem / 1 var(--font-display);
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+/* Lobby */
+.squad-lobby {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.squad-lobby__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.squad-lobby__wait {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.squad-lobby__wait strong {
+  color: var(--squad-text);
+}
+
+.squad-lobby__count {
+  display: flex;
+  font-variant-numeric: tabular-nums;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 4px 12px;
+  font-size: var(--text-sm);
+}
+
+.squad-lobby__count span {
+  color: var(--squad-muted);
+}
+
+.squad-lobby__actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.squad-room .squad-lobby__timer {
+  font-size: var(--text-xs);
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.squad-tag {
+  flex: none;
+  padding: 3px 8px;
+  font: 700 0.6875rem / 1.2 var(--font-sans);
+  color: var(--squad-tag-text);
+  background: var(--squad-edge);
+  border-radius: var(--radius-pill);
+}
+
+.squad-tag--host {
+  color: var(--on-accent);
+  background: var(--sunny);
+}
+
+.squad-dots {
+  display: inline-flex;
+  gap: 4px;
+  margin-left: 4px;
+  vertical-align: middle;
+}
+
+.squad-dots i {
+  width: 6px;
+  height: 6px;
+  background: var(--sunny);
+  border-radius: 50%;
+  animation: squad-bounce 1.2s ease-in-out infinite;
+}
+
+.squad-dots i:nth-child(2) {
+  animation-delay: 0.15s;
+}
+
+.squad-dots i:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+.squad-code {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: var(--space-4);
+  background: var(--squad-surface);
+  border-radius: 20px;
+}
+
+.squad-room .squad-code__label {
+  font-size: var(--text-xs);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.squad-code__tiles {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  width: 100%;
+}
+
+/* Tiles shrink with the card on a 320px phone instead of pushing past its edge. */
+.squad-code__tile {
+  display: grid;
+  flex: 0 1 54px;
+  place-items: center;
+  min-width: 0;
+  height: 64px;
+  font: 700 2.1rem / 1 var(--font-display);
+  color: var(--on-accent);
+  background: var(--sunny);
+  border-radius: 16px;
+}
+
+.squad-code__actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  width: 100%;
+}
+
+.squad-code__actions .lb-btn {
+  padding: 8px 10px;
+}
+
+/* The code card is already the surface colour, so its dark button steps up a shade. */
+.squad-room .squad-code__actions .squad-btn-dark {
+  background: var(--squad-edge);
+  border-color: rgba(255, 255, 255, 0.18);
+}
+
+.squad-room .squad-code__actions .squad-btn-dark:hover {
+  background: var(--squad-edge-strong);
+}
+
+.squad-lobby-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.squad-mrow,
+.squad-slot {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 56px;
+  padding: 8px 10px;
+  border-radius: 16px;
+}
+
+.squad-mrow {
+  background: var(--squad-surface);
+  animation: squad-join-in 380ms cubic-bezier(0.34, 1.4, 0.64, 1) both;
+}
+
+.squad-mrow.is-me {
+  box-shadow: inset 0 0 0 2px rgba(246, 214, 75, 0.55);
+}
+
+.squad-mrow.is-away {
+  opacity: 0.6;
+}
+
+.squad-mrow img {
+  flex: none;
+  width: 36px;
+  height: 36px;
+  object-fit: contain;
+}
+
+.squad-mrow__name {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  font-size: var(--text-sm);
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.squad-mrow__remove {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: var(--hit);
+  height: var(--hit);
+  margin: -4px -4px -4px 0;
+  color: var(--squad-tag-text);
+  background: var(--squad-edge);
+  border: 0;
+  border-radius: 50%;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.squad-mrow__remove:hover {
+  background: var(--squad-edge-strong);
+}
+
+.squad-slot {
+  font-size: var(--text-sm);
+  color: var(--squad-dim);
+  border: 2px dashed var(--squad-edge);
+}
+
+.squad-slot i {
+  flex: none;
+  width: 36px;
+  height: 36px;
+  border: 2px dashed var(--squad-edge-strong);
+  border-radius: 50%;
+  animation: squad-breathe 1.6s ease-in-out infinite;
+}
+
+.squad-overlay--fixed {
+  z-index: 60;
+}
+
+.squad-join-live {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  font-size: var(--text-sm);
+  font-weight: 500;
+}
+
+/* 3-2-1 countdown as the room goes live */
+.squad-stir {
+  position: absolute;
+  inset: 0;
+  z-index: 70;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  color: var(--squad-text);
+  background: var(--squad-bg);
+  animation: squad-fade 200ms ease both;
+}
+
+.squad-stir__num {
+  font: 700 7.5rem / 1 var(--font-display);
+  font-variant-numeric: tabular-nums;
+  color: var(--sunny);
+  animation: squad-tick 800ms var(--ease-out) both;
+}
+
+.squad-stir__caption {
+  font: 600 1.4rem / 1.2 var(--font-display);
+}
+
+/* Ended */
+.squad-ended {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding-top: var(--space-4);
+}
+
+.squad-ended .squad-sheet__actions {
+  align-self: stretch;
+  max-width: 26rem;
+  margin-top: var(--space-3);
+}
+
+.squad-ended__face {
+  width: 96px;
+  height: 96px;
+  object-fit: contain;
+}
+
+@keyframes squad-shake {
+  25% {
+    transform: translateX(-6px);
+  }
+  50% {
+    transform: translateX(6px);
+  }
+  75% {
+    transform: translateX(-3px);
+  }
+}
+
+@keyframes squad-join-in {
+  from {
+    opacity: 0;
+    transform: scale(0.9) translateY(8px);
+  }
+}
+
+@keyframes squad-breathe {
+  50% {
+    opacity: 0.4;
+  }
+}
+
+@keyframes squad-bounce {
+  30% {
+    transform: translateY(-5px);
+  }
+}
+
+@keyframes squad-tick {
+  0% {
+    opacity: 0;
+    transform: scale(0.4);
+  }
+  35% {
+    opacity: 1;
+    transform: scale(1.15);
+  }
+  55% {
+    transform: scale(1);
+  }
+}
+
+/* Below 992px every control is at least a 44px target. */
+@media (max-width: 991.98px) {
+  .squad-room .squad-btn-small {
+    min-height: var(--hit);
+  }
+}
+
+@media (min-width: 600px) {
+  .squad-code__tile {
+    flex-basis: 60px;
+    height: 70px;
+  }
+}
+
+/* 320px phones: the invite buttons stack, and the face grid tightens so six faces still fit. */
+@media (max-width: 359.98px) {
+  .squad-code__actions {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .squad-code__tile {
+    height: 58px;
+    font-size: 1.85rem;
+  }
+
+  .squad-faces__grid {
+    gap: 6px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .squad-mrow,
+  .squad-stir,
+  .squad-stir__num {
+    animation: squad-fade 150ms ease both;
+  }
+
+  .squad-code-input.is-bad,
+  .squad-slot i,
+  .squad-dots i {
+    animation: none;
+  }
+
+  .squad-face:active {
+    transform: none;
+  }
+}
+
+.squad-picker.is-disabled {
+  opacity: 0.45;
+  pointer-events: none;
+}
+
+.squad-picker.is-disabled .squad-dchip {
+  cursor: not-allowed;
+}
+
+.squad-random {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 56px;
+  padding: 10px 14px;
+  color: var(--squad-text);
+  background: var(--squad-surface);
+  border: 2px solid var(--squad-edge);
+  border-radius: 16px;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.squad-random:has(input:checked) {
+  background: var(--squad-chosen);
+  border-color: var(--sunny);
+}
+
+.squad-random__text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.squad-random__text span {
+  font-size: var(--text-sm);
+  opacity: 0.75;
+}

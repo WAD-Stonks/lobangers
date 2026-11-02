@@ -159,8 +159,17 @@ for (const width of [320, 768, 1024, 1440]) {
       reuseConfirmed: true,
       expectedUpdatedAt: '2026-10-20T00:00:00.000Z',
     })
+    // Disabling stops imports straight away, so the panel asks first.
+    const prompts: string[] = []
+    page.once('dialog', (dialog) => {
+      prompts.push(dialog.message())
+      void dialog.accept()
+    })
     await row.getByRole('button', { name: 'Disable source' }).click()
     await expect(row.getByRole('button', { name: 'Enable source' })).toBeDisabled()
+    expect(prompts).toEqual([
+      `Disable ${state.source.name}? New posts from it will stop being imported.`,
+    ])
     const url = `https://t.me/s/${'W'.repeat(32)}`
     await panel.getByLabel('Source name', { exact: true }).fill('Synthetic added source')
     await panel.getByLabel('Telegram preview URL', { exact: true }).fill(url)

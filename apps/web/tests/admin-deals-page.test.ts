@@ -142,7 +142,7 @@ it('mounts an operational directory and edits the captured identity/version with
   expect(wrapper.text()).toContain('Synthetic meal')
   await wrapper.get('[data-testid="select-deal"]').trigger('click')
   await flushPromises()
-  expect(wrapper.text()).toContain('SGD 12.90')
+  expect(wrapper.text()).toContain('$12.90')
   await wrapper.get('[name="edit-title"]').setValue('Corrected meal')
   await wrapper.get('[name="note"]').setValue('Reviewed correction')
   await wrapper.get('[name="confirm"]').setValue(true)

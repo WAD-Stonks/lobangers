@@ -152,7 +152,7 @@ test('failed deals can retry, with skeletons until the replacement response arri
   const section = page.locator('#cuisines')
   await section.getByRole('button', { name: 'Retry loading deals' }).click()
   await expect(section.locator('.landing-skeleton-card')).toHaveCount(4)
-  await expect(page.locator('.hero-loading-card')).toHaveAttribute('aria-busy', 'true')
+  await expect(page.locator('.hero-loading-card')).toHaveAttribute('role', 'status')
   await expect(page.locator('.hero-map-area')).toHaveClass(/hero-map-docked/)
   const skeletonPosition = await page.locator('.hero-loading-card').evaluate((element) => {
     const { x, y } = element.getBoundingClientRect()

@@ -55,7 +55,7 @@ it('separates the admin root from unchanged public shell, landing and map branch
     global: {
       plugins: [router],
       stubs: {
-        SiteHeader: { template: '<header data-testid="consumer-header" />' },
+        PageHeader: { template: '<header data-testid="consumer-header" />' },
         SplashScreen: { template: '<div data-testid="splash" />' },
         AdminSessionControls: true,
       },
@@ -71,7 +71,7 @@ it('separates the admin root from unchanged public shell, landing and map branch
   expect(wrapper.findComponent(AppShell).exists()).toBe(true)
   await router.push('/')
   await flushPromises()
-  expect(wrapper.get('main').classes()).toContain('landing-canvas')
+  expect(wrapper.get('.landing-canvas').element.tagName).toBe('DIV')
   expect(wrapper.find('[data-testid="consumer-header"]').exists()).toBe(false)
   await router.push('/browse')
   await flushPromises()
@@ -91,7 +91,7 @@ it.each(['/not-real', '/admin/not-real', '/admin/accounts/not-real'])(
         plugins: [router],
         // None of these owns a main or decides which route/page/shell renders.
         stubs: {
-          SiteHeader: { template: '<header data-testid="consumer-header" />' },
+          PageHeader: { template: '<header data-testid="consumer-header" />' },
           AdminSessionControls: true,
           SharedSignIn: true,
         },
@@ -143,7 +143,7 @@ it.each([
     global: {
       plugins: [router],
       stubs: {
-        SiteHeader: { template: '<header data-testid="consumer-header" />' },
+        PageHeader: { template: '<header data-testid="consumer-header" />' },
         AdminSessionControls: true,
         SharedSignIn: true,
         AdminSignIn: true,

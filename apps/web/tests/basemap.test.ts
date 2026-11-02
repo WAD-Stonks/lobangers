@@ -24,6 +24,16 @@ describe('resolveBasemap', () => {
     expect(resolveBasemap(undefined).maxNativeZoom).toBe(19)
   })
 
+  it('switches both providers to their dark styles in dark mode', () => {
+    expect(resolveBasemap('abc', 'dark').url).toBe(
+      'https://basemaps.cartocdn.com/rastertiles/dark_all/{z}/{x}/{y}{r}.png?key=abc',
+    )
+    expect(resolveBasemap(undefined, 'dark').url).toBe(
+      'https://www.onemap.gov.sg/maps/tiles/Night/{z}/{x}/{y}.png',
+    )
+    expect(resolveBasemap('abc', 'light').url).toContain('/light_all/')
+  })
+
   it('falls back to OneMap Grey when the key is missing or a placeholder', () => {
     for (const key of [undefined, '', '   ', 'UNSET', 'unset', 'UNCONFIGURED']) {
       const basemap = resolveBasemap(key)

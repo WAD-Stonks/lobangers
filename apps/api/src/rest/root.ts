@@ -6,12 +6,15 @@ import { createAdminModerationRouter } from '@api/rest/routers/admin-moderation'
 import { createAssistantRouter } from '@api/rest/routers/assistant'
 import { createCommunityRouter } from '@api/rest/routers/community'
 import { createDealsRouter } from '@api/rest/routers/deals'
+import { createFlashDropsRouter } from '@api/rest/routers/flash-drops'
 import { createInfrastructureRouter } from '@api/rest/routers/infrastructure'
 import { createIngestionRouter } from '@api/rest/routers/ingestion'
 import { createIngestionInvestigationRouter } from '@api/rest/routers/ingestion-investigation'
 import { createMerchantRouter } from '@api/rest/routers/merchant'
 import { createPlatformAdminRouter } from '@api/rest/routers/platform-admin'
 import { createPlatformSecurityRouter } from '@api/rest/routers/platform-security'
+import { createPresenceRouter } from '@api/rest/routers/presence'
+import { createSquadRouter } from '@api/rest/routers/squad'
 import { createVenuesRouter } from '@api/rest/routers/venues'
 import { Router } from 'express'
 
@@ -19,6 +22,10 @@ export const createRestRouter = (dependencies: RestDependencies): Router => {
   const router = Router()
   router.use(createInfrastructureRouter(dependencies))
   router.use(createCommunityRouter(dependencies))
+  // Before the merchant router, whose /merchant mount would otherwise answer 404 first.
+  router.use(createFlashDropsRouter(dependencies))
+  router.use(createSquadRouter(dependencies))
+  router.use(createPresenceRouter(dependencies))
   router.use('/ingestion', createIngestionRouter(dependencies))
   router.use('/ingestion', createIngestionInvestigationRouter(dependencies))
   router.use('/account', createAccountRouter(dependencies))

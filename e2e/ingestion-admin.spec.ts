@@ -321,6 +321,9 @@ for (const width of [320, 390, 1280]) {
       await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth),
     ).toBe(false)
     await page.screenshot({ path: info.outputPath(`ingestion-${width}.png`), fullPage: true })
+    // Rejecting needs its own confirmation tick on top of the note.
+    await expect(page.getByRole('button', { name: 'Reject draft' })).toBeDisabled()
+    await page.getByLabel(/^To reject, I confirm rejecting /).check()
     await page.getByRole('button', { name: 'Reject draft' }).focus()
     await page.getByRole('button', { name: 'Reject draft' }).press('Enter')
     await expect(page.getByRole('status').filter({ hasText: 'Draft rejected' })).toBeVisible()
@@ -470,6 +473,8 @@ test('pagination preserves stale-review conflict until reloading the current dra
   await expect(reject).toBeDisabled()
   await note.fill('Review of current version eight')
   await expect(approve).toBeEnabled()
+  await expect(reject).toBeDisabled()
+  await page.getByLabel(/^To reject, I confirm rejecting /).check()
   await expect(reject).toBeEnabled()
   await approve.click()
   await expect(page.getByRole('status').filter({ hasText: 'Draft approved' })).toBeVisible()

@@ -2,13 +2,11 @@ import { flushPromises, mount } from '@vue/test-utils'
 import { createDefaultFilters } from '@web/modules/browse-map/filters'
 import DiscoveryQuickFilters from '@web/modules/map-shell/DiscoveryQuickFilters.vue'
 import FilterSheet from '@web/modules/map-shell/FilterSheet.vue'
-import HotCard from '@web/modules/map-shell/HotCard.vue'
 import MapControls from '@web/modules/map-shell/MapControls.vue'
 import QuickChips from '@web/modules/map-shell/QuickChips.vue'
 import ShellPanel from '@web/modules/map-shell/ShellPanel.vue'
 import { defined } from '@web-tests/support/defined'
-import { HAWKER_VENUE, KOPI, KOPI_VENUE, NOODLES } from '@web-tests/support/shell-fixtures'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
 describe('QuickChips', () => {
   it('toggles each chip with aria-pressed and emits new filters', async () => {
@@ -148,50 +146,6 @@ describe('MapControls', () => {
     expect(desktop.emitted('zoomIn')).toHaveLength(1)
     expect(desktop.emitted('zoomOut')).toHaveLength(1)
     expect(desktop.emitted('nearMe')).toHaveLength(1)
-  })
-})
-
-describe('HotCard', () => {
-  const deals = [
-    { deal: NOODLES, venue: { ...HAWKER_VENUE, deals: [NOODLES] }, distanceMetres: null },
-    { deal: KOPI, venue: { ...KOPI_VENUE, deals: [KOPI] }, distanceMetres: null },
-  ]
-
-  beforeEach(() => vi.useFakeTimers())
-  afterEach(() => vi.useRealTimers())
-
-  it('moves with the dots and stops with the pause button', async () => {
-    const wrapper = mount(HotCard, { props: { deals } })
-    expect(wrapper.get('[data-testid="hot-position"]').text()).toBe('1 of 2')
-    await wrapper.findAll('.hot-hero__dot')[1]?.trigger('click')
-    expect(wrapper.get('[data-testid="hot-position"]').text()).toBe('2 of 2')
-
-    await wrapper.get('[data-testid="hot-pause"]').trigger('click')
-    expect(wrapper.get('[data-testid="hot-pause"]').attributes('aria-label')).toBe(
-      'Play ending-soon deals',
-    )
-    await vi.advanceTimersByTimeAsync(10_000)
-    expect(wrapper.get('[data-testid="hot-position"]').text()).toBe('2 of 2')
-  })
-
-  it("tints the hero with the shown deal's category and shows its 3D food", async () => {
-    const wrapper = mount(HotCard, { props: { deals } })
-    expect(wrapper.get('[data-testid="hot-card"]').attributes('style')).toContain('--tint-')
-    expect(wrapper.find('.hot-hero__food .food-sprite').exists()).toBe(true)
-    await wrapper.get('.hot-hero__food').trigger('click')
-    expect(wrapper.emitted('open')?.[0]?.[0]).toMatchObject({ deal: { id: NOODLES.id } })
-  })
-
-  it('opens the shown deal', async () => {
-    const wrapper = mount(HotCard, { props: { deals } })
-    await wrapper.get('[data-testid="hot-open"]').trigger('click')
-    expect(wrapper.emitted('open')?.[0]?.[0]).toMatchObject({ deal: { id: NOODLES.id } })
-  })
-
-  it('drops the pause button and progress bar with reduced motion', () => {
-    const wrapper = mount(HotCard, { props: { deals, reducedMotion: true } })
-    expect(wrapper.find('[data-testid="hot-pause"]').exists()).toBe(false)
-    expect(wrapper.find('.hot-hero__bar').exists()).toBe(false)
   })
 })
 

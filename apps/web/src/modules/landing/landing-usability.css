@@ -3,22 +3,6 @@
   height: auto;
   min-height: 0;
 }
-.hero-benefits {
-  flex-wrap: wrap;
-}
-.hero-benefits > span {
-  min-width: 0;
-  flex: 1 1 170px;
-}
-.hero-benefits strong {
-  white-space: normal;
-  font-size: 15px;
-}
-.hero-benefits small {
-  font-size: 14px;
-  line-height: 1.5;
-  color: #575e52;
-}
 .hero-deal-copy > small {
   font-size: 12px;
   color: #545b4e;
@@ -93,10 +77,6 @@
   font-size: 13px;
   color: #575e52;
 }
-.food-sample,
-.food-offer {
-  font-size: 12px;
-}
 .landing-food-content > small,
 .landing-food-content > small > span,
 .landing-food-content del {
@@ -131,9 +111,6 @@
 .landing-footer small {
   color: #c9cfbf;
   font-size: 14px;
-}
-.landing-final .final-food {
-  animation-iteration-count: 1;
 }
 @media (max-width: 1150px) {
   .hero-map-area {
@@ -185,23 +162,6 @@
   }
 }
 @media (max-width: 600px) {
-  .hero-benefits {
-    display: grid;
-    gap: 16px;
-    max-width: 360px;
-  }
-  .hero-benefits > span {
-    flex-direction: row;
-    align-items: center;
-    text-align: left;
-    gap: 14px;
-  }
-  .hero-benefits strong {
-    margin-top: 0;
-  }
-  .hero-benefits small br {
-    display: none;
-  }
   .hero-deal > img {
     width: 80px;
     height: 116px;
@@ -211,9 +171,6 @@
   }
   .hero-deal-copy b {
     font-size: 28px;
-  }
-  .hero-deal-badge {
-    font-size: 12px;
   }
   .landing-deal-grid {
     grid-template-columns: 1fr;
@@ -348,14 +305,6 @@
 .landing-outlet-button:hover {
   color: #853322;
 }
-.cuisine-discovery .landing-card-actions {
-  display: grid;
-  gap: 8px;
-  margin-top: auto;
-}
-.cuisine-discovery .landing-card-actions a {
-  margin: 0;
-}
 .landing-outlet-dialog {
   width: min(560px, calc(100% - 32px));
   max-height: 80svh;
@@ -365,6 +314,7 @@
   background: #fffdf5;
   color: #252a20;
   overflow-y: auto;
+  overscroll-behavior: contain;
 }
 .landing-outlet-dialog::backdrop {
   background: #252a2077;
@@ -374,6 +324,9 @@
   align-items: flex-start;
   gap: 16px;
   margin-bottom: 20px;
+}
+.landing-outlet-dialog-header > div {
+  min-width: 0;
 }
 .cuisine-discovery .landing-outlet-dialog-header h3 {
   font-size: 20px;
@@ -401,6 +354,8 @@
   padding: 10px 12px;
   border: 1px solid #b7bcae;
   border-radius: 10px;
+  /* 16px stops iOS zooming the page when the field takes focus. */
+  font-size: 16px;
 }
 .landing-outlet-dialog > p {
   margin: 12px 0;
@@ -495,60 +450,6 @@
     right: -12px;
   }
 }
-
-.cuisine-discovery .landing-promotion-dates {
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 3;
-  overflow: hidden;
-  overflow-wrap: anywhere;
-  height: auto;
-  margin: 0;
-  font-size: 13px;
-  line-height: 1.5;
-  color: #58614f;
-}
-.cuisine-discovery .landing-promotion-dates > span {
-  display: block;
-  font-weight: 700;
-  color: #252a20;
-}
-
-.cuisine-discovery .landing-card-actions {
-  padding-top: 16px;
-  border-top: 1px solid #eeeee5;
-  gap: 4px;
-}
-.cuisine-discovery .landing-card-primary {
-  background: #ac432c;
-  color: #fff;
-  border: 1px solid #ac432c;
-  border-radius: 10px;
-  min-height: 44px;
-}
-.cuisine-discovery .landing-card-primary:hover {
-  background: #853322;
-  border-color: #853322;
-}
-.cuisine-discovery .landing-card-secondary {
-  border: 0;
-  background: transparent;
-  color: #58614f;
-  font-size: 13px;
-  font-weight: 500;
-}
-.cuisine-discovery .landing-card-secondary:hover {
-  background: #f7f6f0;
-  color: #252a20;
-}
-.cuisine-discovery .landing-card-actions > span {
-  display: grid;
-  text-align: center;
-}
-.cuisine-discovery .landing-card-actions > span > button {
-  min-height: 44px;
-  border-radius: 10px;
-}
 .cuisine-discovery .landing-outlet-count {
   display: flex;
   align-items: center;
@@ -591,7 +492,7 @@
   align-items: center;
   gap: 12px;
   color: #777b70;
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 650;
   letter-spacing: 0.1em;
 }

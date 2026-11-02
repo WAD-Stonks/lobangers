@@ -1,4 +1,5 @@
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
+import { formatDateTime } from '@web/lib/format'
 import AccountSecurityPanel from '@web/modules/platform-security/AccountSecurityPanel.vue'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 
@@ -400,7 +401,8 @@ it('renders suspension timestamp and server reauthentication requirement without
     freshLoginUntil: null,
   })
   const w = await open()
-  expect(w.text()).toContain('Suspended at: 2026-10-28T12:00:00.000Z')
+  expect(w.text()).toContain('Suspended at: 28 Oct 2026, 8:00 pm')
+  expect(w.find('time[datetime="2026-10-28T12:00:00.000Z"]').exists()).toBe(true)
   expect(w.find('input[type="password"]').exists()).toBe(false)
   expect(w.text()).toContain('Fresh sign-in required')
   await confirm(w)
@@ -460,7 +462,9 @@ it('renders actual security state, verification and method availability without 
   expect(w.text()).toContain('Email OTP available: Yes')
   expect(w.text()).toContain(session.deviceLabel)
   expect(w.find('img').exists()).toBe(false)
-  expect(w.text()).toContain(session.createdAt)
+  expect(w.get(`time[datetime="${session.createdAt}"]`).text()).toBe(
+    formatDateTime(session.createdAt),
+  )
   expect(w.text()).not.toContain('token')
   expect(w.text()).toContain('Suspension is indefinite')
 })

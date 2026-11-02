@@ -127,7 +127,7 @@ const overview = async (page: Page) => {
     page.locator('.overview-summary a[href="/admin/ingestion?status=PENDING#queue-title"]'),
   ).toContainText('Pending imported drafts: 0')
   const readiness = page.getByRole('button', {
-    name: 'Expand configuration readiness',
+    name: 'Show details of configuration readiness',
     exact: true,
   })
   if (await readiness.isVisible()) await readiness.click()
@@ -290,7 +290,7 @@ const catalogueMutation = async (page: Page) => {
   await page.reload()
   await page.getByLabel('Search name / outlet address', { exact: true }).fill(corrected)
   await page.getByRole('button', { name: 'Apply filters', exact: true }).click()
-  await page.getByRole('button', { name: `Open ${corrected}`, exact: true }).click()
+  await page.getByRole('button', { name: `Open detail for ${corrected}`, exact: true }).click()
   await expect(page.getByLabel('Canonical merchant name', { exact: true })).toHaveValue(corrected)
   await writeFile(
     resolve(artifacts, 'catalogue-mutation.json'),

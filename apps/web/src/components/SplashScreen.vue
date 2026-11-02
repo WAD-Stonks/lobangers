@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import logoUrl from '@web/assets/lobangers-logo.png'
+import logoUrl from '@web/assets/lobangers-logo.svg'
 import { SPLASH_DURATION_MS } from '@web/components/splash-config'
 import TicketLoader from '@web/components/TicketLoader.vue'
 import { onBeforeUnmount, onMounted, ref } from 'vue'
@@ -21,7 +21,8 @@ onBeforeUnmount(() => clearTimeout(timer))
 <template>
   <Transition name="splash">
     <div v-if="visible" class="splash" role="status" aria-live="polite" data-testid="splash-screen">
-      <img :src="logoUrl" alt="Lobangers" class="splash__logo" />
+      <!-- Decorative: the status text below already names the app. -->
+      <img :src="logoUrl" alt="" width="288" height="60" class="splash__logo" />
       <TicketLoader class="splash__loader" />
       <span class="visually-hidden">Loading Lobangers…</span>
     </div>
@@ -38,7 +39,7 @@ onBeforeUnmount(() => clearTimeout(timer))
   justify-items: center;
   gap: var(--space-6, 2rem);
   background: var(--sunny);
-  color: var(--ink);
+  color: var(--on-accent);
 }
 
 .splash__logo {
@@ -48,7 +49,12 @@ onBeforeUnmount(() => clearTimeout(timer))
 }
 
 .splash__loader {
-  color: var(--ink);
+  color: var(--on-accent);
+}
+
+/* The curtain stays sunny in dark mode, so the black wordmark must not be inverted there. */
+.app-palette[data-theme='dark'] .splash__logo {
+  filter: none;
 }
 
 /* Extends the curtain above the viewport so the wind-up squat never shows the page behind. */

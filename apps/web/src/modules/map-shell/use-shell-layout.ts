@@ -102,7 +102,8 @@ export const useShellLayout = ({
     window.addEventListener('resize', measure)
     if (typeof ResizeObserver !== 'undefined' && header.value) {
       observer = new ResizeObserver(measure)
-      observer.observe(header.value)
+      // Border box: the All Deals header adds padding without changing its content size.
+      observer.observe(header.value, { box: 'border-box' })
     }
   })
   onBeforeUnmount(() => {
@@ -122,6 +123,10 @@ export const useShellLayout = ({
   )
   const sheetVisible = computed(() =>
     mode.value === 'sheet' ? (heights.value[snap.value] ?? 0) : 0,
+  )
+  // The strip of map left between the header and the sheet, for controls that must not overlap either.
+  const mapRoom = computed(
+    () => viewport.value.height - navigationHeight.value - sheetVisible.value - headerBottom.value,
   )
   const widthFor = (isWide: boolean) =>
     leftPanel.value
@@ -188,6 +193,7 @@ export const useShellLayout = ({
     heights,
     snap,
     sheetVisible,
+    mapRoom,
     focusOffset,
     viewPadding,
     searchPadding,

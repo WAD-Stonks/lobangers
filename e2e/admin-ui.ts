@@ -1,5 +1,8 @@
 import { expect, type Page } from '@playwright/test'
 
+// The account trigger reads "<name>, admin account" so its visible label stays in its name.
+export const ADMIN_ACCOUNT_NAME = /, admin account$/
+
 // Presentation-only actions. Never replace native identity, HTTP, payloads or fixture state.
 export async function openAdminNavigation(page: Page) {
   const trigger = page.getByRole('button', { name: 'Open navigation', exact: true })
@@ -14,7 +17,7 @@ export async function openAdminNavigation(page: Page) {
 }
 
 export async function openAdminAccount(page: Page) {
-  const trigger = page.getByRole('button', { name: 'Admin account', exact: true })
+  const trigger = page.getByRole('button', { name: ADMIN_ACCOUNT_NAME })
   await expect(trigger).toBeVisible()
   if ((await trigger.getAttribute('aria-expanded')) !== 'true') await trigger.click()
   await expect(trigger).toHaveAttribute('aria-expanded', 'true')

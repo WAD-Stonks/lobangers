@@ -3,8 +3,8 @@ import routes from '@web-tests/support/loaded-routes'
 import { describe, expect, it } from 'vitest'
 
 describe('route layouts', () => {
-  it('defaults to the container shell when a route declares no layout', () => {
-    expect(routeLayout({ meta: {} })).toBe('shell')
+  it('defaults to the page layout under the All Deals header when a route declares no layout', () => {
+    expect(routeLayout({ meta: {} })).toBe('page')
   })
 
   it('returns the declared layout', () => {

@@ -277,12 +277,13 @@ describe('Ask Lobbie panel', () => {
     expect(messages.at(-1)?.classes()).toContain('lobbie__entry--user')
     expect(wrapper.find('[data-testid="lobbie-suggestion"]').exists()).toBe(false)
     expect(wrapper.get('[data-testid="lobbie-typing"]').text()).toContain('Lobbie is typing')
-    expect(wrapper.get('[data-testid="lobbie-input"]').attributes('disabled')).toBeDefined()
+    expect(wrapper.get('[data-testid="lobbie-input"]').attributes('readonly')).toBeDefined()
+    expect(wrapper.get('[data-testid="lobbie-input"]').attributes('aria-disabled')).toBe('true')
 
     answer.resolve(reply({ deals: [RICE], filters: { ...NO_FILTERS, maxPriceMinor: 500 } }))
     await flushPromises()
     expect(wrapper.find('[data-testid="lobbie-typing"]').exists()).toBe(false)
-    expect(wrapper.get('[data-testid="lobbie-input"]').attributes('disabled')).toBeUndefined()
+    expect(wrapper.get('[data-testid="lobbie-input"]').attributes('readonly')).toBeUndefined()
     expect(wrapper.text()).toContain('Shiok, here are some lobangs!')
     expect(wrapper.text()).toContain('Up to $5')
     expect(

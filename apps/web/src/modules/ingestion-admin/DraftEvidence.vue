@@ -4,7 +4,9 @@ import type {
   CitationDetail as Detail,
 } from '@broke-oclock/contracts/ingestion-evidence'
 import { BButton } from '@broke-oclock/ui'
+import TicketLoading from '@web/components/TicketLoading.vue'
 import { api } from '@web/lib/api-client'
+import { formatDateTime } from '@web/lib/format'
 import CitationDetail from '@web/modules/ingestion-admin/CitationDetail.vue'
 import { errorCode } from '@web/modules/ingestion-admin/errors'
 import { onBeforeUnmount, ref, watch } from 'vue'
@@ -117,11 +119,11 @@ onBeforeUnmount(() => {
 <template>
  <section aria-label="Immutable source evidence" class="my-4">
   <h4 class="h6">Immutable source evidence</h4><p>All pinned citations, not only the first source. Current source state is separate from immutable evidence; disabled sources remain readable.</p>
-  <p v-if="pending" role="status">Loading evidence…</p><p v-if="error" role="alert">{{ error }}</p><BButton v-if="error" :disabled="pending" @click="load()">Retry evidence read</BButton>
+  <TicketLoading v-if="pending" label="Loading evidence…" /><p v-if="error" role="alert">{{ error }}</p><BButton v-if="error" :disabled="pending" @click="load()">Retry evidence read</BButton>
   <p v-if="!pending && !error && !items.length">No citations on this page.</p>
-  <ul><li v-for="item in items" :key="item.id" class="text-break"><strong>{{ item.source.name }}</strong> · {{ item.source.provider }} / {{ item.source.externalId }} · {{ item.source.enabled ? 'Enabled' : 'Disabled' }}<br>Pinned {{ item.pinnedHash }}<br>Current {{ item.currentHash }} · {{ item.hashMatchesCurrent ? 'Matches pinned hash' : 'SOURCE CHANGED' }}<br>Latest envelope {{ item.latestSnapshotHash ?? 'Missing (legacy)' }}<br>{{ item.postStatus }} · {{ item.errorCode ?? 'No error' }} · {{ item.imageCount }} image(s) · Fetched {{ item.fetchedAt }}<br><BButton :disabled="detailPending" @click="view(item.id)">Read citation {{ item.id }}</BButton><BButton @click="$emit('investigate', item.postId)">Investigate post</BButton></li></ul>
+  <ul><li v-for="item in items" :key="item.id" class="text-break"><strong>{{ item.source.name }}</strong> · {{ item.source.provider }} / <span translate="no">{{ item.source.externalId }}</span> · {{ item.source.enabled ? 'Enabled' : 'Disabled' }}<br>Pinned <span translate="no">{{ item.pinnedHash }}</span><br>Current <span translate="no">{{ item.currentHash }}</span> · {{ item.hashMatchesCurrent ? 'Matches pinned hash' : 'SOURCE CHANGED' }}<br>Latest envelope <span translate="no">{{ item.latestSnapshotHash ?? 'Missing (legacy)' }}</span><br>{{ item.postStatus }} · {{ item.errorCode ?? 'No error' }} · {{ item.imageCount }} image(s) · Fetched <time :datetime="item.fetchedAt">{{ formatDateTime(item.fetchedAt) }}</time><br><BButton :disabled="detailPending" @click="view(item.id)">Read citation {{ item.id }}</BButton><BButton @click="$emit('investigate', item.postId)">Investigate post</BButton></li></ul>
   <BButton v-if="next" :disabled="pending" @click="load(next)">More citations</BButton>
-  <p v-if="detailPending" role="status">Loading exact citation…</p><p v-if="detailError" role="alert">{{ detailError }}</p><BButton v-if="detailError && selected" @click="view(selected)">Retry citation read</BButton>
+  <TicketLoading v-if="detailPending" label="Loading exact citation…" /><p v-if="detailError" role="alert">{{ detailError }}</p><BButton v-if="detailError && selected" @click="view(selected)">Retry citation read</BButton>
   <CitationDetail v-if="detail" :detail="detail" :pending="detailPending" @more="view(detail.citation.id, detail.nextImageCursor ?? undefined)" />
  </section>
 </template>

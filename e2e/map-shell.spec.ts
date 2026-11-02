@@ -310,7 +310,15 @@ for (const width of [390, 1280]) {
       await expect(page.getByTestId('map-shell')).toBeVisible()
       await expect(page.getByTestId('splash-screen')).toHaveCount(0)
       await page.keyboard.press('Tab')
+      await expect(page.getByRole('link', { name: 'Skip to content', exact: true })).toBeFocused()
       const toggle = page.getByTestId('nav-toggle')
+      if (width < 992) {
+        // Phones and tablets: the bottom nav replaces the brand menu; its rows live under Account.
+        await expect(toggle).toHaveCount(0)
+        await expect(page.getByTestId('map-navigation')).toHaveClass(/map-navigation--bottom/)
+        return
+      }
+      await page.keyboard.press('Tab')
       await expect(toggle).toBeFocused()
       const outline = await toggle.evaluate((element) => getComputedStyle(element).outlineStyle)
       expect(outline).not.toBe('none')

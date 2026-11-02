@@ -61,20 +61,29 @@ export const createSavedDeals = (session: Session) => {
 
   const isSaved = (dealId: string) => ids.value.has(dealId)
 
+  // Saves run one at a time, in tap order: the API rejects overlapping writes from one account,
+  // and the last tap on a deal decides its saved state.
+  let queue: Promise<unknown> = Promise.resolve()
+  const latestTap = new Map<string, Promise<unknown>>()
+
   const toggle = async (dealId: string): Promise<boolean> => {
     const wasSaved = isSaved(dealId)
     const withSaved = (saved: boolean) =>
       saved ? [...ids.value, dealId] : [...ids.value].filter((id) => id !== dealId)
     replace(withSaved(!wasSaved))
+    const send = () => (wasSaved ? api.account.unsaveDeal(dealId) : api.account.saveDeal(dealId))
+    const request = queue.then(send, send)
+    queue = request
+    latestTap.set(dealId, request)
     try {
-      const result = wasSaved
-        ? await api.account.unsaveDeal(dealId)
-        : await api.account.saveDeal(dealId)
+      const result = await request
       return result.saved
     } catch (error) {
-      // Undo only this deal, so a toggle on another deal meanwhile survives.
-      replace(withSaved(wasSaved))
+      // Undo only this deal, and only if no later tap has already set its state.
+      if (latestTap.get(dealId) === request) replace(withSaved(wasSaved))
       throw error
+    } finally {
+      if (latestTap.get(dealId) === request) latestTap.delete(dealId)
     }
   }
 

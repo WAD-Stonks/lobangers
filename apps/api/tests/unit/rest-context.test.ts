@@ -1,5 +1,5 @@
 import type { AppConfig } from '@api/config'
-import { createRestContext } from '@api/rest/context'
+import { createPublicRestHandler, createRestContext } from '@api/rest/context'
 import type { Auth } from '@broke-oclock/auth/types'
 import { db } from '@broke-oclock/db'
 import { afterEach, expect, it, vi } from 'vitest'
@@ -77,4 +77,40 @@ it('resolves the session from each request cookie instead of retaining identity'
   expect(first.session?.user.id).toBe(firstId)
   expect(second.session?.user.id).toBe(secondId)
   expect(auth.api.getSession).toHaveBeenCalledTimes(2)
+})
+
+it('serves public handlers without resolving a session, even when a cookie is sent', async () => {
+  const getSession = vi.fn()
+  const findUser = vi.spyOn(db.user, 'findUnique')
+  const auth = { api: { getSession } } as unknown as Auth
+  const config = { webOrigin: 'https://app.example' } as AppConfig
+  const seen: unknown[] = []
+  const handler = createPublicRestHandler(
+    { config, auth },
+    async (_request, _response, context) => {
+      seen.push(context.session)
+      expect(context.db).toBe(db)
+    },
+  )
+  const next = vi.fn()
+
+  await handler({ headers: { cookie: 'first=one' } } as never, {} as never, next)
+
+  expect(seen).toEqual([null])
+  expect(getSession).not.toHaveBeenCalled()
+  expect(findUser).not.toHaveBeenCalled()
+  expect(next).not.toHaveBeenCalled()
+})
+
+it('passes public handler failures to the error middleware', async () => {
+  const failure = new Error('synthetic failure')
+  const auth = { api: { getSession: vi.fn() } } as unknown as Auth
+  const handler = createPublicRestHandler({ config: {} as AppConfig, auth }, async () => {
+    throw failure
+  })
+  const next = vi.fn()
+
+  await handler({ headers: {} } as never, {} as never, next)
+
+  expect(next).toHaveBeenCalledWith(failure)
 })

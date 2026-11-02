@@ -172,6 +172,9 @@ enum PlatformAuditAction {
   ACCOUNT_REINSTATED
   SESSION_REVOKED
   SESSIONS_REVOKED
+  FLASH_DROP_APPROVED
+  FLASH_DROP_SENT_BACK
+  FLASH_DROP_STOPPED
 }
 
 enum AdminSubjectType {
@@ -184,6 +187,7 @@ enum AdminSubjectType {
   COMMENT_REPORT
   IMPORTED_POST
   INGESTION_RECOVERY
+  FLASH_DROP
 }
 
 enum PlatformAuditActorKind {
@@ -813,4 +817,172 @@ enum RunStatus {
   SUCCEEDED
   PARTIAL
   FAILED
+}
+
+// Flash Drop: a merchant's short, limited-code drop of one of their own deals at one outlet.
+// Every drop is reviewed by an admin before it goes live; the window and code count are fixed
+// once approved. `demo` marks fake drops created for demonstrations; they are labelled as such.
+enum FlashDropStatus {
+  PENDING
+  APPROVED
+  SENT_BACK
+  STOPPED
+  ENDED_EARLY
+}
+
+model FlashDrop {
+  id              String          @id @default(auto()) @map("_id") @db.ObjectId
+  dealId          String          @db.ObjectId
+  venueId         String          @db.ObjectId
+  merchantUserId  String          @db.ObjectId
+  flashPriceMinor Int
+  startsAt        DateTime
+  endsAt          DateTime
+  radiusMetres    Int
+  codeLimit       Int
+  claimedCount    Int             @default(0)
+  status          FlashDropStatus @default(PENDING)
+  reviewNote      String?
+  reviewedById    String?         @db.ObjectId
+  reviewedAt      DateTime?
+  version         Int             @default(1)
+  demo            Boolean         @default(false)
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  claims          FlashDropClaim[]
+
+  @@index([status, startsAt])
+  @@index([status, endsAt])
+  @@index([merchantUserId, createdAt])
+  @@index([venueId, startsAt])
+}
+
+// One code per person per drop; the code is what they show at the counter.
+model FlashDropClaim {
+  id        String    @id @default(auto()) @map("_id") @db.ObjectId
+  dropId    String    @db.ObjectId
+  drop      FlashDrop @relation(fields: [dropId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  userId    String    @db.ObjectId
+  code      String    @unique
+  createdAt DateTime  @default(now())
+
+  @@unique([dropId, userId])
+  @@index([userId, createdAt])
+}
+
+// Makan Squad: a short-lived room where friends vote yay or nah on a few deals together. The
+// host opens a lobby with a four-letter code, friends join under a name they type, and the room
+// moves deal by deal until more than half say yay. Rooms are polled, not pushed, so every write
+// also appends a small event the other members replay as effects.
+enum SquadRoomStatus {
+  LOBBY
+  LIVE
+  CLOSED
+}
+
+enum SquadPhase {
+  VOTING
+  DECIDING
+  MATCHED
+  OUT_OF_DEALS
+}
+
+model SquadRoom {
+  id          String          @id @default(auto()) @map("_id") @db.ObjectId
+  code        String
+  // The code while the room is open, so no two open rooms share one. A closed room keeps a
+  // unique "closed:<id>" here instead (MongoDB counts empty values as duplicates), which frees
+  // the code for a new room.
+  openCode    String          @unique
+  status      SquadRoomStatus @default(LOBBY)
+  phase       SquadPhase      @default(VOTING)
+  capacity    Int
+  dealIds     String[]        @db.ObjectId
+  dealIndex   Int             @default(0)
+  round       Int             @default(0)
+  matchDealId String?         @db.ObjectId
+  closeReason String?
+  eventSeq    Int             @default(0)
+  version     Int             @default(1)
+  createdById String          @db.ObjectId
+  createdAt   DateTime        @default(now())
+  startedAt   DateTime?
+  closedAt    DateTime?
+  updatedAt   DateTime        @updatedAt
+  members     SquadMember[]
+  votes       SquadVote[]
+  events      SquadEvent[]
+
+  @@index([code, createdAt])
+  @@index([status, createdAt])
+}
+
+model SquadMember {
+  id          String    @id @default(auto()) @map("_id") @db.ObjectId
+  roomId      String    @db.ObjectId
+  room        SquadRoom @relation(fields: [roomId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  userId      String    @db.ObjectId
+  displayName String
+  avatar      String
+  isHost      Boolean   @default(false)
+  // Joined after the room started: sees everything live but cannot vote.
+  spectator   Boolean   @default(false)
+  joinedAt    DateTime  @default(now())
+  lastSeenAt  DateTime  @default(now())
+  leftAt      DateTime?
+  kickedAt    DateTime?
+
+  @@unique([roomId, userId])
+  @@index([roomId, joinedAt])
+}
+
+// One row per member per deal per round: the latest stance, how many times they tapped, and
+// their vote-again-or-next choice once the round is decided.
+model SquadVote {
+  id        String    @id @default(auto()) @map("_id") @db.ObjectId
+  roomId    String    @db.ObjectId
+  room      SquadRoom @relation(fields: [roomId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  memberId  String    @db.ObjectId
+  dealIndex Int
+  round     Int
+  stance    String?
+  yays      Int       @default(0)
+  nahs      Int       @default(0)
+  choice    String?
+  updatedAt DateTime  @updatedAt
+
+  @@unique([roomId, memberId, dealIndex, round])
+  @@index([roomId, dealIndex, round])
+}
+
+model SquadEvent {
+  id        String    @id @default(auto()) @map("_id") @db.ObjectId
+  roomId    String    @db.ObjectId
+  room      SquadRoom @relation(fields: [roomId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  seq       Int
+  kind      String
+  memberId  String?   @db.ObjectId
+  dealIndex Int?
+  createdAt DateTime  @default(now())
+
+  @@unique([roomId, seq])
+}
+
+// Hungry Nearby: one opt-in presence per signed-in person. Only the fuzzed point is stored,
+// never the raw one; the offset and token are fixed for the sharing session and replaced when
+// the person hides or lapses. Expired rows are filtered by expiresAt.
+model NearbyPresence {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId      String   @unique @db.ObjectId
+  token       String   @unique
+  avatar      String
+  lat         Float
+  lng         Float
+  offsetNorth Float
+  offsetEast  Float
+  expiresAt   DateTime
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([expiresAt, lat])
 }

@@ -144,7 +144,7 @@ for (const width of [320, 768, 1024, 1440])
     await page.setViewportSize({ width, height: 900 })
     await page.goto(base)
     await page.getByTestId('select-deal').click()
-    await expect(page.getByText('OTHER · SGD 12.90', { exact: false })).toBeVisible()
+    await expect(page.getByText('OTHER · $12.90', { exact: false })).toBeVisible()
     await expect(page.locator('img')).toHaveCount(0)
     await page.locator('[name="edit-title"]').fill('Corrected meal')
     const note = page.locator('[name="note"]'),

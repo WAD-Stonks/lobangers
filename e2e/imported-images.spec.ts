@@ -229,6 +229,10 @@ async function installBoundary(page: Page) {
           data = { error: { code: 'FORBIDDEN', message: 'Synthetic revoked access' } }
         } else data = { items: [draft], nextCursor: null }
       } else if (url.pathname === '/api/ingestion/runs') data = { items: [] }
+      // The map shell also reads live Flash Drops and the visitor's codes; none here.
+      else if (url.pathname === '/api/flash-drops/active')
+        data = { serverTime: new Date().toISOString(), items: [] }
+      else if (url.pathname === '/api/flash-drops/codes') data = { items: [] }
       else if (url.pathname === '/api/ingestion/posts') {
         expect(Object.fromEntries(url.searchParams)).toEqual({ status: 'FAILED', limit: '20' })
         data = postsPageSchema.parse({ items: [], nextCursor: null })
@@ -402,10 +406,17 @@ for (const width of [320, 768, 1024, 1440]) {
     // Current mobile routes open a half-height sheet. Expand it with the actual accessible
     // handle before inspecting cards below the viewport; never force eager loading in tests.
     await expandSheet(page, width)
-    const ongoing = page.getByRole('list', { name: 'Ongoing deals' })
+    const ongoing = page
+      .getByRole('tabpanel', { name: 'Now', exact: true })
+      .getByTestId('food-deal-grid')
     await painted(ongoing.locator('img').first())
     await painted(ongoing.getByRole('img', { name: 'Synthetic archive GIF', exact: true }))
-    await expect(ongoing.getByRole('img', { name: 'No photo for this deal yet' })).toBeVisible()
+    // A deal without a photo keeps its card with a decorative placeholder in the photo slot.
+    await expect(
+      ongoing
+        .getByRole('article', { name: `Synthetic no-image offer at ${venue.name}`, exact: true })
+        .locator('.food-deal-card__placeholder'),
+    ).toBeVisible()
     await ongoing.screenshot({
       path: test.info().outputPath(`synthetic-venue-${width}.png`),
       style: '[data-synthetic-fixture-note] { visibility: hidden !important; }',

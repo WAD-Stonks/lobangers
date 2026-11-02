@@ -14,3 +14,5 @@ playwright-report/
 *.key
 .local/
 .vercel/
+.playwright-mcp/
+.impeccable/

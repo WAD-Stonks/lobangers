@@ -7,6 +7,8 @@ import {
 } from '@broke-oclock/contracts/ingestion'
 import type { PlatformVenue } from '@broke-oclock/contracts/platform-admin'
 import { expect, type Page, type TestInfo, test } from '@playwright/test'
+// biome-ignore lint/style/noRestrictedImports: E2E-only helper; no E2E alias exists.
+import { ADMIN_ACCOUNT_NAME } from './admin-ui'
 
 // SYNTHETIC network boundary only: real SPA, Axios and public contract parsing.
 // Not live authentication, provider delivery, database authorization or publication proof.
@@ -366,6 +368,8 @@ for (const width of [320, 390, 1280]) {
       await page
         .getByLabel('Review note (required)')
         .fill('Read version eight and exact associated outlet')
+      await expect(page.getByTestId('reject-draft')).toBeDisabled()
+      await page.getByLabel(/^To reject, I confirm rejecting /).check()
       await page.getByTestId('reject-draft').focus()
       await page.getByTestId('reject-draft').press('Enter')
       await expect(page.getByRole('button', { name: 'Submitting…', exact: true })).toBeDisabled()
@@ -415,7 +419,7 @@ for (const outcome of ['CONFLICT', 'FORBIDDEN', 'LOGOUT'] as const) {
       await page.getByTestId('associate-outlet').click()
       await expect(page.getByRole('button', { name: 'Associating…', exact: true })).toBeDisabled()
       if (outcome === 'LOGOUT') {
-        await page.getByRole('button', { name: 'Admin account', exact: true }).click()
+        await page.getByRole('button', { name: ADMIN_ACCOUNT_NAME }).click()
         await page.getByTestId('admin-sign-out').click()
         await expect(
           page.getByRole('heading', { name: 'Sign in to review ingestion' }),

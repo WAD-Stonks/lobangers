@@ -2,7 +2,7 @@ import { postsPageSchema } from '@broke-oclock/contracts/ingestion-recovery'
 import type { AdminOverviewResponse } from '@broke-oclock/contracts/platform-admin'
 import { expect, type Page, test } from '@playwright/test'
 // biome-ignore lint/style/noRestrictedImports: E2E-only helper; no E2E alias exists and config is outside this UI adoption scope.
-import { openAdminAccount, openAdminNavigation } from './admin-ui'
+import { ADMIN_ACCOUNT_NAME, openAdminAccount, openAdminNavigation } from './admin-ui'
 
 // Evidence only: observe actual Chromium output without replacing SPA or browser behavior.
 const browserObservations = new WeakMap<
@@ -60,7 +60,13 @@ test.afterEach(async ({ page }, info) => {
 // not live authentication, provider delivery, database authorization or acceptance.
 const overview: AdminOverviewResponse = {
   generatedAt: '2026-10-10T00:00:00.000Z',
-  counts: { pendingMerchantRequests: 2, pendingImportedDrafts: 4, failedImportedPosts: 3 },
+  counts: {
+    pendingMerchantRequests: 2,
+    pendingImportedDrafts: 4,
+    failedImportedPosts: 3,
+    pendingFlashDrops: 0,
+    liveFlashDrops: 0,
+  },
   recentRuns: [],
   readiness: {
     googleConfigured: false,
@@ -157,7 +163,7 @@ for (const width of [320, 390, 1280]) {
     await page.goto('/admin')
     await expect(page.getByRole('heading', { name: 'Admin overview', exact: true })).toBeVisible()
     const readinessToggle = page.getByRole('button', {
-      name: 'Expand configuration readiness',
+      name: 'Show details of configuration readiness',
       exact: true,
     })
     await expect(readinessToggle).toHaveAttribute('aria-expanded', 'false')
@@ -197,7 +203,9 @@ for (const width of [320, 390, 1280]) {
     await expect(page.locator('#queue-status')).toHaveValue('PENDING')
     await expect(page.locator('#queue-title')).toBeVisible()
     await page.goto('/admin')
-    await page.getByRole('button', { name: 'Expand recent ingestion runs', exact: true }).click()
+    await page
+      .getByRole('button', { name: 'Show details of recent ingestion runs', exact: true })
+      .click()
     const runDocuments = [...documents]
     await page.locator('a[href="/admin/ingestion#runs-title"]').click()
     await expect(page).toHaveURL('/admin/ingestion#runs-title')
@@ -242,6 +250,7 @@ for (const width of [320, 390, 768, 1024, 1440]) {
       await expect(nav.locator('a')).toHaveText([
         'Overview',
         'Deals',
+        'Flash drops',
         'Catalogue',
         'Moderation',
         'Accounts',
@@ -255,6 +264,7 @@ for (const width of [320, 390, 768, 1024, 1440]) {
       ).toEqual([
         '/admin',
         '/admin/deals',
+        '/admin/flash-drops',
         '/admin/catalogue',
         '/admin/moderation',
         '/admin/accounts',
@@ -298,7 +308,8 @@ for (const width of [320, 390, 768, 1024, 1440]) {
         accent: 'rgb(243, 203, 69)',
         navFill: 'rgb(241, 242, 244)',
         navWeight: '650',
-        navRows: 7,
+        // Overview, Deals, Flash drops, Catalogue, Moderation, Accounts, Ingestion, Audit.
+        navRows: 8,
         surface: 'rgb(255, 255, 255)',
         canvas: path === '/admin' ? 'rgb(247, 248, 250)' : 'rgb(248, 249, 251)',
         radius: path === '/admin' ? '14px' : '8px',
@@ -402,7 +413,7 @@ for (const width of [320, 390]) {
     await page.getByTestId('admin-sign-out').focus()
     await page.keyboard.press('Escape')
     await expect(page.getByTestId('admin-sign-out')).toBeHidden()
-    await expect(page.getByRole('button', { name: 'Admin account', exact: true })).toBeFocused()
+    await expect(page.getByRole('button', { name: ADMIN_ACCOUNT_NAME })).toBeFocused()
     expect(
       await page.evaluate(
         () => document.documentElement.scrollWidth <= document.documentElement.clientWidth,

@@ -13,35 +13,53 @@ export const readAdminOverview = async (context: RestContext, config: AppConfig)
     readIngestionReadiness(context.db, context.ingestion),
     resolveImportedDealReadScope(context.db),
   ])
-  const [pendingMerchantRequests, pendingImportedDrafts, failedImportedPosts, runs] =
-    await Promise.all([
-      context.db.merchantAccessRequest.count({ where: { status: 'PENDING' } }),
-      context.db.deal.count({ where: { ...importedScope, reviewStatus: 'PENDING' } }),
-      context.db.importedPost.count({
-        where: { source: operationalSourceScope, status: 'FAILED' },
-      }),
-      context.db.ingestionRun.findMany({
-        where: { source: operationalSourceScope },
-        orderBy: [{ startedAt: 'desc' }, { id: 'desc' }],
-        take: 10,
-        select: {
-          id: true,
-          status: true,
-          startedAt: true,
-          finishedAt: true,
-          fetchedCount: true,
-          createdCount: true,
-          updatedCount: true,
-          failedCount: true,
-          errorCode: true,
-          source: { select: { name: true } },
-        },
-      }),
-    ])
+  const now = new Date(generatedAt)
+  const [
+    pendingMerchantRequests,
+    pendingImportedDrafts,
+    failedImportedPosts,
+    runs,
+    pendingFlashDrops,
+    liveFlashDrops,
+  ] = await Promise.all([
+    context.db.merchantAccessRequest.count({ where: { status: 'PENDING' } }),
+    context.db.deal.count({ where: { ...importedScope, reviewStatus: 'PENDING' } }),
+    context.db.importedPost.count({
+      where: { source: operationalSourceScope, status: 'FAILED' },
+    }),
+    context.db.ingestionRun.findMany({
+      where: { source: operationalSourceScope },
+      orderBy: [{ startedAt: 'desc' }, { id: 'desc' }],
+      take: 10,
+      select: {
+        id: true,
+        status: true,
+        startedAt: true,
+        finishedAt: true,
+        fetchedCount: true,
+        createdCount: true,
+        updatedCount: true,
+        failedCount: true,
+        errorCode: true,
+        source: { select: { name: true } },
+      },
+    }),
+    // Waiting for review and still able to run.
+    context.db.flashDrop.count({ where: { status: 'PENDING', endsAt: { gt: now } } }),
+    context.db.flashDrop.count({
+      where: { status: 'APPROVED', startsAt: { lte: now }, endsAt: { gt: now } },
+    }),
+  ])
 
   return adminOverviewResponseSchema.parse({
     generatedAt,
-    counts: { pendingMerchantRequests, pendingImportedDrafts, failedImportedPosts },
+    counts: {
+      pendingMerchantRequests,
+      pendingImportedDrafts,
+      failedImportedPosts,
+      pendingFlashDrops,
+      liveFlashDrops,
+    },
     recentRuns: runs.map((row) => ({
       id: row.id,
       sourceName: row.source.name,

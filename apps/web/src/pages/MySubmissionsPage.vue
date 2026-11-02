@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import type { Submission } from '@broke-oclock/contracts/account'
+import TicketLoading from '@web/components/TicketLoading.vue'
 import { api } from '@web/lib/api-client'
+import { formatDate } from '@web/lib/format'
 import { errorCode } from '@web/modules/ingestion-admin/errors'
 import { onMounted, ref } from 'vue'
 import { RouterLink } from 'vue-router'
@@ -60,10 +62,10 @@ onMounted(loadSubmissions)
 </script>
 
 <template>
-  <section class="container py-4">
+  <section class="container py-4 my-submissions">
     <h1 class="h2 mb-4">My submissions</h1>
 
-    <p v-if="loading">Loading your submissions…</p>
+    <TicketLoading v-if="loading" label="Loading your submissions…" />
 
     <p v-else-if="notLoggedIn">
       Please <RouterLink to="/login">log in</RouterLink> to see your submissions.
@@ -83,15 +85,15 @@ onMounted(loadSubmissions)
     <div v-else>
       <ul class="list-unstyled d-grid gap-3">
         <li v-for="item in submissions" :key="item.id" class="card card-body">
-          <div class="d-flex justify-content-between align-items-start">
-            <div>
+          <div class="d-flex justify-content-between align-items-start gap-2">
+            <div class="submission-text">
               <h2 class="h5 mb-1">{{ item.title }}</h2>
               <p class="small text-secondary mb-0">
-                {{ item.category }} · submitted {{ new Date(item.createdAt).toLocaleDateString() }}
+                {{ item.category }} · submitted <time :datetime="item.createdAt">{{ formatDate(item.createdAt) }}</time>
               </p>
               <p v-if="item.reviewNote" class="mt-2 mb-0">Reviewer note: {{ item.reviewNote }}</p>
             </div>
-            <span class="badge" :class="badgeClass[item.reviewStatus]">{{ item.reviewStatus }}</span>
+            <span class="badge flex-shrink-0" :class="badgeClass[item.reviewStatus]">{{ item.reviewStatus }}</span>
           </div>
         </li>
       </ul>
@@ -108,3 +110,16 @@ onMounted(loadSubmissions)
     </div>
   </section>
 </template>
+
+<style scoped>
+/* A readable width on wide screens. */
+.my-submissions {
+  max-width: 52rem;
+}
+
+/* Long titles and notes wrap beside the status badge on a 320px phone. */
+.submission-text {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+</style>

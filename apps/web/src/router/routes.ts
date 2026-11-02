@@ -8,11 +8,16 @@ const ProfilePanel = () => import('@web/modules/account/ProfilePanel.vue')
 const RegisterPanel = () => import('@web/modules/account/RegisterPanel.vue')
 const BrowseListPanel = () => import('@web/modules/browse-map/BrowseListPanel.vue')
 const DealPanel = () => import('@web/modules/browse-map/DealPanel.vue')
+const MyCodesPanel = () => import('@web/modules/flash-drop/MyCodesPanel.vue')
 const LobbiePanel = () => import('@web/modules/lobbie/LobbiePanel.vue')
+const SquadCreatePanel = () => import('@web/modules/squad/SquadCreatePanel.vue')
+const SquadJoinPanel = () => import('@web/modules/squad/SquadJoinPanel.vue')
+const SquadRoomPanel = () => import('@web/modules/squad/SquadRoomPanel.vue')
 const VenuePanel = () => import('@web/modules/venues-feed/VenuePanel.vue')
 const AdminAuditPage = () => import('@web/pages/AdminAuditPage.vue')
 const AdminCataloguePage = () => import('@web/pages/AdminCataloguePage.vue')
 const AdminDealsPage = () => import('@web/pages/AdminDealsPage.vue')
+const AdminFlashDropsPage = () => import('@web/pages/AdminFlashDropsPage.vue')
 const AdminModerationPage = () => import('@web/pages/AdminModerationPage.vue')
 const AdminOverviewPage = () => import('@web/pages/AdminOverviewPage.vue')
 const AuthPage = () => import('@web/pages/AuthPage.vue')
@@ -96,6 +101,28 @@ const routes: RouteRecordRaw[] = [
         component: BrowseListPanel,
         meta: { requiresAuth: true, panelLabel: 'Saved deals' },
       },
+      // Signed-out visitors see a prompt to log in rather than a redirect, so the menu link
+      // always lands somewhere that explains what codes are.
+      { path: '/codes', name: 'codes', component: MyCodesPanel, meta: { panelLabel: 'My codes' } },
+      // Static Squad paths come first: "join" is four letters, so it would also fit a code.
+      {
+        path: '/squad/new',
+        name: 'squad-new',
+        component: SquadCreatePanel,
+        meta: { requiresAuth: true, panelLabel: 'Start a Squad room' },
+      },
+      {
+        path: '/squad/join',
+        name: 'squad-join',
+        component: SquadJoinPanel,
+        meta: { panelLabel: 'Join a Squad room' },
+      },
+      {
+        path: '/squad/:code([A-Za-z]{4})',
+        name: 'squad-room',
+        component: SquadRoomPanel,
+        meta: { panelLabel: 'Squad room' },
+      },
     ],
   },
   { path: '/', name: 'landing', component: LandingPage, meta: { layout: 'landing' } },
@@ -122,6 +149,7 @@ const routes: RouteRecordRaw[] = [
   { path: '/getting-started', name: 'getting-started', component: GettingStartedPage },
   { path: '/admin', name: 'admin-overview', component: AdminOverviewPage },
   { path: '/admin/deals', name: 'admin-deals', component: AdminDealsPage },
+  { path: '/admin/flash-drops', name: 'admin-flash-drops', component: AdminFlashDropsPage },
   { path: '/admin/catalogue', name: 'admin-catalogue', component: AdminCataloguePage },
   { path: '/admin/moderation', name: 'admin-moderation', component: AdminModerationPage },
   { path: '/admin/audit', name: 'admin-audit', component: AdminAuditPage },
@@ -151,9 +179,14 @@ const routes: RouteRecordRaw[] = [
     path: '/forgot-password',
     name: 'forgot-password',
     component: ForgotPasswordPage,
-    meta: { guestOnly: true },
+    meta: { layout: 'auth', guestOnly: true },
   },
-  { path: '/reset-password', name: 'reset-password', component: ResetPasswordPage },
+  {
+    path: '/reset-password',
+    name: 'reset-password',
+    component: ResetPasswordPage,
+    meta: { layout: 'auth' },
+  },
   {
     path: '/add',
     name: 'submit-deal',
