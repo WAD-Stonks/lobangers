@@ -1,5 +1,5 @@
 import type { DealVenuePin } from '@broke-oclock/contracts/deals'
-import { api } from '@web/lib/api-client'
+import { fetchVenueDetail } from '@web/modules/venues-feed/venue-detail-cache'
 import { onBeforeUnmount, type Ref, ref, watch } from 'vue'
 
 // Only visible/selected outlets are fetched. Cache by outlet ID, never by region or chain.
@@ -13,8 +13,7 @@ export function useOutletAddresses(outlets: Readonly<Ref<readonly DealVenuePin[]
       for (const venue of venues) {
         if (requested.has(venue.id)) continue
         requested.add(venue.id)
-        void api.venues
-          .get(venue.id)
+        void fetchVenueDetail(venue.id)
           .then((result) => {
             if (active) addresses.value[venue.id] = result.venue.address.trim() || venue.name
           })

@@ -22,11 +22,39 @@ export const pinLabel = (deal: Pick<DealPin, 'title' | 'label'>): string => {
   return `${text.slice(0, DEAL_PIN_LABEL_MAX_CHARS - 1).trimEnd()}${ELLIPSIS}`
 }
 
-// One deal: its price or offer. Several deals at the outlet: how many there are.
-export const pinBadgeText = (deals: readonly Pick<DealPin, 'title' | 'label'>[]): string => {
+type PinOffer = Pick<DealPin, 'title' | 'label'> &
+  Partial<Pick<DealPin, 'offerType' | 'priceMinor' | 'discountPercent'>>
+
+const cheapest = (deals: readonly PinOffer[]): PinOffer | undefined =>
+  deals
+    .filter((deal) => typeof deal.priceMinor === 'number')
+    .reduce<PinOffer | undefined>(
+      (best, deal) => (!best || (deal.priceMinor ?? 0) < (best.priceMinor ?? 0) ? deal : best),
+      undefined,
+    )
+
+// One deal: its price or offer. Several: the cheapest price, or how many there are.
+export const pinBadgeText = (deals: readonly PinOffer[]): string => {
   const [first] = deals
   if (deals.length === 1 && first) return pinLabel(first)
-  return `${deals.length} deals`
+  const lead = cheapest(deals)
+  return lead ? `from ${pinLabel(lead)}` : `${deals.length} deals`
+}
+
+export type PinTag = { readonly text: string; readonly tone: 'promo' | 'plain' }
+
+// The small box beside the price: the kind of offer in yellow, or the outlet's deal count in
+// white. Never repeats what the badge already says.
+export const pinTag = (deals: readonly PinOffer[]): PinTag | null => {
+  const [first] = deals
+  if (!first) return null
+  if (deals.length > 1)
+    return cheapest(deals) ? { text: `${deals.length} deals`, tone: 'plain' } : null
+  if (typeof first.priceMinor !== 'number') return null
+  if (first.offerType === 'BUY_ONE_GET_ONE') return { text: '1-for-1', tone: 'promo' }
+  if (first.offerType === 'PERCENT_OFF' && first.discountPercent)
+    return { text: `−${first.discountPercent}%`, tone: 'promo' }
+  return null
 }
 
 // Small corner flags: "ending today" wins over "verified" so the urgent one is never hidden.
@@ -96,8 +124,26 @@ export const pinFoodKind = (pin: Pick<VenuePin, 'deals'> & Partial<Pick<VenuePin
 const phaseOf = (text: string): number =>
   ([...text].reduce((hash, ch) => (hash * 31 + ch.charCodeAt(0)) % 997, 7) % 100) / 100
 
-// The first deal's animated 3D food, and a black badge underneath. Built from DOM nodes so deal
-// text is never parsed as HTML.
+const part = (name: string, text?: string): HTMLSpanElement => {
+  const element = document.createElement('span')
+  element.className = `${DEAL_PIN_CLASS}__${name}`
+  if (text !== undefined) element.textContent = text
+  return element
+}
+
+// "Chicken rice at Ah Seng, $4.50" or "3 deals at Ah Seng, from $3.00".
+export const venuePinLabel = (
+  pin: Pick<VenuePin, 'deals'> & Partial<Pick<VenuePin, 'name'>>,
+): string => {
+  const [first] = pin.deals
+  const what = pin.deals.length === 1 && first ? first.title : `${pin.deals.length} deals`
+  const where = pin.name ? ` at ${pin.name}` : ''
+  return `${what}${where}, ${pinBadgeText(pin.deals)}`
+}
+
+// A dark oval with the first deal's animated 3D food standing out of its top-left corner, the
+// price, and a yellow or white tag, on a stem down to a dot that marks the outlet. Built from DOM
+// nodes so deal text is never parsed as HTML.
 export const createVenuePinIcon = (
   pin: Pick<VenuePin, 'deals'> & Partial<Pick<VenuePin, 'name'>>,
   state: PinState = {},
@@ -105,19 +151,23 @@ export const createVenuePinIcon = (
 ): L.DivIcon => {
   const first = pin.deals[0]
   const kind = pinFoodKind(pin)
-  const bubble = document.createElement('span')
-  bubble.className = `${DEAL_PIN_CLASS}__bubble`
+  const bubble = part('bubble')
   bubble.append(createFoodSprite(kind, { animated: true, phase: phaseOf(first?.title ?? '') }))
   const flag = pinFlag(pin.deals, now)
   if (flag) bubble.append(createFlag(flag))
+  bubble.append(part('badge', pinBadgeText(pin.deals)))
+  const tag = pinTag(pin.deals)
+  if (tag) {
+    const box = part('tag', tag.text)
+    box.classList.add(`${DEAL_PIN_CLASS}__tag--${tag.tone}`)
+    bubble.append(box)
+  }
 
-  const badge = document.createElement('span')
-  badge.className = `${DEAL_PIN_CLASS}__badge`
-  badge.textContent = pinBadgeText(pin.deals)
-
-  const root = document.createElement('span')
-  root.className = `${DEAL_PIN_CLASS}__stack`
-  root.append(bubble, badge)
+  const root = part('stack')
+  // Leaflet names the marker's role="button" from its content, not its title, so the stack
+  // carries a full label; on its own the price and tag ("$4.50 1-for-1") say little.
+  root.setAttribute('aria-label', venuePinLabel(pin))
+  root.append(bubble, part('stem'), part('dot'))
   return L.divIcon({
     className: stateClasses(state),
     html: root,

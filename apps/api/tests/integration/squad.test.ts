@@ -1,0 +1,348 @@
+import { execFile } from 'node:child_process'
+import { randomBytes, randomUUID } from 'node:crypto'
+import { createServer, type Server } from 'node:http'
+import { fileURLToPath } from 'node:url'
+import { promisify } from 'node:util'
+import { parseConfig } from '@api/config'
+import { MongoMemoryReplSet } from 'mongodb-memory-server'
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
+
+// Makan Squad rooms through real HTTP against a disposable replica set: hosting, joining,
+// voting, deciding and leaving. All deals and people are SYNTHETIC.
+
+const origin = 'http://localhost:5173'
+const root = fileURLToPath(new URL('../../../../', import.meta.url))
+let mongo: MongoMemoryReplSet | undefined
+let server: Server | undefined
+let db: typeof import('@broke-oclock/db').db
+let baseURL = ''
+
+type Account = { id: string; cookie: string }
+let host: Account
+let ashley: Account
+let damien: Account
+let noah: Account
+let late: Account
+
+let signUps = 1
+const signUp = async (name: string): Promise<Account> => {
+  const response = await fetch(`${baseURL}/api/auth/sign-up/email`, {
+    method: 'POST',
+    // A distinct synthetic client address per sign-up keeps the auth rate limit per person.
+    headers: {
+      'Content-Type': 'application/json',
+      Origin: origin,
+      'X-Forwarded-For': `10.${signUps >> 8}.${signUps++ & 255}.1`,
+    },
+    body: JSON.stringify({
+      name,
+      email: `squad-${randomUUID()}@example.test`,
+      password: randomBytes(24).toString('base64url'),
+    }),
+  })
+  expect(response.status).toBe(200)
+  const body = await response.json()
+  const cookie = response.headers
+    .getSetCookie()
+    .map((value) => value.split(';')[0])
+    .join('; ')
+  return { id: body.user.id as string, cookie }
+}
+
+const call = async (account: Account | null, method: string, path: string, body?: unknown) => {
+  const response = await fetch(`${baseURL}/api${path}`, {
+    method,
+    headers: {
+      ...(account ? { Cookie: account.cookie } : {}),
+      ...(body === undefined ? {} : { 'Content-Type': 'application/json' }),
+      Origin: origin,
+    },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  })
+  return { status: response.status, body: await response.json() }
+}
+
+// A published synthetic deal at one outlet, the way the public map sees it.
+const publishedDeal = async (title: string, validUntil: Date | null = null) => {
+  const brand = await db.merchant.create({ data: { name: `Synthetic ${title} brand` } })
+  const venue = await db.venue.create({
+    data: {
+      merchantId: brand.id,
+      name: `Synthetic ${title} stall`,
+      address: '1 Synthetic Road',
+      latitude: 1.32,
+      longitude: 103.93,
+    },
+  })
+  const deal = await db.deal.create({
+    data: {
+      title: `Synthetic ${title}`,
+      description: 'Fake deal for a squad test.',
+      category: 'FOOD',
+      offerType: 'FIXED_PRICE',
+      priceMinor: 350,
+      applicability: 'SELECTED_OUTLETS',
+      reviewStatus: 'APPROVED',
+      publishedAt: new Date(),
+      validUntil,
+      merchantId: brand.id,
+      venues: { create: [{ venueId: venue.id }] },
+    },
+  })
+  return deal.id
+}
+
+const room = (code: string, action = '') => `/squad/rooms/${code}${action}`
+const join = (account: Account, code: string, displayName: string, avatar = 'teh') =>
+  call(account, 'POST', room(code, '/join'), { displayName, avatar })
+const voteAs = (account: Account, code: string, stance: 'YAY' | 'NAH', taps = 1) =>
+  call(account, 'POST', room(code, '/votes'), { stance, taps })
+const chooseAs = (account: Account, code: string, choice: 'AGAIN' | 'NEXT') =>
+  call(account, 'POST', room(code, '/choices'), { choice })
+
+// A started room with the host, Ashley and Damien voting on the given deals.
+const liveRoom = async (dealIds: string[], capacity = 4) => {
+  const created = await call(host, 'POST', '/squad/rooms', {
+    dealIds,
+    capacity,
+    displayName: 'Allison',
+    avatar: 'kopi',
+  })
+  expect(created.status).toBe(201)
+  const code = created.body.code as string
+  expect((await join(ashley, code, 'Ashley', 'bao')).status).toBe(200)
+  expect((await join(damien, code, 'Damien', 'kaya')).status).toBe(200)
+  expect((await call(host, 'POST', room(code, '/start'))).status).toBe(200)
+  return code
+}
+
+beforeAll(async () => {
+  mongo = await MongoMemoryReplSet.create({
+    replSet: { count: 1, storageEngine: 'wiredTiger', ip: '127.0.0.1' },
+  })
+  const databaseUrl = mongo.getUri(`squad_${randomUUID().replaceAll('-', '')}`)
+  vi.stubEnv('DATABASE_URL', databaseUrl)
+  vi.stubEnv('NODE_ENV', 'test')
+  await promisify(execFile)('pnpm', ['--dir', 'packages/db', 'run', 'push'], {
+    cwd: root,
+    env: { ...process.env, DATABASE_URL: databaseUrl },
+    encoding: 'utf8',
+    timeout: 60_000,
+    shell: process.platform === 'win32',
+  })
+  db = (await import('@broke-oclock/db')).db
+  const { createApp } = await import('@api/app')
+  server = createServer()
+  await new Promise<void>((resolve) => server?.listen(0, '127.0.0.1', resolve))
+  const address = server.address()
+  if (!address || typeof address === 'string') throw new Error('Missing disposable HTTP listener')
+  baseURL = `http://127.0.0.1:${address.port}`
+  server.on(
+    'request',
+    createApp(
+      parseConfig({
+        DATABASE_URL: databaseUrl,
+        BETTER_AUTH_SECRET: randomBytes(32).toString('hex'),
+        BETTER_AUTH_URL: baseURL,
+        WEB_ORIGIN: origin,
+      }),
+    ),
+  )
+  host = await signUp('Synthetic host')
+  ashley = await signUp('Synthetic Ashley')
+  damien = await signUp('Synthetic Damien')
+  noah = await signUp('Synthetic Noah')
+  late = await signUp('Synthetic late')
+}, 180_000)
+
+afterAll(async () => {
+  server?.closeAllConnections()
+  if (server) await new Promise<void>((resolve) => server?.close(() => resolve()))
+  await db?.$disconnect()
+  await mongo?.stop()
+  vi.unstubAllEnvs()
+})
+
+describe('lobby', () => {
+  it('hosts a room with a four-letter code and only votable deals', async () => {
+    const ended = await publishedDeal('Ended', new Date(Date.now() - 60_000))
+    const fine = await publishedDeal('Lobby')
+    expect(
+      (
+        await call(null, 'POST', '/squad/rooms', {
+          dealIds: [fine],
+          capacity: 4,
+          displayName: 'A',
+          avatar: 'kopi',
+        })
+      ).status,
+    ).toBe(401)
+    const refused = await call(host, 'POST', '/squad/rooms', {
+      dealIds: [ended],
+      capacity: 4,
+      displayName: 'Allison',
+      avatar: 'kopi',
+    })
+    expect(refused.status).toBe(400)
+    const created = await call(host, 'POST', '/squad/rooms', {
+      dealIds: [fine],
+      capacity: 2,
+      displayName: 'Allison',
+      avatar: 'kopi',
+    })
+    expect(created.body).toMatchObject({
+      status: 'LOBBY',
+      capacity: 2,
+      me: { isHost: true, spectator: false },
+    })
+    expect(created.body.code).toMatch(/^[A-Z]{4}$/)
+    const peek = await call(noah, 'GET', room(created.body.code))
+    expect(peek.body).toMatchObject({
+      status: 'LOBBY',
+      members: 1,
+      hostName: 'Allison',
+      capacity: 2,
+    })
+  })
+
+  it('explains taken names, full rooms, wrong codes and starting alone', async () => {
+    const deal = await publishedDeal('Rules')
+    const created = await call(host, 'POST', '/squad/rooms', {
+      dealIds: [deal],
+      capacity: 2,
+      displayName: 'Allison',
+      avatar: 'kopi',
+    })
+    const code = created.body.code as string
+    expect((await call(host, 'POST', room(code, '/start'))).status).toBe(412)
+    const taken = await join(ashley, code, ' allison ')
+    expect(taken.status).toBe(409)
+    expect(taken.body.error.message).toMatch(/already called Allison/)
+    expect((await join(ashley, code, 'Ashley')).status).toBe(200)
+    const full = await join(damien, code, 'Damien')
+    expect(full.status).toBe(409)
+    expect(full.body.error.message).toMatch(/full \(2 of 2\)/)
+    expect((await call(noah, 'GET', room('ZZZZ'))).status).toBe(404)
+    expect((await join(ashley, code, 'Ashley')).body.me.isHost).toBe(false)
+    expect((await call(ashley, 'POST', room(code, '/start'))).status).toBe(403)
+  })
+
+  it('removes a member, who cannot come back, and closes for everyone', async () => {
+    const deal = await publishedDeal('Kick')
+    const created = await call(host, 'POST', '/squad/rooms', {
+      dealIds: [deal],
+      capacity: 4,
+      displayName: 'Allison',
+      avatar: 'kopi',
+    })
+    const code = created.body.code as string
+    const joined = await join(noah, code, 'Noah')
+    const noahId = joined.body.me.memberId
+    expect((await call(host, 'POST', room(code, `/members/${noahId}/remove`))).status).toBe(200)
+    expect((await join(noah, code, 'Noah')).status).toBe(403)
+    const synced = await call(noah, 'POST', room(code, '/sync'), { after: 0 })
+    expect(synced.body.state.me.kicked).toBe(true)
+    expect((await call(host, 'POST', room(code, '/close'))).body).toMatchObject({
+      status: 'CLOSED',
+      closeReason: 'HOST_CLOSED',
+    })
+    expect((await join(late, code, 'Late')).status).toBe(412)
+  })
+})
+
+describe('voting', () => {
+  it('matches when more than half say yay, and replays every tap as an effect', async () => {
+    const code = await liveRoom([await publishedDeal('Match')])
+    await voteAs(host, code, 'YAY', 5)
+    const after = await voteAs(ashley, code, 'YAY')
+    expect(after.body.phase).toBe('MATCHED')
+    expect(after.body.matchDealId).toBe(after.body.deals[0].id)
+    const synced = await call(damien, 'POST', room(code, '/sync'), { after: 0 })
+    const kinds = synced.body.events.map((event: { kind: string }) => event.kind)
+    expect(kinds.filter((kind: string) => kind === 'YAY')).toHaveLength(4)
+    expect(kinds.at(-1)).toBe('MATCH')
+    expect(
+      synced.body.state.members.find((member: { name: string }) => member.name === 'Allison').yays,
+    ).toBe(5)
+  })
+
+  it('decides together: vote again needs a majority, otherwise the next deal', async () => {
+    const code = await liveRoom([await publishedDeal('First'), await publishedDeal('Second')])
+    await voteAs(host, code, 'YAY')
+    await voteAs(ashley, code, 'NAH')
+    const decided = await voteAs(damien, code, 'NAH')
+    expect(decided.body).toMatchObject({
+      phase: 'DECIDING',
+      tally: { yesPeople: 1, voters: 3, voted: 3 },
+    })
+    expect((await voteAs(host, code, 'YAY')).status).toBe(412)
+    await chooseAs(host, code, 'AGAIN')
+    await chooseAs(ashley, code, 'AGAIN')
+    const revote = await chooseAs(damien, code, 'NEXT')
+    expect(revote.body).toMatchObject({ phase: 'VOTING', round: 1, dealIndex: 0 })
+    for (const person of [host, ashley, damien]) await voteAs(person, code, 'NAH')
+    await chooseAs(host, code, 'AGAIN')
+    await chooseAs(ashley, code, 'NEXT')
+    const moved = await chooseAs(damien, code, 'NEXT')
+    expect(moved.body).toMatchObject({ phase: 'VOTING', round: 0, dealIndex: 1 })
+  })
+
+  it('offers the top pick when every deal is voted down, then lets the host add more', async () => {
+    const only = await publishedDeal('Only')
+    const code = await liveRoom([only])
+    await voteAs(host, code, 'YAY', 3)
+    await voteAs(ashley, code, 'NAH')
+    await voteAs(damien, code, 'NAH')
+    for (const person of [host, ashley, damien]) await chooseAs(person, code, 'NEXT')
+    const out = await call(host, 'POST', room(code, '/sync'), { after: 0 })
+    expect(out.body.state).toMatchObject({ phase: 'OUT_OF_DEALS', topDealId: only })
+    const extra = await publishedDeal('Extra')
+    const added = await call(host, 'POST', room(code, '/deals'), { dealIds: [extra] })
+    expect(added.body).toMatchObject({ phase: 'VOTING', dealIndex: 1 })
+  })
+
+  it('lets late joiners watch but not vote, and hands the host role on', async () => {
+    const code = await liveRoom([await publishedDeal('Watch')])
+    const watching = await join(late, code, 'Late')
+    expect(watching.body.me.spectator).toBe(true)
+    expect((await voteAs(late, code, 'YAY')).status).toBe(403)
+    const left = await call(host, 'POST', room(code, '/leave'))
+    expect(left.body.me.left).toBe(true)
+    const synced = await call(ashley, 'POST', room(code, '/sync'), { after: 0 })
+    expect(synced.body.state.me.isHost).toBe(true)
+    expect(synced.body.events.map((event: { kind: string }) => event.kind)).toContain(
+      'HOST_CHANGED',
+    )
+    const back = await join(host, code, 'Allison')
+    expect(back.body.me).toMatchObject({ spectator: false, left: false })
+  })
+
+  it('stops waiting for someone who went quiet', async () => {
+    const code = await liveRoom([await publishedDeal('Quiet')])
+    await voteAs(host, code, 'NAH')
+    await voteAs(ashley, code, 'NAH')
+    const stuck = await call(host, 'POST', room(code, '/sync'), { after: 0 })
+    expect(stuck.body.state.phase).toBe('VOTING')
+    await db.squadMember.updateMany({
+      where: { userId: damien.id },
+      data: { lastSeenAt: new Date(Date.now() - 120_000) },
+    })
+    const moved = await call(host, 'POST', room(code, '/sync'), { after: 0 })
+    expect(moved.body.state.phase).toBe('DECIDING')
+    expect(
+      moved.body.state.members.find((member: { name: string }) => member.name === 'Damien').away,
+    ).toBe(true)
+  })
+
+  it('skips a deal that ended mid-vote', async () => {
+    const first = await publishedDeal('Ending')
+    const code = await liveRoom([first, await publishedDeal('After')])
+    await db.deal.update({
+      where: { id: first },
+      data: { validUntil: new Date(Date.now() - 1000) },
+    })
+    const synced = await call(host, 'POST', room(code, '/sync'), { after: 0 })
+    expect(synced.body.state).toMatchObject({ dealIndex: 1, phase: 'VOTING' })
+    expect(synced.body.events.map((event: { kind: string }) => event.kind)).toContain('DEAL_ENDED')
+  })
+})

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import logo from '@web/assets/lobangers-logo.png'
+import logo from '@web/assets/lobangers-logo.svg'
 import AccountMenu from '@web/components/AccountMenu.vue'
 import ProfileMenu from '@web/components/ProfileMenu.vue'
 import { useSiteMenu } from '@web/components/use-site-menu'
@@ -18,7 +18,7 @@ const { isOpen, toggle, close } = useSiteMenu({ root, toggle: toggleButton, pane
   <header ref="root" class="landing-header">
     <nav class="landing-nav" aria-label="Primary navigation">
       <RouterLink to="/" class="landing-brand" aria-label="Lobangers home">
-        <img :src="logo" alt="LOBANGERS" />
+        <img :src="logo" alt="LOBANGERS" width="816" height="170" />
       </RouterLink>
       <div class="landing-nav-links">
         <RouterLink to="/deals">All deals</RouterLink>
@@ -30,7 +30,7 @@ const { isOpen, toggle, close } = useSiteMenu({ root, toggle: toggleButton, pane
         <ProfileMenu v-if="session.data" />
         <AccountMenu v-else />
       </div>
-      <button ref="toggleButton" class="landing-menu-toggle" type="button" :aria-expanded="isOpen" aria-controls="landing-mobile-menu" @click="toggle">{{ isOpen ? 'Close ✕' : 'Menu ☰' }}</button>
+      <button ref="toggleButton" class="landing-menu-toggle" type="button" :aria-expanded="isOpen" aria-controls="landing-mobile-menu" @click="toggle">{{ isOpen ? 'Close' : 'Menu' }} <span aria-hidden="true">{{ isOpen ? '✕' : '☰' }}</span></button>
       <div v-if="isOpen" id="landing-mobile-menu" ref="panel" class="landing-mobile-menu">
         <RouterLink to="/deals" @click="close">All deals</RouterLink>
         <RouterLink to="/browse" @click="close">Map</RouterLink>

@@ -183,8 +183,8 @@ const chapters = [0, 0.1, 0.25, 0.34, 0.45, 0.54, 0.66, 0.81, 0.92, 1]
       <div class="story-scrapbook-background" :style="{ opacity: reduced ? 0 : 1 - segment(progress, .14, .23) }" aria-hidden="true" />
       <div class="story-topline">
         <div class="story-top-actions">
-          <button v-if="!reduced" ref="playbackToggle" type="button" class="story-playback-toggle" :aria-pressed="playing" @click="play">{{ playing ? 'Ⅱ Pause story' : '▶ Auto-play story' }}</button>
-          <a href="#cuisines">Skip to food deals ↘</a>
+          <button v-if="!reduced" ref="playbackToggle" type="button" class="story-playback-toggle" @click="play"><span aria-hidden="true">{{ playing ? 'Ⅱ' : '▶' }}</span> {{ playing ? 'Pause story' : 'Auto-play story' }}</button>
+          <a href="#cuisines">Skip to food deals <span aria-hidden="true">↘</span></a>
         </div>
       </div>
       <div class="story-scene-background" :style="{ opacity: motion.handoff }" aria-hidden="true" />
@@ -204,7 +204,7 @@ const chapters = [0, 0.1, 0.25, 0.34, 0.45, 0.54, 0.66, 0.81, 0.92, 1]
         <FloatingSocialPost v-for="(_, index) in regions" v-show="!reduced && progress < .25" :key="index" :index="index" :progress="progress" :reduced="reduced" />
       </div>
       <div class="story-vignette" :style="{ opacity: motion.handoff * (1 - motion.portal) }" aria-hidden="true" />
-      <div class="story-handoff-caption" :style="{ opacity: segment(progress, .285, .31) * (1 - segment(progress, .345, .375)) }">ONE MAP → YOUR NEIGHBOURHOOD ↓</div>
+      <div class="story-handoff-caption" :style="{ opacity: segment(progress, .285, .31) * (1 - segment(progress, .345, .375)) }">One map <span aria-hidden="true">→</span> your neighbourhood <span aria-hidden="true">↓</span></div>
       <div class="story-copy" :style="copyStyle" :inert="!reduced && copyStyle.opacity < .1">
         <Transition name="scene-copy" mode="out-in">
           <div :key="chapter">
@@ -227,13 +227,14 @@ const chapters = [0, 0.1, 0.25, 0.34, 0.45, 0.54, 0.66, 0.81, 0.92, 1]
         <span class="scan-reticle" />
       </div>
       <div class="story-found-ring" :style="foundStyle" aria-hidden="true">
-        <span>✓ SAMPLE LOBANG LOCATED</span>
+        <span>✓ Sample lobang located</span>
       </div>
-      <div v-if="chapter === 4" class="story-scan-label" role="status" aria-live="off">
-        <small>SAMPLE SEARCH · {{ region.area.toUpperCase() }}</small>
+      <!-- A per-frame percentage would flood screen readers, so this stays visual only. -->
+      <div v-if="chapter === 4" class="story-scan-label">
+        <small>Sample search · {{ region.area }}</small>
         <strong>{{ motion.scan > .85 ? 'Sample pin located' : 'Finding food deals near you…' }}</strong>
         <div>
-          <i :style="{ width: `${motion.scan * 100}%` }" />
+          <i :style="{ transform: `scaleX(${motion.scan})` }" />
         </div>
         <span>{{ Math.round(motion.scan * 100) }}% · illustrative search</span>
       </div>
@@ -254,7 +255,7 @@ const chapters = [0, 0.1, 0.25, 0.34, 0.45, 0.54, 0.66, 0.81, 0.92, 1]
       <div class="story-bottom">
         <div class="story-rail">
           <i v-for="(item, index) in scenes" :key="item.label">
-            <b :style="{ width: `${segment(progress, chapters[index] ?? 0, chapters[index + 1] ?? 1) * 100}%` }" />
+            <b :style="{ transform: `scaleX(${segment(progress, chapters[index] ?? 0, chapters[index + 1] ?? 1)})` }" />
           </i>
         </div>
         <span class="story-sample-note">Example walkthrough · sample data</span>

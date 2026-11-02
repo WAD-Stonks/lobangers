@@ -39,6 +39,7 @@ const ICONS = {
   send: ['M12 19V5', 'm5 12 7-7 7 7'],
   walk: ['M13 4a1 1 0 1 0 0 .01', 'M10 21l2-6 3 3v3', 'M9 12l3-4 3 3 3 1', 'M12 8l-2 5'],
   user: ['M16 7a4 4 0 1 1-8 0 4 4 0 0 1 8 0', 'M4 21v-2a8 8 0 0 1 16 0v2'],
+  moon: ['M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z'],
 } as const
 
 export type ShellIconName = keyof typeof ICONS

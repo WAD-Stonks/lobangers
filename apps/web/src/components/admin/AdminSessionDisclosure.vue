@@ -40,8 +40,8 @@ onUnmounted(() => {
 
 <template>
   <div ref="root" class="admin-account">
-    <button ref="trigger" type="button" class="admin-account-trigger" aria-label="Admin account" :aria-expanded="open" :aria-controls="panelId" @click="open = !open">
-      <span class="admin-avatar"><AdminIcon name="user" /></span><span class="admin-account-name">{{ label }}</span><AdminIcon name="chevron" />
+    <button ref="trigger" type="button" class="admin-account-trigger" :aria-expanded="open" :aria-controls="panelId" @click="open = !open">
+      <span class="admin-avatar"><AdminIcon name="user" /></span><span class="admin-account-name">{{ label }}</span><span class="visually-hidden">, admin account</span><AdminIcon name="chevron" />
     </button>
     <!-- Presentation only: never conditionally mount the session controller or slot. -->
     <div v-show="open" :id="panelId" class="admin-account-panel"><slot /></div>

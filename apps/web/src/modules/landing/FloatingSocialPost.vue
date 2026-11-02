@@ -103,7 +103,7 @@ onBeforeUnmount(() => {
       <span class="post-dots" aria-hidden="true">···</span>
     </header>
     <div class="social-photo">
-      <img :src="sample.image" :alt="`${sample.icon} sample food promotion`" loading="lazy" draggable="false" />
+      <img :src="sample.image" :alt="`${sample.icon} sample food promotion`" width="640" height="480" loading="lazy" draggable="false" />
       <span v-if="index === 1" class="social-play" aria-hidden="true">▶</span>
       <span class="social-offer">{{ sample.badge }}</span>
     </div>

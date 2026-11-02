@@ -147,6 +147,42 @@ describe('map shell routes', () => {
     }
   })
 
+  it.each([
+    ['/squad/new', 'Eat together in a Squad'],
+    ['/me/profile', 'Make every deal count'],
+    ['/me/submissions', 'Make every deal count'],
+  ])('shows the illustrated account prompt for %s', async (path, heading) => {
+    const { router, wrapper } = await mountAt('/browse')
+    await router.push(path)
+    await flushPromises()
+    expect(router.currentRoute.value.name).toBe('auth-required')
+    expect(wrapper.find('.auth-prompt__content--saved').exists()).toBe(true)
+    expect(wrapper.find('.saved-prompt__illustration').exists()).toBe(true)
+    expect(wrapper.get('#auth-prompt-title').text()).toBe(heading)
+    expect(wrapper.findAll('.saved-prompt__benefit')).toHaveLength(3)
+    expect(wrapper.get('.saved-prompt__signup').text()).toBe('Create a free account')
+    expect(wrapper.find('.auth-prompt__close').exists()).toBe(false)
+  })
+
+  it.each([
+    '/account-required?view=list&split=1&results=list&discovery=1&tab=squad-new&redirect=/squad/new',
+    '/squad/join?view=list&split=1&results=list&discovery=1',
+    '/codes?view=list&discovery=1',
+  ])('opens %s beside the map, not in the All Deals list layout', async (path) => {
+    const { wrapper } = await mountAt(path)
+    expect(wrapper.find('.map-shell--map-workspace').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="map-navigation"]').exists()).toBe(true)
+  })
+
+  it('opens the account prompt beside the map when leaving All Deals for Squad', async () => {
+    const { router, wrapper } = await mountAt('/browse?view=list&discovery=1')
+    await router.push('/squad/new?view=list&discovery=1')
+    await flushPromises()
+    expect(router.currentRoute.value.name).toBe('auth-required')
+    expect(wrapper.find('.map-shell--map-workspace').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="map-navigation"]').exists()).toBe(true)
+  })
+
   it('opens standalone sign-up when chosen in the account prompt', async () => {
     const { router, wrapper } = await mountAt('/browse')
     const navigation = router.push('/saved')
@@ -404,6 +440,10 @@ describe('map shell routes', () => {
       'register',
       'profile',
       'saved',
+      'codes',
+      'squad-new',
+      'squad-join',
+      'squad-room',
     ])
   })
 
@@ -543,11 +583,12 @@ describe('map shell routes', () => {
     expect(router.currentRoute.value.query).toMatchObject({ view: 'list', discovery: '1' })
   })
 
-  it('keeps admin pages outside the shell', async () => {
+  it('keeps standalone pages outside the shell, under the All Deals header', async () => {
     const { wrapper } = await mountAt('/getting-started')
     await flushPromises()
     expect(wrapper.find(SHELL).exists()).toBe(false)
-    expect(wrapper.find('[data-testid="primary-nav"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="page-header"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="primary-nav"]').exists()).toBe(false)
   })
 
   it('renders a useful 404 outside the shell', async () => {

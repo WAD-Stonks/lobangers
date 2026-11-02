@@ -33,7 +33,7 @@ it('mounts directory, reads exact detail, confirms immutable versioned payload a
   const { default: Panel } = await import('@web/modules/admin-catalogue/CataloguePanel.vue')
   const wrapper = mount(Panel)
   await flushPromises()
-  await wrapper.get('button[aria-label="Open Synthetic mounted merchant"]').trigger('click')
+  await wrapper.get('button[data-open-row="Synthetic mounted merchant"]').trigger('click')
   await flushPromises()
   await wrapper.get('[name="merchantName"]').setValue('Synthetic spelling correction')
   await wrapper.get('[name="note"]').setValue('Reviewed exact target')
@@ -71,7 +71,7 @@ it.each(['UNKNOWN', 'CONFLICT'])(
     )
     const w = mount(Panel)
     const open = async () => {
-      await w.get('button[aria-label="Open Synthetic mounted merchant"]').trigger('click')
+      await w.get('button[data-open-row="Synthetic mounted merchant"]').trigger('click')
       await flushPromises()
     }
     const submit = async () => {
@@ -140,7 +140,7 @@ it('retains an unknown merchant creation when another create form is opened', as
     expect(w.text()).toContain('audit')
     expect(w.text()).toContain('Unknown created merchant')
     expect(rest.createMerchant).toHaveBeenCalledTimes(1)
-    await w.get('button[aria-label="Open Synthetic mounted merchant"]').trigger('click')
+    await w.get('button[data-open-row="Synthetic mounted merchant"]').trigger('click')
     await flushPromises()
     expect(w.get('fieldset').attributes('disabled')).toBeUndefined()
   } finally {

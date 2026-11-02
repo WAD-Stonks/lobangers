@@ -1,14 +1,11 @@
-import { execFile } from 'node:child_process'
 import { randomBytes, randomUUID } from 'node:crypto'
 import { createServer, type Server } from 'node:http'
-import { fileURLToPath } from 'node:url'
-import { promisify } from 'node:util'
+import { pushDisposableSchema } from '@api/../tests/fixtures/disposable-schema'
 import { parseConfig } from '@api/config'
 import { MongoMemoryReplSet } from 'mongodb-memory-server'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 
 const origin = 'http://localhost:5173'
-const root = fileURLToPath(new URL('../../../../', import.meta.url))
 let mongo: MongoMemoryReplSet | undefined
 let server: Server | undefined
 let disabledServer: Server | undefined
@@ -48,18 +45,14 @@ const code = (email: string) => {
 }
 
 beforeAll(async () => {
+  if (process.env.DATABASE_URL) throw new Error('Native fixture refuses ambient DATABASE_URL')
   mongo = await MongoMemoryReplSet.create({
     replSet: { count: 1, storageEngine: 'wiredTiger', ip: '127.0.0.1' },
   })
   const databaseUrl = mongo.getUri(`auth_methods_${randomUUID().replaceAll('-', '')}`)
   vi.stubEnv('DATABASE_URL', databaseUrl)
   vi.stubEnv('NODE_ENV', 'test')
-  await promisify(execFile)('pnpm', ['--dir', 'packages/db', 'run', 'push'], {
-    cwd: root,
-    env: { ...process.env, DATABASE_URL: databaseUrl },
-    encoding: 'utf8',
-    timeout: 60_000,
-  })
+  await pushDisposableSchema(databaseUrl)
   db = (await import('@broke-oclock/db')).db
   vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
     const url = String(input)

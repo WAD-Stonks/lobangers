@@ -104,6 +104,28 @@ const ROUTES = [
 ]
 const TOUCH_MAX_WIDTH = 992
 const MIN_TARGET_PX = 44
+// The swipeable quick-filter row uses compact chips on phones; they still clear the WCAG 2.2 AA
+// target-size minimum.
+const COMPACT_TARGET_SELECTOR = '[data-testid="discovery-quick-filters"] button'
+const MIN_COMPACT_TARGET_PX = 24
+
+// The site menu is the brand menu on desktop; phones and tablets reach it from the bottom nav's
+// Account page. Returns the page the tour was launched from, which it comes back to at the end.
+const BOTTOM_NAV_MAX_WIDTH = 991
+const startMapTutorial = async (page: Page) => {
+  if ((page.viewportSize()?.width ?? 1280) <= BOTTOM_NAV_MAX_WIDTH) {
+    await page.getByTestId('map-navigation').getByRole('link', { name: 'Account' }).click()
+    const start = page.getByTestId('account-map-tutorial')
+    await expect(start).toBeVisible()
+    const launchedFrom = page.url()
+    await start.click()
+    return launchedFrom
+  }
+  const launchedFrom = page.url()
+  await page.getByTestId('nav-toggle').click()
+  await page.getByTestId('start-map-tutorial').click()
+  return launchedFrom
+}
 
 // Measure native layout only after the covering splash, fonts and finite motion settle.
 const settled = async (page: Page) => {
@@ -226,16 +248,21 @@ for (const width of WIDTHS) {
       // entrance that has not played yet (GSAP, invisible to getAnimations) is not measured.
       if (width < TOUCH_MAX_WIDTH) {
         const small = await page.getByRole('button').evaluateAll(
-          (els, min) =>
+          (els, { min, compactMin, compactSelector }) =>
             els
               .filter((el): el is HTMLElement => el instanceof HTMLElement)
               .filter((el) => {
                 const w = el.offsetWidth
                 const h = el.offsetHeight
-                return w > 0 && (w < min || h < min)
+                const floor = el.matches(compactSelector) ? compactMin : min
+                return w > 0 && (w < floor || h < floor)
               })
               .map((el) => el.getAttribute('aria-label') ?? el.textContent),
-          MIN_TARGET_PX,
+          {
+            min: MIN_TARGET_PX,
+            compactMin: MIN_COMPACT_TARGET_PX,
+            compactSelector: COMPACT_TARGET_SELECTOR,
+          },
         )
         expect(small).toEqual([])
       }
@@ -456,9 +483,7 @@ for (const width of [390, 1280]) {
     )
     await page.goto('/browse?q=synthetic&sort=ending')
     await expect(page.getByTestId('splash-screen')).toBeHidden()
-    const origin = page.url()
-    await page.getByTestId('nav-toggle').click()
-    await page.getByTestId('start-map-tutorial').click()
+    const origin = await startMapTutorial(page)
     const guide = page.getByTestId('map-tutorial')
     await expect(guide.getByRole('heading', { name: 'Find a deal that fits' })).toBeVisible()
     await expect(page.getByTestId('filter-sheet')).toBeVisible()
@@ -513,8 +538,13 @@ test('screenshots for review', async ({ page }, info) => {
     await settled('filter-sheet')
     await page.screenshot({ path: info.outputPath(`map-shell-filters-${width}.png`) })
     await page.keyboard.press('Escape')
-    await page.getByTestId('nav-toggle').click()
-    await settled('nav-menu')
+    if (width <= BOTTOM_NAV_MAX_WIDTH) {
+      await page.getByTestId('map-navigation').getByRole('link', { name: 'Account' }).click()
+      await expect(page.getByTestId('account-more')).toBeVisible()
+    } else {
+      await page.getByTestId('nav-toggle').click()
+      await settled('nav-menu')
+    }
     await page.screenshot({ path: info.outputPath(`map-shell-menu-${width}.png`) })
   }
 })
@@ -569,6 +599,10 @@ test('split map panel fits three cards with verification badges on the posters',
   await page.goto('/browse?view=map&discovery=1&split=1&results=cards')
   const cards = page.getByTestId('shell-panel').locator('.food-deal-card')
   await expect(cards).toHaveCount(3)
+  // The cards stagger in; measure once their entrance has finished.
+  await cards.evaluateAll((elements) =>
+    Promise.all(elements.flatMap((element) => element.getAnimations().map((a) => a.finished))),
+  )
   const boxes = await cards.evaluateAll((elements) =>
     elements.map((element) => {
       const card = element.getBoundingClientRect()

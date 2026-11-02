@@ -16,6 +16,8 @@
       "!**/playwright-report",
       "!**/.local",
       "!**/.vercel",
+      "!**/.impeccable",
+      "!**/.playwright-mcp",
       "!**/.env",
       "!**/.env.*",
       "!**/*.log",

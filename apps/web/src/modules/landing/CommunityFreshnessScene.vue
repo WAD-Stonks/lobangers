@@ -116,9 +116,9 @@ const joinStyle = computed(() => layout.value.mobile && !props.reduced
     </div>
     <article class="travelling-deal shared-deal-sign" :style="cardStyle" :aria-hidden="!reduced && (offer < .1 || (modelReady && motion.handoff >= 1))" :data-deal-id="deal.id">
       <div class="travelling-content">
-        <small class="sample-label">{{ motion.handoff > .6 ? 'LOBANGERS · SAMPLE STALL' : 'ILLUSTRATIVE FOOD DEAL' }}</small>
+        <small class="sample-label">{{ motion.handoff > .6 ? 'Lobangers · Sample stall' : 'Illustrative food deal' }}</small>
         <h3>{{ deal.restaurant }}</h3>
-        <p class="shared-deal-location">⌖ {{ area }} · {{ deal.cuisine }}</p>
+        <p class="shared-deal-location"><span aria-hidden="true">⌖ </span>{{ area }} · {{ deal.cuisine }}</p>
         <strong>{{ deal.title }}</strong>
         <div class="travelling-price"><b>{{ money(deal.price) }}</b><del>{{ money(deal.original) }}</del><span>{{ deal.badge }}</span></div>
       </div>
@@ -126,7 +126,7 @@ const joinStyle = computed(() => layout.value.mobile && !props.reduced
     <div class="community-food-display" :style="photoStyle" :aria-hidden="reduced || offer < .1 || motion.handoff > .95"><img class="community-food-photo" :src="deal.image" :alt="`${deal.restaurant} illustrative deal photograph in a counter-mounted display`" loading="lazy" width="640" height="480" /></div>
     <div class="community-status-panel" :style="statusStyle" aria-hidden="true">
       <div class="status-panel-front"><span>COMMUNITY REPORTS</span><strong>Checking the latest…</strong></div>
-      <div class="status-panel-back" :class="`tone-${statusTone(evidence.status)}`"><strong>✓ {{ evidence.status }}</strong><small>Sample reports · not a guarantee</small></div>
+      <div class="status-panel-back" :class="`tone-${statusTone(evidence.status)}`"><strong><span aria-hidden="true">✓ </span>{{ evidence.status }}</strong><small>Sample reports · not a guarantee</small></div>
     </div>
     <p class="visually-hidden">{{ deal.restaurant }} · {{ area }} · {{ deal.title }} · {{ money(deal.price) }}. Sample offer.</p>
     <p class="visually-hidden">{{ statusVisible ? `Illustrative community-reported status: ${evidence.status}. Latest sample report: 18 minutes ago. Not a guarantee of availability.` : 'Checking community reports.' }}</p>

@@ -151,6 +151,8 @@ it('requires explicit permission confirmation, prevents duplicate toggles and di
   await flushPromises()
   expect(row().text()).toContain('Enabled')
   expect(row().find('input[type="checkbox"]').exists()).toBe(false)
+  // Disabling asks for confirmation first.
+  const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true)
   handler = (config) =>
     config.method === 'patch'
       ? Promise.resolve(response({ ...source, updatedAt: '2026-10-20T00:00:02.000Z' }))
@@ -163,6 +165,8 @@ it('requires explicit permission confirmation, prevents duplicate toggles and di
     expectedUpdatedAt: updatedAt,
   })
   expect(row().get('input[type="checkbox"]').element).toHaveProperty('checked', false)
+  expect(confirmSpy).toHaveBeenCalledOnce()
+  confirmSpy.mockRestore()
 })
 
 it('re-fetches authoritative source state after conflict without replaying the mutation or reusing confirmation', async () => {

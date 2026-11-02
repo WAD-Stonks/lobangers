@@ -106,6 +106,15 @@ const identity = async (page: Page) =>
         }
       : null
   })
+const googleSignIn = async (page: Page) => {
+  // Social sign-in returns before the provider/native callback navigation starts.
+  // Give the unchanged UI assertions their normal budget after the new document,
+  // rather than spending it on the external authorization and native redirect.
+  await Promise.all([
+    page.waitForEvent('domcontentloaded'),
+    page.getByTestId('google-sign-in').click(),
+  ])
+}
 const overview = async (page: Page) => {
   await expect(page.getByRole('heading', { name: 'Admin overview', exact: true })).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Work awaiting review' })).toBeVisible()
@@ -118,7 +127,7 @@ const overview = async (page: Page) => {
     page.locator('.overview-summary a[href="/admin/ingestion?status=PENDING#queue-title"]'),
   ).toContainText('Pending imported drafts: 0')
   const readiness = page.getByRole('button', {
-    name: 'Expand configuration readiness',
+    name: 'Show details of configuration readiness',
     exact: true,
   })
   if (await readiness.isVisible()) await readiness.click()
@@ -281,7 +290,7 @@ const catalogueMutation = async (page: Page) => {
   await page.reload()
   await page.getByLabel('Search name / outlet address', { exact: true }).fill(corrected)
   await page.getByRole('button', { name: 'Apply filters', exact: true }).click()
-  await page.getByRole('button', { name: `Open ${corrected}`, exact: true }).click()
+  await page.getByRole('button', { name: `Open detail for ${corrected}`, exact: true }).click()
   await expect(page.getByLabel('Canonical merchant name', { exact: true })).toHaveValue(corrected)
   await writeFile(
     resolve(artifacts, 'catalogue-mutation.json'),
@@ -568,6 +577,7 @@ test('connected password admin reaches counts and deep links then loses permissi
   page,
 }) => {
   test.setTimeout(120_000)
+  await page.getByTestId('use-password').click()
   await page.getByLabel('Email', { exact: true }).fill(passwordAdmin.email)
   await page.getByLabel('Password', { exact: true }).fill(passwordAdmin.password)
   await page.getByRole('button', { name: 'Sign in', exact: true }).click()
@@ -625,7 +635,9 @@ test('connected OTP preserves existing admin identity and records while revoking
   await openAdminAccount(page)
   await page.getByTestId('admin-sign-out').click()
   await expect(page.getByRole('heading', { name: 'Sign in to view administration' })).toBeVisible()
+  await page.getByTestId('use-password').click()
   await page.getByTestId('recovery-open').click()
+  await expect(page.getByTestId('recovery-request')).toBeVisible()
   await page.getByLabel('Email', { exact: true }).fill(otpAdmin.email)
   await page.getByRole('button', { name: 'Send recovery code', exact: true }).click()
   await expect(page.getByTestId('recovery-reset')).toBeVisible()
@@ -634,7 +646,7 @@ test('connected OTP preserves existing admin identity and records while revoking
     throw new Error('Controlled Resend captured no recovery code')
   const newPassword = randomBytes(24).toString('base64url')
   await page.getByLabel('Recovery code', { exact: true }).fill(recoveryCode)
-  await page.getByLabel('New password (at least 8 characters)', { exact: true }).fill(newPassword)
+  await page.getByLabel('New password', { exact: true }).fill(newPassword)
   await page
     .getByTestId('recovery-reset')
     .getByRole('button', { name: 'Reset password', exact: true })
@@ -672,7 +684,7 @@ test('connected controlled Google native callback creates USER ignoring forged r
     // original native state cookie and follows native callback + native session redirect.
     await route.fulfill({ status: 302, headers: { location: callback }, body: '' })
   })
-  await page.getByTestId('google-sign-in').click()
+  await googleSignIn(page)
   await expect(
     page
       .getByRole('alert')
@@ -703,7 +715,7 @@ test('connected Google refuses an unverified provider profile without a native s
       throw new Error('Controlled Google returned no native callback')
     await route.fulfill({ status: 302, headers: { location: callback }, body: '' })
   })
-  await page.getByTestId('google-sign-in').click()
+  await googleSignIn(page)
   await expect(
     page.getByRole('alert').filter({ hasText: 'Google sign-in could not be completed.' }),
   ).toBeVisible()
@@ -725,7 +737,7 @@ test('connected aged admin UI renews native session without replacing identity o
     if (typeof callback !== 'string') throw new Error('Controlled Google returned no callback')
     await route.fulfill({ status: 302, headers: { location: callback }, body: '' })
   })
-  await page.getByTestId('google-sign-in').click()
+  await googleSignIn(page)
   await expect(
     page
       .getByRole('alert')

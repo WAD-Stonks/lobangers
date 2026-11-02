@@ -207,7 +207,7 @@ it('same-mount unknown -> failed detail -> unchanged detail stays locked; newer 
   const w = mount(Panel)
   try {
     await flushPromises()
-    await w.get(`button[aria-label="Open ${merchant.name}"]`).trigger('click')
+    await w.get(`button[data-open-row="${merchant.name}"]`).trigger('click')
     await flushPromises()
     await consent(w)
     await w.get('[name="merchantName"]').setValue('Reviewed corrected spelling')
@@ -218,7 +218,7 @@ it('same-mount unknown -> failed detail -> unchanged detail stays locked; newer 
     await button(w, 'Reload target detail')
     expect(w.find('[name="merchantName"]').exists()).toBe(false)
     readFails = false
-    await w.get(`button[aria-label="Open ${merchant.name}"]`).trigger('click')
+    await w.get(`button[data-open-row="${merchant.name}"]`).trigger('click')
     await flushPromises()
     expect(w.get('fieldset').attributes('disabled')).toBeDefined()
     version = 8
@@ -310,7 +310,7 @@ const act = async (w: ReturnType<typeof mount>, kind: (typeof mountedCases)[numb
     await w
       .get(
         kind === 'catalogue'
-          ? `button[aria-label="Open ${merchant.name}"]`
+          ? `button[data-open-row="${merchant.name}"]`
           : kind === 'deals'
             ? '[data-testid="select-deal"]'
             : '[data-testid="inspect-report"]',
@@ -421,7 +421,7 @@ it.each(['catalogue', 'deals', 'moderation'] as const)(
       await w
         .get(
           kind === 'catalogue'
-            ? `button[aria-label="Open ${merchant.name}"]`
+            ? `button[data-open-row="${merchant.name}"]`
             : kind === 'deals'
               ? '[data-testid="select-deal"]'
               : '[data-testid="inspect-report"]',
@@ -476,7 +476,7 @@ it.each(['catalogue', 'deals', 'moderation'] as const)(
       await w
         .get(
           kind === 'catalogue'
-            ? `button[aria-label="Open ${merchant.name}"]`
+            ? `button[data-open-row="${merchant.name}"]`
             : kind === 'deals'
               ? '[data-testid="select-deal"]'
               : '[data-testid="inspect-report"]',
@@ -595,7 +595,7 @@ it('a detail read started before a late creation receipt cannot reconcile the cr
     delayDetail = new Promise<void>((resolve) => {
       releaseRead = resolve
     })
-    await w.get(`button[aria-label="Open ${merchant.name}"]`).trigger('click')
+    await w.get(`button[data-open-row="${merchant.name}"]`).trigger('click')
     await flushPromises()
     releaseWrite()
     await flushPromises()
@@ -604,7 +604,7 @@ it('a detail read started before a late creation receipt cannot reconcile the cr
     await act(w, 'create')
     expect(writes, 'pre-receipt read is not post-receipt reconciliation').toHaveLength(1)
     delayDetail = null
-    await w.get(`button[aria-label="Open ${merchant.name}"]`).trigger('click')
+    await w.get(`button[data-open-row="${merchant.name}"]`).trigger('click')
     await flushPromises()
     await act(w, 'create')
     expect(writes).toHaveLength(2)
@@ -634,7 +634,7 @@ it('a newer parent alone cannot reconcile a late outlet creation receipt', async
   writeResult = { id: 'd'.repeat(24), version: 1 }
   const w = mount(RouterView, { global: { plugins: [router] } })
   const openCreate = async () => {
-    await w.get(`button[aria-label="Open ${merchant.name}"]`).trigger('click')
+    await w.get(`button[data-open-row="${merchant.name}"]`).trigger('click')
     await flushPromises()
     await button(w, 'Add outlet to this merchant')
   }

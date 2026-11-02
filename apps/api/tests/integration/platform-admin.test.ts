@@ -1911,6 +1911,8 @@ describe('platform administration: real HTTP/cookies/disposable replica', () => 
     expect(history.items).toHaveLength(1)
     expect(history.items[0]).toMatchObject({
       actorId: admin.id,
+      actorKind: 'HUMAN',
+      actorSource: 'ADMIN',
       action: 'ROLE_CHANGED',
       roleBefore: 'USER',
       roleAfter: 'MERCHANT',
@@ -1921,7 +1923,9 @@ describe('platform administration: real HTTP/cookies/disposable replica', () => 
     expect(Object.keys(history.items[0] ?? {}).sort()).toEqual([
       'action',
       'actorId',
+      'actorKind',
       'actorName',
+      'actorSource',
       'createdAt',
       'detailsJson',
       'id',

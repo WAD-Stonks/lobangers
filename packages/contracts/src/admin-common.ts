@@ -14,6 +14,7 @@ export const adminSubjectTypeSchema = z.enum([
   'COMMENT_REPORT',
   'IMPORTED_POST',
   'INGESTION_RECOVERY',
+  'FLASH_DROP',
 ])
 export const adminAuditActionSchema = z.enum([
   'ROLE_CHANGED',
@@ -53,6 +54,9 @@ export const adminAuditActionSchema = z.enum([
   'ACCOUNT_REINSTATED',
   'SESSION_REVOKED',
   'SESSIONS_REVOKED',
+  'FLASH_DROP_APPROVED',
+  'FLASH_DROP_SENT_BACK',
+  'FLASH_DROP_STOPPED',
 ])
 const auditStatusSchema = z.enum([
   'PENDING',
@@ -74,6 +78,8 @@ const auditStatusSchema = z.enum([
   'INTERRUPTED',
   'ACTIVE',
   'SUSPENDED',
+  'SENT_BACK',
+  'STOPPED',
 ])
 // Flat, explicit facts only. Never accept arbitrary JSON, source text, auth payloads or secrets.
 export const adminAuditDetailsSchema = z

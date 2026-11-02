@@ -41,6 +41,8 @@ export const listPlatformAudit = (dependencies: RestDependencies) =>
       select: {
         id: true,
         actorId: true,
+        actorKind: true,
+        actorSource: true,
         actorName: true,
         action: true,
         targetUserId: true,

@@ -6,10 +6,12 @@
   "scripts": {
     "dev": "tsx watch --clear-screen=false src/server.ts",
     "typecheck": "tsc --noEmit -p tsconfig.json",
+    "admin:emails": "tsx src/tools/admin-emails.ts",
     "test:unit": "vitest run --config vitest.config.ts tests/unit",
     "test:integration": "vitest run --config vitest.config.ts --no-file-parallelism tests/integration",
     "build": "node --import tsx ../../scripts/build-api.ts",
     "reclassify:categories": "tsx src/tools/reclassify-categories.ts",
+    "seed:local-demo": "tsx src/tools/seed-local-demo.ts",
     "rewrite:copy": "tsx src/tools/rewrite-deal-copy.ts",
     "export:copy": "tsx src/tools/export-deal-copy.ts",
     "start": "node dist/server.js"

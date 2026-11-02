@@ -115,6 +115,20 @@ describe('venue-level filters', () => {
     const area = { south: 1.29, west: 103.84, north: 1.3, east: 103.86 }
     expect(filterVenues(pins, base, { ...ctx, area }).map((pin) => pin.id)).toEqual([NEAR.id])
   })
+
+  it('never narrows the searched area below a walkable minimum when zoomed in close', () => {
+    const lat = NEAR.lat as number
+    const lng = NEAR.lng as number
+    // A viewport a few metres wide, centred ~200 m away from the outlet.
+    const centre = { lat: lat + 0.0018, lng }
+    const area = {
+      south: centre.lat - 0.00005,
+      north: centre.lat + 0.00005,
+      west: centre.lng - 0.00005,
+      east: centre.lng + 0.00005,
+    }
+    expect(filterVenues(pins, base, { ...ctx, area }).map((pin) => pin.id)).toContain(NEAR.id)
+  })
 })
 
 describe('helpers', () => {

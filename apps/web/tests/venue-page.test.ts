@@ -1,6 +1,7 @@
 import type { VenueDetailResponse } from '@broke-oclock/contracts/venues'
 import { flushPromises, mount } from '@vue/test-utils'
 import { ApiClientError } from '@web/lib/api-client'
+import { clearVenueDetailCache } from '@web/modules/venues-feed/venue-detail-cache'
 import VenuePage from '@web/pages/VenuePage.vue'
 import { beforeEach, expect, it, vi } from 'vitest'
 import { createMemoryHistory, createRouter } from 'vue-router'
@@ -78,6 +79,7 @@ const mountAt = async (path: string) => {
 
 beforeEach(() => {
   vi.resetAllMocks()
+  clearVenueDetailCache()
 })
 
 it('renders the venue header and a card per ongoing deal', async () => {

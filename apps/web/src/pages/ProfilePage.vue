@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import type { AccountProfile } from '@broke-oclock/contracts/account'
 import { BButton } from '@broke-oclock/ui'
+import TicketLoading from '@web/components/TicketLoading.vue'
 import { api } from '@web/lib/api-client'
 import { authClient } from '@web/lib/auth-client'
+import { formatDate } from '@web/lib/format'
 import { errorCode } from '@web/modules/ingestion-admin/errors'
 import { onMounted, ref } from 'vue'
 import { RouterLink } from 'vue-router'
@@ -70,10 +72,10 @@ onMounted(loadProfile)
 </script>
 
 <template>
-  <section class="container py-4" aria-labelledby="profile-title">
+  <section class="container py-4 profile-page" aria-labelledby="profile-title">
     <h1 id="profile-title" class="h2 mb-4">My profile</h1>
 
-    <p v-if="loading">Loading your profile…</p>
+    <TicketLoading v-if="loading" label="Loading your profile…" />
     <p v-else-if="notLoggedIn">Please <RouterLink to="/login">log in</RouterLink> to see your profile.</p>
     <div v-else-if="errorMessage" class="alert alert-danger" role="alert">
       {{ errorMessage }}
@@ -83,20 +85,34 @@ onMounted(loadProfile)
     <div v-else-if="profile" class="card card-body">
       <dl class="row mb-4">
         <dt class="col-sm-3">Email</dt>
-        <dd class="col-sm-9">{{ profile.email }}</dd>
+        <dd class="col-sm-9 text-break">{{ profile.email }}</dd>
         <dt class="col-sm-3">Account type</dt>
         <dd class="col-sm-9">{{ roleLabel[profile.role] ?? profile.role }}</dd>
         <dt class="col-sm-3">Member since</dt>
-        <dd class="col-sm-9">{{ new Date(profile.createdAt).toLocaleDateString() }}</dd>
+        <dd class="col-sm-9">{{ formatDate(profile.createdAt) }}</dd>
       </dl>
 
       <form novalidate @submit.prevent="saveName">
         <label for="profile-name" class="form-label">Display name</label>
         <div class="input-group mb-2">
-          <input id="profile-name" v-model="name" maxlength="80" class="form-control" :disabled="saving" />
-          <BButton type="submit" variant="primary" :disabled="saving">{{ saving ? 'Saving…' : 'Save' }}</BButton>
+          <input
+            id="profile-name"
+            v-model="name"
+            name="nickname"
+            autocomplete="nickname"
+            maxlength="80"
+            class="form-control"
+            :class="{ 'is-invalid': saveError }"
+            :aria-invalid="saveError ? 'true' : undefined"
+            :aria-describedby="saveError ? 'profile-name-error' : undefined"
+            :disabled="saving"
+          />
+          <BButton type="submit" variant="primary" :disabled="saving">{{ saving ? 'Saving…' : 'Save name' }}</BButton>
         </div>
-        <p v-if="saveError" class="text-danger small mb-0" role="alert">{{ saveError }}</p>
+        <!-- Always mounted so a save error is announced; the field points at it. -->
+        <div role="alert">
+          <p v-if="saveError" id="profile-name-error" class="text-danger small mb-0">{{ saveError }}</p>
+        </div>
         <p v-if="saveNotice" class="text-success small mb-0" role="status">{{ saveNotice }}</p>
       </form>
 
@@ -109,3 +125,10 @@ onMounted(loadProfile)
     </div>
   </section>
 </template>
+
+<style scoped>
+/* A readable width on wide screens; the input group still fills a phone. */
+.profile-page {
+  max-width: 52rem;
+}
+</style>

@@ -85,7 +85,13 @@ const onClick = (event: MouseEvent) => {
   max-width: 100vw;
   height: 100dvh;
   max-height: 100dvh;
-  padding: 56px 16px;
+  /* Keep the photo and its controls clear of the notch and the home indicator. */
+  padding:
+    calc(56px + env(safe-area-inset-top, 0px))
+    calc(16px + env(safe-area-inset-right, 0px))
+    calc(56px + env(safe-area-inset-bottom, 0px))
+    calc(16px + env(safe-area-inset-left, 0px));
+  box-sizing: border-box;
   margin: 0;
   background: transparent;
   border: 0;
@@ -98,7 +104,7 @@ const onClick = (event: MouseEvent) => {
 }
 
 .photo-viewer::backdrop {
-  background: rgb(0 0 0 / 0.85);
+  background: var(--scrim-strong);
 }
 
 /* Occasional modal: a short fade so the photo does not snap in over the page. */
@@ -115,6 +121,8 @@ const onClick = (event: MouseEvent) => {
 .photo-viewer__image {
   max-width: 100%;
   max-height: 100%;
+  width: auto;
+  height: auto;
   object-fit: contain;
   border-radius: var(--radius-control);
 }
@@ -142,8 +150,8 @@ const onClick = (event: MouseEvent) => {
 }
 
 .photo-viewer__close {
-  top: 12px;
-  right: 12px;
+  top: calc(12px + env(safe-area-inset-top, 0px));
+  right: calc(12px + env(safe-area-inset-right, 0px));
 }
 
 .photo-viewer__prev,
@@ -161,16 +169,16 @@ const onClick = (event: MouseEvent) => {
 }
 
 .photo-viewer__prev {
-  left: 12px;
+  left: calc(12px + env(safe-area-inset-left, 0px));
 }
 
 .photo-viewer__next {
-  right: 12px;
+  right: calc(12px + env(safe-area-inset-right, 0px));
 }
 
 .photo-viewer__count {
   position: fixed;
-  bottom: 16px;
+  bottom: calc(16px + env(safe-area-inset-bottom, 0px));
   left: 50%;
   transform: translateX(-50%);
 }

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { DEAL_CUISINE_LABELS, type DealCuisine } from '@broke-oclock/contracts/deal-cuisines'
+import { formatMoneyMajor, formatMoneyMinor } from '@web/lib/format'
 import { formatCategory } from '@web/modules/browse-map/deal-format'
 import {
   type BrowseFilters,
@@ -50,7 +51,7 @@ const budget = computed(() =>
   draft.value.priceMaxMinor === null ? BUDGET_MAX : Math.min(BUDGET_MAX, draft.value.priceMaxMinor / CENTS),
 )
 const budgetLabel = computed(() =>
-  draft.value.priceMaxMinor === null ? 'Any fixed price' : `Up to $${(draft.value.priceMaxMinor / CENTS).toFixed(2)}`,
+  draft.value.priceMaxMinor === null ? 'Any fixed price' : `Up to ${formatMoneyMinor(draft.value.priceMaxMinor)}`,
 )
 const priceHistogram = computed(() => {
   const bins = Array.from({ length: Math.round((BUDGET_MAX - BUDGET_MIN) / BUDGET_STEP) + 1 }, (_, index) => ({
@@ -68,22 +69,32 @@ const priceHistogram = computed(() => {
     ...bin,
     height: bin.count / maximum * 100,
     selected: draft.value.priceMaxMinor === null || bin.from <= budget.value,
-    label: `${index === 0 ? 'Under $2.50' : index === bins.length - 1 ? '$15+' : `$${bin.from.toFixed(2)}–$${(bin.from + BUDGET_STEP).toFixed(2)}`}: ${bin.count} ${bin.count === 1 ? 'deal' : 'deals'}`,
+    label: `${index === 0 ? `Under ${formatMoneyMinor((BUDGET_MIN + BUDGET_STEP) * CENTS)}` : index === bins.length - 1 ? `${formatMoneyMajor(BUDGET_MAX)}+` : `${formatMoneyMinor(bin.from * CENTS)}–${formatMoneyMinor((bin.from + BUDGET_STEP) * CENTS)}`}: ${bin.count} ${bin.count === 1 ? 'deal' : 'deals'}`,
   }))
 })
 const fixedPriceCount = computed(() => priceHistogram.value.reduce((sum, bin) => sum + bin.count, 0))
 const budgetProgress = computed(() => Math.max(0, Math.min(100, (budget.value - BUDGET_MIN) / (BUDGET_MAX - BUDGET_MIN) * 100)))
 const total = computed(() => props.countFor(draft.value))
-const showLabel = computed(() =>
-  total.value === 0 ? 'No matches yet' : `Show ${total.value} ${total.value === 1 ? 'deal' : 'deals'}`,
-)
+// Position of the sliding pill in each segmented control.
+const walkSegment = computed(() => ({
+  '--seg-count': WALK_MINUTE_OPTIONS.length + 1,
+  '--seg-index': (WALK_MINUTE_OPTIONS as readonly (number | null)[]).indexOf(draft.value.walkMinutes) + 1,
+}))
+const endingSegment = computed(() => ({
+  '--seg-count': ENDING_OPTIONS.length,
+  '--seg-index': Math.max(0, ENDING_OPTIONS.findIndex((option) => option.value === draft.value.ending)),
+}))
 
 const updateDraft = (next: BrowseFilters) => {
   draft.value = next
 }
 
-// "(n)" next to an option: how many deals there would be after tapping it.
-const countWith = (next: BrowseFilters) => `(${props.countFor(next)})`
+// "(n)" next to an option: how many deals there would be after tapping it. An option that would
+// leave nothing is disabled rather than letting the visitor filter themselves into an empty list.
+const chipOption = <T>(value: T, label: string, on: boolean, next: BrowseFilters) => {
+  const matches = on ? null : props.countFor(next)
+  return { value, label, on, next, count: matches === null ? '' : `(${matches})`, empty: matches === 0 }
+}
 
 const setBudget = (event: Event) => {
   const dollars = Number((event.target as HTMLInputElement).value)
@@ -95,21 +106,21 @@ const categoryOptions = computed(() =>
     const value = code.toUpperCase()
     const on = draft.value.categories.includes(value)
     const next = updateFilters(draft.value, 'categories', toggleValue(draft.value.categories, value))
-    return { value, label: formatCategory(code), on, next, count: on ? '' : countWith(next) }
+    return chipOption(value, formatCategory(code), on, next)
   }),
 )
 const cuisineOptions = computed(() =>
   props.cuisines.map((value) => {
     const on = draft.value.cuisines.includes(value)
     const next = updateFilters(draft.value, 'cuisines', toggleValue(draft.value.cuisines, value))
-    return { value, label: DEAL_CUISINE_LABELS[value], on, next, count: on ? '' : countWith(next) }
+    return chipOption(value, DEAL_CUISINE_LABELS[value], on, next)
   }),
 )
 const offerOptions = computed(() =>
   OFFER_TYPES.map((type) => {
     const on = draft.value.offerTypes.includes(type)
     const next = updateFilters(draft.value, 'offerTypes', toggleValue(draft.value.offerTypes, type))
-    return { value: type, label: OFFER_TYPE_LABELS[type], on, next, count: on ? '' : countWith(next) }
+    return chipOption(type, OFFER_TYPE_LABELS[type], on, next)
   }),
 )
 
@@ -208,7 +219,7 @@ watch(
           <span class="filter-sheet__hint lb-meta">Deals without a fixed price remain included.</span>
           <div class="filter-sheet__budget-chart">
           <div v-if="fixedPriceCount" class="filter-sheet__histogram" role="img" :aria-label="`Price distribution of ${fixedPriceCount} fixed-price deals`" data-testid="price-histogram">
-            <span v-for="(bin, index) in priceHistogram" :key="index" class="filter-sheet__price-bar" :class="{ 'is-selected': bin.selected }" :style="{ height: `${bin.height}%` }" :title="bin.label" />
+            <span v-for="(bin, index) in priceHistogram" :key="index" class="filter-sheet__price-bar" :class="{ 'is-selected': bin.selected }" :style="{ height: `${bin.height}%`, '--i': index }" :title="bin.label" />
           </div>
           <p v-else class="lb-meta filter-sheet__histogram-empty">No fixed-price deals available.</p>
           <input
@@ -224,7 +235,7 @@ watch(
             @input="setBudget"
           />
           </div>
-          <div class="filter-sheet__row lb-meta"><span>${{ BUDGET_MIN }}</span><span>${{ BUDGET_MAX }}+</span></div>
+          <div class="filter-sheet__row lb-meta"><span>{{ formatMoneyMajor(BUDGET_MIN) }}</span><span>{{ formatMoneyMajor(BUDGET_MAX) }}+</span></div>
         </div>
 
         <fieldset v-if="categoryOptions.length" class="filter-sheet__group">
@@ -237,6 +248,7 @@ watch(
               type="button"
               class="lb-chip"
               :aria-pressed="option.on"
+              :disabled="option.empty"
               @click="updateDraft(option.next)"
             >
               <span class="lb-chip__check"><ShellIcon name="check" :size="14" :stroke-width="3" /></span>
@@ -255,6 +267,7 @@ watch(
               type="button"
               class="lb-chip"
               :aria-pressed="option.on"
+              :disabled="option.empty"
               @click="updateDraft(option.next)"
             >
               <span class="lb-chip__check"><ShellIcon name="check" :size="14" :stroke-width="3" /></span>
@@ -267,7 +280,7 @@ watch(
         <fieldset v-if="locationKnown" class="filter-sheet__group">
           <legend class="visually-hidden">Walking distance</legend>
           <span class="filter-sheet__label" aria-hidden="true">Walking distance</span>
-          <div class="filter-sheet__seg">
+          <div class="filter-sheet__seg" :style="walkSegment">
             <button
               type="button"
               :aria-pressed="draft.walkMinutes === null"
@@ -290,7 +303,7 @@ watch(
         <fieldset class="filter-sheet__group">
           <legend class="visually-hidden">Expiry</legend>
           <span class="filter-sheet__label" aria-hidden="true">Expiry</span>
-          <div class="filter-sheet__seg filter-sheet__seg--three">
+          <div class="filter-sheet__seg filter-sheet__seg--three" :style="endingSegment">
             <button
               v-for="option in ENDING_OPTIONS"
               :key="option.value"
@@ -313,6 +326,7 @@ watch(
               type="button"
               class="lb-chip"
               :aria-pressed="option.on"
+              :disabled="option.empty"
               @click="updateDraft(option.next)"
             >
               <span class="lb-chip__check"><ShellIcon name="check" :size="14" :stroke-width="3" /></span>
@@ -349,7 +363,8 @@ watch(
           Clear all
         </button>
         <button type="button" class="lb-btn lb-btn--primary filter-sheet__show" data-testid="filter-show" @click="applyDraft">
-          {{ showLabel }}
+          <template v-if="total === 0">No matches yet</template>
+          <span v-else>Show <span :key="total" class="lb-tick">{{ total }}</span> {{ total === 1 ? 'deal' : 'deals' }}</span>
         </button>
       </div>
     </section>
@@ -362,6 +377,7 @@ watch(
 .filter-sheet__location summary::-webkit-details-marker { display: none; }
 .filter-sheet__location summary:focus-visible { outline: 3px solid var(--sunny-ring); outline-offset: 3px; border-radius: 6px; }
 .filter-sheet__location-value { margin-left: auto; }
+.filter-sheet__location-chevron { transition: transform var(--dur-small) var(--ease-out); }
 .filter-sheet__location[open] .filter-sheet__location-chevron { transform: rotate(180deg); }
 .filter-sheet__location-content { padding-top: 16px; }
 
@@ -370,7 +386,7 @@ watch(
   position: fixed;
   inset: 0;
   z-index: 45;
-  background: rgba(29, 29, 34, 0.45);
+  background: var(--scrim);
 }
 
 .filter-sheet {
@@ -393,9 +409,9 @@ watch(
 
 /* Keep a small inset on phones while giving the filter controls most of the screen. */
 .filter-sheet--phone {
-  width: calc(100vw - 16px);
-  height: calc(100dvh - 16px);
-  max-height: calc(100dvh - 16px);
+  width: calc(100vw - 16px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px));
+  height: calc(100dvh - 16px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+  max-height: calc(100dvh - 16px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
   border-radius: 22px;
 }
 
@@ -476,7 +492,9 @@ watch(
 }
 .filter-sheet__budget-chart { padding: 12px 12px 0; }
 .filter-sheet__histogram { display: flex; align-items: end; gap: 3px; height: 100px; padding: 0 1px; margin-bottom: -12px; }
-.filter-sheet__price-bar { flex: 1; min-width: 0; background: var(--paper-sunk); border-radius: 3px 3px 0 0; transition: background-color 120ms ease; }
+.filter-sheet__price-bar { flex: 1; min-width: 0; background: var(--paper-sunk); border-radius: 3px 3px 0 0; transform-origin: bottom; transition: background-color 120ms ease; animation: price-bar-grow 240ms var(--ease-out) backwards; animation-delay: calc(var(--i, 0) * 8ms); }
+/* Bars rise from the baseline, left to right, as the sheet opens. */
+@keyframes price-bar-grow { from { opacity: 0; transform: scaleY(0.15); } }
 .filter-sheet__price-bar.is-selected { background: var(--coral-deep); }
 .filter-sheet__histogram-empty { margin: 0 0 12px; }
 .filter-sheet__range::-webkit-slider-runnable-track { height: 3px; background: linear-gradient(to right, var(--coral-deep) var(--budget-progress), var(--hairline-strong) var(--budget-progress)); }
@@ -493,6 +511,8 @@ watch(
 
 /* Segmented control: equal buttons on a sunk track, the chosen one lifts out. */
 .filter-sheet__seg {
+  position: relative;
+  isolation: isolate;
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 4px;
@@ -505,6 +525,23 @@ watch(
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
+/* One pill slides under the chosen option instead of each button lighting up on its own.
+   translateX percentages are the pill's own width, so each step is one width plus the 4px gap. */
+.filter-sheet__seg::before {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  top: 4px;
+  bottom: 4px;
+  left: 4px;
+  width: calc((100% - 8px - (var(--seg-count) - 1) * 4px) / var(--seg-count));
+  background: var(--paper-white);
+  border-radius: var(--radius-pill);
+  box-shadow: 0 3px 10px rgba(27, 27, 31, 0.1);
+  transform: translateX(calc(var(--seg-index) * (100% + 4px)));
+  transition: transform var(--dur-panel) var(--ease-in-out);
+}
+
 .filter-sheet__seg button {
   min-height: var(--hit);
   padding: 0 4px;
@@ -515,14 +552,16 @@ watch(
   border-radius: var(--radius-pill);
   cursor: pointer;
   transition:
-    background-color var(--dur-small) ease,
-    color var(--dur-small) ease;
+    color var(--dur-small) ease,
+    transform var(--dur-press) var(--ease-out);
 }
 
 .filter-sheet__seg button[aria-pressed='true'] {
   color: var(--ink);
-  background: var(--paper-white);
-  box-shadow: 0 3px 10px rgba(27, 27, 31, 0.1);
+}
+
+.filter-sheet__seg button:active {
+  transform: scale(0.96);
 }
 
 .filter-sheet__switch-text {
@@ -562,7 +601,7 @@ watch(
   left: 3px;
   width: 22px;
   height: 22px;
-  background: var(--paper-white);
+  background: var(--switch-knob);
   border-radius: 50%;
   box-shadow: 0 2px 6px rgba(27, 27, 31, 0.25);
   transition: transform var(--dur-small) var(--ease-out);
@@ -623,8 +662,18 @@ watch(
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .filter-sheet__switch::after {
+  .filter-sheet__switch::after,
+  .filter-sheet__seg::before,
+  .filter-sheet__location-chevron {
     transition: none;
+  }
+
+  .filter-sheet__price-bar {
+    animation: none;
+  }
+
+  .filter-sheet__seg button:active {
+    transform: none;
   }
 }
 </style>

@@ -67,10 +67,69 @@ describe('saved deals', () => {
     const { saved } = setup({ data: { user: { id: 'u1' } } })
     await nextTick()
     const first = saved.toggle('d1')
-    await saved.toggle('d2')
+    const second = saved.toggle('d2')
     fail(new Error('network'))
     await expect(first).rejects.toThrow('network')
+    await second
     expect(saved.isSaved('d1')).toBe(false)
     expect(saved.isSaved('d2')).toBe(true)
+  })
+
+  // The API refuses overlapping account writes, so saves on different deals must not overlap.
+  it('waits for one deal to finish saving before sending the next', async () => {
+    rest.bookmarks.mockResolvedValue(page([]))
+    let finishFirst: () => void = () => undefined
+    rest.save
+      .mockReturnValueOnce(new Promise((done) => (finishFirst = () => done({ saved: true }))))
+      .mockResolvedValueOnce({ saved: true })
+    const { saved } = setup({ data: { user: { id: 'u1' } } })
+    await nextTick()
+    const first = saved.toggle('d1')
+    const second = saved.toggle('d2')
+    await flushPromises()
+    expect(rest.save).toHaveBeenCalledTimes(1)
+    finishFirst()
+    await Promise.all([first, second])
+    expect(rest.save).toHaveBeenNthCalledWith(2, 'd2')
+  })
+
+  it('lets a second tap unsave while the save is still in flight, sending both in order', async () => {
+    rest.bookmarks.mockResolvedValue(page([]))
+    const calls: string[] = []
+    let finishSave: () => void = () => undefined
+    rest.save.mockImplementation(() => {
+      calls.push('save')
+      return new Promise((done) => (finishSave = () => done({ saved: true })))
+    })
+    rest.unsave.mockImplementation(() => {
+      calls.push('unsave')
+      return Promise.resolve({ saved: false })
+    })
+    const { saved } = setup({ data: { user: { id: 'u1' } } })
+    await nextTick()
+    const first = saved.toggle('d1')
+    expect(saved.isSaved('d1')).toBe(true)
+    const second = saved.toggle('d1')
+    expect(saved.isSaved('d1')).toBe(false)
+    await flushPromises()
+    expect(calls).toEqual(['save'])
+    finishSave()
+    await expect(first).resolves.toBe(true)
+    await expect(second).resolves.toBe(false)
+    expect(calls).toEqual(['save', 'unsave'])
+    expect(saved.isSaved('d1')).toBe(false)
+  })
+
+  it('still sends a queued tap after the earlier request for that deal fails', async () => {
+    rest.bookmarks.mockResolvedValue(page([]))
+    rest.save.mockRejectedValueOnce(new Error('network'))
+    rest.unsave.mockResolvedValueOnce({ saved: false })
+    const { saved } = setup({ data: { user: { id: 'u1' } } })
+    await nextTick()
+    const first = saved.toggle('d1')
+    const second = saved.toggle('d1')
+    await expect(first).rejects.toThrow('network')
+    await expect(second).resolves.toBe(false)
+    expect(saved.isSaved('d1')).toBe(false)
   })
 })

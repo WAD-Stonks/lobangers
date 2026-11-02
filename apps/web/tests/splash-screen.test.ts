@@ -15,7 +15,7 @@ describe('splash screen', () => {
 
     const splash = wrapper.get(SPLASH)
     expect(splash.attributes('role')).toBe('status')
-    expect(splash.get('img').attributes('alt')).toBe('Lobangers')
+    expect(splash.get('img').attributes('alt')).toBe('')
   })
 
   it('shows the tumbling ticket loader with a loading message under the logo', () => {
