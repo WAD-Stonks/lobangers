@@ -3,6 +3,8 @@ withDefaults(defineProps<{ name: string }>(), { name: 'overview' })
 const paths: Record<string, string> = {
   overview: 'M3 3h7v7H3z M14 3h7v7h-7z M3 14h7v7H3z M14 14h7v7h-7z',
   deals: 'M3 3h8l10 10-8 8L3 11z M7 7h.01',
+  flash: 'M13 2 4 14h7l-1 8 9-12h-7z',
+  live: 'M12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6 M12 4a8 8 0 1 0 0 16 8 8 0 0 0 0-16',
   catalogue: 'M4 4h16v16H4z M4 9h16 M9 9v11',
   moderation: 'M12 3 3 7v5c0 5 9 9 9 9s9-4 9-9V7z M9 12l2 2 4-4',
   accounts: 'M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2 M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8 M22 21v-2a4 4 0 0 0-3-3.87 M16 3.13a4 4 0 0 1 0 7.75',

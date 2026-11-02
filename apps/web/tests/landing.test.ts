@@ -8,6 +8,7 @@ import { randomRegionalDeal } from '@web/modules/landing/live-deals'
 import ScrollStory from '@web/modules/landing/ScrollStory.vue'
 import { storyChapter, storyTimeline } from '@web/modules/landing/story-timeline'
 import VotingPreview from '@web/modules/landing/VotingPreview.vue'
+import { clearVenueDetailCache } from '@web/modules/venues-feed/venue-detail-cache'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ref } from 'vue'
 import { createMemoryHistory, createRouter } from 'vue-router'
@@ -45,6 +46,7 @@ const keep = <T extends { unmount: () => void }>(wrapper: T): T => {
 
 beforeEach(() => {
   vi.useFakeTimers()
+  clearVenueDetailCache()
   vi.stubGlobal('innerWidth', 1440)
   vi.stubGlobal('innerHeight', 900)
   mocks.userId = null
@@ -239,25 +241,67 @@ describe('landing hero', () => {
     expect(wrapper.get('.hero-promotion-title').text()).toBe(liveDealAt(4).title)
   })
 
-  it('keeps decorative motion independent of manual deal selection', async () => {
+  it('holds the rotation while hovered without pausing decorative motion', async () => {
     const wrapper = keep(mount(HeroSection, { props: heroProps, global: { plugins: [router()] } }))
     await wrapper.get('.hero-map-area').trigger('mouseenter')
     expect(wrapper.classes()).not.toContain('hero-ambient-paused')
     expect(wrapper.get('.hero-waterfront').classes()).not.toContain('waterfront-paused')
     await vi.advanceTimersByTimeAsync(10400)
-    expect(wrapper.get('.hero-promotion-title').text()).toBe(liveDealAt(2).title)
+    expect(wrapper.get('.hero-promotion-title').text()).toBe(liveDealAt(0).title)
     await wrapper.get('.hero-map-area').trigger('mouseleave')
-    await vi.advanceTimersByTimeAsync(5200)
-    expect(wrapper.get('.hero-promotion-title').text()).toBe(liveDealAt(3).title)
+    await vi.advanceTimersByTimeAsync(5000)
+    expect(wrapper.get('.hero-promotion-title').text()).toBe(liveDealAt(1).title)
   })
 
-  it('keeps decorative motion still while rotating deals when reduced motion is requested', async () => {
+  it('pauses the rotation and ambient loops from one control', async () => {
+    const wrapper = keep(mount(HeroSection, { props: heroProps, global: { plugins: [router()] } }))
+    const toggle = wrapper.get('.hero-motion-toggle')
+    expect(toggle.text()).toBe('Pause motion')
+    await toggle.trigger('click')
+    expect(toggle.text()).toBe('Play motion')
+    expect(wrapper.classes()).toContain('hero-ambient-paused')
+    expect(wrapper.get('.hero-waterfront').classes()).toContain('waterfront-paused')
+    await vi.advanceTimersByTimeAsync(10000)
+    expect(wrapper.get('.hero-promotion-title').text()).toBe(liveDealAt(0).title)
+    await toggle.trigger('click')
+    expect(wrapper.get('.hero-waterfront').classes()).not.toContain('waterfront-paused')
+    await vi.advanceTimersByTimeAsync(5000)
+    expect(wrapper.get('.hero-promotion-title').text()).toBe(liveDealAt(1).title)
+  })
+
+  it('stops the rotation and decorative motion when reduced motion is requested', async () => {
     reduced = true
     const wrapper = keep(mount(HeroSection, { props: heroProps, global: { plugins: [router()] } }))
     await flushPromises()
     expect(wrapper.get('.hero-waterfront').classes()).toContain('waterfront-paused')
     await vi.advanceTimersByTimeAsync(15600)
-    expect(wrapper.get('.hero-promotion-title').text()).toBe(liveDealAt(3).title)
+    expect(wrapper.get('.hero-promotion-title').text()).toBe(liveDealAt(0).title)
+    expect(wrapper.get('.hero-motion-toggle').text()).toBe('Play motion')
+    await wrapper.get('.hero-motion-toggle').trigger('click')
+    await vi.advanceTimersByTimeAsync(5000)
+    expect(wrapper.get('.hero-promotion-title').text()).toBe(liveDealAt(1).title)
+    expect(wrapper.get('.hero-waterfront').classes()).toContain('waterfront-paused')
+  })
+
+  it('keeps keyboard focus inside the card when the featured deal changes', async () => {
+    vi.spyOn(HTMLElement.prototype, 'getClientRects').mockReturnValue([
+      {},
+    ] as unknown as DOMRectList)
+    const wrapper = keep(
+      mount(HeroSection, {
+        props: heroProps,
+        attachTo: document.body,
+        global: { plugins: [router()] },
+      }),
+    )
+    const action = wrapper.get<HTMLAnchorElement>('.hero-deal-action').element
+    action.focus()
+    await wrapper.findAll('.island-marker')[3]?.trigger('click')
+    await flushPromises()
+    expect(wrapper.get('.hero-deal').text()).toContain('Tampines')
+    expect(wrapper.get('.hero-deal-action').element).not.toBe(action)
+    expect(document.activeElement).toBe(wrapper.get('.hero-deal-action').element)
+    vi.restoreAllMocks()
   })
 })
 
@@ -378,7 +422,7 @@ describe('live cuisine discovery', () => {
     expect(next().attributes('disabled')).toBeDefined()
     expect(wrapper.get('.landing-carousel-status').text()).toContain('Showing 1–1 of 1 deals')
   })
-  it('shows four cards in two columns on mobile and tablet and four columns on desktop', async () => {
+  it('pages four cards at every width and leaves the column count to CSS', async () => {
     vi.stubGlobal('innerWidth', 390)
     const wrapper = keep(
       mount(CuisineDiscovery, {
@@ -388,25 +432,17 @@ describe('live cuisine discovery', () => {
     )
     await flushPromises()
     expect(wrapper.findAll('.landing-food-card')).toHaveLength(4)
-    expect(wrapper.get('#landing-deal-carousel').attributes('style')).toContain(
-      'repeat(2, minmax(0, 1fr))',
-    )
+    // landing-refinements.css sets four columns, or two at 1100px and below.
+    expect(wrapper.get('#landing-deal-carousel').attributes('style')).toBeUndefined()
     expect(wrapper.get('.landing-carousel-status').text()).toContain('Showing 1–4')
     await wrapper.get('[aria-label="Next deals"]').trigger('click')
     expect(wrapper.get('.landing-deal-title').text()).toBe('Central lunch')
     await wrapper.get('[aria-label="Previous deals"]').trigger('click')
-    vi.stubGlobal('innerWidth', 900)
-    window.dispatchEvent(new Event('resize'))
-    await flushPromises()
-    expect(wrapper.findAll('.landing-food-card')).toHaveLength(4)
-    expect(wrapper.get('#landing-deal-carousel').attributes('style')).toContain(
-      'repeat(2, minmax(0, 1fr))',
-    )
-    expect(wrapper.get('.landing-carousel-status').text()).toContain('Showing 1–4')
     vi.stubGlobal('innerWidth', 1440)
     window.dispatchEvent(new Event('resize'))
     await flushPromises()
     expect(wrapper.findAll('.landing-food-card')).toHaveLength(4)
+    expect(wrapper.get('.landing-carousel-status').text()).toContain('Showing 1–4')
   })
   it('supports horizontal swipes while preserving vertical scrolling and filter resets', async () => {
     vi.stubGlobal('innerWidth', 390)
@@ -617,7 +653,7 @@ describe('neighbourhood story', () => {
       expect(Number((travelling as HTMLElement).style.opacity)).toBeGreaterThan(0.9)
     }
     expect(wrapper.get('.travelling-deal').classes()).toContain('shared-deal-sign')
-    expect(wrapper.get('.travelling-deal').text()).toContain('LOBANGERS · SAMPLE STALL')
+    expect(wrapper.get('.travelling-deal').text()).toContain('Lobangers · Sample stall')
     progress = 0.4
     window.dispatchEvent(new Event('scroll'))
     await vi.advanceTimersByTimeAsync(30)
@@ -649,7 +685,7 @@ describe('neighbourhood story', () => {
     await vi.advanceTimersByTimeAsync(30)
     expect(wrapper.classes()).toContain('story-reduced')
     expect(wrapper.find('.reduced-story-summary').exists()).toBe(true)
-    expect(wrapper.get('.travelling-deal').text()).toContain('LOBANGERS · SAMPLE STALL')
+    expect(wrapper.get('.travelling-deal').text()).toContain('Lobangers · Sample stall')
   })
   it('uses the complete still layout on compact screens', async () => {
     vi.stubGlobal('innerWidth', 320)
@@ -710,7 +746,7 @@ describe('prototype motion choreography', () => {
       ).toHaveLength(0)
     }
     await toggle.trigger('click')
-    expect(toggle.attributes('aria-pressed')).toBe('false')
+    expect(toggle.attributes('aria-pressed')).toBeUndefined()
     expect(toggle.text()).toContain('Auto-play story')
     expect(wrapper.findAll('.story-playback-toggle')).toHaveLength(1)
     scroll.mockRestore()
@@ -732,7 +768,7 @@ describe('prototype motion choreography', () => {
     const calls = scroll.mock.calls.length
     await vi.advanceTimersByTimeAsync(200)
     expect(scroll).toHaveBeenCalledTimes(calls)
-    expect(play?.attributes('aria-pressed')).toBe('false')
+    expect(play?.text()).toContain('Auto-play story')
     scroll.mockRestore()
   })
 })

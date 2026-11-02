@@ -6,7 +6,9 @@ import {
 } from '@broke-oclock/contracts/admin-deals'
 import { DEAL_CATEGORIES } from '@broke-oclock/contracts/deal-categories'
 import { DEAL_CUISINES } from '@broke-oclock/contracts/deal-cuisines'
+import TicketLoading from '@web/components/TicketLoading.vue'
 import { api } from '@web/lib/api-client'
+import { formatDateTime, formatMoneyMinor } from '@web/lib/format'
 import { useAdminDeals } from '@web/modules/admin-deals/use-admin-deals'
 import { onMounted, onUnmounted, reactive, ref, watch } from 'vue'
 
@@ -143,8 +145,15 @@ const submitAction = () => {
     void state.write((id, envelope) => client.unpublish(id, envelope))
   else if (chosen === 'reopen') void state.write((id, envelope) => client.reopen(id, envelope))
 }
-const amount = (minor: number | null, currency: string) =>
-  minor == null ? 'Not recorded' : `${currency} ${(minor / 100).toFixed(2)}`
+// "$12.90"; an unrecognised currency code keeps the stored code and the raw minor units.
+const amount = (minor: number | null, currency: string) => {
+  if (minor == null) return 'Not recorded'
+  try {
+    return formatMoneyMinor(minor, currency)
+  } catch {
+    return `${currency} ${minor} minor units`
+  }
+}
 onMounted(() => state.load())
 onUnmounted(state.dispose)
 </script>
@@ -152,25 +161,25 @@ onUnmounted(state.dispose)
  <section class="deals-directory" aria-label="Deals operations">
   <header><p class="eyebrow">Catalogue / deals</p><h2>Deals directory</h2><p>All origins. Correct the record, inspect the source, then make a separate review decision.</p></header>
   <form class="filters" @submit.prevent="state.load()">
-   <label>Search<input v-model="filters.search" name="search" class="form-control" maxlength="100" /></label>
-   <label>Origin<select v-model="filters.origin" class="form-select"><option value="">All origins</option><option>IMPORTED</option><option>USER_SUBMITTED</option></select></label>
-   <label>Review<select v-model="filters.reviewStatus" class="form-select"><option value="">All states</option><option>PENDING</option><option>APPROVED</option><option>REJECTED</option><option>HIDDEN</option></select></label>
-   <label>Publication<select v-model="filters.publication" class="form-select"><option value="">Any publication</option><option>PUBLISHED</option><option>UNPUBLISHED</option><option>EXPIRED</option></select></label>
-   <label>Merchant ID<input v-model="filters.merchantId" class="form-control" maxlength="24" /></label>
-   <label class="check"><input v-model="filters.includeDeleted" type="checkbox" /> Include deleted, investigation only</label>
+   <label>Search<input v-model="filters.search" name="search" type="search" autocomplete="off" class="form-control" maxlength="100" placeholder="Title or description…" /></label>
+   <label>Origin<select v-model="filters.origin" name="origin" class="form-select"><option value="">All origins</option><option>IMPORTED</option><option>USER_SUBMITTED</option></select></label>
+   <label>Review<select v-model="filters.reviewStatus" name="reviewStatus" class="form-select"><option value="">All states</option><option>PENDING</option><option>APPROVED</option><option>REJECTED</option><option>HIDDEN</option></select></label>
+   <label>Publication<select v-model="filters.publication" name="publication" class="form-select"><option value="">Any publication</option><option>PUBLISHED</option><option>UNPUBLISHED</option><option>EXPIRED</option></select></label>
+   <label>Merchant ID<input v-model="filters.merchantId" name="merchantId" class="form-control" maxlength="24" spellcheck="false" autocomplete="off" autocapitalize="none" translate="no" /></label>
+   <label class="check"><input v-model="filters.includeDeleted" name="includeDeleted" type="checkbox" /> Include deleted, investigation only</label>
    <button type="submit" data-testid="reload-list" class="btn btn-outline-primary" :disabled="loading">Apply / reload directory</button>
    <button type="button" data-testid="clear-deal-filters" class="btn btn-outline-secondary" :disabled="loading || pending" @click="state.clearFilters()">Clear filters</button>
   </form>
   <p class="small text-secondary">Applied filters are remembered until you reload or sign out.</p>
-  <p v-if="loading" role="status">Loading deals…</p><p v-if="status === 'ready' && !items.length" role="status">No deals match these filters.</p>
+  <TicketLoading v-if="loading" label="Loading deals…" /><p v-if="status === 'ready' && !items.length" role="status">No deals match these filters.</p>
   <p v-if="message" role="status" class="notice">{{ message }}</p>
   <div class="operations-grid">
    <nav aria-label="Deal records"><ol class="records"><li v-for="item in items" :key="item.id"><button type="button" data-testid="select-deal" :aria-current="selected?.id === item.id ? 'true' : undefined" @click="state.select(item.id)"><strong>{{ item.title }}</strong><span>{{ item.origin }} · {{ item.reviewStatus }} · {{ item.publication }}</span><small>{{ item.id }} · content {{ item.contentVersion }} / operation {{ item.operationVersion }}</small></button></li></ol><button v-if="cursor" type="button" class="btn btn-outline-primary" :disabled="loading" @click="state.load(true)">Load more deals</button></nav>
-   <div class="detail"><p v-if="reading" role="status">Loading full deal evidence…</p><p v-else-if="!selected">Select a deal to inspect its complete content and current blockers.</p>
+   <div class="detail"><TicketLoading v-if="reading" label="Loading full deal evidence…" /><p v-else-if="!selected">Select a deal to inspect its complete content and current blockers.</p>
     <article v-if="selected" :aria-busy="pending">
-     <header><p class="eyebrow">{{ selected.origin }} / {{ selected.publication }}</p><h3>{{ selected.title }}</h3><p class="identity">{{ selected.id }} · content {{ selected.contentVersion }} / operation {{ selected.operationVersion }}</p><button type="button" class="btn btn-outline-primary" data-testid="refresh-deal" :disabled="reading || pending" @click="state.select(selected.id)">Refresh exact deal</button></header>
+     <header><p class="eyebrow">{{ selected.origin }} / {{ selected.publication }}</p><h3>{{ selected.title }}</h3><p class="identity"><span translate="no">{{ selected.id }}</span> · content {{ selected.contentVersion }} / operation {{ selected.operationVersion }}</p><button type="button" class="btn btn-outline-primary" data-testid="refresh-deal" :disabled="reading || pending" @click="state.select(selected.id)">Refresh exact deal</button></header>
      <p class="copy">{{ selected.description }}</p><p class="copy">{{ selected.terms }}</p>
-     <dl class="facts"><dt>Offer</dt><dd>{{ selected.offerType }} · {{ amount(selected.priceMinor, selected.currency) }} · {{ selected.discountPercent == null ? 'No percentage recorded' : `${selected.discountPercent}%` }}</dd><dt>Validity (UTC)</dt><dd>{{ selected.validFrom ?? 'No known start' }} → {{ selected.validUntil ?? 'Open ended / no known end' }}<br />{{ selected.rawValidityText }}</dd><dt>Review / publication</dt><dd>{{ selected.reviewStatus }} / {{ selected.publication }}. Published at {{ selected.publishedAt ?? 'not published' }}. {{ selected.reviewNote }}</dd><dt>Scope</dt><dd>{{ selected.applicability }} · merchant {{ selected.merchantId ?? 'none' }} · {{ selected.outletCount }} outlets. {{ selected.scopeEvidenceLabel ?? 'No current scope evidence' }}</dd></dl>
+     <dl class="facts"><dt>Offer</dt><dd>{{ selected.offerType }} · {{ amount(selected.priceMinor, selected.currency) }} · {{ selected.discountPercent == null ? 'No percentage recorded' : `${selected.discountPercent}%` }}</dd><dt>Validity (SGT)</dt><dd><time v-if="selected.validFrom" :datetime="selected.validFrom">{{ formatDateTime(selected.validFrom) }}</time><template v-else>No known start</template> → <time v-if="selected.validUntil" :datetime="selected.validUntil">{{ formatDateTime(selected.validUntil) }}</time><template v-else>Open ended / no known end</template><br />{{ selected.rawValidityText }}</dd><dt>Review / publication</dt><dd>{{ selected.reviewStatus }} / {{ selected.publication }}. Published at {{ selected.publishedAt ?? 'not published' }}. {{ selected.reviewNote }}</dd><dt>Scope</dt><dd>{{ selected.applicability }} · merchant {{ selected.merchantId ?? 'none' }} · {{ selected.outletCount }} outlets. {{ selected.scopeEvidenceLabel ?? 'No current scope evidence' }}</dd></dl>
      <ul v-if="selected.blockers.length" class="blockers"><li v-for="blocker in selected.blockers" :key="blocker">{{ blocker.replaceAll('_',' ') }}</li></ul>
      <details><summary>Original pinned sources and images (read only)</summary><p v-if="!selected.sources.length">User submission - no scraped citation is fabricated.</p><div v-for="source in selected.sources" :key="source.citationId"><a v-if="source.sourceUrl" :href="source.sourceUrl" target="_blank" rel="noopener noreferrer">{{ source.sourceUrl }}</a><p>{{ source.citationId }} · {{ source.sourceContentHash }} · {{ source.current ? 'current' : 'changed source' }}</p><pre>{{ source.sourceContentSnapshot }}</pre></div><a v-for="(image, index) in selected.images" :key="index" :href="image.url ?? undefined" target="_blank" rel="noopener noreferrer">{{ image.url ?? 'Unsafe image link omitted' }}</a></details>
      <details><summary>Outlets: {{ selected.outletCount }} total - display is paginated, readiness uses every edge</summary><ol><li v-for="venue in selected.outlets" :key="venue.id">{{ venue.name }} - {{ venue.address }} · {{ venue.id }} · {{ venue.deletedAt ? 'deleted' : 'active' }} · geography {{ venue.geographyReady ? 'verified' : 'unverified' }} / occupancy {{ venue.occupancyReady ? 'verified' : 'unverified' }}</li></ol><button v-if="selected.nextOutletCursor" type="button" class="btn btn-outline-primary" @click="state.select(selected.id, selected.nextOutletCursor ?? undefined)">Next outlet page</button></details>
@@ -194,5 +203,6 @@ onUnmounted(state.dispose)
  </section>
 </template>
 <style scoped>
-.deals-directory{color:var(--bs-body-color,#302d28);background:var(--bs-body-bg,#faf7f0);padding:1.5rem;border:1px solid var(--bs-border-color,#d7d0c5)}h2,h3{font-family:Georgia,serif}.eyebrow{font-size:.75rem;letter-spacing:.1em;text-transform:uppercase;color:var(--bs-secondary-color,#665f53)}.filters,.editor{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1rem;margin:1.5rem 0}label{display:block}.filters label,.editor label{min-width:0}.operations-grid{display:grid;grid-template-columns:minmax(16rem,1fr) minmax(0,2fr);gap:1.5rem;border-top:1px solid var(--bs-border-color,#d7d0c5);padding-top:1.5rem}.records{list-style:none;padding:0}.records button{display:grid;gap:.5rem;text-align:left;background:transparent;color:inherit;border:0;border-bottom:1px solid var(--bs-border-color,#d7d0c5);padding:1rem;width:100%;overflow-wrap:anywhere}.records button[aria-current=true]{background:#ece5d7;border-left:3px solid #795a2e}.records span,.records small,.identity{font-size:.75rem}.detail{min-width:0}.copy,pre{white-space:pre-wrap;overflow-wrap:anywhere}.facts dd{margin-bottom:1rem}.notice,.blockers{padding:1rem;background:#eee7d9;color:#443a28}.check{display:flex;align-items:start;gap:.5rem;margin:1rem 0}.action-picker{display:block;margin:1.5rem 0}details{border-top:1px solid var(--bs-border-color,#d7d0c5);padding:1rem 0}fieldset{min-width:0}a{overflow-wrap:anywhere}:focus-visible{outline:3px solid #775822;outline-offset:3px}@media(max-width:800px){.operations-grid,.filters,.editor{grid-template-columns:minmax(0,1fr)}.deals-directory{padding:1rem}}
+.deals-directory{--deals-current-bg:#ece5d7;--deals-current-edge:#795a2e;--deals-note-bg:#eee7d9;--deals-note-ink:#443a28;--deals-focus:#775822;color:var(--bs-body-color,#302d28);background:var(--bs-body-bg,#faf7f0);padding:1.5rem;border:1px solid var(--bs-border-color,#d7d0c5)}h2,h3{font-family:Georgia,serif}.eyebrow{font-size:.75rem;letter-spacing:.1em;text-transform:uppercase;color:var(--bs-secondary-color,#665f53)}.filters,.editor{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1rem;margin:1.5rem 0}label{display:block}.filters label,.editor label{min-width:0}.operations-grid{display:grid;grid-template-columns:minmax(16rem,1fr) minmax(0,2fr);gap:1.5rem;border-top:1px solid var(--bs-border-color,#d7d0c5);padding-top:1.5rem}.records{list-style:none;padding:0}.records button{display:grid;gap:.5rem;text-align:left;background:transparent;color:inherit;border:0;border-bottom:1px solid var(--bs-border-color,#d7d0c5);padding:1rem;width:100%;overflow-wrap:anywhere}.records button:hover{background:var(--deals-note-bg)}.records button[aria-current=true]{background:var(--deals-current-bg);border-left:3px solid var(--deals-current-edge)}.records span,.records small,.identity{font-size:.75rem}.detail{min-width:0}.copy,pre{white-space:pre-wrap;overflow-wrap:anywhere}.facts dd{margin-bottom:1rem}.notice,.blockers{padding:1rem;background:var(--deals-note-bg);color:var(--deals-note-ink)}.check{display:flex;align-items:start;gap:.5rem;margin:1rem 0}.action-picker{display:block;margin:1.5rem 0}details{border-top:1px solid var(--bs-border-color,#d7d0c5);padding:1rem 0}fieldset{min-width:0}a{overflow-wrap:anywhere}:focus-visible{outline:3px solid var(--deals-focus);outline-offset:3px}@media(max-width:800px){.operations-grid,.filters,.editor{grid-template-columns:minmax(0,1fr)}.records{max-height:min(60vh,32rem);overflow-y:auto;overscroll-behavior:contain}.deals-directory{padding:1rem}}
+.app-palette[data-theme='dark'] .deals-directory{--deals-current-bg:var(--tag-build-bg);--deals-current-edge:var(--tag-build-ink);--deals-note-bg:var(--paper-sunk);--deals-note-ink:var(--ink);--deals-focus:var(--sunny)}
 </style>

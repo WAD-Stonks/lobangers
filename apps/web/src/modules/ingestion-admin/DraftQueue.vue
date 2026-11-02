@@ -3,7 +3,9 @@ import { DEAL_CATEGORIES, type DealCategory, dealCategorySchema } from '@broke-o
 import type { IngestionDraft, IngestionDraftsQuery, IngestionReviewRequest } from '@broke-oclock/contracts/ingestion'
 import type { PlatformVenue } from '@broke-oclock/contracts/platform-admin'
 import { BButton } from '@broke-oclock/ui'
+import TicketLoading from '@web/components/TicketLoading.vue'
 import { api } from '@web/lib/api-client'
+import { formatDate, formatMoneyMinor } from '@web/lib/format'
 import DraftEvidence from '@web/modules/ingestion-admin/DraftEvidence.vue'
 import DraftImages from '@web/modules/ingestion-admin/DraftImages.vue'
 import { approvalBlockReason } from '@web/modules/ingestion-admin/draft-validity'
@@ -32,6 +34,9 @@ const outletQuery = ref('')
 const venues = ref<PlatformVenue[] | null>(null)
 const venueId = ref('')
 const confirmed = ref(false)
+// Rejecting needs its own tick, like the other admin decisions; it never carries over to
+// another draft, version or note.
+const rejectConfirmed = ref(false)
 const venueCursor = ref<string | null>(null)
 const venuePending = ref(false)
 const associationPending = ref(false)
@@ -211,8 +216,20 @@ const setCategory = async () => {
     if (live(epoch)) categoryPending.value = false
   }
 }
+// Reviewers see the exact stored terms ("1250 minor units · SGD"), led by the formatted price
+// when the currency code is valid: "$12.50 (1250 minor units · SGD)". Never a guessed currency.
+const priceText = (draft: Pick<Draft, 'priceMinor' | 'currency'>) => {
+  const raw = `${draft.priceMinor ?? 'Unknown'} minor units · ${draft.currency ?? 'Unknown currency'}`
+  if (draft.priceMinor === null || draft.priceMinor === undefined || !draft.currency) return raw
+  try {
+    return `${formatMoneyMinor(draft.priceMinor, draft.currency)} (${raw})`
+  } catch {
+    return raw // an unrecognised currency code
+  }
+}
 const review = async (decision: IngestionReviewRequest['decision']) => {
   if (!canReview.value || !selected.value) return
+  if (decision === 'REJECT' && !rejectConfirmed.value) return
   if (decision === 'APPROVE') {
     const reason = approvalBlockReason(selected.value)
     if (reason) { reviewError.value = reason; return }
@@ -243,6 +260,7 @@ const review = async (decision: IngestionReviewRequest['decision']) => {
   }
 }
 watch(venueId, () => { confirmed.value = false }, { flush: 'sync' })
+watch([selectedId, () => selected.value?.contentVersion, () => selected.value?.operationVersion, conflict, () => note.value.trim() === ''], () => { rejectConfirmed.value = false }, { flush: 'sync' })
 watch(outletQuery, () => { venues.value = null; venueId.value = ''; confirmed.value = false; venueCursor.value = null }, { flush: 'sync' })
 watch([() => props.revision, status], (_value, previous) => {
   if (closed) return
@@ -256,20 +274,20 @@ watch([() => props.revision, status], (_value, previous) => {
 </script>
 
 <template>
-  <section aria-labelledby="queue-title" class="card p-4 mb-4" :aria-busy="pending">
+  <section aria-labelledby="queue-title" class="card p-3 p-sm-4 mb-4" :aria-busy="pending">
     <h2 id="queue-title" class="h4">Draft review queue</h2>
     <label for="queue-status" class="form-label">Review status</label>
     <select id="queue-status" v-model="status" class="form-select mb-3" :disabled="busy || venuePending">
       <option value="PENDING">Pending</option><option value="APPROVED">Approved</option><option value="REJECTED">Rejected</option>
     </select>
-    <p v-if="pending" role="status">Loading drafts…</p>
+    <TicketLoading v-if="pending" label="Loading drafts…" />
     <div v-if="error" role="alert"><p>{{ error }}</p><BButton :disabled="pending || busy" @click="load()">Retry drafts</BButton></div>
     <p v-if="success" role="status">{{ success }}</p>
     <p v-if="!pending && !error && items?.length === 0">No drafts match this status.</p>
     <ul v-if="items?.length" class="list-unstyled">
       <li v-for="draft in items" :key="draft.id" class="border-top py-3">
         <h3 class="h6 text-break">{{ draft.title }}</h3>
-        <p>{{ draft.priceMinor ?? 'Unknown' }} minor units · {{ draft.currency ?? 'Unknown currency' }} · {{ draft.discountPercent ?? 'Unknown' }}% discount</p>
+        <p class="admin-figures">{{ priceText(draft) }} · {{ draft.discountPercent ?? 'Unknown' }}% discount</p>
         <p class="small text-break">{{ draft.sourceName }} · {{ draft.reviewStatus }} · Version {{ draft.contentVersion }}</p>
         <BButton :data-testid="`view-${draft.id}`" :disabled="busy || pending || Boolean(error) || (conflict && selectedId === draft.id)" :aria-label="`View details: ${draft.title}`" @click="select(draft)">View details</BButton>
       </li>
@@ -280,10 +298,10 @@ watch([() => props.revision, status], (_value, previous) => {
       <p class="draft-text">{{ selected.description }}</p>
       <DraftImages :key="`${selected.id}:${selected.contentVersion}`" :images="selected.images" :title="selected.title" />
       <dl>
-        <dt>Numeric offer</dt><dd>{{ selected.priceMinor ?? 'Unknown' }} minor units · {{ selected.currency ?? 'Unknown currency' }} · {{ selected.discountPercent ?? 'Unknown' }}% discount</dd>
+        <dt>Numeric offer</dt><dd class="admin-figures">{{ priceText(selected) }} · {{ selected.discountPercent ?? 'Unknown' }}% discount</dd>
         <dt>Terms</dt><dd class="draft-text">{{ selected.terms ?? 'Not supplied' }}</dd>
         <dt>Category / offer type</dt><dd>{{ selected.category }} / {{ selected.offerType }}</dd>
-        <dt>Validity</dt><dd>{{ selected.validFrom ?? 'Unknown start' }} to {{ selected.validUntil ?? 'Unknown end' }}</dd>
+        <dt>Validity</dt><dd><time v-if="selected.validFrom" :datetime="selected.validFrom">{{ formatDate(selected.validFrom) }}</time><template v-else>Unknown start</template> to <time v-if="selected.validUntil" :datetime="selected.validUntil">{{ formatDate(selected.validUntil) }}</time><template v-else>Unknown end</template></dd>
         <dt>Original validity text</dt><dd>{{ selected.rawValidityText ?? 'Not supplied' }}</dd>
         <dt>Content version</dt><dd>Version {{ selected.contentVersion }}</dd>
         <dt>Current outlet</dt>
@@ -310,14 +328,18 @@ watch([() => props.revision, status], (_value, previous) => {
       <PostInvestigation v-if="investigationId" :post-id="investigationId" @denied="code => { clearRecoveryWorkspace(workspace); close(); emit('denied', code) }" />
       <form @submit.prevent="review('APPROVE')" :aria-busy="reviewPending">
         <label for="review-note" class="form-label">Review note (required)</label>
-        <textarea id="review-note" v-model="note" class="form-control mb-3" rows="3" maxlength="1000" required :disabled="busy || pending || selected.reviewStatus !== 'PENDING'" />
+        <textarea id="review-note" v-model="note" name="review-note" class="form-control mb-3" rows="3" maxlength="1000" required :disabled="busy || pending || selected.reviewStatus !== 'PENDING'" />
         <p v-if="approvalReason" id="approval-reason" class="text-secondary">{{ approvalReason }}</p>
         <p v-if="selected.reviewStatus !== 'PENDING'">This draft has already been reviewed. Review actions are read-only.</p>
         <p v-if="reviewError || conflict" role="alert" class="text-danger">{{ reviewError || conflictMessage }}</p>
         <BButton v-if="conflict" data-testid="reload-draft" class="mb-3" :disabled="pending || busy" @click="load()">Reload draft</BButton>
+        <div class="form-check mb-3">
+          <input id="reject-confirmation" v-model="rejectConfirmed" name="reject-confirmation" type="checkbox" class="form-check-input" :disabled="!canReview" />
+          <label for="reject-confirmation" class="form-check-label">To reject, I confirm rejecting {{ selected.title }} (version {{ selected.contentVersion }}).</label>
+        </div>
         <div class="d-flex flex-wrap gap-2">
           <BButton data-testid="approve-draft" type="submit" variant="success" :disabled="!canReview || Boolean(approvalReason)" :aria-describedby="approvalReason ? 'approval-reason' : undefined">Approve draft</BButton>
-          <BButton data-testid="reject-draft" type="button" variant="outline-danger" :disabled="!canReview" @click="review('REJECT')">{{ reviewPending ? 'Submitting…' : 'Reject draft' }}</BButton>
+          <BButton data-testid="reject-draft" type="button" variant="outline-danger" :disabled="!canReview || !rejectConfirmed" @click="review('REJECT')">{{ reviewPending ? 'Submitting…' : 'Reject draft' }}</BButton>
         </div>
       </form>
       <section v-if="categoryAllowed" aria-labelledby="category-title" class="mb-4">
@@ -337,10 +359,10 @@ watch([() => props.revision, status], (_value, previous) => {
         <p id="outlet-help">Choose only an existing active outlet supported by the named source evidence. This does not approve or publish the draft. OneMap candidates are not outlet records.</p>
         <form data-testid="outlet-search" @submit.prevent="searchOutlets()" :aria-busy="venuePending">
           <label for="outlet-query" class="form-label">Search existing outlets</label>
-          <input id="outlet-query" v-model="outletQuery" type="search" maxlength="100" class="form-control mb-2" :disabled="busy || pending || venuePending || conflict" aria-describedby="outlet-help" />
+          <input id="outlet-query" v-model="outletQuery" name="outlet-query" autocomplete="off" type="search" maxlength="100" class="form-control mb-2" :disabled="busy || pending || venuePending || conflict" aria-describedby="outlet-help" />
           <BButton type="submit" :disabled="busy || pending || venuePending || conflict || outletQuery.trim().length > 100">Search outlets</BButton>
         </form>
-        <p v-if="venuePending" role="status">Loading existing outlets…</p>
+        <TicketLoading v-if="venuePending" label="Loading existing outlets…" />
         <p v-if="venues?.length === 0 && venueCursor">No selectable verified outlets on this page. More catalogue rows remain; load more.</p>
         <p v-else-if="venues?.length === 0">No matching verified outlet records. Association requires an existing merchant and outlet. This screen cannot create or verify them; ask the responsible administrator to maintain canonical records.</p>
         <BButton v-if="venueCursor" data-testid="more-outlets" :disabled="busy || venuePending || pending || conflict" @click="searchOutlets(venueCursor)">Load more outlets</BButton>
@@ -365,4 +387,7 @@ watch([() => props.revision, status], (_value, previous) => {
 
 <style scoped>
 .draft-text { white-space: pre-wrap; }
+.admin-figures { font-variant-numeric: tabular-nums; }
+/* Long outlet names, addresses and review notes wrap on phones instead of widening the card. */
+dd, li, label { min-width: 0; overflow-wrap: anywhere; }
 </style>

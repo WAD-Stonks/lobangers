@@ -1,4 +1,4 @@
-import { authClient } from '@web/lib/auth-client'
+import { type CachedSession, routerSession } from '@web/lib/session-cache'
 import type { RouteLocationNormalized, RouteLocationRaw } from 'vue-router'
 
 declare module 'vue-router' {
@@ -32,9 +32,10 @@ export const authGuard = async (
   const isHome = to.name === 'landing' || to.path === '/'
   if (!requiresAuth && !guestOnly && !roles && !isHome) return true
 
-  let session: Awaited<ReturnType<typeof authClient.getSession>>['data'] = null
+  let session: CachedSession | null = null
   try {
-    session = (await authClient.getSession()).data
+    // Cached briefly so moving between protected panels does not wait on the network each time.
+    session = await routerSession.get()
   } catch {
     // Network failure: treat as signed out; the API will still reject real calls.
   }

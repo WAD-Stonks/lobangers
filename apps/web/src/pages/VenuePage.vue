@@ -1,44 +1,19 @@
 <script setup lang="ts">
-import type { VenueDetailResponse } from '@broke-oclock/contracts/venues'
-import { BSpinner } from '@broke-oclock/ui'
-import { ApiClientError, api } from '@web/lib/api-client'
+import TicketLoading from '@web/components/TicketLoading.vue'
 import { endedLabel, initials, offerLabel } from '@web/modules/venues-feed/deal-format'
+import { useVenueDetail } from '@web/modules/venues-feed/use-venue-detail'
 import VenueDealCard from '@web/modules/venues-feed/VenueDealCard.vue'
-import { computed, ref, watch } from 'vue'
+import { computed } from 'vue'
 import { useRoute } from 'vue-router'
 
 const route = useRoute()
-const state = ref<'loading' | 'ready' | 'not-found' | 'error'>('loading')
-const detail = ref<VenueDetailResponse | null>(null)
-let latestRequest = 0
-
 const venueId = computed(() => String(route.params.venueId ?? ''))
-
-const load = async () => {
-  const request = ++latestRequest
-  state.value = 'loading'
-  detail.value = null
-  try {
-    const data = await api.venues.get(venueId.value)
-    if (request !== latestRequest) return
-    detail.value = data
-    state.value = 'ready'
-  } catch (failure) {
-    if (request !== latestRequest) return
-    const code = failure instanceof ApiClientError ? failure.code : null
-    state.value = code === 'NOT_FOUND' || code === 'BAD_REQUEST' ? 'not-found' : 'error'
-  }
-}
-
-watch(venueId, load, { immediate: true })
+const { state, detail, reload: load } = useVenueDetail(venueId)
 </script>
 
 <template>
   <section class="venue-page py-5">
-    <div v-if="state === 'loading'" class="text-center py-5" role="status">
-      <BSpinner />
-      <p class="text-secondary mt-3 mb-0">Loading venue…</p>
-    </div>
+    <TicketLoading v-if="state === 'loading'" class="py-5" label="Loading venue…" />
 
     <div v-else-if="state === 'not-found'" class="text-center py-5" role="alert">
       <h1 class="h3 mb-2">Venue not found</h1>
@@ -111,5 +86,12 @@ watch(venueId, load, { immediate: true })
   color: var(--bs-primary-text-emphasis);
   font-size: 2.5rem;
   font-weight: 700;
+}
+
+/* Bootstrap's subtle blues have no dark values here, so dark mode borrows the info tag's pair. */
+.app-palette[data-theme='dark'] .venue-logo {
+  background: var(--tag-info-bg);
+  border-color: #3a4f80;
+  color: var(--tag-info-ink);
 }
 </style>

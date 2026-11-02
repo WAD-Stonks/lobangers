@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import TicketLoading from '@web/components/TicketLoading.vue'
 import { api } from '@web/lib/api-client'
 import EvidenceEditor from '@web/modules/admin-catalogue/EvidenceEditor.vue'
 import MerchantEditor from '@web/modules/admin-catalogue/MerchantEditor.vue'
@@ -39,24 +40,24 @@ onUnmounted(state.dispose)
       <div v-if="kind === 'venues'" class="col-12 col-md-6"><label for="catalogue-merchant" class="form-label">Filter merchant ID (optional)</label><input id="catalogue-merchant" v-model="merchantId" :disabled="pending" class="form-control" pattern="[a-f0-9]{24}" /></div>
     </form>
     <div class="d-flex justify-content-between flex-wrap gap-2 my-4"><h2>{{ kind === 'merchants' ? 'Merchants directory' : 'Outlets directory' }}</h2><button v-if="kind === 'merchants'" class="btn btn-primary" :disabled="pending" type="button" @click="state.start()">New merchant</button><p v-else class="small">To create an outlet, open its active merchant and choose “Add outlet”.</p></div>
-    <p v-if="loading" role="status">Loading catalogue…</p>
+    <TicketLoading v-if="loading" label="Loading catalogue…" />
     <div v-if="listError" role="alert" class="alert alert-danger">Could not load the directory. <button class="btn btn-outline-primary" type="button" @click="state.load()">Retry directory</button></div>
     <p v-else-if="!loading && !items.length" role="status">No catalogue rows to show. Apply filters to load or refresh the directory.</p>
     <ul class="list-group catalogue-directory">
       <li v-for="row in items" :key="row.id" class="list-group-item d-flex justify-content-between align-items-start gap-3">
         <div><strong>{{ row.name }}</strong><p class="mb-1 small">{{ row.archived ? 'Archived' : 'Active' }} · version {{ row.version }} <span v-if="'selectable' in row">· {{ row.selectable ? 'Selectable' : 'Unselectable — maintenance only' }}</span></p><p v-if="'address' in row" class="mb-0">{{ row.merchantName }} · {{ row.address }}</p></div>
-        <button class="btn btn-outline-primary btn-sm flex-shrink-0" :disabled="pending" type="button" :aria-label="`Open ${row.name}`" @click="state.select(kind, row.id)">Open detail</button>
+        <button class="btn btn-outline-primary btn-sm flex-shrink-0" :disabled="pending" type="button" :data-open-row="row.name" @click="state.select(kind, row.id)">Open detail<span class="visually-hidden"> for {{ row.name }}</span></button>
       </li>
     </ul>
     <button v-if="nextCursor" class="btn btn-outline-primary mt-3" type="button" :disabled="loading || pending" @click="state.load(true)">Load next page</button>
-    <p v-if="detailLoading" role="status">Loading target detail…</p>
+    <TicketLoading v-if="detailLoading" label="Loading target detail…" />
     <p v-if="pending" role="status" class="alert alert-info mt-3">Saving the captured target and version…</p>
     <div v-if="message" role="alert" class="alert alert-warning mt-3">{{ message }} <button v-if="selected" class="btn btn-outline-primary" type="button" :disabled="pending" @click="state.select(selected.kind, selected.row.id)">Reload target detail</button></div>
     <p v-if="selected && locked && !message" class="alert alert-secondary mt-4">Archived target or parent — writes are unavailable. No restore or reactivation is offered.</p>
     <MerchantEditor v-if="selected?.kind === 'merchants'" :key="`${selected.row.id}:${selected.row.version}`" :merchant="selected.row" :disabled="pending || locked" @save="state.write('patch', $event)" @archive="state.write('archive', $event)" @add-outlet="state.start(selected.row)" />
-    <template v-if="selected?.kind === 'venues'"><VenueEditor :key="`venue:${selected.row.id}:${selected.row.version}`" :venue="selected.row" :disabled="pending || locked" @save="state.write('patch', $event)" @archive="state.write('archive', $event)" /><EvidenceEditor :key="`proof:${selected.row.id}:${selected.row.version}`" :venue="selected.row" :disabled="pending || locked" @record="state.write('record', $event)" @withdraw="state.write('withdraw', $event)" /></template>
+    <template v-if="selected?.kind === 'venues'"><VenueEditor :key="`venue:${selected.row.id}:${selected.row.version}`" :venue="selected.row" :disabled="pending || locked" :pending="pending" @save="state.write('patch', $event)" @archive="state.write('archive', $event)" /><EvidenceEditor :key="`proof:${selected.row.id}:${selected.row.version}`" :venue="selected.row" :disabled="pending || locked" @record="state.write('record', $event)" @withdraw="state.write('withdraw', $event)" /></template>
     <MerchantEditor v-if="creating === 'merchant'" key="new-merchant" :disabled="pending || locked" @save="state.write('create', $event)" />
-    <VenueEditor v-else-if="creating" :key="`new-venue:${creating.id}:${creating.version}`" :parent="creating" :disabled="pending || locked" @save="state.write('create', $event)" />
+    <VenueEditor v-else-if="creating" :key="`new-venue:${creating.id}:${creating.version}`" :parent="creating" :disabled="pending || locked" :pending="pending" @save="state.write('create', $event)" />
   </section>
 </template>
 <style scoped>

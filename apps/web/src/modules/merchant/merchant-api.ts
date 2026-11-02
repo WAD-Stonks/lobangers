@@ -163,4 +163,20 @@ const sampleDeals: MerchantDeal[] = [
     terms: 'While stocks last.',
     endedAt: null,
   },
+  // A current deal with a set price, so a flash drop has a "usual price" to beat.
+  {
+    id: 'sample-4',
+    title: 'Steamed chicken rice set',
+    description: 'Steamed chicken rice with soup and a drink.',
+    category: 'FOOD',
+    cuisine: 'CHINESE',
+    outletIds: ['outlet-1', 'outlet-2'],
+    offerType: 'FIXED_PRICE',
+    discountPercent: null,
+    priceCents: 350,
+    startDate: '',
+    endDate: '',
+    terms: '',
+    endedAt: null,
+  },
 ]

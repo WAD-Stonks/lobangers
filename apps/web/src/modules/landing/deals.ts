@@ -1,3 +1,5 @@
+import { formatMoneyMinor } from '@web/lib/format'
+
 // Illustration coordinates belong to the supplied raster, not to the geographic basemap.
 export const regions = [
   {
@@ -126,4 +128,4 @@ export const samples = [
     icon: '🍗',
   },
 ] as const satisfies readonly SampleDeal[]
-export const money = (value: number) => `S$${value.toFixed(2)}`
+export const money = (value: number) => formatMoneyMinor(Math.round(value * 100))

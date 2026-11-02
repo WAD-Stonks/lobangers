@@ -2,6 +2,7 @@
 import type { IngestionAccountsResponse } from '@broke-oclock/contracts/ingestion'
 import { BButton } from '@broke-oclock/ui'
 import { api } from '@web/lib/api-client'
+import { formatDateTime } from '@web/lib/format'
 import { errorCode } from '@web/modules/ingestion-admin/errors'
 import { ref } from 'vue'
 
@@ -30,7 +31,7 @@ const load = async (cursor?: string) => {
 </script>
 
 <template>
-  <section aria-labelledby="accounts-title" class="card p-4 mb-4" :aria-busy="pending">
+  <section aria-labelledby="accounts-title" class="card p-3 p-sm-4 mb-4" :aria-busy="pending">
     <h2 id="accounts-title" class="h4">Accounts</h2>
     <p class="text-secondary">Read-only account directory. The server restricts access to administrators. Account deletion and role changes are not available here.</p>
     <BButton data-testid="load-accounts" :disabled="pending" @click="load()">{{ pending ? 'Loading accounts…' : items ? 'Refresh accounts' : 'View accounts (read-only)' }}</BButton>
@@ -40,7 +41,7 @@ const load = async (cursor?: string) => {
       <li v-for="account in items" :key="account.id" class="border-top py-3 text-break">
         <h3 class="h6">{{ account.name }}</h3>
         <p class="mb-1">{{ account.email }} · {{ account.role }}</p>
-        <p class="small mb-0">Created {{ account.createdAt }}</p>
+        <p class="small mb-0">Created <time :datetime="account.createdAt">{{ formatDateTime(account.createdAt) }}</time></p>
       </li>
     </ul>
     <BButton v-if="nextCursor" data-testid="more-accounts" :disabled="pending" @click="load(nextCursor)">Load more accounts</BButton>

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { AdminUserAnalyticsResponse } from '@broke-oclock/contracts/platform-admin'
+import TicketLoading from '@web/components/TicketLoading.vue'
 import { createAdminReadFence } from '@web/lib/admin-session'
 import { api } from '@web/lib/api-client'
 import { errorCode } from '@web/modules/ingestion-admin/errors'
@@ -45,7 +46,7 @@ onUnmounted(() => fence.dispose())
       </div>
       <button v-if="analytics" class="btn btn-outline-primary" type="button" @click="load">Refresh registrations</button>
     </div>
-    <p v-if="loading" role="status" class="mt-3 mb-0">Loading registration analytics…</p>
+    <TicketLoading v-if="loading" class="mt-3 mb-0" label="Loading registration analytics…" />
     <div v-else-if="failed" role="alert" class="mt-3">
       <p>Registration analytics are unavailable. The rest of the overview is still available.</p>
       <button type="button" class="btn btn-outline-primary" @click="load">Retry registrations</button>
@@ -78,18 +79,18 @@ onUnmounted(() => fence.dispose())
 .registration-heading h2::before { display: inline-block; content: ""; width: 4px; height: 14px; margin-right: 9px; border-radius: 3px; background: var(--admin-accent); vertical-align: -1px; }
 .registration-heading .btn { font-size: 12px; }
 .registration-totals { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin: 24px 0 28px; }
-.registration-totals > div { padding: 20px; border: 1px solid #e9ecf0; border-radius: 12px; background: #fafbfc; }
-.registration-totals > div:first-child { background: #fffbec; border-color: #f0e6c3; }
+.registration-totals > div { padding: 20px; border: 1px solid var(--admin-tile-border); border-radius: 12px; background: var(--admin-subtle-bg); }
+.registration-totals > div:first-child { background: var(--admin-accent-wash); border-color: var(--admin-accent-border); }
 .registration-totals dt { font-size: 13px; font-weight: 500; color: var(--admin-muted); }
 .registration-totals dd { margin: 10px 0 0; font-size: 36px; line-height: 1.2; font-weight: 650; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; }
-.registration-partial { display: inline-block; font-size: 10px; padding: 2px 6px; border: 1px solid #eee2b2; border-radius: 20px; background: #fff5d1; color: #705700; }
+.registration-partial { display: inline-block; font-size: 11px; padding: 2px 6px; border: 1px solid var(--admin-accent-border); border-radius: 20px; background: var(--admin-warning-bg); color: var(--admin-warning-ink); }
 .registration-weeks { display: grid; gap: 4px; list-style: none; padding: 0; margin: 20px 0 0; }
 .registration-weeks li { display: grid; grid-template-columns: 110px minmax(0, 1fr) 56px; align-items: center; gap: 12px; padding: 10px 8px; border-radius: 8px; font-size: 12px; }
-.registration-weeks .registration-current-week { background: #fffbeb; }
+.registration-weeks .registration-current-week { background: var(--admin-accent-wash); }
 .registration-week-label small { display: block; color: var(--admin-muted); font-size: 11px; }
-.registration-track { height: 12px; border-radius: 6px; background: #f0f2f5; overflow: hidden; }
-.registration-track > span { display: block; height: 100%; background: #6675ae; border-radius: 6px; }
-.registration-current-week .registration-track > span { background: #d9b437; }
+.registration-track { height: 12px; border-radius: 6px; background: var(--admin-track); overflow: hidden; }
+.registration-track > span { display: block; height: 100%; background: var(--admin-chart-updated); border-radius: 6px; }
+.registration-current-week .registration-track > span { background: var(--admin-chart-highlight); }
 .registration-count { text-align: right; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
 @media (max-width: 575.98px) {
   .registration-totals { grid-template-columns: minmax(0, 1fr); }

@@ -1,17 +1,19 @@
 <script setup lang="ts">
-import type { VenueDetailResponse } from '@broke-oclock/contracts/venues'
-import { ApiClientError, api } from '@web/lib/api-client'
+import TicketLoading from '@web/components/TicketLoading.vue'
+import FoodDealGrid from '@web/modules/browse-map/FoodDealGrid.vue'
+import type { DealRow } from '@web/modules/browse-map/types'
 import PanelFrame from '@web/modules/map-shell/PanelFrame.vue'
 import { browseLocation, dealLocation } from '@web/modules/map-shell/shell-routes'
+import { useShell } from '@web/modules/map-shell/shell-state'
 import { endedLabel, initials, offerLabel } from '@web/modules/venues-feed/deal-format'
-import VenueDealCard from '@web/modules/venues-feed/VenueDealCard.vue'
+import { useVenueDetail } from '@web/modules/venues-feed/use-venue-detail'
+import { toVenueDealRows } from '@web/modules/venues-feed/venue-deal-rows'
 import { computed, ref, watch } from 'vue'
-import { RouterLink, useRoute } from 'vue-router'
+import { type LocationQueryValue, RouterLink, useRoute, useRouter } from 'vue-router'
 
 // An outlet over the map: its live deals (each links to the deal panel), past deals and
 // details, in three tabs. The map keeps the outlet's pin selected while this is open.
 type VenueTab = 'now' | 'past' | 'about'
-type LoadState = 'loading' | 'ready' | 'not-found' | 'error'
 
 const TABS: readonly { value: VenueTab; label: string }[] = [
   { value: 'now', label: 'Now' },
@@ -19,17 +21,24 @@ const TABS: readonly { value: VenueTab; label: string }[] = [
   { value: 'about', label: 'About' },
 ]
 
+const DEFAULT_TAB: VenueTab = 'now'
+
 const route = useRoute()
-const state = ref<LoadState>('loading')
-const detail = ref<VenueDetailResponse | null>(null)
-const tab = ref<VenueTab>('now')
-let latestRequest = 0
+const router = useRouter()
+const shell = useShell()
+
+// The open tab lives in ?tab= (like the account panel) so a shared link or the back button lands
+// on the same section. The default tab is left out of the URL.
+const readTab = (value: LocationQueryValue | LocationQueryValue[] | undefined): VenueTab =>
+  TABS.find((item) => item.value === value)?.value ?? DEFAULT_TAB
+const tab = ref<VenueTab>(readTab(route.query.tab))
 
 const venueId = computed(() => String(route.params.venueId ?? ''))
+const { state, detail, reload: load } = useVenueDetail(venueId)
 const backTo = computed(() => browseLocation(route.query))
 const title = computed(() => {
   if (detail.value) return detail.value.venue.name
-  return state.value === 'not-found' ? 'Venue not found' : state.value === 'error' ? 'Unable to load this venue' : 'Loading venue'
+  return state.value === 'not-found' ? 'Venue not found' : state.value === 'error' ? 'Unable to load this venue' : 'Loading venue…'
 })
 const address = computed(() => {
   const venue = detail.value?.venue
@@ -37,31 +46,52 @@ const address = computed(() => {
   return venue.postalCode ? `${venue.address}, Singapore ${venue.postalCode}` : venue.address
 })
 
-const load = async () => {
-  const request = ++latestRequest
-  state.value = 'loading'
-  detail.value = null
-  try {
-    const data = await api.venues.get(venueId.value)
-    if (request !== latestRequest) return
-    detail.value = data
-    state.value = 'ready'
-  } catch (failure) {
-    if (request !== latestRequest) return
-    const code = failure instanceof ApiClientError ? failure.code : null
-    state.value = code === 'NOT_FOUND' || code === 'BAD_REQUEST' ? 'not-found' : 'error'
-  }
+// Same cards as the browse list, reusing the map's loaded copy of each deal when it has one.
+const rows = computed(() => {
+  const venue = detail.value?.venue
+  if (!venue) return []
+  return toVenueDealRows(venue, detail.value?.deals ?? [], {
+    deals: shell.deals.value,
+    pin: shell.findVenuePin(venue.id),
+    position: shell.position.value,
+  })
+})
+const toDeal = (row: DealRow) => dealLocation(route.query, row.deal.id, row.venue.id)
+
+const selectTab = (next: VenueTab) => {
+  tab.value = next
+  const rest = Object.fromEntries(Object.entries(route.query).filter(([key]) => key !== 'tab'))
+  void router.replace({ query: next === DEFAULT_TAB ? rest : { ...rest, tab: next } })
 }
 
+// Arrow keys, Home and End move between tabs; only the selected tab sits in the Tab order.
+const TAB_KEYS: Readonly<Record<string, (index: number) => number>> = {
+  ArrowRight: (index) => (index + 1) % TABS.length,
+  ArrowLeft: (index) => (index - 1 + TABS.length) % TABS.length,
+  Home: () => 0,
+  End: () => TABS.length - 1,
+}
+const onTabKeydown = (event: KeyboardEvent) => {
+  const move = TAB_KEYS[event.key]
+  if (!move) return
+  event.preventDefault()
+  const next = TABS[move(TABS.findIndex((item) => item.value === tab.value))]
+  if (!next) return
+  selectTab(next.value)
+  document.getElementById(`venue-tab-${next.value}`)?.focus()
+}
+
+watch(() => route.query.tab, (value) => {
+  tab.value = readTab(value)
+})
 watch(venueId, () => {
-  tab.value = 'now'
-  void load()
-}, { immediate: true })
+  tab.value = readTab(route.query.tab)
+})
 </script>
 
 <template>
   <PanelFrame :title="title" :back="backTo" :scroll-key="`${venueId}:${tab}`">
-    <p v-if="state === 'loading'" class="lb-meta" role="status">Loading venue…</p>
+    <TicketLoading v-if="state === 'loading'" class="lb-meta" label="Loading venue…" />
 
     <div v-else-if="state === 'not-found'" class="lb-state" role="alert">
       <p class="lb-state__body">This venue does not exist or is no longer listed.</p>
@@ -79,23 +109,18 @@ watch(venueId, () => {
         <span class="lb-meta lb-text-wrap">{{ address }}</span>
       </div>
 
-      <div class="lb-tabs" role="tablist" aria-label="Venue sections">
+      <div class="lb-tabs" role="tablist" aria-label="Venue sections" @keydown="onTabKeydown">
         <button v-for="item in TABS" :id="`venue-tab-${item.value}`" :key="item.value" type="button" role="tab"
-          class="lb-tab" :aria-selected="tab === item.value" aria-controls="venue-tabpanel" @click="tab = item.value">
+          class="lb-tab" :aria-selected="tab === item.value" :tabindex="tab === item.value ? 0 : -1"
+          aria-controls="venue-tabpanel" @click="selectTab(item.value)">
           {{ item.label }}
         </button>
       </div>
 
       <div id="venue-tabpanel" role="tabpanel" :aria-labelledby="`venue-tab-${tab}`">
         <template v-if="tab === 'now'">
-          <p v-if="detail.deals.length === 0" class="lb-meta">No ongoing deals at this venue right now.</p>
-          <ul v-else class="venue-panel__cards" aria-label="Ongoing deals">
-            <li v-for="deal in detail.deals" :key="deal.id">
-              <RouterLink class="venue-panel__card-link" :to="dealLocation(route.query, deal.id, detail.venue.id)">
-                <VenueDealCard :deal="deal" />
-              </RouterLink>
-            </li>
-          </ul>
+          <p v-if="rows.length === 0" class="lb-meta">No ongoing deals at this venue right now.</p>
+          <FoodDealGrid v-else :rows="rows" :to="toDeal" two-column />
         </template>
 
         <template v-else-if="tab === 'past'">
@@ -143,28 +168,6 @@ watch(venueId, () => {
   font: 600 1.25rem/1 var(--font-display);
   background: var(--tint-food);
   border-radius: 18px;
-}
-
-.venue-panel__cards {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, 9.5rem), 1fr));
-  gap: var(--space-3);
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.venue-panel__card-link {
-  display: block;
-  height: 100%;
-  color: var(--ink);
-  text-decoration: none;
-  border-radius: var(--radius-control);
-}
-
-.venue-panel__card-link:focus-visible {
-  outline: 3px solid var(--sunny-ring);
-  outline-offset: 2px;
 }
 
 .venue-panel__past {

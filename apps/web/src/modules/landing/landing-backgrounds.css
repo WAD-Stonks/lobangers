@@ -94,32 +94,6 @@
   mask-image: radial-gradient(ellipse at 85% 15%, black, transparent 75%);
 }
 /* A warm gold finish makes the final invitation feel optimistic and conclusive. */
-.landing-final {
-  background: radial-gradient(ellipse at 50% 28%, #ffe68b, #f7d65a 80%);
-}
-.landing-final::before,
-.landing-final::after {
-  content: "";
-  position: absolute;
-  bottom: -65px;
-  width: 290px;
-  height: 290px;
-  border: 1px solid #b28b3a26;
-  border-radius: 50%;
-  box-shadow:
-    0 0 0 35px #fff5d51a,
-    0 0 0 70px #fff5d514;
-  z-index: -1;
-  pointer-events: none;
-}
-.landing-final::before {
-  left: -150px;
-}
-.landing-final::after {
-  right: -150px;
-  bottom: auto;
-  top: -65px;
-}
 @media (max-width: 800px) {
   .hero-paper-background::before {
     width: 370px;

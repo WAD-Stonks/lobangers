@@ -173,6 +173,7 @@ it('never unlocks a successful association with lower-version reload or unrelate
   expect(wrapper.get('article').text()).toContain(venue.address)
   expect(wrapper.get('#review-note').element).toHaveProperty('value', '')
   await wrapper.get('#review-note').setValue('Read current outlet and evidence')
+  await wrapper.get('#reject-confirmation').setValue(true)
   expect(wrapper.get('[data-testid="reject-draft"]').attributes('disabled')).toBeUndefined()
 })
 
@@ -223,6 +224,7 @@ it.for(['association', 'review', 'search'] as const)(
     await wrapper.get(`[data-testid="view-${id}"]`).trigger('click')
     if (operation === 'review') {
       await wrapper.get('#review-note').setValue('Captured review')
+      await wrapper.get('#reject-confirmation').setValue(true)
       await wrapper.get('[data-testid="reject-draft"]').trigger('click')
     } else {
       await wrapper.get('[data-testid="outlet-search"]').trigger('submit')
@@ -283,6 +285,7 @@ it('captures review identity/version/note and does not clear a new target after 
   await flushPromises()
   await wrapper.get(`[data-testid="view-${id}"]`).trigger('click')
   await wrapper.get('#review-note').setValue('  Captured note  ')
+  await wrapper.get('#reject-confirmation').setValue(true)
   await wrapper.get('[data-testid="reject-draft"]').trigger('click')
   await wrapper.setProps({ revision: 1 })
   await flushPromises()
@@ -384,6 +387,7 @@ it.for(['search', 'queue', 'association', 'review'] as const)(
       await wrapper.get(`[data-testid="view-${id}"]`).trigger('click')
       if (operation === 'review') {
         await wrapper.get('#review-note').setValue('Observed source')
+        await wrapper.get('#reject-confirmation').setValue(true)
         await wrapper.get('[data-testid="reject-draft"]').trigger('click')
       } else {
         await wrapper.get('[data-testid="outlet-search"]').trigger('submit')
@@ -418,6 +422,7 @@ it.for(['queue', 'association', 'review'] as const)(
       await flushPromises()
       await wrapper.get(`[data-testid="view-${id}"]`).trigger('click')
       await wrapper.get('#review-note').setValue('Actor-specific review')
+      await wrapper.get('#reject-confirmation').setValue(true)
       await wrapper.get('[data-testid="reject-draft"]').trigger('click')
     }
     await flushPromises()
@@ -456,6 +461,7 @@ it('suppresses successful late review callback to real parent listener after unm
   await flushPromises()
   await wrapper.get(`[data-testid="view-${id}"]`).trigger('click')
   await wrapper.get('#review-note').setValue('Verified before parent close')
+  await wrapper.get('#reject-confirmation').setValue(true)
   await wrapper.get('[data-testid="reject-draft"]').trigger('click')
   wrapper.unmount()
   held.resolve({ id, reviewStatus: 'REJECTED' })
@@ -473,6 +479,7 @@ it('cannot unlock a context-shifted uncertain review with evidence requested bef
   await flushPromises()
   await wrapper.get(`[data-testid="view-${id}"]`).trigger('click')
   await wrapper.get('#review-note').setValue('Old review evidence')
+  await wrapper.get('#reject-confirmation').setValue(true)
   await wrapper.get('[data-testid="reject-draft"]').trigger('click')
   await wrapper.setProps({ revision: 1 })
   write.resolve({ id, reviewStatus: 'REJECTED' })
@@ -503,6 +510,7 @@ it('invalidates review consent on an operation-only refresh and never accepts a 
   await wrapper.get('[data-testid="more-drafts"]').trigger('click')
   await flushPromises()
   expect(wrapper.get('#review-note').element).toHaveProperty('value', 'Fresh operation eight')
+  await wrapper.get('#reject-confirmation').setValue(true)
   await wrapper.get('[data-testid="reject-draft"]').trigger('click')
   await flushPromises()
   expect(JSON.parse(calls.find((c) => c.method === 'post')?.data)).toEqual({

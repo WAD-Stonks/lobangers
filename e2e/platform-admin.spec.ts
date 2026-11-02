@@ -89,6 +89,10 @@ async function syntheticBoundary(page: Page) {
       data = dealsResponseSchema.parse({ items: [], categories: [] })
     else if (pathname === '/api/account/bookmarks' && method === 'GET')
       data = bookmarksResponseSchema.parse({ items: [], nextCursor: null })
+    // The map shell also reads live Flash Drops and the visitor's codes; none here.
+    else if (pathname === '/api/flash-drops/active' && method === 'GET')
+      data = { serverTime: new Date().toISOString(), items: [] }
+    else if (pathname === '/api/flash-drops/codes' && method === 'GET') data = { items: [] }
     else {
       observed.unexpected.push(`${method} ${pathname}`)
       await route.abort('blockedbyclient')
@@ -295,6 +299,14 @@ async function syntheticBoundary(page: Page) {
       const grantId = pathname.split('/').at(-1)
       path = 'platformAdmin.revokeStall'
       input = { grantId, ...revokeStallBodySchema.parse(body) }
+    } else if (pathname === '/api/flash-drops/active' || pathname === '/api/flash-drops/codes') {
+      // The map shell also reads live Flash Drops and the visitor's codes; none here.
+      await route.fulfill({
+        json: pathname.endsWith('/active')
+          ? { serverTime: new Date().toISOString(), items: [] }
+          : { items: [] },
+      })
+      return
     } else {
       observed.unexpected.push(`${method} ${pathname}`)
       await route.fulfill({
@@ -605,8 +617,15 @@ for (const width of [320, 390, 1280, 1440]) {
     const errors: string[] = []
     page.on('pageerror', (error) => errors.push(error.message))
     await page.setViewportSize({ width, height: 850 })
-    await page.goto('/browse')
-    await page.getByTestId('nav-toggle').click()
+    // The site menu is the brand menu on desktop and the Account page's More tab on phones.
+    if (width < 992) {
+      await page.goto('/me/profile')
+      await expect(page.getByTestId('account-more')).toBeVisible()
+    } else {
+      await page.goto('/browse')
+      await page.getByTestId('nav-toggle').click()
+      await expect(page.getByTestId('nav-menu')).toBeVisible()
+    }
     await expect(page.getByRole('link', { name: 'Platform admin', exact: true })).toHaveCount(0)
     await page.goto('/admin/accounts')
     await expect(page).toHaveURL('/admin/accounts')

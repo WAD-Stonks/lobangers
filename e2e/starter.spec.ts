@@ -25,7 +25,7 @@ test('the /browse address retains the interactive deal map', async ({ page }) =>
 test('unknown route has a usable recovery link', async ({ page }) => {
   await page.goto('/does-not-exist')
   await expect(page.getByRole('main')).toContainText(/not found|404/i)
-  await page.locator('a[href="/"]').first().click()
+  await page.getByRole('main').locator('a[href="/"]', { hasText: 'Return home' }).click()
   await expect(page.getByRole('heading', { name: 'Bang for your buck.' })).toBeVisible()
 })
 

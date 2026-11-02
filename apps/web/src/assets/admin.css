@@ -7,6 +7,86 @@
   --admin-muted: #626b78;
   --admin-border: #e2e5e9;
   --admin-accent: #f3cb45;
+  /* Neutral surfaces and states. */
+  --admin-subtle-bg: #f8f9fb;
+  --admin-overview-bg: #f7f8fa;
+  --admin-neutral-bg: #f5f6f8;
+  --admin-hover: #f3f4f6;
+  --admin-active: #f1f2f4;
+  --admin-pressed: #e9ecf0;
+  --admin-track: #f2f4f7;
+  --admin-secondary-text: #535e6e;
+  --admin-icon-ink: #667184;
+  --admin-line: #edf0f3;
+  --admin-card-border: #e5e8ed;
+  --admin-tile-border: #e9ecf0;
+  --admin-control-border: #d6dae0;
+  --admin-control-border-strong: #b6bdc7;
+  --admin-input-border: #ccd1d8;
+  --admin-input-border-focus: #687891;
+  --admin-focus: #465c82;
+  --admin-selection: #fff0ad;
+  --admin-backdrop: #131a2680;
+  --admin-shadow-card: 0 3px 14px #20242b04;
+  --admin-shadow-lift: 0 5px 18px #7c64100b;
+  --admin-shadow-popover: 0 8px 24px #20242b12;
+  /* Filled "strong" controls (selected tabs) use the text colour as a fill. */
+  --admin-on-strong: #fff;
+  --admin-strong-hover: #343a44;
+  /* Sunny accent: fills keep dark text in both themes. */
+  --admin-on-accent: #20242b;
+  --admin-accent-edge: #e3bd3e;
+  --admin-accent-hover: #eac13b;
+  --admin-accent-hover-edge: #d6ae2f;
+  --admin-accent-disabled: #f4df93;
+  --admin-accent-wash: #fffbea;
+  --admin-accent-hover-bg: #fffdf5;
+  --admin-accent-soft: #fff8dc;
+  --admin-accent-border: #f1e6b9;
+  --admin-accent-border-strong: #d6bd66;
+  --admin-accent-border-hover: #c9ad4f;
+  --admin-accent-ink: #826517;
+  --admin-brand-ink: #9a7100;
+  --admin-selected-bg: #fff7d6;
+  --admin-selected-border: #e3cf76;
+  --admin-warning-bg: #fff4ca;
+  --admin-warning-ink: #6a5100;
+  --admin-notice-ink: #5c4700;
+  --admin-fake-border: #b98a12;
+  --admin-fake-ink: #7a5a00;
+  /* Status tones. */
+  --admin-success-bg: #edf7f0;
+  --admin-success-wash: #f5faf6;
+  --admin-success-border: #d6e9dc;
+  --admin-success-ink: #285c3b;
+  --admin-success-dot: #5c7462;
+  --admin-danger-bg: #fff1ee;
+  --admin-danger-wash: #fff8f6;
+  --admin-danger-border: #f1d9d3;
+  --admin-danger-ink: #912d27;
+  --admin-danger-ink-strong: #7d2a24;
+  --admin-danger-action: #a22c25;
+  --admin-danger-action-hover: #8d241e;
+  --admin-danger-action-border: #e4c2be;
+  --admin-danger-action-hover-bg: #fff2f0;
+  --admin-danger-action-hover-border: #ce9992;
+  --admin-danger-action-active-bg: #ffe8e4;
+  --admin-live-bg: #fff1ec;
+  --admin-live-border: #f3d2c6;
+  --admin-live-ink: #a8432a;
+  --admin-stop: #a8432a;
+  --admin-stop-hover: #933722;
+  --admin-stop-disabled: #d9a596;
+  --admin-on-stop: #fff;
+  --admin-neutral-status-bg: #edf0f4;
+  --admin-neutral-status-border: #dde2ea;
+  --admin-neutral-status-ink: #465366;
+  /* Chart marks. */
+  --admin-chart-created: #3b8062;
+  --admin-chart-updated: #6675ae;
+  --admin-chart-failed: #be6254;
+  --admin-chart-highlight: #d9b437;
+  --admin-chart-live: #d9744f;
   --admin-font: var(--font-sans);
   --admin-sidebar-width: 232px;
   --bs-border-color: var(--admin-border);
@@ -22,6 +102,100 @@
 .admin-shell--collapsed {
   --admin-sidebar-width: 72px;
 }
+/* Dark theme: warm charcoal like the rest of the app. Tones reuse the main tag pairs; contrast on
+   the card (#1e1d1a): text 14.9:1, muted 6.9:1, status inks 7.8:1+, control borders 3:1+,
+   chart marks 6.3:1+, focus ring 7.7:1. */
+:root.app-palette[data-theme="dark"] .admin-shell {
+  --admin-bg: var(--paper);
+  --admin-surface: var(--paper-white);
+  --admin-sidebar-bg: var(--paper-white);
+  --admin-text: var(--ink);
+  --admin-muted: var(--ink-muted);
+  --admin-border: var(--hairline);
+  --admin-subtle-bg: #24231f;
+  --admin-neutral-bg: #24231f;
+  --admin-hover: var(--paper-hover);
+  --admin-active: var(--paper-sunk);
+  --admin-pressed: #34322d;
+  --admin-track: var(--paper-sunk);
+  --admin-secondary-text: #c2bfb7;
+  --admin-icon-ink: var(--ink-muted);
+  --admin-line: #2a2925;
+  --admin-card-border: var(--hairline);
+  --admin-tile-border: var(--hairline);
+  --admin-control-border: var(--hairline-strong);
+  --admin-control-border-strong: #85827a;
+  --admin-input-border: var(--hairline-strong);
+  --admin-input-border-focus: var(--ink-muted);
+  --admin-focus: var(--sky);
+  --admin-selection: #5a4b12;
+  --admin-backdrop: var(--scrim);
+  --admin-shadow-card: 0 0 0 1px rgb(255 255 255 / 0.02), 0 3px 14px rgb(0 0 0 / 0.25);
+  --admin-shadow-lift: 0 5px 18px rgb(0 0 0 / 0.4);
+  --admin-shadow-popover: 0 0 0 1px rgb(255 255 255 / 0.06), 0 8px 24px rgb(0 0 0 / 0.5);
+  --admin-on-strong: var(--on-ink);
+  --admin-strong-hover: var(--ink-strong-hover);
+  --admin-on-accent: var(--on-accent);
+  --admin-accent-disabled: #5c5125;
+  --admin-accent-wash: var(--sunny-wash);
+  --admin-accent-hover-bg: #23211a;
+  --admin-accent-soft: var(--tag-build-bg);
+  --admin-accent-border: #4d4220;
+  --admin-accent-border-strong: #9c8432;
+  --admin-accent-border-hover: #b39a40;
+  --admin-accent-ink: var(--tag-build-ink);
+  --admin-brand-ink: var(--sunny);
+  --admin-selected-bg: #2f2a17;
+  --admin-selected-border: #8a7428;
+  --admin-warning-bg: var(--tag-build-bg);
+  --admin-warning-ink: var(--tag-build-ink);
+  --admin-notice-ink: var(--tag-build-ink);
+  --admin-fake-border: #a88a2e;
+  --admin-fake-ink: var(--tag-build-ink);
+  --admin-success-bg: var(--tag-ok-bg);
+  --admin-success-wash: #1a2a1f;
+  --admin-success-border: #2f5a3d;
+  --admin-success-ink: var(--tag-ok-ink);
+  --admin-success-dot: var(--ok);
+  --admin-danger-bg: var(--tag-end-bg);
+  --admin-danger-wash: #2c1c16;
+  --admin-danger-border: #6a3526;
+  --admin-danger-ink: var(--tag-end-ink);
+  --admin-danger-ink-strong: var(--tag-end-ink);
+  --admin-danger-action: var(--tag-end-ink);
+  --admin-danger-action-hover: #fbc3b0;
+  --admin-danger-action-border: #a0563f;
+  --admin-danger-action-hover-bg: var(--tag-end-bg);
+  --admin-danger-action-hover-border: #c46d52;
+  --admin-danger-action-active-bg: #4c281d;
+  --admin-live-bg: var(--tag-end-bg);
+  --admin-live-border: #6a3526;
+  --admin-live-ink: var(--coral-deep);
+  --admin-stop-disabled: #6b3a2c;
+  --admin-neutral-status-bg: var(--tag-new-bg);
+  --admin-neutral-status-border: #3d3b35;
+  --admin-neutral-status-ink: var(--tag-new-ink);
+  --admin-chart-created: #5fb88a;
+  --admin-chart-updated: #8f9ee0;
+  --admin-chart-failed: #e5846f;
+  --admin-chart-highlight: #e9c74a;
+  --admin-chart-live: var(--coral-deep);
+  /* Bootstrap utilities used inside admin panels (.text-secondary, .text-danger, .alert-*). */
+  --bs-secondary-rgb: 168, 165, 157;
+  --bs-danger-rgb: 246, 173, 148;
+  --bs-warning-text-emphasis: var(--tag-build-ink);
+  --bs-warning-bg-subtle: var(--tag-build-bg);
+  --bs-warning-border-subtle: #4d4220;
+  --bs-danger-text-emphasis: var(--tag-end-ink);
+  --bs-danger-bg-subtle: var(--tag-end-bg);
+  --bs-danger-border-subtle: #6a3526;
+  --bs-success-text-emphasis: var(--tag-ok-ink);
+  --bs-success-bg-subtle: var(--tag-ok-bg);
+  --bs-success-border-subtle: #2f5a3d;
+  --bs-info-text-emphasis: var(--tag-info-ink);
+  --bs-info-bg-subtle: var(--tag-info-bg);
+  --bs-info-border-subtle: #33456e;
+}
 .admin-shell *,
 .admin-shell *::before,
 .admin-shell *::after {
@@ -29,7 +203,7 @@
 }
 .admin-shell ::selection {
   color: var(--admin-text);
-  background: #fff0ad;
+  background: var(--admin-selection);
 }
 .admin-shell .admin-icon {
   width: 18px;
@@ -46,15 +220,15 @@
 .admin-shell .btn {
   --bs-btn-color: var(--admin-text);
   --bs-btn-bg: var(--admin-surface);
-  --bs-btn-border-color: #d6dae0;
+  --bs-btn-border-color: var(--admin-control-border);
   --bs-btn-hover-color: var(--admin-text);
-  --bs-btn-hover-bg: #f1f2f4;
-  --bs-btn-hover-border-color: #b6bdc7;
+  --bs-btn-hover-bg: var(--admin-active);
+  --bs-btn-hover-border-color: var(--admin-control-border-strong);
   --bs-btn-active-color: var(--admin-text);
-  --bs-btn-active-bg: #e9ecf0;
-  --bs-btn-active-border-color: #b6bdc7;
+  --bs-btn-active-bg: var(--admin-pressed);
+  --bs-btn-active-border-color: var(--admin-control-border-strong);
   --bs-btn-disabled-color: var(--admin-muted);
-  --bs-btn-disabled-bg: #f5f6f8;
+  --bs-btn-disabled-bg: var(--admin-neutral-bg);
   --bs-btn-disabled-border-color: var(--admin-border);
   --bs-btn-disabled-opacity: 0.65;
   min-height: 36px;
@@ -106,7 +280,7 @@
   grid-auto-flow: column;
 }
 .admin-shell .admin-brand-mark > span {
-  color: #9a7100;
+  color: var(--admin-brand-ink);
 }
 .admin-shell .admin-brand-copy {
   display: grid;
@@ -116,7 +290,7 @@
   display: block;
   width: 112px;
   height: 24px;
-  background: url("@web/assets/lobangers-logo.png") left center / contain no-repeat;
+  background: url("./lobangers-logo.svg") left center / contain no-repeat;
 }
 .admin-shell .admin-brand-copy small {
   color: var(--admin-muted);
@@ -162,11 +336,11 @@
 .admin-shell .admin-navigation a:hover,
 .admin-shell .admin-map-link:hover {
   color: var(--admin-text);
-  background: #f3f4f6;
+  background: var(--admin-hover);
 }
 .admin-shell .admin-navigation a[aria-current="page"] {
   color: var(--admin-text);
-  background: #f1f2f4;
+  background: var(--admin-active);
   font-weight: 650;
 }
 .admin-shell .admin-navigation a[aria-current="page"]::before {
@@ -234,7 +408,7 @@
 }
 .admin-shell .admin-icon-button:hover {
   color: var(--admin-text);
-  background: #f3f4f6;
+  background: var(--admin-hover);
 }
 .admin-shell .admin-breadcrumb {
   display: flex;
@@ -301,7 +475,7 @@
   width: 5px;
   height: 5px;
   border-radius: 50%;
-  background: #5c7462;
+  background: var(--admin-success-dot);
   margin-right: 6px;
   vertical-align: middle;
 }
@@ -326,7 +500,7 @@
 }
 .admin-shell .admin-account-trigger:hover,
 .admin-shell .admin-account-trigger[aria-expanded="true"] {
-  background: #f3f4f6;
+  background: var(--admin-hover);
 }
 .admin-shell .admin-avatar {
   display: grid;
@@ -334,7 +508,7 @@
   width: 28px;
   height: 28px;
   border-radius: 50%;
-  background: #f0f1f3;
+  background: var(--admin-active);
   border: 1px solid var(--admin-border);
 }
 .admin-shell .admin-avatar .admin-icon {
@@ -358,7 +532,7 @@
   background: var(--admin-surface);
   border: 1px solid var(--admin-border);
   border-radius: 8px;
-  box-shadow: 0 8px 24px #20242b12;
+  box-shadow: var(--admin-shadow-popover);
   text-align: left;
 }
 .admin-shell .admin-session-identity {
@@ -416,23 +590,26 @@
 }
 .admin-shell .btn-primary,
 .admin-shell .btn-success {
+  --bs-btn-color: var(--admin-on-accent);
   --bs-btn-bg: var(--admin-accent);
-  --bs-btn-border-color: #e3bd3e;
-  --bs-btn-hover-bg: #eac13b;
-  --bs-btn-hover-border-color: #d6ae2f;
-  --bs-btn-active-bg: #eac13b;
-  --bs-btn-active-border-color: #d6ae2f;
-  --bs-btn-disabled-bg: #f4df93;
+  --bs-btn-border-color: var(--admin-accent-edge);
+  --bs-btn-hover-color: var(--admin-on-accent);
+  --bs-btn-hover-bg: var(--admin-accent-hover);
+  --bs-btn-hover-border-color: var(--admin-accent-hover-edge);
+  --bs-btn-active-color: var(--admin-on-accent);
+  --bs-btn-active-bg: var(--admin-accent-hover);
+  --bs-btn-active-border-color: var(--admin-accent-hover-edge);
+  --bs-btn-disabled-bg: var(--admin-accent-disabled);
 }
 .admin-shell .btn-danger,
 .admin-shell .btn-outline-danger {
-  --bs-btn-color: #a22c25;
-  --bs-btn-bg: #fff;
-  --bs-btn-border-color: #e4c2be;
-  --bs-btn-hover-color: #8d241e;
-  --bs-btn-hover-bg: #fff2f0;
-  --bs-btn-hover-border-color: #ce9992;
-  --bs-btn-active-bg: #ffe8e4;
+  --bs-btn-color: var(--admin-danger-action);
+  --bs-btn-bg: var(--admin-surface);
+  --bs-btn-border-color: var(--admin-danger-action-border);
+  --bs-btn-hover-color: var(--admin-danger-action-hover);
+  --bs-btn-hover-bg: var(--admin-danger-action-hover-bg);
+  --bs-btn-hover-border-color: var(--admin-danger-action-hover-border);
+  --bs-btn-active-bg: var(--admin-danger-action-active-bg);
 }
 .admin-shell .btn-link {
   --bs-btn-bg: transparent;
@@ -442,7 +619,7 @@
   text-underline-offset: 3px;
 }
 .admin-shell :is(a, button, input, select, textarea, summary):focus-visible {
-  outline: 2px solid #465c82;
+  outline: 2px solid var(--admin-focus);
   outline-offset: 3px;
   box-shadow: none;
 }
@@ -452,7 +629,7 @@
   padding: 7px 10px;
   color: var(--admin-text);
   background-color: var(--admin-surface);
-  border-color: #ccd1d8;
+  border-color: var(--admin-input-border);
   border-radius: 6px;
   font-family: var(--admin-font);
   font-size: 13px;
@@ -460,15 +637,21 @@
 }
 .admin-shell .form-control:focus,
 .admin-shell .form-select:focus {
-  border-color: #687891;
-  box-shadow: none;
+  border-color: var(--admin-focus);
+  box-shadow: 0 0 0 1px var(--admin-focus);
+}
+/* Bootstrap's outline: 0 on :focus must not hide the keyboard ring. */
+.admin-shell .form-control:focus-visible,
+.admin-shell .form-select:focus-visible {
+  outline: 2px solid var(--admin-focus);
+  outline-offset: 2px;
 }
 .admin-shell .form-control::placeholder {
   color: var(--admin-muted);
 }
 .admin-shell .form-control:disabled,
 .admin-shell .form-select:disabled {
-  background-color: #f1f2f4;
+  background-color: var(--admin-active);
 }
 .admin-shell .form-label {
   font-size: 12px;
@@ -496,7 +679,7 @@
 }
 .admin-shell .table th {
   color: var(--admin-muted);
-  background: #f8f9fb;
+  background: var(--admin-subtle-bg);
   font-size: 11px;
   font-weight: 600;
 }
@@ -517,10 +700,16 @@
 }
 .admin-shell [role="alert"] {
   padding: 12px 16px;
-  color: #912d27;
-  background: #fff2ef;
-  border: 1px solid #f0d4ce;
+  color: var(--admin-danger-ink);
+  background: var(--admin-danger-bg);
+  border: 1px solid var(--admin-danger-border);
   border-radius: 6px;
+}
+/* Live regions stay mounted so errors are announced; draw nothing while they are empty. */
+.admin-shell [role="alert"]:empty {
+  padding: 0;
+  border: 0;
+  background: none;
 }
 .admin-shell [role="status"] {
   color: var(--admin-muted);
@@ -621,8 +810,8 @@
   font-weight: 400;
 }
 .admin-shell .admin-record-button.is-selected {
-  --bs-btn-bg: #fff7d6;
-  --bs-btn-border-color: #e3cf76;
+  --bs-btn-bg: var(--admin-selected-bg);
+  --bs-btn-border-color: var(--admin-selected-border);
 }
 .admin-shell .admin-role-label {
   display: block;
@@ -638,7 +827,7 @@
   left: 8px;
   padding: 8px 16px;
   border-radius: 6px;
-  color: var(--admin-text);
+  color: var(--admin-on-accent);
   background: var(--admin-accent);
   transform: translateY(-200%);
 }
@@ -660,7 +849,7 @@
   border-right: 1px solid var(--admin-border);
 }
 .admin-shell .admin-drawer::backdrop {
-  background: #131a2680;
+  background: var(--admin-backdrop);
 }
 .admin-shell .admin-drawer .admin-brand {
   padding-right: 48px;
@@ -740,5 +929,20 @@
 @media (prefers-reduced-motion: reduce) {
   .admin-shell .btn {
     transition: none;
+  }
+}
+
+/* Touch screens: header controls and buttons reach the 44px touch target. */
+@media (pointer: coarse) {
+  .admin-shell .admin-icon-button {
+    flex-basis: 44px;
+    width: 44px;
+    height: 44px;
+  }
+  .admin-shell .admin-account-trigger,
+  .admin-shell .btn,
+  .admin-shell .admin-session .btn,
+  .admin-shell .admin-skip-link {
+    min-height: 44px;
   }
 }

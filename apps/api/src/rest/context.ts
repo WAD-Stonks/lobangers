@@ -97,3 +97,21 @@ export const createRestHandler = <T extends RequestHandler>(
       next(error)
     }
   }) as T
+
+// For anonymous reads that never look at the session. Resolving one costs two or three
+// database round trips per request, which public browsing pays on every panel it opens.
+export const createPublicRestHandler = <T extends RequestHandler>(
+  dependencies: RestDependencies,
+  handle: (
+    request: Parameters<RequestHandler>[0],
+    response: Parameters<RequestHandler>[1],
+    context: RestContext,
+  ) => void | Promise<void>,
+): T =>
+  (async (request, response, next) => {
+    try {
+      await handle(request, response, { db, ingestion: dependencies.ingestion, session: null })
+    } catch (error) {
+      next(error)
+    }
+  }) as T

@@ -81,9 +81,38 @@ onBeforeUnmount(() => emit('menuChange', false))
   padding: 6px 2px;
   color: var(--ink-muted);
   text-decoration: none;
-  font-size: 0.7rem;
+  /* Never below 11px, even on the desktop's 90% font scale. */
+  font-size: max(11px, 0.7rem);
   font-weight: 650;
+  line-height: 1.15;
+  text-align: center;
+  overflow-wrap: anywhere;
   border-radius: 14px;
+  transition:
+    transform var(--dur-press) var(--ease-out),
+    background-color 150ms ease,
+    color 150ms ease;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.map-navigation a:active {
+  transform: scale(0.95);
+}
+
+/* The icon pops once when its tab becomes the current one. */
+.map-navigation a[aria-current='page'] > svg {
+  animation: shell-pop 320ms var(--ease-out);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .map-navigation a:active {
+    transform: none;
+  }
+
+  .map-navigation a[aria-current='page'] > svg {
+    animation: none;
+  }
 }
 
 .map-navigation a:hover,
@@ -96,7 +125,8 @@ onBeforeUnmount(() => emit('menuChange', false))
   background: var(--paper-sunk);
 }
 
-.map-navigation__avatar { display: grid; place-items: center; width: 28px; height: 28px; border: 1px solid var(--hairline); border-radius: 50%; background: var(--sunny-wash, #fff7dc); color: var(--ink); font-size: .8125rem; font-weight: 700; }
+/* 24px, the same box as the 23px icons, so the Account label lines up with the others. */
+.map-navigation__avatar { display: grid; place-items: center; box-sizing: border-box; width: 24px; height: 24px; font-size: .6875rem; border: 1px solid var(--hairline); border-radius: 50%; background: var(--sunny-wash); color: var(--ink); font-weight: 700; }
 
 .map-navigation__account {
   width: 100%;
@@ -107,7 +137,8 @@ onBeforeUnmount(() => emit('menuChange', false))
   inset: auto 0 0;
   width: 100%;
   height: calc(68px + env(safe-area-inset-bottom, 0px));
-  padding: 4px 8px calc(4px + env(safe-area-inset-bottom, 0px));
+  padding: 4px calc(8px + env(safe-area-inset-right, 0px)) calc(4px + env(safe-area-inset-bottom, 0px)) calc(8px + env(safe-area-inset-left, 0px));
+  box-sizing: border-box;
   flex-direction: row;
   align-items: stretch;
   gap: 4px;

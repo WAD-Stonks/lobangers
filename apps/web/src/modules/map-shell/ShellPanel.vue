@@ -98,7 +98,7 @@ const handleLabel = computed(
 </script>
 
 <template>
-  <aside
+  <section
     class="shell-panel lb-card"
     :class="[`shell-panel--${mode}`, { 'is-wide': wide, 'is-dragging': dragging, 'is-collapsed': collapsed }]"
     :style="sheetStyle"
@@ -123,7 +123,7 @@ const handleLabel = computed(
     <div class="shell-panel__content">
       <slot />
     </div>
-  </aside>
+  </section>
 </template>
 
 <style scoped>
@@ -174,6 +174,11 @@ const handleLabel = computed(
   box-shadow: 0 -12px 32px rgba(27, 27, 31, 0.12);
   transition: transform var(--dur-sheet) var(--ease-drawer);
   touch-action: none;
+}
+
+/* On dark tiles a shadow alone does not lift the sheet; the card shadow adds a faint light edge. */
+.app-palette[data-theme='dark'] .shell-panel--sheet {
+  box-shadow: var(--shadow-card);
 }
 
 /* The sticky action bar rides the visible edge, so it moves with the sheet, not ahead of it. */

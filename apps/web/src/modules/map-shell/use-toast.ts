@@ -11,8 +11,15 @@ import {
 export const TOAST_MS = 4200
 
 export type ToastTone = 'info' | 'error'
-export type Toast = { readonly id: number; readonly text: string; readonly tone: ToastTone }
-export type ToastOptions = { readonly tone?: ToastTone }
+// An optional single action, such as Undo after removing a saved deal. Pressing it dismisses the toast.
+export type ToastAction = { readonly label: string; readonly run: () => void }
+export type Toast = {
+  readonly id: number
+  readonly text: string
+  readonly tone: ToastTone
+  readonly action?: ToastAction
+}
+export type ToastOptions = { readonly tone?: ToastTone; readonly action?: ToastAction }
 
 export type ToastQueue = {
   readonly current: Readonly<Ref<Toast | null>>
@@ -37,7 +44,12 @@ export const createToastQueue = (): ToastQueue => {
   }
   const show = (text: string, options: ToastOptions = {}) => {
     clear()
-    current.value = { id: nextId++, text, tone: options.tone ?? 'info' }
+    current.value = {
+      id: nextId++,
+      text,
+      tone: options.tone ?? 'info',
+      ...(options.action ? { action: options.action } : {}),
+    }
     timer = setTimeout(dismiss, TOAST_MS)
   }
 

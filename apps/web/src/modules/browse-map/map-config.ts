@@ -12,6 +12,8 @@ export const PAN_DURATION_S = 0.4
 export const NEARBY_PAN_METRES = 1500
 export const USER_DOT_SIZE_PX = 14
 export const USER_DOT_CLASS = 'deal-map-user-dot'
+// Below the viewer's own lobanger (people sit at -1000, self at -999) so it stands on the dot.
+export const USER_DOT_Z_OFFSET = -1000
 // Soft sky-blue halo for the browser's accuracy radius; matches --sky in main.css.
 export const USER_ACCURACY_STYLE = {
   color: '#4f7df3',

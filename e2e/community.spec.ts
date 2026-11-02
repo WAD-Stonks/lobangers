@@ -298,13 +298,13 @@ for (const mode of ['manual refresh', 'minute poll']) {
     await page.getByRole('link', { name: 'Back to results', exact: true }).click()
     await expect(
       page
-        .getByRole('complementary', { name: 'Results' })
+        .getByRole('region', { name: 'Results', exact: true })
         .getByRole('list')
         .locator('.deal-rows__status')
         .first(),
     ).toHaveText('Unverified')
     await expect(
-      page.getByRole('complementary', { name: 'Results' }).getByRole('list'),
+      page.getByRole('region', { name: 'Results', exact: true }).getByRole('list'),
     ).not.toContainText('Likely still on')
   })
 }

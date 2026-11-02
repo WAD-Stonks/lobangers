@@ -12,7 +12,7 @@
   --bs-link-color-rgb: 27, 27, 31;
   --bs-link-hover-color: var(--coral-deep);
   --bs-link-hover-color-rgb: 191, 79, 48;
-  --bs-focus-ring-color: var(--sunny-ring);
+  --bs-focus-ring-color: var(--focus-ring);
   --bs-form-invalid-color: var(--coral-deep);
   --bs-form-invalid-border-color: var(--coral-deep);
   --bs-form-valid-color: var(--ok);
@@ -30,7 +30,7 @@ a {
   --bs-btn-font-size: 0.875rem;
   --bs-btn-padding-x: 18px;
   --bs-btn-border-radius: var(--radius-pill);
-  --bs-btn-focus-box-shadow: 0 0 0 3px var(--sunny-ring);
+  --bs-btn-focus-box-shadow: 0 0 0 1px var(--focus-ring), 0 0 0 4px var(--sunny-ring);
   --bs-btn-disabled-opacity: 0.6;
   display: inline-flex;
   align-items: center;
@@ -56,16 +56,16 @@ a {
 
 /* Primary: sunny yellow with ink text, the app's one call-to-action colour. */
 .btn-primary {
-  --bs-btn-color: var(--ink);
+  --bs-btn-color: var(--on-accent);
   --bs-btn-bg: var(--sunny);
   --bs-btn-border-color: var(--sunny-deep);
-  --bs-btn-hover-color: var(--ink);
+  --bs-btn-hover-color: var(--on-accent);
   --bs-btn-hover-bg: var(--sunny-deep);
   --bs-btn-hover-border-color: var(--sunny-deep);
-  --bs-btn-active-color: var(--ink);
+  --bs-btn-active-color: var(--on-accent);
   --bs-btn-active-bg: var(--sunny-deep);
   --bs-btn-active-border-color: var(--sunny-deep);
-  --bs-btn-disabled-color: var(--ink);
+  --bs-btn-disabled-color: var(--on-accent);
   --bs-btn-disabled-bg: var(--sunny);
   --bs-btn-disabled-border-color: var(--sunny-deep);
 }
@@ -91,13 +91,13 @@ a {
 }
 
 .btn-dark {
-  --bs-btn-color: var(--paper-white);
+  --bs-btn-color: var(--on-ink);
   --bs-btn-bg: var(--ink-strong);
   --bs-btn-border-color: var(--ink-strong);
-  --bs-btn-hover-color: var(--paper-white);
+  --bs-btn-hover-color: var(--on-ink);
   --bs-btn-hover-bg: var(--ink-strong-hover);
   --bs-btn-hover-border-color: var(--ink-strong-hover);
-  --bs-btn-active-color: var(--paper-white);
+  --bs-btn-active-color: var(--on-ink);
   --bs-btn-active-bg: var(--ink-strong-hover);
   --bs-btn-active-border-color: var(--ink-strong-hover);
 }
@@ -124,7 +124,8 @@ a {
   text-underline-offset: 0.18em;
 }
 
-/* Form controls: hairline border, sunny focus ring instead of the blue glow. */
+/* Form controls: hairline border, a two-tone mustard and sunny focus ring instead of the blue
+   glow. Text fields keep :focus (they always show focus); checkboxes ring only for the keyboard. */
 .form-control,
 .form-select {
   min-height: 46px;
@@ -136,9 +137,16 @@ a {
 
 .form-control:focus,
 .form-select:focus,
-.form-check-input:focus {
-  border-color: var(--sunny-deep);
-  box-shadow: 0 0 0 3px var(--sunny-ring);
+.form-check-input:focus-visible {
+  border-color: var(--focus-ring);
+  box-shadow:
+    0 0 0 1px var(--focus-ring),
+    0 0 0 4px var(--sunny-ring);
+}
+
+.form-check-input:focus:not(:focus-visible) {
+  border-color: var(--hairline-strong);
+  box-shadow: none;
 }
 
 .form-check-input:checked {
@@ -202,6 +210,70 @@ a {
   color: var(--tag-new-ink) !important;
   /* biome-ignore lint/complexity/noImportantStyles: matches Bootstrap's !important helpers */
   background-color: var(--tag-new-bg) !important;
+}
+
+/* Dark theme: Bootstrap's text and badge helpers use fixed RGB values that fall below 4.5:1 on
+   the charcoal surfaces (secondary 3.6:1, danger 3.7:1), so they switch to the token palette.
+   Light mode keeps Bootstrap's own colours. */
+.app-palette[data-theme="dark"] .text-secondary,
+.app-palette[data-theme="dark"] .link-secondary {
+  /* biome-ignore lint/complexity/noImportantStyles: matches Bootstrap's !important helpers */
+  color: var(--ink-muted) !important;
+}
+
+.app-palette[data-theme="dark"] .link-secondary:hover,
+.app-palette[data-theme="dark"] .link-secondary:focus-visible {
+  /* biome-ignore lint/complexity/noImportantStyles: matches Bootstrap's !important helpers */
+  color: var(--ink) !important;
+}
+
+.app-palette[data-theme="dark"] .text-danger {
+  /* biome-ignore lint/complexity/noImportantStyles: matches Bootstrap's !important helpers */
+  color: var(--coral-deep) !important;
+}
+
+.app-palette[data-theme="dark"] .text-success {
+  /* biome-ignore lint/complexity/noImportantStyles: matches Bootstrap's !important helpers */
+  color: var(--ok) !important;
+}
+
+.app-palette[data-theme="dark"] .text-warning {
+  /* biome-ignore lint/complexity/noImportantStyles: matches Bootstrap's !important helpers */
+  color: var(--tag-build-ink) !important;
+}
+
+/* bg-body reads --bs-body-bg-rgb, which stays white; in dark it matches the control surface. */
+.app-palette[data-theme="dark"] .bg-body {
+  /* biome-ignore lint/complexity/noImportantStyles: matches Bootstrap's !important helpers */
+  background-color: var(--paper-white) !important;
+}
+
+.app-palette[data-theme="dark"] .text-bg-success {
+  /* biome-ignore lint/complexity/noImportantStyles: matches Bootstrap's !important helpers */
+  color: var(--tag-ok-ink) !important;
+  /* biome-ignore lint/complexity/noImportantStyles: matches Bootstrap's !important helpers */
+  background-color: var(--tag-ok-bg) !important;
+}
+
+.app-palette[data-theme="dark"] .text-bg-danger {
+  /* biome-ignore lint/complexity/noImportantStyles: matches Bootstrap's !important helpers */
+  color: var(--tag-end-ink) !important;
+  /* biome-ignore lint/complexity/noImportantStyles: matches Bootstrap's !important helpers */
+  background-color: var(--tag-end-bg) !important;
+}
+
+.app-palette[data-theme="dark"] .text-bg-warning {
+  /* biome-ignore lint/complexity/noImportantStyles: matches Bootstrap's !important helpers */
+  color: var(--tag-build-ink) !important;
+  /* biome-ignore lint/complexity/noImportantStyles: matches Bootstrap's !important helpers */
+  background-color: var(--tag-build-bg) !important;
+}
+
+.app-palette[data-theme="dark"] .text-bg-info {
+  /* biome-ignore lint/complexity/noImportantStyles: matches Bootstrap's !important helpers */
+  color: var(--tag-info-ink) !important;
+  /* biome-ignore lint/complexity/noImportantStyles: matches Bootstrap's !important helpers */
+  background-color: var(--tag-info-bg) !important;
 }
 
 @media (prefers-reduced-motion: reduce) {

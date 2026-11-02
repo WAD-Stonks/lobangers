@@ -16,7 +16,7 @@ const towns = computed(() => LOCATION_TOWNS.filter((town) => town.name.toLocaleL
       <button v-for="region in LOCATION_REGIONS" :key="region" class="lb-chip" type="button" :aria-pressed="model === `region:${region}`" @click="model = `region:${region}`">{{ region }}</button>
     </fieldset>
     <label :for="searchId">Town or neighbourhood</label>
-    <input :id="searchId" v-model="search" type="search" placeholder="Search towns, e.g. Bedok" autocomplete="off" />
+    <input :id="searchId" v-model="search" type="search" name="town" placeholder="Search towns, e.g. Bedok…" autocomplete="off" spellcheck="false" />
     <p v-if="model" class="lb-meta" role="status">Selected: {{ locationLabel(model) }}</p>
     <!-- biome-ignore lint/a11y/useSemanticElements: a fieldset would add form semantics and default styling to a plain button group -->
     <div class="location-filter__towns" role="group" aria-label="Towns and neighbourhoods">

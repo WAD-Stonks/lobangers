@@ -167,6 +167,9 @@ export const adminOverviewResponseSchema = z.strictObject({
     pendingMerchantRequests: z.number().int().nonnegative(),
     pendingImportedDrafts: z.number().int().nonnegative(),
     failedImportedPosts: z.number().int().nonnegative(),
+    // Older snapshots predate Flash Drop; they read as none waiting.
+    pendingFlashDrops: z.number().int().nonnegative().default(0),
+    liveFlashDrops: z.number().int().nonnegative().default(0),
   }),
   recentRuns: ingestionRunsResponseSchema.shape.items.max(10),
   readiness: z.strictObject({

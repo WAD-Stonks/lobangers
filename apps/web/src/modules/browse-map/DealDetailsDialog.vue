@@ -20,6 +20,9 @@ const sizePoster = () => {
   const layoutKey = JSON.stringify([route.params.dealId, route.query.at, imageSource, window.innerWidth, window.innerHeight])
   // Votes, receipts and comment updates must not resize the poster or switch layouts.
   if (sizedFor === layoutKey) return
+  // Leave the stacked layout before measuring (one write), then read the body width once before
+  // the search. The search itself has to alternate a write and a read per step: the overview's
+  // height depends on how its text reflows at each trial width, which CSS alone can't solve.
   root.classList.remove('deal-dialog--stacked')
   if (window.innerWidth < 992) {
     sizedFor = ''
@@ -33,6 +36,8 @@ const sizePoster = () => {
   const style = getComputedStyle(body)
   const available = body.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight) - 24
   if (available < 640) return
+  // The poster starts at the top of the first grid row whatever its width, so read it once.
+  const mediaTop = media.getBoundingClientRect().top
   const ratio = image.naturalWidth / image.naturalHeight
   let low = 280
   let high = available - 360
@@ -42,7 +47,7 @@ const sizePoster = () => {
   for (let step = 0; step < 12; step++) {
     const width = (low + high) / 2
     body.style.setProperty('--poster-width', `${width}px`)
-    const height = verification.getBoundingClientRect().bottom - media.getBoundingClientRect().top
+    const height = verification.getBoundingClientRect().bottom - mediaTop
     const difference = width / ratio - height
     if (Math.abs(difference) < bestDifference) {
       bestDifference = Math.abs(difference)
@@ -107,7 +112,7 @@ onBeforeUnmount(() => {
   <div class="deal-dialog__backdrop" aria-hidden="true" data-testid="deal-dialog-backdrop" @click="emit('close')" />
   <section ref="dialog" class="deal-dialog lb-card" role="dialog" aria-modal="true" aria-labelledby="deal-dialog-title" data-testid="deal-dialog" @keydown="onKeydown">
     <header class="deal-dialog__header">
-      <h2 id="deal-dialog-title">Deal details</h2>
+      <p id="deal-dialog-title" class="deal-dialog__title">Deal details</p>
       <button ref="closeButton" class="lb-ctrl lb-ctrl--flat" type="button" aria-label="Close deal details" @click="emit('close')"><ShellIcon name="close" :size="18" /></button>
     </header>
     <div class="deal-dialog__content"><DealPanel dialog /></div>
@@ -119,7 +124,7 @@ onBeforeUnmount(() => {
   position: fixed;
   inset: 0;
   z-index: 45;
-  background: rgb(29 29 34 / 0.45);
+  background: var(--scrim);
 }
 
 .deal-dialog {
@@ -147,7 +152,7 @@ onBeforeUnmount(() => {
   border-bottom: 1px solid var(--hairline);
 }
 
-.deal-dialog__header h2 {
+.deal-dialog__title {
   grid-column: 2;
   margin: 0;
   font-size: 1.2rem;
@@ -304,9 +309,9 @@ onBeforeUnmount(() => {
 
 @media (max-width: 599.98px) {
   .deal-dialog {
-    width: calc(100vw - 16px);
-    height: calc(100dvh - 16px);
-    max-height: calc(100dvh - 16px);
+    width: calc(100vw - 16px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px));
+    height: calc(100dvh - 16px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+    max-height: calc(100dvh - 16px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
     border-radius: 22px;
   }
 }

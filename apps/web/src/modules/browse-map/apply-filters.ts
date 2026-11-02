@@ -87,6 +87,19 @@ export const filterDeals = (
   context: FilterContext,
 ): readonly DealPin[] => deals.filter((deal) => matchesDeal(deal, filters, context.now))
 
+// Zoomed in on a street, the visible rectangle can hold no outlet at all. Counting only that
+// would read "0 deals" beside a block with food a short walk away, so the searched area never
+// shrinks below this half-span (about 500 m) around the viewport centre.
+const MIN_AREA_HALF_SPAN_DEGREES = 0.0045
+
+const withMinimumReach = (area: AreaBounds): AreaBounds => {
+  const lat = (area.north + area.south) / 2
+  const lng = (area.east + area.west) / 2
+  const halfLat = Math.max((area.north - area.south) / 2, MIN_AREA_HALF_SPAN_DEGREES)
+  const halfLng = Math.max((area.east - area.west) / 2, MIN_AREA_HALF_SPAN_DEGREES)
+  return { south: lat - halfLat, north: lat + halfLat, west: lng - halfLng, east: lng + halfLng }
+}
+
 const insideArea = (point: Coordinates, area: AreaBounds): boolean =>
   point.lat >= area.south &&
   point.lat <= area.north &&
@@ -98,14 +111,16 @@ export const filterVenues = (
   pins: readonly VenuePin[],
   filters: BrowseFilters,
   context: FilterContext,
-): readonly VenuePin[] =>
-  pins.filter((pin) => {
+): readonly VenuePin[] => {
+  const { position } = context
+  const area = context.area && withMinimumReach(context.area)
+  return pins.filter((pin) => {
     if (!matchesLocation(pin, filters.location)) return false
-    const { position, area } = context
     if (area && !insideArea(pin, area)) return false
     if (filters.walkMinutes === null || !position) return true
     return walkMinutesFor(distanceMetres(position, pin)) <= filters.walkMinutes
   })
+}
 
 export const uniqueDealCount = (pins: readonly VenuePin[]): number =>
   new Set(pins.flatMap((pin) => pin.deals.map((deal) => deal.id))).size

@@ -191,7 +191,7 @@ Each owner supplies tests and a short run/demo note. The assigned reviewer check
 
 The API serves the health, readiness and current-user probes at `GET /api/health`, `GET /api/ready` and `GET /api/me`. Domain route assemblies expose conventional HTTP resources; the browser uses explicit Axios functions grouped by domain and contracts from `packages/contracts`. The retired `/api/trpc` endpoint returns 404. Better Auth and UploadThing keep their native endpoints.
 
-Read [development guide](docs/development-guide.md), [architecture](docs/architecture.md), [coding standards](docs/coding-standards.md), [platform-admin handoff](docs/platform-admin.md), [testing](docs/testing.md) and [contribution workflow](CONTRIBUTING.md). Earlier planning material in `docs/feature-plan.md` and `docs/contracts.md` must be reconciled with the current proposal and implemented contracts where it differs.
+Read [development guide](docs/development-guide.md), [architecture](docs/architecture.md), [coding standards](docs/coding-standards.md), [platform-admin handoff](docs/platform-admin.md), [testing](docs/testing.md) and [contribution workflow](CONTRIBUTING.md). The [web interface audit](docs/web-interface-audit.md) records the accessibility and responsiveness fixes, the breakpoints they target and the before/after measurements. Earlier planning material in `docs/feature-plan.md` and `docs/contracts.md` must be reconciled with the current proposal and implemented contracts where it differs.
 
 ## Security and final submission
 

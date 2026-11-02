@@ -213,6 +213,7 @@ it.each(['add', 'toggle'] as const)(
     expect(page.get('article').text()).toContain('DRINKS / OTHER')
     expect(page.get('#review-note').element).toHaveProperty('value', '')
     await page.get('#review-note').setValue('Freshly reviewed version three')
+    await page.get('#reject-confirmation').setValue(true)
     expect(page.get('[data-testid="reject-draft"]').attributes('disabled')).toBeUndefined()
   },
 )

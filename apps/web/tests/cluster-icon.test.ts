@@ -20,6 +20,20 @@ const group = (overrides: Partial<PlacedGroup>): PlacedGroup => ({
   ...overrides,
 })
 
+const venue = (
+  id: string,
+  title: string,
+  label: string,
+  priceMinor: number | null,
+  category = 'FOOD',
+) => ({
+  id,
+  name: `Synthetic ${id}`,
+  lat: 1.3,
+  lng: 103.8,
+  deals: [{ title, label, priceMinor, category, offerType: 'FIXED_PRICE', discountPercent: null }],
+})
+
 const chipOf = (icon: ReturnType<typeof createGroupIcon>) =>
   icon.createIcon().querySelector(`.${CLUSTER_CLASS}__chip`) as HTMLElement
 
@@ -32,7 +46,7 @@ describe('createGroupIcon', () => {
     // Zero-size anchor: the pill centres itself on the point, whatever its width.
     expect(icon.options.iconSize).toEqual([0, 0])
     expect(chip.querySelector(`.${CLUSTER_CLASS}__name`)?.textContent).toBe('Orchard <b>')
-    expect(chip.querySelector(`.${CLUSTER_CLASS}__count`)?.textContent).toBe('12')
+    expect(chip.querySelector(`.${CLUSTER_CLASS}__count`)?.textContent).toBe('12 deals')
     expect(chip.querySelector('b')).toBeNull()
     expect(chip.getAttribute('aria-label')).toBe('12 deals in Orchard <b>')
   })
@@ -63,6 +77,32 @@ describe('createGroupIcon', () => {
     expect(chipOf(createGroupIcon(group({ dealCount: 1 }))).getAttribute('aria-label')).toBe(
       '1 deal in Orchard',
     )
+  })
+})
+
+describe('group foods and prices', () => {
+  const venues = [
+    venue('a', 'Kopi O', '$1.20', 120, 'DRINKS'),
+    venue('b', 'Chicken rice', '$3.50', 350),
+    venue('c', 'Kaya toast', '1-for-1', null, 'BAKERY'),
+    venue('d', 'Laksa', '$4', 400),
+  ] as never
+
+  it('shows up to three different foods inside the oval', () => {
+    const chip = chipOf(createGroupIcon(group({ venues })))
+    const foods = chip.querySelectorAll(`.${CLUSTER_CLASS}__fan .food-sprite`)
+    expect(foods).toHaveLength(3)
+  })
+
+  it('leads with the cheapest price in the group', () => {
+    const chip = chipOf(createGroupIcon(group({ venues, dealCount: 4 })))
+    expect(chip.querySelector(`.${CLUSTER_CLASS}__count`)?.textContent).toBe('4 deals · from $1.20')
+  })
+
+  it('keeps one food and the bare count on a compact dot', () => {
+    const chip = chipOf(createGroupIcon(group({ venues, compact: true, dealCount: 4 })))
+    expect(chip.querySelectorAll('.food-sprite')).toHaveLength(1)
+    expect(chip.querySelector(`.${CLUSTER_CLASS}__count`)?.textContent).toBe('4')
   })
 })
 

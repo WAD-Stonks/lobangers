@@ -108,7 +108,7 @@ const clearAll = () => {
     </p>
 
     <div v-if="showSkeleton" aria-busy="true" data-testid="deals-loading">
-      <span class="visually-hidden" role="status">Loading deals</span>
+      <span class="visually-hidden" role="status">Loading deals…</span>
       <div v-if="cardMode" class="browse-list__skeleton-cards" aria-hidden="true">
         <div v-for="index in 4" :key="index" class="browse-list__skeleton-card">
           <span class="lb-skeleton browse-list__skeleton-photo" />
@@ -320,13 +320,13 @@ const clearAll = () => {
   min-height: var(--hit);
   padding: 0 12px;
   font-size: var(--text-sm);
-  color: var(--ink);
+  color: var(--on-accent);
   background: var(--sunny);
   border-color: var(--sunny);
 }
 
 .browse-list__map-button:hover {
-  color: var(--ink);
+  color: var(--on-accent);
   background: var(--sunny-deep);
   border-color: var(--sunny-deep);
 }
@@ -350,6 +350,12 @@ const clearAll = () => {
   outline: none;
   appearance: none;
   cursor: pointer;
+}
+
+/* Explicit colours so the native option list stays readable in Windows dark mode. */
+.browse-list__select option {
+  color: var(--ink);
+  background-color: var(--paper-white);
 }
 
 .browse-list__chevron {

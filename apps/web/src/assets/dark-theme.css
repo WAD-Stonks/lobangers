@@ -1,0 +1,142 @@
+/* Dark theme: the same "paper" design at night. Warm charcoal instead of blue-black keeps the
+   paper warmth, cards lift with a faint light edge instead of a shadow, sunny yellow stays the
+   one call-to-action colour (always with dark text), and coral is lifted so prices still read.
+   src/lib/theme.ts sets [data-theme]; scoping to .app-palette keeps the landing page light.
+   Contrast on the card surface (#1e1d1a): ink 14.9:1, muted 6.9:1, coral text 6.9:1,
+   tags 7.8:1 or more, control borders 3:1. Loaded last in main.ts. */
+
+:root.app-palette[data-theme="dark"] {
+  color-scheme: dark;
+
+  --page-background: #141412;
+  --paper: #141412;
+  --paper-white: #1e1d1a;
+  --paper-hover: #272622;
+  --paper-sunk: #2b2a26;
+  --hero-background: #221f14;
+  --map-canvas: #1a1a18;
+
+  --ink: #f3f1ec;
+  --ink-muted: #a8a59d;
+  --ink-strong: #f3f1ec;
+  --ink-strong-hover: #dedbd3;
+  --on-ink: #1b1b1f;
+  --hairline: #33312c;
+  --hairline-strong: #6b6860;
+  --track: #6b6860;
+
+  --coral: #e8714f;
+  --coral-deep: #f08b6d;
+  --coral-soft: rgb(240 139 109 / 0.18);
+  --coral-ring: rgb(240 139 109 / 0.5);
+
+  --sunny-soft: rgb(255 218 69 / 0.2);
+  --sunny-ring: rgb(255 218 69 / 0.75);
+  /* Sunny on charcoal: 12:1 on the page, 11:1 on cards. */
+  --focus-ring: #ffda45;
+  --sunny-wash: #2a2614;
+  --sky: #8aaeff;
+  --sky-soft: rgb(138 174 255 / 0.18);
+
+  /* Deep versions of the category hues so pins and photo placeholders do not glare. */
+  --tint-drinks: #24414d;
+  --tint-food: #4f2e26;
+  --tint-dessert: #4a2a40;
+  --tint-snacks: #4a3a22;
+  --tint-bakery: #45401f;
+  --tint-other: #34322d;
+
+  --ok: #6cc98b;
+  --tag-ok-bg: #1f3527;
+  --tag-ok-ink: #a6dcb6;
+  --tag-end-bg: #3f2219;
+  --tag-end-ink: #f6ad94;
+  --tag-new-bg: #2b2a26;
+  --tag-new-ink: #c9c6be;
+  --tag-info-bg: #1f2a45;
+  --tag-info-ink: #adc3f7;
+  --tag-build-bg: #3a3114;
+  --tag-build-ink: #f0d77d;
+
+  /* Shadows barely show on dark; a 1px light edge does the separating instead. */
+  --shadow-card: 0 0 0 1px rgb(255 255 255 / 0.06), 0 12px 32px rgb(0 0 0 / 0.45);
+  --shadow-pill: 0 0 0 1px rgb(255 255 255 / 0.07), 0 6px 18px rgb(0 0 0 / 0.5);
+  --scrim: rgb(0 0 0 / 0.6);
+  --scrim-strong: rgb(0 0 0 / 0.88);
+  --glass: rgb(30 29 26 / 0.85);
+
+  /* Bootstrap's own surfaces, for BootstrapVueNext components the tokens above do not reach. */
+  --bs-body-color: var(--ink);
+  --bs-body-color-rgb: 243, 241, 236;
+  --bs-body-bg-rgb: 20, 20, 18;
+  --bs-emphasis-color: var(--ink);
+  --bs-emphasis-color-rgb: 243, 241, 236;
+  --bs-heading-color: inherit;
+  --bs-secondary-color: var(--ink-muted);
+  --bs-secondary-bg: var(--paper-sunk);
+  --bs-tertiary-color: var(--ink-muted);
+  --bs-tertiary-bg: var(--paper-hover);
+  --bs-border-color: var(--hairline);
+  --bs-light-bg-subtle: var(--page-background);
+  --bs-border-color-translucent: rgb(255 255 255 / 0.12);
+  --bs-primary-rgb: 243, 241, 236;
+  --bs-link-color-rgb: 243, 241, 236;
+  --bs-link-hover-color-rgb: 240, 139, 109;
+  --bs-danger-rgb: 240, 139, 109;
+  --bs-code-color: var(--coral-deep);
+  --bs-form-select-bg-img: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23f3f1ec' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m2 5 6 6 6-6'/%3e%3c/svg%3e");
+  --bs-btn-close-filter: invert(1) grayscale(100%) brightness(200%);
+}
+
+/* The checked box keeps a dark tick by switching to the sunny fill. */
+.app-palette[data-theme="dark"] .form-check-input {
+  background-color: var(--paper-sunk);
+  border-color: var(--hairline-strong);
+}
+
+.app-palette[data-theme="dark"] .form-check-input:checked {
+  --bs-form-check-bg-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3e%3cpath fill='none' stroke='%231b1b1f' stroke-linecap='round' stroke-linejoin='round' stroke-width='3' d='m6 10 3 3 6-6'/%3e%3c/svg%3e");
+  background-color: var(--sunny);
+  border-color: var(--sunny);
+}
+
+.app-palette[data-theme="dark"] .form-check-input[type="radio"]:checked {
+  --bs-form-check-bg-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='-4 -4 8 8'%3e%3ccircle r='2' fill='%231b1b1f'/%3e%3c/svg%3e");
+}
+
+.app-palette[data-theme="dark"] .form-switch .form-check-input {
+  --bs-form-switch-bg: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='-4 -4 8 8'%3e%3ccircle r='3' fill='%23a8a59d'/%3e%3c/svg%3e");
+}
+
+.app-palette[data-theme="dark"] .form-switch .form-check-input:checked {
+  --bs-form-switch-bg: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='-4 -4 8 8'%3e%3ccircle r='3' fill='%231b1b1f'/%3e%3c/svg%3e");
+}
+
+/* The wordmark SVG is solid black on transparent, so inverting it gives the ink colour. Vite keeps
+   it as a hashed file (46 KB, above the inline limit), so the name match holds in builds. */
+.app-palette[data-theme="dark"] img[src*="lobangers-logo"],
+.app-palette[data-theme="dark"] .admin-wordmark {
+  filter: invert(1);
+}
+
+/* Map tiles: Leaflet paints its own light chrome. */
+.app-palette[data-theme="dark"] .leaflet-container {
+  background: var(--map-canvas);
+}
+
+.app-palette[data-theme="dark"] .leaflet-control-attribution {
+  color: var(--ink-muted);
+  background: var(--glass);
+}
+
+.app-palette[data-theme="dark"] .leaflet-control-attribution a {
+  color: var(--ink);
+}
+
+/* Theme switches swap many colours at once; skip the per-element transitions for that frame so
+   nothing cross-fades at a different speed. theme.ts adds the class around the change. */
+.theme-switching,
+.theme-switching * {
+  /* biome-ignore lint/complexity/noImportantStyles: must beat every component transition */
+  transition: none !important;
+}

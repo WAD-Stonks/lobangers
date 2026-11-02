@@ -17,6 +17,9 @@
   --sunny-deep: #e9c62a;
   --sunny-soft: rgba(246, 214, 75, 0.35);
   --sunny-ring: rgba(246, 214, 75, 0.85);
+  /* Deep mustard keyboard focus ring: 4:1 or more on paper, white and sunny fills (the sunny
+     ring alone is about 1.4:1). dark-theme.css lifts it for charcoal surfaces. */
+  --focus-ring: #9a6f00;
   --sky: #4f7df3;
   --sky-soft: rgba(79, 125, 243, 0.16);
   /* Deeper sky for filled surfaces with white text (5.9:1). */
@@ -76,6 +79,16 @@
   --tag-build-ink: #5f4a00;
   --radius-sheet: 1.75rem;
 
+  /* Theme-stable roles. --on-accent is text on sunny, coral and tint fills, which stay light in
+     both themes; --on-ink is text on an --ink-strong fill, which inverts with the theme. */
+  --on-accent: #1b1b1f;
+  --on-ink: #ffffff;
+  --switch-knob: #ffffff;
+  --scrim: rgb(29 29 34 / 0.4);
+  --scrim-strong: rgb(29 29 34 / 0.85);
+  /* Frosted chips over map tiles and photos. */
+  --glass: rgb(255 255 255 / 0.85);
+
   /* Motion: two curves, UI under 300ms. */
   --ease-out: cubic-bezier(0.23, 1, 0.32, 1); /* things entering */
   --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1); /* things moving on screen */
@@ -91,9 +104,6 @@
 
   /* Shown behind map tiles while they load; matches the paper land colour so nothing flashes. */
   --map-canvas: var(--paper);
-  /* Space the fixed header card takes above page content (top offset + card height). */
-  --site-header-clearance: calc(var(--space-5) + 4rem);
-
   /* Bootstrap reads these on <body>; keeping them in sync lets BootstrapVueNext pages match. */
   --bs-body-font-family: var(--font-sans);
   --bs-body-color: var(--ink);
@@ -158,7 +168,7 @@ html.is-canvas body {
 a:focus-visible,
 button:focus-visible,
 .btn:focus-visible {
-  outline: 3px solid var(--sunny-ring);
+  outline: 3px solid var(--focus-ring);
   outline-offset: 3px;
 }
 
@@ -172,6 +182,7 @@ button:focus-visible,
 /* Floating pill button: white by default, sunny yellow for the primary action. */
 .browse-pill {
   display: inline-flex;
+  touch-action: manipulation;
   align-items: center;
   gap: var(--space-2);
   padding: var(--space-3) var(--space-6);
@@ -207,7 +218,7 @@ button:focus-visible,
 }
 
 .browse-pill--primary {
-  color: var(--ink);
+  color: var(--on-accent);
   background: var(--sunny);
 }
 
@@ -217,21 +228,22 @@ button:focus-visible,
 }
 
 .browse-pill--ink {
-  color: var(--paper-white);
-  background: var(--ink);
+  color: var(--on-ink);
+  background: var(--ink-strong);
 }
 
 .browse-pill--ink:hover,
 .browse-pill--ink:focus-visible {
-  background: #000000;
+  background: var(--ink-strong-hover);
 }
 
 /* Round white back button that sits over a photo or at the top of a panel section. */
 .browse-back {
   display: inline-grid;
   place-items: center;
-  width: 2.5rem;
-  height: 2.5rem;
+  /* 40px on desktop; touch screens get the full --hit target. */
+  width: max(2.5rem, var(--hit));
+  height: max(2.5rem, var(--hit));
   padding: 0;
   color: var(--ink);
   background: var(--paper-white);
@@ -286,16 +298,16 @@ button:focus-visible,
 
 /* Match Bootstrap-backed forms to the same primary action palette. */
 .app-palette .btn-primary {
-  --bs-btn-color: var(--ink);
+  --bs-btn-color: var(--on-accent);
   --bs-btn-bg: var(--sunny);
   --bs-btn-border-color: var(--sunny);
-  --bs-btn-hover-color: var(--ink);
+  --bs-btn-hover-color: var(--on-accent);
   --bs-btn-hover-bg: var(--sunny-deep);
   --bs-btn-hover-border-color: var(--sunny-deep);
-  --bs-btn-active-color: var(--ink);
+  --bs-btn-active-color: var(--on-accent);
   --bs-btn-active-bg: var(--sunny-deep);
   --bs-btn-active-border-color: var(--sunny-deep);
-  --bs-btn-disabled-color: var(--ink);
+  --bs-btn-disabled-color: var(--on-accent);
   --bs-btn-disabled-bg: var(--sunny);
   --bs-btn-disabled-border-color: var(--sunny);
 }

@@ -301,12 +301,37 @@ describe('near me', () => {
     ])
   })
 
-  it('keeps the Singapore overview on arrival even when location is available', async () => {
+  it('centres a new visitor on themselves on arrival instead of the whole island', async () => {
     stubGeolocation()
     const { wrapper } = await mountAt('/browse')
     await flushPromises()
     expect(map(wrapper).props('userPosition')).toEqual(HERE)
+    expect(map(wrapper).props('focus')).toEqual(HERE)
+    expect(map(wrapper).props('focusZoom')).toBe(LOCATE_ZOOM)
+  })
+
+  it('keeps the Singapore overview when the visitor is outside Singapore', async () => {
+    stubGeolocation({ lat: 51.5, lng: -0.12 })
+    const { wrapper } = await mountAt('/browse')
+    await flushPromises()
     expect(map(wrapper).props('focus')).toBeNull()
+  })
+
+  it('does not pull the map away from an open deal on arrival', async () => {
+    stubGeolocation()
+    const { wrapper } = await mountAt(`/deals/${KOPI.id}?at=${KOPI_VENUE.id}`)
+    await flushPromises()
+    expect(map(wrapper).props('focus')).toEqual({ lat: KOPI_VENUE.lat, lng: KOPI_VENUE.lng })
+  })
+
+  it('centres on the visitor the first time the map is shown after starting in the list', async () => {
+    stubGeolocation()
+    const { wrapper } = await mountAt('/browse?view=list&discovery=1')
+    await flushPromises()
+    expect(map(wrapper).props('focus')).toBeNull()
+    await wrapper.get('[data-testid="show-map"]').trigger('click')
+    await flushPromises()
+    expect(map(wrapper).props('focus')).toEqual(HERE)
   })
 
   it('focuses the visitor much closer in than a selected deal', async () => {
@@ -698,7 +723,7 @@ describe('saving from result items', () => {
     await flushPromises()
     expect(wrapper.find('[data-testid="shell-panel"] .auth-prompt').exists()).toBe(true)
     expect(wrapper.find('dialog.auth-prompt').exists()).toBe(false)
-    await wrapper.get('.auth-prompt__primary').trigger('click')
+    await wrapper.get('.auth-prompt__secondary').trigger('click')
     await flushPromises()
     expect(router.currentRoute.value.name).toBe('sign-in')
     expect(router.currentRoute.value.query.redirect).toBe('/browse?results=cards')
@@ -712,7 +737,7 @@ describe('saving from the deal panel', () => {
     await flushPromises()
     expect(wrapper.find('[data-testid="shell-panel"] .auth-prompt').exists()).toBe(true)
     expect(wrapper.find('dialog.auth-prompt').exists()).toBe(false)
-    await wrapper.get('.auth-prompt__primary').trigger('click')
+    await wrapper.get('.auth-prompt__secondary').trigger('click')
     await flushPromises()
     expect(router.currentRoute.value.name).toBe('sign-in')
     expect(router.currentRoute.value.query.redirect).toBe(`/deals/${KOPI.id}`)
@@ -828,10 +853,12 @@ describe('map navigation rail', () => {
         '--bottom-nav-h',
       ),
     ).toContain('68px')
-    await wrapper.get('[data-testid="nav-toggle"]').trigger('click')
+    // The bottom nav replaces the menu button: Squad takes its slot in the header.
+    expect(wrapper.find('[data-testid="nav-toggle"]').exists()).toBe(false)
+    expect(wrapper.get('[data-testid="squad-header-button"]').classes()).toContain(
+      'squad-nav--compact',
+    )
     expect(wrapper.find('[data-testid="show-sidebar"]').exists()).toBe(false)
-    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }))
-    await flushPromises()
     await wrapper.get('[data-testid="map-navigation"] a[href^="/saved"]').trigger('click')
     await flushPromises()
     expect(router.currentRoute.value.name).toBe('saved')
@@ -839,6 +866,26 @@ describe('map navigation rail', () => {
       'Saved',
     )
     expect(wrapper.get('[data-testid="shell-panel"]').classes()).toContain('shell-panel--sheet')
+    // Saved is its own tab in the bottom nav, so the page has no account tabs.
+    expect(wrapper.find('[role="tablist"][aria-label="Account sections"]').exists()).toBe(false)
+  })
+
+  it('opens Account on the menu rows, without a Saved tab, when there is a bottom nav', async () => {
+    vi.stubGlobal('matchMedia', (query: string) => ({
+      matches: false,
+      media: query,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    }))
+    vi.stubGlobal('innerWidth', 390)
+    auth.session.current = SIGNED_IN
+    const { wrapper } = await mountAt('/me/profile')
+    const tabs = wrapper
+      .findAll('[aria-label="Account sections"] [role="tab"]')
+      .map((tab) => tab.text())
+    expect(tabs).toEqual(['More', 'Submitted', 'Settings'])
+    expect(wrapper.get('[data-testid="account-more"]').text()).toContain('Log out')
+    expect(wrapper.find('[data-testid="account-codes-link"]').exists()).toBe(true)
   })
 
   it('keeps filters and result preferences when navigating through account, share, saved and deals', async () => {

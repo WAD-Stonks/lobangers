@@ -24,15 +24,16 @@ for (const key of ['Enter', 'Space']) {
       .getByRole('button', { name: /Auto-play story|Pause story/ })
     await expect(toggle).toHaveAccessibleName(/Auto-play story/)
     await toggle.focus()
+    // The label is the state: it reads "Pause story" while playing.
     await page.keyboard.press(key)
-    await expect(toggle).toHaveAttribute('aria-pressed', 'true')
+    await expect(toggle).toHaveAccessibleName(/Pause story/)
     await page.keyboard.press(key)
-    await expect(toggle).toHaveAttribute('aria-pressed', 'false')
+    await expect(toggle).toHaveAccessibleName(/Auto-play story/)
     // The same control can restart playback; navigation keys still interrupt it.
     await page.keyboard.press(key)
-    await expect(toggle).toHaveAttribute('aria-pressed', 'true')
+    await expect(toggle).toHaveAccessibleName(/Pause story/)
     await page.keyboard.press('Escape')
-    await expect(toggle).toHaveAttribute('aria-pressed', 'false')
+    await expect(toggle).toHaveAccessibleName(/Auto-play story/)
   })
 }
 

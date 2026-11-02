@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { DealPin } from '@broke-oclock/contracts/deals'
+import { focusableWithin } from '@web/lib/form-focus'
 import { areaFor } from '@web/modules/browse-map/cluster-area'
 import { OUTLET_NOT_CONFIRMED } from '@web/modules/browse-map/deal-format'
 import { regions } from '@web/modules/landing/deals'
@@ -8,7 +9,7 @@ import IllustratedMap from '@web/modules/landing/IllustratedMap.vue'
 import { isLikelyStillOn, landingDealLink, promotionDates, randomRegionalDeal, venuesInRegion } from '@web/modules/landing/live-deals'
 import type { LandingDealsStatus } from '@web/modules/landing/use-landing-deals'
 import { useOutletAddresses } from '@web/modules/landing/use-outlet-addresses'
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onBeforeUpdate, onMounted, onUpdated, ref, watch } from 'vue'
 import { RouterLink } from 'vue-router'
 
 const emit = defineEmits<{ retry: [] }>()
@@ -85,6 +86,15 @@ function positionPreview() {
   const best = candidates.sort((a, b) => a.distance - b.distance)[0]
   previewPosition.value = best ? { left: `${best.x - bounds.left}px`, top: `${best.y - bounds.top}px` } : undefined
 }
+// Pins and the card fire transitionend/animationend as they settle; measure once per frame.
+let positionFrame = 0
+function queuePosition() {
+  if (positionFrame) return
+  positionFrame = requestAnimationFrame(() => {
+    positionFrame = 0
+    positionPreview()
+  })
+}
 watch([featured, selected, () => props.liveState], async () => {
   await nextTick()
   layoutObserver?.disconnect()
@@ -94,6 +104,27 @@ watch([featured, selected, () => props.liveState], async () => {
 }, { flush: 'post' })
 const discoveryKey = ref(0)
 const reduced = ref(false)
+// One control pauses the deal rotation and the ambient waterfront loops. Reduced motion starts
+// paused; hovering or focusing the map holds the rotation so a card never changes mid-read.
+const autoplay = ref(true)
+const hovering = ref(false)
+const focusWithin = ref(false)
+let motionChosen = false
+const ambientPaused = computed(() => reduced.value || !autoplay.value)
+const rotationHeld = computed(() => !autoplay.value || hovering.value || focusWithin.value)
+function toggleMotion() {
+  motionChosen = true
+  autoplay.value = !autoplay.value
+}
+// Focus on the pause control itself must not hold the rotation it just resumed.
+const holdsRotation = (target: EventTarget | null) =>
+  target instanceof Element && Boolean(mapArea.value?.contains(target)) && !target.closest('.hero-motion-toggle')
+function enterFocus(event: FocusEvent) {
+  focusWithin.value = holdsRotation(event.target)
+}
+function leaveFocus(event: FocusEvent) {
+  focusWithin.value = holdsRotation(event.relatedTarget)
+}
 function discover(index: number) {
   const region = regions[index]
   if (!region) return
@@ -120,7 +151,7 @@ watch(featured, async pick => {
 let rotation: ReturnType<typeof setInterval> | undefined
 function restartRotation() {
   clearInterval(rotation)
-  if (props.liveState !== 'ready' || regionalPicks.value.filter(pool => pool.length).length < 2) return
+  if (rotationHeld.value || props.liveState !== 'ready' || regionalPicks.value.filter(pool => pool.length).length < 2) return
   rotation = setInterval(() => {
     for (let step = 1; step < regions.length; step++) {
       const regionIndex = (selected.value + step) % regions.length
@@ -132,12 +163,28 @@ function restartRotation() {
     }
   }, 5000)
 }
-watch([picks, () => props.liveState], restartRotation)
+watch([picks, () => props.liveState, rotationHeld], restartRotation)
+// The card remounts per deal to replay its pop; keep keyboard focus on the same control.
+let focusedIndex = -1
+onBeforeUpdate(() => {
+  const card = preview.value
+  const active = document.activeElement
+  focusedIndex = card && active instanceof HTMLElement && card.contains(active) ? focusableWithin(card).indexOf(active) : -1
+})
+onUpdated(() => {
+  const index = focusedIndex
+  focusedIndex = -1
+  const card = preview.value
+  const active = document.activeElement
+  if (index < 0 || !card || (active && active !== document.body && active.isConnected)) return
+  focusableWithin(card)[index]?.focus()
+})
 const { locationFor } = useOutletAddresses(computed(() => featured.value ? [featured.value.venue] : []))
 const outletLocation = computed(() => locationFor(featured.value?.venue))
 let query: MediaQueryList | undefined
 const syncMotion = () => {
   reduced.value = query?.matches ?? false
+  if (!motionChosen) autoplay.value = !reduced.value
 }
 onMounted(() => {
   restartRotation()
@@ -154,13 +201,14 @@ onMounted(() => {
 })
 onBeforeUnmount(() => {
   clearInterval(rotation)
+  cancelAnimationFrame(positionFrame)
   layoutObserver?.disconnect()
   query?.removeEventListener('change', syncMotion)
 })
 </script>
 
 <template>
-  <section class="landing-hero" aria-labelledby="hero-heading" :class="{ 'hero-ambient-paused': reduced }">
+  <section class="landing-hero" aria-labelledby="hero-heading" :class="{ 'hero-ambient-paused': ambientPaused }">
     <div class="hero-paper-background" aria-hidden="true" />
     <div class="hero-copy">
       <h1 id="hero-heading" aria-label="Bang for your buck.">
@@ -181,12 +229,17 @@ onBeforeUnmount(() => {
       <RouterLink to="/deals" class="landing-button primary">Explore food deals <span aria-hidden="true">→</span>
       </RouterLink>
     </div>
-    <section ref="mapArea" aria-label="Regional food deal preview" class="hero-map-area" :class="{ 'hero-map-docked': (featured || liveState === 'loading' || liveState === 'ready') && !previewPosition }" @transitionend="positionPreview" @animationend="positionPreview">
+    <section ref="mapArea" aria-label="Regional food deal preview" class="hero-map-area" :class="{ 'hero-map-docked': (featured || liveState === 'loading' || liveState === 'ready') && !previewPosition }" @transitionend="queuePosition" @animationend="queuePosition" @mouseenter="hovering = true" @mouseleave="hovering = false" @focusin="enterFocus" @focusout="leaveFocus">
       <div class="hero-map-scene">
         <IllustratedMap hero-pins art-src="/landing/singapore-map-hero-water-extended-1536.webp" :active="selected" @select="discover" />
-        <HeroWaterfront :paused="reduced" />
+        <HeroWaterfront :paused="ambientPaused" />
       </div>
-        <div v-if="liveState === 'loading'" ref="preview" class="hero-deal hero-live-card hero-loading-card" :class="{ 'hero-card-docked': !previewPosition }" :style="previewPosition ?? { left: '50%', top: `${previewDockTop}px` }" role="status" aria-busy="true">
+      <button type="button" class="hero-motion-toggle" @click="toggleMotion">
+        <svg v-if="autoplay" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M4 3h3v10H4zM9 3h3v10H9z" fill="currentColor" /></svg>
+        <svg v-else viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M5 3l8 5-8 5z" fill="currentColor" /></svg>
+        <span>{{ autoplay ? 'Pause motion' : 'Play motion' }}</span>
+      </button>
+        <div v-if="liveState === 'loading'" ref="preview" class="hero-deal hero-live-card hero-loading-card" :class="{ 'hero-card-docked': !previewPosition }" :style="previewPosition ?? { left: '50%', top: `${previewDockTop}px` }" role="status">
           <span class="visually-hidden">Loading current deals…</span>
           <div class="hero-card-topline" aria-hidden="true">
             <span class="hero-card-region"><i /><span class="landing-skeleton hero-loading-region" /></span>
@@ -208,7 +261,7 @@ onBeforeUnmount(() => {
         </div>
         <article v-else-if="featured" :key="discoveryKey" ref="preview" class="hero-deal hero-live-card" :class="{ 'hero-card-docked': !previewPosition, 'hero-card-no-entry': !featuredHasAppeared, 'hero-card-pop': shouldPopFeatured }" :style="previewPosition ?? { left: '50%', top: `${previewDockTop}px` }" :aria-label="`View ${featured.deal.title} at ${featured.venue.name}`">
           <RouterLink class="landing-card-link" :to="landingDealLink(featured.deal, featured.venue.id)" :aria-label="`View ${featured.deal.title}`" />
-          <div class="hero-card-topline"><span class="hero-card-region"><i aria-hidden="true" />{{ regions[selected]?.name }}</span><span>FEATURED FIND</span></div>
+          <div class="hero-card-topline"><span class="hero-card-region"><i aria-hidden="true" />{{ regions[selected]?.name }}</span><span class="hero-card-eyebrow">Featured find</span></div>
           <div class="hero-card-main">
             <div class="hero-card-photo">
               <img v-if="featured.deal.images[0] && !imageFailed" :key="discoveryKey" class="hero-discovered-food" :src="featured.deal.images[0].url" :alt="featured.deal.images[0].alt ?? featured.deal.title" width="128" height="144" @error="imageFailed = true" />
@@ -222,7 +275,7 @@ onBeforeUnmount(() => {
                   <RouterLink :to="`/venues/${featured.venue.id}`" class="hero-restaurant-link"><strong class="hero-restaurant-name" :title="featured.venue.name">{{ featured.venue.name }}</strong></RouterLink>
                 </div>
               </Transition>
-          <span v-if="isLikelyStillOn(featured.deal)" class="landing-verification-badge">✓ Likely still on</span>
+          <span v-if="isLikelyStillOn(featured.deal)" class="landing-verification-badge"><span aria-hidden="true">✓ </span>Likely still on</span>
           <span v-if="featured.deal.outletUnconfirmed" class="landing-outlet-unsure" data-testid="outlet-unconfirmed">{{ OUTLET_NOT_CONFIRMED }}</span>
           <p class="hero-promotion-period" :title="promotionDates(featured.deal)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="3" /><path d="M7 3v4m10-4v4M3 11h18" /></svg><span>{{ promotionDates(featured.deal) }}</span></p>
             </div>
@@ -237,7 +290,7 @@ onBeforeUnmount(() => {
             <small>{{ regions[selected]?.name }}</small>
             <strong>{{ liveState === 'error' ? 'Deals could not load right now.' : 'No current deals in this region yet.' }}</strong>
             <button v-if="liveState === 'error'" type="button" class="landing-button secondary" @click="emit('retry')">Retry loading deals</button>
-            <RouterLink to="/browse">Explore food deals →</RouterLink>
+            <RouterLink to="/browse">Explore food deals <span aria-hidden="true">→</span></RouterLink>
           </div>
         </div>
     </section>
