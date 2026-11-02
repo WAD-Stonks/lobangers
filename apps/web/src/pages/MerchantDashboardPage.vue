@@ -4,19 +4,22 @@ import TicketLoading from '@web/components/TicketLoading.vue'
 import { focusFirstInvalid } from '@web/lib/form-focus'
 import { formatDate, formatMoneyMinor } from '@web/lib/format'
 import { useUnsavedChanges } from '@web/lib/use-unsaved-changes'
-import FakeBadge from '@web/modules/merchant/FakeBadge.vue'
 import FlashDropsSection from '@web/modules/merchant/FlashDropsSection.vue'
 import {
   createDeal,
   type DealInput,
+  type DealPhoto,
   endDeal,
   errorMessageFor,
+  USE_SAMPLE_DATA as FLASH_DROPS_USE_SAMPLE_DATA,
   getDeals,
   getOutlets,
+  MAX_PHOTO_BYTES,
   type MerchantDeal,
   type MerchantOutlet,
   type OfferType,
-  USE_SAMPLE_DATA,
+  PHOTO_TYPES,
+  savePhoto,
   updateDeal,
 } from '@web/modules/merchant/merchant-api'
 import { computed, nextTick, onMounted, ref } from 'vue'
@@ -51,11 +54,19 @@ const emptyForm = () => ({
   startDate: '',
   endDate: '',
   terms: '',
+  savedPhoto: null as DealPhoto | null, // the deal's current photo, kept unless removed or replaced
 })
 const form = ref(emptyForm())
+// A newly chosen photo. It is only uploaded when the deal is saved.
+const newPhoto = ref<File | null>(null)
+const newPhotoPreview = ref('') // a temporary link to the chosen image, for the <img> preview
+const photoInput = ref<HTMLInputElement | null>(null)
 // The form as it was opened, so Cancel and leaving the page only warn when something changed.
 const openedAs = ref('')
-const isDirty = computed(() => showForm.value && JSON.stringify(form.value) !== openedAs.value)
+const isDirty = computed(
+  () =>
+    showForm.value && (JSON.stringify(form.value) !== openedAs.value || newPhoto.value !== null),
+)
 const { confirmDiscard } = useUnsavedChanges(isDirty)
 
 // Links a field to its error text so screen readers read the message with the field.
@@ -134,9 +145,46 @@ const loadDashboard = async () => {
   }
 }
 
+// ----- Photo -----
+const clearNewPhoto = () => {
+  newPhoto.value = null
+  newPhotoPreview.value = ''
+  if (photoInput.value) photoInput.value.value = '' // clear the file box
+}
+
+const choosePhoto = (event: Event) => {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0] ?? null
+  delete fieldErrors.value.photo
+  if (file === null) return
+
+  if (!PHOTO_TYPES.includes(file.type)) {
+    fieldErrors.value.photo = 'Please choose a JPEG, PNG or WebP image.'
+    input.value = ''
+    return
+  }
+  if (file.size > MAX_PHOTO_BYTES) {
+    fieldErrors.value.photo = 'The image must be 4 MB or smaller.'
+    input.value = ''
+    return
+  }
+  newPhoto.value = file
+  newPhotoPreview.value = URL.createObjectURL(file)
+}
+
+// The photo is optional, so Remove takes off both a newly chosen photo and the saved one.
+const removePhoto = () => {
+  clearNewPhoto()
+  form.value.savedPhoto = null
+}
+
+// What the form shows: a newly chosen photo first, otherwise the deal's saved one.
+const shownPhoto = computed(() => newPhotoPreview.value || form.value.savedPhoto?.url || '')
+
 // ----- Opening and closing the form -----
 const openCreateForm = () => {
   if (!confirmDiscard()) return
+  clearNewPhoto()
   form.value = emptyForm()
   // A merchant with only one outlet will almost always pick it, so tick it for them.
   if (outlets.value.length === 1) form.value.outletIds = outlets.value.map((outlet) => outlet.id)
@@ -150,6 +198,7 @@ const openCreateForm = () => {
 
 const openEditForm = (deal: MerchantDeal) => {
   if (!confirmDiscard()) return
+  clearNewPhoto()
   form.value = {
     title: deal.title,
     description: deal.description,
@@ -162,6 +211,7 @@ const openEditForm = (deal: MerchantDeal) => {
     startDate: deal.startDate,
     endDate: deal.endDate,
     terms: deal.terms,
+    savedPhoto: deal.photo ?? null,
   }
   editingId.value = deal.id
   formError.value = ''
@@ -173,6 +223,7 @@ const openEditForm = (deal: MerchantDeal) => {
 
 const closeForm = () => {
   showForm.value = false
+  clearNewPhoto()
 }
 
 // Cancel asks first when the merchant has changed something.
@@ -217,7 +268,7 @@ const saveDeal = async () => {
 
   const f = form.value
   // Only send a discount or price when the offer type uses it.
-  const input: DealInput = {
+  const content: Omit<DealInput, 'photoKey'> = {
     title: f.title.trim(),
     description: f.description.trim(),
     category: f.category,
@@ -233,6 +284,9 @@ const saveDeal = async () => {
 
   saving.value = true
   try {
+    // A newly chosen photo is uploaded first; otherwise keep the saved one (or none).
+    const photoKey = newPhoto.value ? await savePhoto(newPhoto.value) : (f.savedPhoto?.key ?? null)
+    const input = { ...content, photoKey }
     if (editingId.value === null) {
       const created = await createDeal(input)
       deals.value.unshift(created) // newest first, like the server's list
@@ -243,7 +297,7 @@ const saveDeal = async () => {
       deals.value = deals.value.map((deal) => (deal.id === updated.id ? updated : deal))
       successMessage.value = `"${updated.title}" was updated.`
     }
-    showForm.value = false
+    closeForm()
   } catch (error) {
     formError.value = errorMessageFor(error, 'Could not save the deal. Please try again.')
   } finally {
@@ -290,9 +344,9 @@ onMounted(loadDashboard)
       </div>
     </div>
 
-    <p v-if="USE_SAMPLE_DATA" class="alert alert-warning">
-      <strong>Fake deals.</strong> Showing sample data: every deal and flash drop on this page is
-      made up. Changes are not saved and reset when you refresh.
+    <p v-if="FLASH_DROPS_USE_SAMPLE_DATA" class="alert alert-warning">
+      <strong>Fake flash drops.</strong> Your deals are real, but the flash drops on this page are
+      sample data: they are made up, not saved and reset when you refresh.
     </p>
     <p v-if="errorMessage" class="alert alert-danger" role="alert">{{ errorMessage }}</p>
     <p v-if="successMessage" class="alert alert-success" role="status">{{ successMessage }}</p>
@@ -501,6 +555,37 @@ onMounted(loadDashboard)
           placeholder="One condition per line, e.g. Dine-in only…"
         ></textarea>
 
+        <div class="mb-3">
+          <label for="deal-photo" class="form-label">
+            {{ shownPhoto ? 'Replace the photo' : 'Photo' }} (optional: JPEG, PNG or WebP, up to
+            4 MB)
+          </label>
+          <input
+            id="deal-photo"
+            ref="photoInput"
+            name="photo"
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            class="form-control"
+            :class="{ 'is-invalid': fieldErrors.photo }"
+            v-bind="invalidAttrs('photo')"
+            @change="choosePhoto"
+          />
+          <div id="error-photo" class="invalid-feedback">{{ fieldErrors.photo }}</div>
+          <div v-if="shownPhoto" class="d-flex flex-wrap align-items-end gap-2 mt-3">
+            <img
+              :src="shownPhoto"
+              alt="Your deal, as customers will see it"
+              width="480"
+              height="320"
+              class="photo-preview"
+            />
+            <button type="button" class="btn btn-sm btn-outline-danger" @click="removePhoto">
+              Remove photo
+            </button>
+          </div>
+        </div>
+
         <!-- Always mounted so the summary or a save error is announced. -->
         <div role="alert">
           <p v-if="formError" class="text-danger">{{ formError }}</p>
@@ -522,7 +607,6 @@ onMounted(loadDashboard)
           <div class="d-flex justify-content-between align-items-start gap-2">
             <div class="d-flex flex-wrap align-items-center gap-2 mb-1 deal-heading">
               <h3 class="h5 mb-0">{{ deal.title }}</h3>
-              <FakeBadge v-if="USE_SAMPLE_DATA" />
             </div>
             <span
               class="badge flex-shrink-0"
@@ -531,6 +615,14 @@ onMounted(loadDashboard)
               {{ statusOf(deal) }}
             </span>
           </div>
+          <img
+            v-if="deal.photo"
+            :src="deal.photo.url"
+            :alt="deal.title"
+            width="480"
+            height="320"
+            class="photo-preview mb-2"
+          />
           <p class="mb-2 text-break">{{ deal.description }}</p>
           <p class="small text-secondary mb-1">
             <strong>{{ offerText(deal) }}</strong> · {{ datesText(deal) }}
@@ -562,7 +654,6 @@ onMounted(loadDashboard)
           <div class="d-flex justify-content-between align-items-start gap-2">
             <div class="d-flex flex-wrap align-items-center gap-2 mb-1 deal-heading">
               <h3 class="h5 mb-0">{{ deal.title }}</h3>
-              <FakeBadge v-if="USE_SAMPLE_DATA" />
             </div>
             <span class="badge text-bg-secondary flex-shrink-0">Ended</span>
           </div>
@@ -586,6 +677,14 @@ onMounted(loadDashboard)
 .deal-heading {
   min-width: 0;
   overflow-wrap: anywhere;
+}
+
+.photo-preview {
+  max-width: 100%;
+  height: auto;
+  max-height: 240px;
+  border-radius: 8px;
+  object-fit: cover;
 }
 
 /* Keep the line breaks the merchant typed in the terms box. */
