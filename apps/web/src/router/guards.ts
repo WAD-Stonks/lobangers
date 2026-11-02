@@ -17,7 +17,8 @@ export const safeRedirect = (value: unknown, fallback = '/'): string =>
   typeof value === 'string' &&
   value.startsWith('/') &&
   !value.startsWith('//') &&
-  !value.includes('\\')
+  !value.includes('\\') &&
+  ![...value].some((char) => char.charCodeAt(0) < 32 || char.charCodeAt(0) === 127)
     ? value
     : fallback
 

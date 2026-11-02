@@ -82,7 +82,7 @@ onUnmounted(audit.dispose)
       <ol v-if="items.length" class="list-unstyled mb-0">
         <li v-for="entry in items" :key="entry.id" data-testid="audit-entry" class="border-top py-3 text-break">
           <h3 class="h6">{{ entry.action.replaceAll('_', ' ') }}</h3>
-          <p class="mb-1">{{ entry.actorName }} <span class="small text-secondary" translate="no">({{ entry.actorId }})</span></p>
+          <p class="mb-1">{{ entry.actorName }} <span v-if="entry.actorKind === 'SYSTEM'" class="small text-secondary">(System policy / {{ entry.actorSource }})</span><span v-else class="small text-secondary" translate="no">({{ entry.actorId }})</span></p>
           <p class="small mb-1">{{ entry.subjectType ?? (entry.targetUserId ? 'USER (legacy)' : 'Legacy subject') }}: {{ entry.subjectId ?? entry.targetUserId ?? 'Not recorded' }}</p>
           <p class="mb-2 audit-note">{{ entry.note }}</p>
           <p v-if="entry.roleBefore || entry.roleAfter" class="small mb-1">Role: {{ entry.roleBefore ?? 'Not recorded' }} to {{ entry.roleAfter ?? 'Not recorded' }}</p>

@@ -228,6 +228,8 @@ async function syntheticBoundary(page: Page) {
     state.audit.unshift({
       id: (state.audit.length + 1).toString(16).padStart(24, '0'),
       actorId: actorUserId,
+      actorKind: 'HUMAN',
+      actorSource: 'ADMIN',
       actorName: 'Synthetic administrator',
       action,
       targetUserId,

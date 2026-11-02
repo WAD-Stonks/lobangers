@@ -63,6 +63,17 @@ describe('authGuard', () => {
 })
 
 describe('safeRedirect', () => {
+  it.each([
+    '/\t/evil.example',
+    '/\n/evil.example',
+    '/\r/evil.example',
+    '/safe\u0000',
+    '/safe\u007f',
+  ])('rejects URL parser control characters in %j without changing the fallback', (destination) => {
+    expect(safeRedirect(destination)).toBe('/')
+    expect(safeRedirect(destination, '/deals')).toBe('/deals')
+  })
+
   it('keeps same-site paths and rejects everything else', () => {
     expect(safeRedirect('/me/submissions?tab=1')).toBe('/me/submissions?tab=1')
     expect(safeRedirect('//evil.example')).toBe('/')

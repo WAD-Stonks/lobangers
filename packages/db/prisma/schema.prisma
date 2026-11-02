@@ -59,6 +59,48 @@ model StallGrant {
   @@index([venueId])
 }
 
+enum AdminEmailAction {
+  APPROVED
+  REVOKED
+  PROVISIONED
+}
+
+enum AdminEmailSource {
+  OPERATOR
+  ADMIN_ROLE_CHANGE
+  NATIVE_AUTH
+}
+
+// Authorization intent only; never email ownership or runtime role authority.
+model AdminEmail {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  email     String   @unique
+  active    Boolean  @default(true)
+  version   Int      @default(1)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// Append-only through supported application writers; no fabricated system actor.
+model AdminEmailEvent {
+  id                      String           @id @default(auto()) @map("_id") @db.ObjectId
+  approvalId              String           @db.ObjectId
+  action                  AdminEmailAction
+  source                  AdminEmailSource
+  actorUserId             String?          @db.ObjectId
+  operatorLabel           String?
+  targetUserId            String?          @db.ObjectId
+  reason                  String
+  approvalVersion         Int
+  roleBefore              UserRole?
+  roleAfter               UserRole?
+  invalidatedRequestCount Int?
+  createdAt               DateTime         @default(now())
+
+  @@index([approvalId, id])
+  @@index([targetUserId, id])
+}
+
 model PlatformAccessFence {
   id      String @id @map("_id")
   version Int    @default(0)
@@ -148,22 +190,34 @@ enum AdminSubjectType {
   FLASH_DROP
 }
 
+enum PlatformAuditActorKind {
+  HUMAN
+  SYSTEM
+}
+
+enum PlatformAuditActorSource {
+  ADMIN
+  NATIVE_AUTH
+}
+
 // Append-only through the application. No edit/delete procedure is exposed.
 // Snapshot names and allowlisted facts, never auth Account/Session/secret payloads.
 model PlatformAudit {
-  id           String              @id @default(auto()) @map("_id") @db.ObjectId
-  actorId      String              @db.ObjectId
+  id           String                   @id @default(auto()) @map("_id") @db.ObjectId
+  actorId      String?                  @db.ObjectId
+  actorKind    PlatformAuditActorKind   @default(HUMAN)
+  actorSource  PlatformAuditActorSource @default(ADMIN)
   actorName    String
   action       PlatformAuditAction
-  targetUserId String?             @db.ObjectId
+  targetUserId String?                  @db.ObjectId
   subjectType  AdminSubjectType?
-  subjectId    String?             @db.ObjectId
+  subjectId    String?                  @db.ObjectId
   detailsJson  Json?
-  venueId      String?             @db.ObjectId
+  venueId      String?                  @db.ObjectId
   note         String
   roleBefore   UserRole?
   roleAfter    UserRole?
-  createdAt    DateTime            @default(now())
+  createdAt    DateTime                 @default(now())
 
   @@index([targetUserId, id])
   @@index([actorId, id])
