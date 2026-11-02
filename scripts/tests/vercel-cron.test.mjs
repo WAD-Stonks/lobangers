@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { spawnSync } from 'node:child_process'
-import { readFile, stat } from 'node:fs/promises'
+import { readdir, readFile, stat } from 'node:fs/promises'
 import { join } from 'node:path'
 import test from 'node:test'
 import { fileURLToPath } from 'node:url'
@@ -9,10 +9,9 @@ const root = fileURLToPath(new URL('../../', import.meta.url))
 const daily = [{ path: '/api/ingestion/scheduled-runs', schedule: '0 0 * * *' }]
 const json = async (path) => JSON.parse(await readFile(join(root, path), 'utf8'))
 
-test('declares one daily Vercel API cron without a duplicate web or GitHub scheduler', async () => {
+test('keeps automatic Git deployments disabled without a web or GitHub scheduler', async () => {
   const api = await json('apps/api/vercel.json')
   const web = await json('apps/web/vercel.json')
-  assert.deepEqual(api.crons, daily)
   assert.equal(web.crons, undefined)
   assert.equal(api.git.deploymentEnabled, false)
   assert.equal(web.git.deploymentEnabled, false)
@@ -21,7 +20,7 @@ test('declares one daily Vercel API cron without a duplicate web or GitHub sched
   })
 })
 
-test('real API build emits the same daily cron and a bounded function duration', {
+test('real API build declares exactly one daily cron across source and output', {
   timeout: 60_000,
 }, async () => {
   const result = spawnSync(process.execPath, ['--import', 'tsx', 'scripts/build-vercel-api.ts'], {
@@ -46,9 +45,18 @@ test('real API build emits the same daily cron and a bounded function duration',
   assert.equal(result.status, 0, result.stderr || result.stdout)
   const output = await json('apps/api/.vercel/output/config.json')
   const source = await json('apps/api/vercel.json')
+  const web = await json('apps/web/vercel.json')
   assert.equal(output.version, 3)
+  // Vercel combines project config and Build Output API crons, rather than deduplicating them.
+  const effectiveCrons = [...(source.crons ?? []), ...(output.crons ?? []), ...(web.crons ?? [])]
+  assert.equal(
+    effectiveCrons.length,
+    1,
+    'source and build output must not register duplicate crons',
+  )
+  assert.deepEqual(effectiveCrons, daily)
+  assert.equal(source.crons, undefined)
   assert.deepEqual(output.crons, daily)
-  assert.deepEqual(output.crons, source.crons)
   assert.deepEqual(output.routes, [
     {
       src: '/(.*)',
@@ -56,8 +64,14 @@ test('real API build emits the same daily cron and a bounded function duration',
       transforms: [{ type: 'request.path', op: 'set', args: '/$1' }],
     },
   ])
+  assert.deepEqual(await readdir(join(root, 'apps/api/.vercel/output/functions')), ['api.func'])
   const fn = await json('apps/api/.vercel/output/functions/api.func/.vc-config.json')
-  assert.equal(fn.runtime, 'nodejs22.x')
-  assert.equal(fn.handler, 'index.mjs')
-  assert.equal(fn.maxDuration, 300)
+  assert.deepEqual(fn, {
+    runtime: 'nodejs22.x',
+    architecture: 'x86_64',
+    handler: 'index.mjs',
+    launcherType: 'Nodejs',
+    shouldAddHelpers: true,
+    maxDuration: 300,
+  })
 })

@@ -1,13 +1,10 @@
-import { mkdir, readFile, rm, writeFile } from 'node:fs/promises'
+import { mkdir, rm, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { repositoryRoot } from '@scripts/environment'
 import { buildNodeApi } from '@scripts/node-api-build'
 
 const output = join(repositoryRoot, 'apps/api/.vercel/output')
 const functionDirectory = join(output, 'functions/api.func')
-const configuration = JSON.parse(
-  await readFile(join(repositoryRoot, 'apps/api/vercel.json'), 'utf8'),
-)
 // Only replace generated output, never source or local configuration.
 await rm(output, { recursive: true, force: true })
 await mkdir(output, { recursive: true })
@@ -29,8 +26,8 @@ await writeFile(
   join(output, 'config.json'),
   JSON.stringify({
     version: 3,
-    // Build Output API deployments consume this artifact, not only vercel.json.
-    crons: configuration.crons,
+    // This artifact is the sole cron owner. Repeating it in vercel.json duplicates the job.
+    crons: [{ path: '/api/ingestion/scheduled-runs', schedule: '0 0 * * *' }],
     routes: [
       {
         src: '/(.*)',
