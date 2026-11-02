@@ -1,5 +1,6 @@
 import { flushPromises, mount } from '@vue/test-utils'
 import { ApiClientError } from '@web/lib/api-client'
+import type { usePlatformAdmin } from '@web/modules/platform-admin/use-platform-admin'
 import { expect, it, vi } from 'vitest'
 
 // Synthetic list boundary only: real component rendering and request races.
@@ -25,6 +26,59 @@ const panel = async () => {
   if (!module) throw new Error('Missing reusable audit panel')
   return module.default
 }
+it('labels system attribution in the account activity workspace', async () => {
+  const { default: Workspace } = await import(
+    '@web/modules/platform-admin/AccountActivityWorkspace.vue'
+  )
+  const s = {
+    busy: false,
+    auditUser: '',
+    audit: {
+      loading: false,
+      error: null,
+      data: {
+        items: [
+          {
+            ...row,
+            actorId: null,
+            actorKind: 'SYSTEM',
+            actorSource: 'NATIVE_AUTH',
+            actorName: 'Native authentication admin-email policy',
+          },
+        ],
+        nextCursor: null,
+      },
+    },
+  }
+  // Only rendering state is synthetic; no auth or policy implementation is mocked here.
+  const wrapper = mount(Workspace, {
+    props: { s: s as unknown as ReturnType<typeof usePlatformAdmin> },
+  })
+  expect(wrapper.text()).toContain('System policy / NATIVE_AUTH')
+  expect(wrapper.text()).not.toContain('()')
+  wrapper.unmount()
+})
+it('labels system policy actors without a fabricated human identity', async () => {
+  const component = await panel()
+  const list = vi.fn().mockResolvedValue({
+    items: [
+      {
+        ...row,
+        actorId: null,
+        actorKind: 'SYSTEM',
+        actorSource: 'NATIVE_AUTH',
+        actorName: 'Native authentication admin-email policy',
+      },
+    ],
+    nextCursor: null,
+  })
+  const wrapper = mount(component, { props: { list } })
+  await flushPromises()
+  expect(wrapper.text()).toContain('System policy / NATIVE_AUTH')
+  expect(wrapper.text()).toContain('Native authentication admin-email policy')
+  expect(wrapper.text()).not.toContain('()')
+  wrapper.unmount()
+})
 it('renders loading, resource rows, timezone labels, safe text and bounded cursor pagination', async () => {
   const component = await panel()
   let release!: (value: { items: (typeof row)[]; nextCursor: string | null }) => void
