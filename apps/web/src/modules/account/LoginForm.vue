@@ -10,6 +10,7 @@ const form = reactive({ email: '', password: '' })
 const touched = reactive({ email: false, password: false })
 const pending = ref(false)
 const submitError = ref('')
+const showPassword = ref(false)
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
@@ -54,6 +55,7 @@ const signIn = async () => {
     submitError.value = 'Sign-in failed. Please try again.'
   } finally {
     form.password = ''
+    showPassword.value = false
     pending.value = false
   }
 }
@@ -83,19 +85,32 @@ const signIn = async () => {
 
     <div class="mb-3">
       <label for="login-password" class="form-label">Password</label>
-      <input
-        id="login-password"
-        v-model="form.password"
-        type="password"
-        autocomplete="current-password"
-        class="form-control"
-        :class="{ 'is-invalid': touched.password && errors.password }"
-        :aria-invalid="touched.password && !!errors.password"
-        aria-describedby="login-password-feedback"
-        :disabled="pending"
-        @blur="touched.password = true"
-      />
-      <div id="login-password-feedback" class="invalid-feedback">{{ errors.password }}</div>
+      <div class="input-group has-validation">
+        <input
+          id="login-password"
+          v-model="form.password"
+          :type="showPassword ? 'text' : 'password'"
+          autocomplete="current-password"
+          class="form-control"
+          :class="{ 'is-invalid': touched.password && errors.password }"
+          :aria-invalid="touched.password && !!errors.password"
+          aria-describedby="login-password-feedback"
+          :disabled="pending"
+          @blur="touched.password = true"
+        />
+        <button
+          type="button"
+          class="btn btn-outline-secondary"
+          aria-controls="login-password"
+          :aria-pressed="showPassword"
+          :aria-label="showPassword ? 'Hide password' : 'Show password'"
+          data-testid="login-password-toggle"
+          @click="showPassword = !showPassword"
+        >
+          {{ showPassword ? 'Hide' : 'Show' }}
+        </button>
+        <div id="login-password-feedback" class="invalid-feedback">{{ errors.password }}</div>
+      </div>
       <div class="form-text"><RouterLink :to="{ name: 'forgot-password' }">Forgot your password?</RouterLink></div>
     </div>
 
