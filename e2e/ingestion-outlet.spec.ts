@@ -7,6 +7,7 @@ import {
 } from '@broke-oclock/contracts/ingestion'
 import type { PlatformVenue } from '@broke-oclock/contracts/platform-admin'
 import { expect, type Page, type TestInfo, test } from '@playwright/test'
+// biome-ignore lint/style/noRestrictedImports: E2E-only helper; no E2E alias exists.
 import { ADMIN_ACCOUNT_NAME } from './admin-ui'
 
 // SYNTHETIC network boundary only: real SPA, Axios and public contract parsing.
