@@ -746,7 +746,17 @@ test('connected aged admin UI renews native session without replacing identity o
   const before = (await call('ageSession', { userId: user.id })) as Expiry
   const start = observations.get(page)?.network.length ?? 0
   // Original component mount, not a standalone atom or a manually posted renewal.
-  await page.reload()
+  // Native renewal commits before its response reaches the browser. Observe that
+  // response before sampling the ledger and database, not merely the healthy UI.
+  await Promise.all([
+    page.waitForResponse(
+      (response) =>
+        new URL(response.url()).pathname === '/api/auth/get-session' &&
+        response.request().method() === 'POST' &&
+        response.status() === 200,
+    ),
+    page.reload(),
+  ])
   await expect(page.getByRole('heading', { name: 'Work awaiting review' })).toBeVisible()
   await expect(page.getByRole('region', { name: 'Admin session' })).toHaveAttribute(
     'aria-busy',

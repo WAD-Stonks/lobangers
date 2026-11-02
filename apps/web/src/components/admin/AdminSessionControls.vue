@@ -8,7 +8,30 @@ const props = withDefaults(defineProps<{ refreshKey?: number }>(), { refreshKey:
 const emit = defineEmits<{ closing: []; signedOut: []; accessReload: [] }>()
 // Public Vue hook must run in setup so native lifecycle subscriptions are owned.
 const nativeState = authClient.useSession()
-const state = createAdminSession({ closing: () => emit('closing'), signedOut: () => emit('signedOut'), accessReload: () => emit('accessReload') }, async () => {
+let disposed = false
+let nativeGeneration = 0
+let initialNativeReady: Promise<void> | undefined
+let releaseInitialNative: (() => void) | undefined
+let stopInitialNativeWatch: (() => void) | undefined
+const finishInitialNative = () => {
+  stopInitialNativeWatch?.()
+  stopInitialNativeWatch = undefined
+  initialNativeReady = undefined
+  releaseInitialNative?.()
+  releaseInitialNative = undefined
+}
+const nativeBusy = () => nativeState.value.isPending || nativeState.value.isRefetching
+if (nativeBusy()) {
+  // Refetch cancels the SDK's current GET -> POST chain. Let its first flight
+  // settle, but never use that cached result instead of our explicit fresh check.
+  initialNativeReady = new Promise<void>((resolve) => { releaseInitialNative = resolve })
+  stopInitialNativeWatch = watch(nativeBusy, (busy) => { if (!busy) finishInitialNative() })
+}
+const state = createAdminSession({ closing: () => { nativeGeneration++; emit('closing') }, signedOut: () => emit('signedOut'), accessReload: () => emit('accessReload') }, async () => {
+  const current = ++nativeGeneration
+  if (initialNativeReady) await initialNativeReady
+  // Superseded initial waiters and logout/disposal must not start late requests.
+  if (disposed || current !== nativeGeneration) return
   await nativeState.value.refetch({ query: { disableCookieCache: true } })
   // Refetch resolves void; failures live on the reactive atom, not its return value.
   if (nativeState.value.error) throw new Error('Native session could not be confirmed')
@@ -17,7 +40,7 @@ const { session, loading, pending, uncertain, accessRequired, notice } = state
 const focus = () => { void state.refresh() }
 onMounted(() => { void state.refresh(); window.addEventListener('focus', focus) })
 watch(() => props.refreshKey, focus)
-onUnmounted(() => { state.dispose(); window.removeEventListener('focus', focus) })
+onUnmounted(() => { disposed = true; nativeGeneration++; state.dispose(); finishInitialNative(); window.removeEventListener('focus', focus) })
 </script>
 
 <template>
