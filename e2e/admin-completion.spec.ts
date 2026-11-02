@@ -1,3 +1,4 @@
+import { bookmarksResponseSchema } from '@broke-oclock/contracts/account'
 import { postsPageSchema } from '@broke-oclock/contracts/ingestion-recovery'
 import type { AdminOverviewResponse } from '@broke-oclock/contracts/platform-admin'
 import { expect, type Page, test } from '@playwright/test'
@@ -108,6 +109,8 @@ async function boundary(page: Page) {
       body = { success: true }
     } else if (url.pathname === '/api/auth-methods')
       body = { password: true, google: false, emailOtp: false, passwordRecovery: false }
+    else if (url.pathname === '/api/account/bookmarks' && route.request().method() === 'GET')
+      body = bookmarksResponseSchema.parse({ items: [], nextCursor: null })
     else if (url.pathname === '/api/admin/overview') body = overview
     else if (url.pathname === '/api/admin/analytics/users')
       body = {
@@ -193,7 +196,9 @@ for (const width of [320, 390, 1280]) {
         (url) => url.startsWith('/api/admin/merchant-requests?') && url.includes('status=PENDING'),
       ),
     ).toBe(true)
-    await page.goto('/admin')
+    const backFromRequests = await openAdminNavigation(page)
+    await backFromRequests.getByRole('link', { name: 'Overview', exact: true }).click()
+    await expect(page.getByRole('heading', { name: 'Admin overview', exact: true })).toBeVisible()
     const draftDocuments = [...documents]
     await page
       .locator('.overview-summary a[href="/admin/ingestion?status=PENDING#queue-title"]')
@@ -202,7 +207,9 @@ for (const width of [320, 390, 1280]) {
     expect(documents).toEqual(draftDocuments)
     await expect(page.locator('#queue-status')).toHaveValue('PENDING')
     await expect(page.locator('#queue-title')).toBeVisible()
-    await page.goto('/admin')
+    const backFromDrafts = await openAdminNavigation(page)
+    await backFromDrafts.getByRole('link', { name: 'Overview', exact: true }).click()
+    await expect(page.getByRole('heading', { name: 'Admin overview', exact: true })).toBeVisible()
     await page
       .getByRole('button', { name: 'Show details of recent ingestion runs', exact: true })
       .click()
@@ -242,7 +249,12 @@ for (const width of [320, 390, 768, 1024, 1440]) {
     page.on('pageerror', (error) => errors.push(error.message))
     await page.setViewportSize({ width, height: 900 })
     for (const path of ['/admin', '/admin/accounts', '/admin/ingestion']) {
-      await page.goto(path)
+      if (path === '/admin') await page.goto(path)
+      else {
+        const navigation = await openAdminNavigation(page)
+        await navigation.locator(`a[href="${path}"]`).click()
+        await expect(page).toHaveURL(path)
+      }
       const nav = await openAdminNavigation(page)
       const active = nav.locator('[aria-current="page"]')
       await expect(active).toHaveCount(1)

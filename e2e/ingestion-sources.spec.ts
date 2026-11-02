@@ -1,3 +1,4 @@
+import { bookmarksResponseSchema } from '@broke-oclock/contracts/account'
 import { postsPageSchema } from '@broke-oclock/contracts/ingestion-recovery'
 import { expect, type Page, test } from '@playwright/test'
 
@@ -87,6 +88,8 @@ const installBoundary = async (page: Page) => {
       }
     else if (path === '/api/auth-methods')
       data = { password: true, google: false, emailOtp: false, passwordRecovery: false }
+    else if (path === '/api/account/bookmarks' && request.method() === 'GET')
+      data = bookmarksResponseSchema.parse({ items: [], nextCursor: null })
     else if (path === '/api/ingestion/dashboard')
       data = {
         source: {

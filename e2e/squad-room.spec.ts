@@ -214,16 +214,19 @@ test('a phone can tuck the room away, other deals stay locked, and the bar opens
   await openRoom(page)
   await page.getByTestId('squad-minimise').click()
   await expect(page.getByTestId('squad-mini')).toBeVisible()
-  // The camera follows the room's deal and the map only draws pins in view; the kopi stall sits
-  // just above the header, so pan north with the map's arrow keys until its pin is drawn.
+  // Reframe through the real location control after tucking the sheet. The room's opening
+  // camera targets its expanded sheet, which can leave the kopi pin above the usable map.
+  await page.getByTestId('near-me').click()
   const otherPin = page.locator('.deal-map-pin', { has: page.getByText('$1.20') })
   const locked = page.getByText(`You're in Room ${CODE}. Leave the room to open other deals.`)
-  await page.locator('.leaflet-container').focus()
+  const badge = otherPin.locator('.deal-map-pin__badge')
   await expect(async () => {
-    if ((await otherPin.count()) === 0) await page.keyboard.press('ArrowUp')
-    await otherPin.dispatchEvent('click', undefined, { timeout: 1000 })
-    await expect(locked).toBeVisible({ timeout: 1000 })
+    // Retry readiness only: replaying a timed-out click can replace an already-shown toast.
+    await badge.click({ trial: true, timeout: 1000 })
   }).toPass({ timeout: 15_000 })
+  // DivIcon anchors are zero-sized; click the visible badge once, not a synthetic root event.
+  await badge.click({ timeout: 1000 })
+  await expect(locked).toBeVisible({ timeout: 1000 })
   await page.getByTestId('squad-mini').click()
   await expect(page.getByTestId('squad-yay')).toBeVisible()
 })

@@ -623,7 +623,8 @@ for (const width of [320, 390, 1280, 1440]) {
       await expect(page.getByTestId('account-more')).toBeVisible()
     } else {
       await page.goto('/browse')
-      await page.getByTestId('nav-toggle').click()
+      // Wait for the routed map's menu, not the generic header's identical initial control.
+      await page.getByTestId('map-shell').getByTestId('nav-toggle').click()
       await expect(page.getByTestId('nav-menu')).toBeVisible()
     }
     await expect(page.getByRole('link', { name: 'Platform admin', exact: true })).toHaveCount(0)

@@ -17,12 +17,9 @@ test('map pins and groups for review', async ({ page }, info) => {
     await expect(page.getByTestId('splash-screen')).toBeHidden()
     await expect(page.locator('.deal-map-pin__badge').first()).toBeVisible()
     await page.screenshot({ path: info.outputPath(`pins-near-${width}.png`) })
-    // Phones have no zoom buttons, so zoom out with the wheel over the open part of the map.
-    await page.mouse.move(width / 2, 200)
-    for (const _ of [1, 2, 3]) {
-      await page.mouse.wheel(0, 400)
-      await page.waitForTimeout(400)
-    }
+    // Leaflet's Shift-minus zooms out three levels in one gesture. Target the map itself:
+    // a fixed wheel position can hit the floating header instead, especially on tablets.
+    await page.locator('.leaflet-container').press('Shift+-')
     await expect(page.locator('.deal-map-cluster__chip').first()).toBeVisible()
     await page.waitForTimeout(800)
     await page.screenshot({ path: info.outputPath(`pins-groups-${width}.png`) })

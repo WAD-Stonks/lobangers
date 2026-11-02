@@ -1,3 +1,4 @@
+import { bookmarksResponseSchema } from '@broke-oclock/contracts/account'
 import {
   type IngestionDashboardResponse,
   type IngestionDraft,
@@ -123,6 +124,8 @@ async function boundary(page: Page) {
     }
     if (path === '/api/auth-methods')
       return reply({ password: true, google: false, emailOtp: false, passwordRecovery: false })
+    if (path === '/api/account/bookmarks' && method === 'GET')
+      return reply(bookmarksResponseSchema.parse({ items: [], nextCursor: null }))
     if (path === '/api/ingestion/dashboard') {
       if (state.denied) return fail('FORBIDDEN')
       return reply({

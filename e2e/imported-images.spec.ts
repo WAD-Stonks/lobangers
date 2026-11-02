@@ -1,4 +1,5 @@
 import { readFileSync } from 'node:fs'
+import { bookmarksResponseSchema } from '@broke-oclock/contracts/account'
 import type { CommunitySummary } from '@broke-oclock/contracts/community'
 import type { DealPin } from '@broke-oclock/contracts/deals'
 import type { IngestionDraft } from '@broke-oclock/contracts/ingestion'
@@ -213,6 +214,8 @@ async function installBoundary(page: Page) {
           : null
       else if (url.pathname === '/api/auth-methods')
         data = { password: true, google: false, emailOtp: false, passwordRecovery: false }
+      else if (url.pathname === '/api/account/bookmarks')
+        data = bookmarksResponseSchema.parse({ items: [], nextCursor: null })
       else if (url.pathname === '/api/ingestion/dashboard')
         data = {
           source: {
