@@ -467,6 +467,7 @@ for (const width of [390, 1280]) {
       }),
     )
     await page.goto('/browse?q=synthetic&sort=ending')
+    await expect(page.getByTestId('map-shell')).toBeVisible()
     await expect(page.getByTestId('splash-screen')).toBeHidden()
     const origin = page.url()
     await page.getByTestId('nav-toggle').click()
