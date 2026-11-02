@@ -8,17 +8,23 @@
 
 <style scoped>
 .fake-badge {
+  --fake-border: #b98a12;
+  --fake-ink: #7a5a00;
   display: inline-flex;
   align-items: center;
   padding: 2px 7px;
   border-radius: 6px;
-  border: 1px dashed #b98a12;
+  border: 1px dashed var(--fake-border);
   background: var(--sunny-wash);
-  color: #7a5a00;
+  color: var(--fake-ink);
   font-size: 0.6875rem;
   font-weight: 700;
   line-height: 1.4;
   letter-spacing: 0.02em;
   white-space: nowrap;
+}
+.app-palette[data-theme='dark'] .fake-badge {
+  --fake-border: #a88a2e;
+  --fake-ink: var(--tag-build-ink);
 }
 </style>

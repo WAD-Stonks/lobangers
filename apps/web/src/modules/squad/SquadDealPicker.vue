@@ -10,8 +10,8 @@ import { computed, ref } from 'vue'
 // Picked deals always stay in view, so a deal brought in from its page is never hidden.
 const PAGE = 8
 const props = withDefaults(
-  defineProps<{ modelValue: readonly string[]; exclude?: readonly string[]; max?: number }>(),
-  { exclude: () => [], max: SQUAD_MAX_DEALS },
+  defineProps<{ modelValue: readonly string[]; exclude?: readonly string[]; max?: number; disabled?: boolean }>(),
+  { exclude: () => [], max: SQUAD_MAX_DEALS, disabled: false },
 )
 const emit = defineEmits<{ 'update:modelValue': [ids: readonly string[]] }>()
 
@@ -45,11 +45,11 @@ const toggle = (row: PickableDeal) => emit('update:modelValue', toggleDealId(pro
 </script>
 
 <template>
-  <fieldset class="squad-picker">
+  <fieldset class="squad-picker" :class="{ 'is-disabled': disabled }" :disabled="disabled">
     <legend class="squad-picker__legend">
       <span class="squad-field__label">Deals to vote on</span>
       <span class="squad-picker__count" data-testid="squad-picked-count" aria-live="polite">
-        {{ modelValue.length }} of {{ max }} picked
+        {{ disabled ? 'Random' : `${modelValue.length} of ${max} picked` }}
       </span>
     </legend>
 
@@ -87,7 +87,7 @@ const toggle = (row: PickableDeal) => emit('update:modelValue', toggleDealId(pro
       </ul>
     </section>
 
-    <button v-if="hasMore" type="button" class="squad-link" @click="shown += PAGE">Show more deals</button>
+    <button v-if="hasMore && !disabled" type="button" class="squad-link" @click="shown += PAGE">Show more deals</button>
     <p v-if="full" class="squad-picker__note" role="status">That's the most a room can vote on. Untick one to swap it.</p>
   </fieldset>
 </template>

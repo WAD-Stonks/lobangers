@@ -6,7 +6,6 @@ import {
   type FilterContext,
   filterDeals,
   filterVenues,
-  isVerified,
   type SortKey,
   sortRows,
   uniqueDealCount,
@@ -21,11 +20,10 @@ import {
   filtersFromQuery,
   readSort,
   readSplit,
-  readView,
   type ShellView,
   withFilters,
 } from '@web/modules/map-shell/filter-query'
-import { shellQuery } from '@web/modules/map-shell/shell-routes'
+import { routeView, shellQuery } from '@web/modules/map-shell/shell-routes'
 import type { SavedDeals } from '@web/modules/map-shell/use-saved-deals'
 import {
   computed,
@@ -43,8 +41,7 @@ export type DealsStatus = 'loading' | 'ready' | 'error'
 // push adds a history entry (Back undoes it); replace refines the current one.
 export type HistoryMode = 'push' | 'replace'
 
-const HOT_DEAL_LIMIT = 4
-// "Ending today" and the hot card must move on while a tab stays open.
+// "Ending today" must move on while a tab stays open.
 const CLOCK_TICK_MS = 60_000
 const LOCATION_MESSAGES: Partial<Record<GeolocationStatus, string>> = {
   denied: 'Location access was refused, so the map shows all of Singapore.',
@@ -52,27 +49,8 @@ const LOCATION_MESSAGES: Partial<Record<GeolocationStatus, string>> = {
 }
 const OUTSIDE_SINGAPORE_MESSAGE = 'You are outside Singapore, so the map shows the whole island.'
 
-const endTime = (deal: DealPin) =>
+const _endTime = (deal: DealPin) =>
   deal.validUntil === null ? Number.POSITIVE_INFINITY : new Date(deal.validUntil).getTime()
-
-// Until there is a view count, "hot" means the soonest-ending verified deals (open question 2),
-// topped up with other soonest-ending deals.
-export const pickHotDeals = (pins: readonly VenuePin[], now: Date): readonly SelectedDeal[] => {
-  const seen = new Set<string>()
-  const candidates = pins.flatMap((venue) =>
-    venue.deals
-      .filter((deal) => deal.validUntil !== null && endTime(deal) > now.getTime())
-      .map((deal) => ({ deal, venue, distanceMetres: null })),
-  )
-  const ranked = [...candidates].sort(
-    (a, b) =>
-      Number(isVerified(b.deal.votes)) - Number(isVerified(a.deal.votes)) ||
-      endTime(a.deal) - endTime(b.deal),
-  )
-  return ranked
-    .filter(({ deal }) => (seen.has(deal.id) ? false : Boolean(seen.add(deal.id))))
-    .slice(0, HOT_DEAL_LIMIT)
-}
 
 type Deps = {
   readonly router: Router
@@ -102,8 +80,7 @@ export const createShellState = ({
   const geo = useGeolocation(geolocation)
   let latestRequest = 0
 
-  // Login always opens beside the map, even when its entry link carries All Deals' view.
-  const view = computed(() => (route.name === 'login' ? 'map' : readView(route.query)))
+  const view = computed(() => routeView(route))
   const filters = computed(() => {
     const parsed = filtersFromQuery(route.query)
     return view.value === 'list' ? parsed : { ...parsed, location: '' }
@@ -167,7 +144,6 @@ export const createShellState = ({
   })
   const dealCount = computed(() => uniqueDealCount(pins.value))
   const countFor = (next: BrowseFilters) => uniqueDealCount(pinsFor(next))
-  const hotDeals = computed(() => pickHotDeals(pins.value, context.value.now))
 
   const locationMessage = computed(() =>
     outsideSingapore.value
@@ -269,7 +245,6 @@ export const createShellState = ({
     pins,
     rows,
     dealCount,
-    hotDeals,
     area,
     hoveredVenueId,
     position: geo.position,

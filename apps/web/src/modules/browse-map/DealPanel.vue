@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { DEAL_CUISINE_LABELS, isDealCuisine } from '@broke-oclock/contracts/deal-cuisines'
+import TicketLoading from '@web/components/TicketLoading.vue'
 import { authClient } from '@web/lib/auth-client'
 import { walkMinutesFor } from '@web/modules/browse-map/apply-filters'
 import { categoryStyle } from '@web/modules/browse-map/category-style'
@@ -73,7 +74,6 @@ const backLabel = computed(() => {
   if (squadRoom.value) return `Back to Room ${squadRoom.value}`
   return fromLobbie.value ? 'Back to Lobbie' : 'Back to results'
 })
-const saving = ref(false)
 const popKey = ref(0)
 
 const isSaved = computed(() => (selected.value ? saved.isSaved(selected.value.deal.id) : false))
@@ -126,27 +126,38 @@ const buzz = () => {
   if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') navigator.vibrate(SAVE_VIBRATE_MS)
 }
 
+const undoUnsave = (id: string) => {
+  saved.toggle(id).catch((error: unknown) => {
+    console.error('Could not restore saved deal', error)
+    toast.show('Could not restore that deal. Try again.', { tone: 'error' })
+  })
+}
+
 const toggleSave = async () => {
   const deal = selected.value?.deal
-  if (!deal || saving.value) return
+  if (!deal) return
   if (!session.value.data) {
     await router.push({ name: 'auth-required', query: { ...route.query, tab: 'profile', redirect: route.fullPath } })
     return
   }
   const wasSaved = isSaved.value
-  saving.value = true
-  popKey.value += 1
-  if (!wasSaved) buzz()
+  // Only saving celebrates; removing just drains the fill.
+  if (!wasSaved) {
+    popKey.value += 1
+    buzz()
+  }
+  // Never locked: taps queue per deal in useSavedDeals, and the toast confirms at once
+  // because the icon already shows the result.
+  const request = saved.toggle(deal.id)
+  toast.show(wasSaved ? 'Removed from saved' : 'Saved', wasSaved ? { action: { label: 'Undo', run: () => undoUnsave(deal.id) } } : {})
   try {
-    await saved.toggle(deal.id)
-    toast.show(wasSaved ? 'Removed from saved' : 'Saved')
+    await request
   } catch (error) {
+    console.error('Could not update saved deal', error)
     toast.show(
       errorCode(error) === 'UNAUTHORIZED' ? 'Log in again to save deals.' : 'Could not update your saved deals. Try again.',
       { tone: 'error' },
     )
-  } finally {
-    saving.value = false
   }
 }
 </script>
@@ -241,12 +252,11 @@ const toggleSave = async () => {
         class="lb-btn"
         :class="{ 'lb-btn--ink': isSaved }"
         :aria-pressed="isSaved"
-        :disabled="saving"
         data-testid="save-deal"
         @click="toggleSave"
       >
-        <span :key="popKey" class="deal-panel__save-icon" :class="{ 'is-popping': popKey > 0 }">
-          <svg width="18" height="18" viewBox="0 0 24 24" :fill="isSaved ? 'currentColor' : 'none'" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true">
+        <span :key="popKey" class="deal-panel__save-icon" :class="{ 'is-popping': popKey > 0, 'is-filled': isSaved }">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true">
             <path d="M6 4h12v17l-6-4-6 4z" />
           </svg>
         </span>
@@ -258,12 +268,12 @@ const toggleSave = async () => {
     </template>
   </PanelFrame>
 
-  <PanelFrame v-else-if="shell.status.value === 'loading'" title="Loading deal" :back="backTo" :back-label="backLabel">
+  <PanelFrame v-else-if="shell.status.value === 'loading'" title="Loading deal…" :back="backTo" :back-label="backLabel">
     <div class="lb-skeleton deal-panel__hero" aria-hidden="true" />
-    <p class="lb-meta" role="status">Loading this deal…</p>
+    <TicketLoading label="Loading this deal…" />
   </PanelFrame>
 
-  <PanelFrame v-else title="Deal not found" :back="backTo" :back-label="backLabel">
+  <PanelFrame v-else :title="shell.status.value === 'error' ? 'Unable to load deals' : 'Deal not found'" :back="backTo" :back-label="backLabel">
     <div class="lb-state" :role="shell.status.value === 'error' ? 'alert' : undefined">
       <p class="lb-state__body">
         {{ shell.status.value === 'error' ? 'Deals could not be loaded right now.' : 'This deal has ended or is no longer listed.' }}
@@ -285,6 +295,17 @@ const toggleSave = async () => {
 .deal-panel :deep(.panel-frame__actions > .lb-btn) {
   flex: 0 0 auto;
   width: auto;
+}
+
+/* Phones: the bar spans the sheet, so Get directions takes the space Save leaves. */
+@media (max-width: 767.98px) {
+  .deal-panel :deep(.panel-frame__actions) {
+    flex-wrap: nowrap;
+  }
+
+  .deal-panel :deep(.panel-frame__actions > .lb-btn:last-child) {
+    flex: 1 1 auto;
+  }
 }
 
 .deal-panel:not(.deal-panel--dialog) :deep(.panel-frame__title) {
@@ -330,10 +351,10 @@ const toggleSave = async () => {
   margin: 0;
 }
 
-.deal-panel__conflicting { color: var(--bs-danger, #dc3545); background: #fde2e2; }
+.deal-panel__conflicting { color: var(--tag-end-ink); background: var(--tag-end-bg); }
 
 .deal-panel__expired {
-  color: var(--bs-danger, #dc3545);
+  color: var(--coral-deep);
 }
 
 .deal-panel__comments-back { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 8px 0; border: 0; border-radius: 4px; background: transparent; color: var(--ink-muted); font: 600 0.875rem/1.5 var(--font-sans); cursor: pointer; }
@@ -394,6 +415,15 @@ const toggleSave = async () => {
 
 .deal-panel__save-icon {
   display: inline-flex;
+}
+
+.deal-panel__save-icon svg {
+  fill-opacity: 0;
+  transition: fill-opacity var(--dur-small) var(--ease-out);
+}
+
+.deal-panel__save-icon.is-filled svg {
+  fill-opacity: 1;
 }
 
 .deal-panel__save-icon.is-popping {

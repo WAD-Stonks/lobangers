@@ -1,7 +1,8 @@
 /* Motion for the map shell. Imported once by MapShell.vue. Only transform and opacity move;
    nothing runs longer than 300ms except the map's own flight. */
 
-/* Panel changes: slide 24px forward or back and fade in. Exits are quicker than entries. */
+/* Panel changes: slide 24px forward or back and fade in. The panel swaps "out-in", so any
+   exit time is a pause before the new panel starts; exits are instant so clicks land at once. */
 .panel-forward-enter-active,
 .panel-back-enter-active,
 .panel-none-enter-active {
@@ -13,7 +14,7 @@
 .panel-forward-leave-active,
 .panel-back-leave-active,
 .panel-none-leave-active {
-  transition: opacity 120ms ease;
+  transition: none;
 }
 
 .panel-forward-enter-from {
@@ -87,6 +88,26 @@
   opacity: 0;
 }
 
+/* Small controls that appear beside a chip (Clear all, a filter's remove button). */
+.shell-chip-enter-active {
+  transition:
+    opacity var(--dur-small) var(--ease-out),
+    transform var(--dur-small) var(--ease-out);
+}
+
+.shell-chip-leave-active {
+  transition: opacity 100ms ease;
+}
+
+.shell-chip-enter-from {
+  opacity: 0;
+  transform: scale(0.9);
+}
+
+.shell-chip-leave-to {
+  opacity: 0;
+}
+
 /* Toast and pills: slide up and fade in, fade out. */
 .shell-rise-enter-active {
   transition:
@@ -138,6 +159,7 @@
   .panel-back-enter-from,
   .shell-menu-enter-from,
   .shell-sheet-enter-from,
+  .shell-chip-enter-from,
   .hot-swap-enter-from {
     filter: none;
     transform: none;
@@ -159,5 +181,11 @@
 
   .lb-chip__check {
     transition: none;
+  }
+
+  @keyframes lb-tick {
+    from {
+      opacity: 0;
+    }
   }
 }

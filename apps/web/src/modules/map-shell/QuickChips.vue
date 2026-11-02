@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { formatMoneyMajor } from '@web/lib/format'
 import {
   type BrowseFilters,
   countSheetFilters,
@@ -19,6 +20,7 @@ const emit = defineEmits<{ apply: [filters: BrowseFilters]; openSheet: []; askLo
 
 const allButton = ref<HTMLButtonElement | null>(null)
 
+const quickPriceLabel = formatMoneyMajor(QUICK_PRICE_MINOR / 100)
 const underFive = computed(() => props.filters.priceMaxMinor === QUICK_PRICE_MINOR)
 const endingToday = computed(() => props.filters.ending === 'today')
 const sheetCount = computed(() => countSheetFilters(props.filters))
@@ -35,7 +37,7 @@ defineExpose({ focusAllFilters: () => allButton.value?.focus() })
   <fieldset class="quick-chips" data-testid="quick-chips">
     <legend class="visually-hidden">Quick filters</legend>
     <button type="button" class="lb-chip" :aria-pressed="underFive" @click="toggleUnderFive">
-      <span class="lb-chip__check"><ShellIcon name="check" :size="14" :stroke-width="3" /></span>Under $5
+      <span class="lb-chip__check"><ShellIcon name="check" :size="14" :stroke-width="3" /></span>Under {{ quickPriceLabel }}
     </button>
     <button
       type="button"
@@ -150,6 +152,24 @@ defineExpose({ focusAllFilters: () => allButton.value?.focus() })
 @media (max-width: 767.98px) {
   .quick-chips__optional {
     display: none;
+  }
+
+  /* One row that scrolls inside itself and snaps to chip edges, instead of wrapping. */
+  .quick-chips {
+    flex-wrap: nowrap;
+    padding: 3px 1px 6px;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scroll-snap-type: x proximity;
+    scrollbar-width: none;
+  }
+
+  .quick-chips::-webkit-scrollbar {
+    display: none;
+  }
+
+  .quick-chips > * {
+    scroll-snap-align: start;
   }
 
   /* for mobile view  */

@@ -3,6 +3,7 @@ import type { SquadMember } from '@broke-oclock/contracts/squad'
 import { useToast } from '@web/modules/map-shell/use-toast'
 import SquadCodeTiles from '@web/modules/squad/SquadCodeTiles.vue'
 import SquadConfirm from '@web/modules/squad/SquadConfirm.vue'
+import SquadLeave from '@web/modules/squad/SquadLeave.vue'
 import SquadLobbyMembers from '@web/modules/squad/SquadLobbyMembers.vue'
 import { shareRoom } from '@web/modules/squad/share-room'
 import { formatCountdown } from '@web/modules/squad/squad-forms'
@@ -53,6 +54,25 @@ const alone = computed(
 
 type Confirming = { kind: 'close' } | { kind: 'remove'; member: SquadMember } | null
 const confirming = ref<Confirming>(null)
+const leaving = ref(false)
+// The button that opened a sheet, so focus goes back there when the sheet closes.
+const sheetTrigger = ref<HTMLElement | null>(null)
+const others = computed(() =>
+  players.value.filter((member) => member.id !== state.value?.me?.memberId).map((member) => member.name),
+)
+
+const triggerOf = (event?: Event): HTMLElement | null => {
+  const target = event?.currentTarget ?? document.activeElement
+  return target instanceof HTMLElement ? target : null
+}
+const ask = (next: Exclude<Confirming, null>, event?: Event) => {
+  sheetTrigger.value = triggerOf(event)
+  confirming.value = next
+}
+const askLeave = (event: Event) => {
+  sheetTrigger.value = triggerOf(event)
+  leaving.value = true
+}
 
 const start = async () => {
   if (!canStart.value || busy.value) return
@@ -73,6 +93,7 @@ const leave = async () => {
   if (busy.value) return
   const code = state.value?.code ?? ''
   const left = await props.room.leave()
+  leaving.value = false
   if (!left) {
     toast.show(props.room.error.value || 'Could not leave the room.', { tone: 'error' })
     return
@@ -113,7 +134,7 @@ const shareAgain = async () => {
       <span>{{ dealsText }}</span>
     </div>
 
-    <SquadLobbyMembers :state="state" @remove="(member) => (confirming = { kind: 'remove', member })" />
+    <SquadLobbyMembers :state="state" @remove="(member) => ask({ kind: 'remove', member })" />
 
     <div v-if="alone" class="squad-room__notice" role="status">
       <h3 class="squad-room__title squad-room__title--small">Nobody's here yet</h3>
@@ -135,12 +156,12 @@ const shareAgain = async () => {
         <p v-if="closesIn" class="squad-lobby__timer" role="timer">
           The lobby closes itself in {{ closesIn }} if nobody starts it.
         </p>
-        <button type="button" class="lb-btn lb-btn--block squad-btn-quiet-danger" data-testid="squad-close" @click="confirming = { kind: 'close' }">
+        <button type="button" class="lb-btn lb-btn--block squad-btn-quiet-danger" data-testid="squad-close" @click="ask({ kind: 'close' }, $event)">
           Close lobby
         </button>
       </div>
     </template>
-    <button v-else type="button" class="lb-btn squad-btn-dark lb-btn--block" data-testid="squad-leave-lobby" :disabled="busy" @click="leave">
+    <button v-else type="button" class="lb-btn squad-btn-dark lb-btn--block" data-testid="squad-leave-lobby" :disabled="busy" @click="askLeave">
       Leave lobby
     </button>
 
@@ -151,6 +172,7 @@ const shareAgain = async () => {
       confirm-label="Close lobby"
       cancel-label="Keep waiting"
       :busy="busy"
+      :return-focus="sheetTrigger"
       @confirm="confirm"
       @cancel="confirming = null"
     />
@@ -161,8 +183,20 @@ const shareAgain = async () => {
       :confirm-label="`Remove ${confirming.member.name}`"
       cancel-label="Keep them"
       :busy="busy"
+      :return-focus="sheetTrigger"
       @confirm="confirm"
       @cancel="confirming = null"
+    />
+    <SquadLeave
+      v-if="leaving"
+      :code="state.code"
+      :others="others"
+      :is-host="false"
+      :busy="busy"
+      :return-focus="sheetTrigger"
+      stage="lobby"
+      @leave="leave"
+      @stay="leaving = false"
     />
   </div>
 </template>

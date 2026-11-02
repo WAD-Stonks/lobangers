@@ -35,6 +35,13 @@ Pass anything that changes the content (tab, step, sort) as `scroll-key`, and th
 - `ShellHeader.vue` (`BrandMenu`, `SearchField`, `QuickChips`), `MapControls.vue`, `HotCard.vue`, `FilterSheet.vue`, `ShellPanel.vue`, `ShellToast.vue`, `ComingSoonPanel.vue`, `ShellIcon.vue`.
 - `shell-ui.css`: shared primitives (`.lb-btn`, `.lb-chip`, `.lb-ctrl`, `.lb-tag`, `.lb-tabs`, `.lb-state`). `motion.css`: panel, menu, sheet and toast transitions, and the reduced-motion rules.
 
+## Headers that must match
+
+The All Deals header (`ShellHeader.vue`, `dealsHeader`) and the header on plain pages such as
+Add deal (`components/PageHeader.vue`) are two copies of one design: menu, logo, search, Room
+and account on desktop; Room and search on phones, with the bottom nav carrying the rest.
+Edit both together and check `/deals` and `/add` side by side at desktop and phone widths.
+
 ## Tests
 
 Unit tests are in `apps/web/tests/` (`router-shell`, `map-shell`, `shell-components` and one file per composable). Layout and overflow checks are in `e2e/responsive.spec.ts`, and the journeys are in `e2e/map-shell.spec.ts`.

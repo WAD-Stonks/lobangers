@@ -42,6 +42,7 @@ export const useFlashMap = (options: {
   let lastActivity = Date.now()
   let shownCount = 0
   let showing = false
+  let shownDropId: string | null = null
   let hideAt = 0
   let pausedLeft: number | null = null
 
@@ -52,6 +53,7 @@ export const useFlashMap = (options: {
   const hide = () => {
     if (!showing) return
     showing = false
+    shownDropId = null
     pausedLeft = null
     layer?.hideBanner()
     edge.value = null
@@ -79,6 +81,7 @@ export const useFlashMap = (options: {
   const show = (drop: PublicFlashDrop) => {
     if (!layer) return
     showing = true
+    shownDropId = drop.id
     hideAt = Date.now() + BANNER_LIFE_MS
     const handlers = { onOpen: openDrop, onHover: setPaused, lifeMs: BANNER_LIFE_MS }
     const placement = layer.placementFor(drop, options.padding.value)
@@ -114,7 +117,11 @@ export const useFlashMap = (options: {
     },
     { immediate: true },
   )
-  watch([store.drops, store.now], ([drops, now]) => layer?.update(drops, now))
+  watch([store.drops, store.now], ([drops, now]) => {
+    layer?.update(drops, now)
+    // A drop that leaves the live list takes its banner with it, rather than leaving it at 0:00.
+    if (showing && !drops.some((drop) => drop.id === shownDropId)) hide()
+  })
   watch(options.enabled, (enabled) => {
     if (!enabled) hide()
     noteActivity()

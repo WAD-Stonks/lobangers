@@ -4,6 +4,7 @@ import {
   communityStatus,
   communityStatusLabels,
 } from '@broke-oclock/contracts/community-policy'
+import { formatRelativeTime } from '@web/lib/format'
 import { hawkerPhotoAnchor } from '@web/modules/landing/hawker-projection'
 import { clamp, segment } from '@web/modules/landing/use-story-progress'
 
@@ -57,8 +58,7 @@ export const sampleReports = [
 ] as const satisfies readonly SampleReport[]
 
 export function reportAge(report: SampleReport, now = SAMPLE_REPORT_TIME) {
-  const age = Math.max(0, Math.floor((now - report.observedAt) / 60_000))
-  return age < 60 ? `${age}m ago` : `${Math.floor(age / 60)}h ago`
+  return formatRelativeTime(report.observedAt, now)
 }
 
 export function deriveCommunityStatus(reports: readonly SampleReport[], now = SAMPLE_REPORT_TIME) {

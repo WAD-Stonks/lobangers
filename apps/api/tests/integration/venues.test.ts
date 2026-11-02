@@ -342,6 +342,46 @@ it('treats a deal with no end date (null or missing) as ongoing, not past', asyn
   expect(response.data.pastDeals).toEqual([])
 })
 
+it('keeps the 20 newest past deals at a venue even when newer held rows outnumber them', async () => {
+  const now = Date.now()
+  const merchant = await db.merchant.create({ data: { name: 'Synthetic Past Kopi' } })
+  const otherMerchant = await db.merchant.create({ data: { name: 'Synthetic Past Other' } })
+  const venue = await db.venue.create({
+    data: {
+      merchantId: merchant.id,
+      name: 'Synthetic Past Kopi Bedok',
+      address: '4 Example Street',
+      latitude: 1.32,
+      longitude: 103.93,
+    },
+  })
+  await seedSyntheticOutletProof(db, venue.id)
+  const link = { venues: { create: [{ venueId: venue.id }] } }
+  // Linked to this venue but owned by another merchant: the database matches them, the
+  // outlet policy does not. They are newer, so a database-side limit alone would keep them.
+  for (let index = 0; index < 60; index++)
+    await createVisibleDeal(`Held past deal ${index}`, {
+      merchantId: otherMerchant.id,
+      validUntil: new Date(now - (index + 1) * 60_000),
+      ...link,
+    })
+  const eligible = []
+  for (let index = 0; index < 25; index++)
+    eligible.push(
+      await createVisibleDeal(`Eligible past deal ${index}`, {
+        merchantId: merchant.id,
+        validUntil: new Date(now - day - index * 60_000),
+        ...link,
+      }),
+    )
+
+  const response = await http().get(`/api/venues/${venue.id}`)
+  expect(response.status).toBe(200)
+  expect(response.data.pastDeals.map((deal: { id: string }) => deal.id)).toEqual(
+    eligible.slice(0, 20).map((deal) => deal.id),
+  )
+}, 60000)
+
 it('rejects missing, deleted and malformed venues and non-GET methods', async () => {
   const merchant = await db.merchant.create({ data: { name: 'Synthetic Closed' } })
   const deleted = await db.venue.create({

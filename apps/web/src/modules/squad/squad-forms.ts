@@ -84,6 +84,31 @@ export const nearestDeals = (
     : rows
 }
 
+// How far "near me" reaches when someone's position is known.
+export const NEARBY_METRES = 1500
+
+// Every deal within walking distance (all of them when the position is unknown), in a random
+// order and cut to `max`, for a room that picks its own deals. `random` is injectable for tests.
+export const nearbyDealIds = (
+  rows: readonly PickableDeal[],
+  max: number = SQUAD_MAX_DEALS,
+  random: () => number = Math.random,
+): readonly string[] => {
+  const ids = rows
+    .filter((row) => row.distanceMetres === null || row.distanceMetres <= NEARBY_METRES)
+    .map((row) => row.deal.id)
+  const shuffled = ids.reduceRight<string[]>(
+    (out, _id, index) => {
+      const swap = Math.floor(random() * (index + 1))
+      return out.map((value, i) =>
+        i === index ? (out[swap] ?? value) : i === swap ? (out[index] ?? value) : value,
+      )
+    },
+    [...ids],
+  )
+  return shuffled.slice(0, max)
+}
+
 // "27:41" until the lobby closes itself; "0:00" once it is due.
 export const formatCountdown = (ms: number): string => {
   const total = Math.max(0, Math.ceil(ms / 1000))

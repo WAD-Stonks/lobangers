@@ -97,6 +97,18 @@ const DEALS: DemoDeal[] = [
   },
 ]
 
+// AI-generated food photos, served from apps/web/public/demo-food, in DEALS order.
+const DEAL_IMAGES = [
+  'chicken-rice-set',
+  'roast-chicken-rice',
+  'kopi-o',
+  'brown-sugar-boba',
+  'plain-prata',
+  'prata-kosong-set',
+  'laksa',
+  'kaya-toast-set',
+] as const
+
 const MINUTE_MS = 60_000
 const DAY_MS = 86_400_000
 
@@ -135,6 +147,7 @@ const clearPreviousDemo = async (db: Database) => {
   await db.flashDropClaim.deleteMany({ where: { dropId: { in: drops.map((drop) => drop.id) } } })
   await db.flashDrop.deleteMany({ where: { dealId: { in: dealIds } } })
   await db.dealVenue.deleteMany({ where: { dealId: { in: dealIds } } })
+  await db.uploadedFile.deleteMany({ where: { dealId: { in: dealIds } } })
   await db.deal.deleteMany({ where: { id: { in: dealIds } } })
   const venues = await db.venue.findMany({
     where: { merchantId: { in: merchantIds } },
@@ -251,6 +264,25 @@ export const seedLocalDemo = async (
   const merchantUserId =
     owner?.id ??
     (options.shared ? undefined : (await db.user.findFirst({ select: { id: true } }))?.id)
+  if (merchantUserId) {
+    const webOrigin = (process.env.WEB_ORIGIN?.trim() || 'http://localhost:5173').replace(/\/$/, '')
+    for (const [index, dealId] of dealIds.entries()) {
+      const image = DEAL_IMAGES[index]
+      if (!image) continue
+      await db.uploadedFile.create({
+        data: {
+          key: `${DEMO_TAG}:${dealId}`,
+          url: `${webOrigin}/demo-food/${image}.jpg`,
+          mimeType: 'image/jpeg',
+          sizeBytes: 200_000,
+          uploaderId: merchantUserId,
+          dealId,
+        },
+      })
+    }
+  } else {
+    console.info('No account to own the demo photos: pass --merchant with your account email.')
+  }
   const [chicken, , kopi, , prata] = dealIds
   const [chickenStall, kopiStall, , prataStall] = places
   if (merchantUserId && chicken && kopi && prata && chickenStall && kopiStall && prataStall) {

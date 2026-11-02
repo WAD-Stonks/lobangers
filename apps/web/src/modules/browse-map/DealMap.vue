@@ -4,6 +4,7 @@ import 'leaflet.markercluster/dist/MarkerCluster.css'
 import 'leaflet.markercluster/dist/MarkerCluster.Default.css'
 import L from 'leaflet'
 import 'leaflet.markercluster'
+import { useTheme } from '@web/lib/theme'
 import type { AreaBounds } from '@web/modules/browse-map/apply-filters'
 import { readCartoApiKey, resolveBasemap } from '@web/modules/browse-map/basemap'
 import {
@@ -25,6 +26,7 @@ import {
   USER_ACCURACY_STYLE,
   USER_DOT_CLASS,
   USER_DOT_SIZE_PX,
+  USER_DOT_Z_OFFSET,
 } from '@web/modules/browse-map/map-config'
 import '@web/modules/browse-map/food-sprite.css'
 import {
@@ -84,6 +86,8 @@ const emit = defineEmits<{
 
 const container = ref<HTMLDivElement | null>(null)
 let map: L.Map | null = null
+let tileLayer: L.TileLayer | null = null
+const { theme } = useTheme()
 let pinLayer: L.MarkerClusterGroup | null = null
 let groupLayer: L.LayerGroup | null = null
 let selectedLayer: L.LayerGroup | null = null
@@ -266,7 +270,13 @@ const syncUserPosition = (position: Coordinates | null, accuracy: number | null)
     iconSize: [USER_DOT_SIZE_PX, USER_DOT_SIZE_PX],
     iconAnchor: [USER_DOT_SIZE_PX / 2, USER_DOT_SIZE_PX / 2],
   })
-  L.marker(latLng, { icon, interactive: false, keyboard: false, alt: 'You are here' })
+  L.marker(latLng, {
+    icon,
+    interactive: false,
+    keyboard: false,
+    alt: 'You are here',
+    zIndexOffset: USER_DOT_Z_OFFSET,
+  })
     .bindTooltip('You are here', { direction: 'top', offset: [0, -USER_DOT_SIZE_PX / 2] })
     .addTo(userLayer)
 }
@@ -347,8 +357,8 @@ onMounted(() => {
     paddingBottomRight: [right + 16, bottom + 16],
     animate: false,
   })
-  const basemap = resolveBasemap(readCartoApiKey())
-  L.tileLayer(basemap.url, {
+  const basemap = resolveBasemap(readCartoApiKey(), theme.value)
+  tileLayer = L.tileLayer(basemap.url, {
     attribution: basemap.attribution,
     maxZoom: MAX_ZOOM,
     maxNativeZoom: basemap.maxNativeZoom,
@@ -404,6 +414,9 @@ watch(
   },
 )
 
+// Re-point the existing tile layer so the map keeps its position, pins and layers.
+watch(theme, (value) => tileLayer?.setUrl(resolveBasemap(readCartoApiKey(), value).url))
+
 onBeforeUnmount(() => {
   resizeObserver?.disconnect()
   resizeObserver = null
@@ -411,6 +424,7 @@ onBeforeUnmount(() => {
   ambient = null
   map?.remove()
   map = null
+  tileLayer = null
   pinLayer = null
   groupLayer = null
   selectedLayer = null
@@ -430,9 +444,9 @@ defineExpose({
 </script>
 
 <template>
-  <div class="deal-map-region" :class="{ 'deal-map-region--framed': framed }" data-testid="deal-map">
+  <section class="deal-map-region" :class="{ 'deal-map-region--framed': framed }" aria-label="Deals map" data-testid="deal-map">
     <div ref="container" class="deal-map" />
-  </div>
+  </section>
 </template>
 
 <style scoped>
@@ -441,6 +455,21 @@ defineExpose({
   position: relative;
   width: 100%;
   height: 100%;
+}
+
+/* Marker colours as local roles. By day the pins are dark ovals with white type; on the dark
+   basemap they invert to light ovals with dark type, so they still stand off the tiles. */
+.deal-map-region {
+  --pin-fill: rgb(29 29 34 / 0.94);
+  --pin-text: var(--on-ink);
+  --pin-text-muted: rgb(255 255 255 / 0.78);
+  --pin-stem: rgb(29 29 34 / 0.85);
+}
+
+.app-palette[data-theme='dark'] .deal-map-region {
+  --pin-fill: rgb(243 241 236 / 0.96);
+  --pin-text-muted: rgb(27 27 31 / 0.72);
+  --pin-stem: rgb(243 241 236 / 0.85);
 }
 
 .deal-map :deep(.leaflet-container) {
@@ -478,8 +507,8 @@ defineExpose({
   margin-top: 22px;
   padding: 0 6px 0 40px;
   white-space: nowrap;
-  color: var(--paper-white);
-  background: rgba(29, 29, 34, 0.94);
+  color: var(--pin-text);
+  background: var(--pin-fill);
   border-radius: var(--radius-pill);
   box-shadow: 0 8px 20px rgba(27, 27, 31, 0.26);
   transition: background-color 150ms ease;
@@ -503,7 +532,7 @@ defineExpose({
   box-sizing: border-box;
   width: 18px;
   height: 18px;
-  color: var(--paper-white);
+  color: var(--pin-text);
   border: 2px solid var(--paper-white);
   border-radius: 50%;
 }
@@ -543,6 +572,7 @@ defineExpose({
 }
 
 .deal-map :deep(.deal-map-pin__tag--promo) {
+  color: var(--on-accent);
   background: var(--sunny);
 }
 
@@ -553,7 +583,7 @@ defineExpose({
 .deal-map :deep(.deal-map-pin__stem) {
   width: 2px;
   height: 12px;
-  background: rgba(29, 29, 34, 0.85);
+  background: var(--pin-stem);
 }
 
 .deal-map :deep(.deal-map-pin__dot) {
@@ -624,8 +654,8 @@ defineExpose({
   max-width: 240px;
   padding: 5px 16px 5px 8px;
   white-space: nowrap;
-  color: var(--paper-white);
-  background: rgba(29, 29, 34, 0.94);
+  color: var(--pin-text);
+  background: var(--pin-fill);
   border-radius: var(--radius-pill);
   box-shadow: 0 8px 20px rgba(27, 27, 31, 0.26);
   transform: translate(-50%, -50%);
@@ -636,7 +666,10 @@ defineExpose({
   cursor: pointer;
 }
 
+/* --sky-strong is the same deep blue in both themes, so its type stays white in both. */
 .deal-map :deep(.deal-map-cluster__chip--near) {
+  --pin-text-muted: rgb(255 255 255 / 0.78);
+  color: #fff;
   background: var(--sky-strong);
 }
 
@@ -707,14 +740,14 @@ defineExpose({
   font-size: 11px;
   font-weight: 600;
   line-height: 1.2;
-  color: rgba(255, 255, 255, 0.78);
+  color: var(--pin-text-muted);
   font-variant-numeric: tabular-nums;
 }
 
 .deal-map :deep(.deal-map-cluster__chip--compact .deal-map-cluster__count) {
   font-family: var(--font-display);
   font-size: var(--text-sm);
-  color: var(--paper-white);
+  color: inherit;
 }
 
 /* Outlets sharing one spot (a food court) before they spread out at the closest zoom. */
@@ -733,7 +766,7 @@ defineExpose({
   font-size: var(--text-xs);
   font-weight: 600;
   line-height: 1.35;
-  color: var(--paper-white);
+  color: var(--on-ink);
   background: var(--ink-strong);
   border: 2px solid var(--paper-white);
   border-radius: var(--radius-pill);
@@ -797,9 +830,14 @@ defineExpose({
   box-shadow: 0 2px 6px rgba(27, 27, 31, 0.3);
 }
 
+/* The ring stays light on the dark basemap, as it does by day. */
+.app-palette[data-theme='dark'] .deal-map :deep(.deal-map-user-dot) {
+  border-color: var(--ink);
+}
+
 .deal-map :deep(.leaflet-control-attribution) {
   color: var(--ink-muted);
-  background: rgba(255, 255, 255, 0.85);
+  background: var(--glass);
   border-top-left-radius: var(--radius-control);
 }
 

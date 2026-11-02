@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import TicketLoader from '@web/components/TicketLoader.vue'
 import AuthPrompt from '@web/modules/account/AuthPrompt.vue'
 import { authPrompt } from '@web/modules/account/auth-prompt'
 import '@web/modules/map-shell/shell-ui.css'
@@ -18,7 +19,6 @@ import { provideHungryNearby } from '@web/modules/hungry-nearby/use-hungry-nearb
 import { provideLobbieChat } from '@web/modules/lobbie/use-lobbie-chat'
 import FilterSheet from '@web/modules/map-shell/FilterSheet.vue'
 import { withFilters } from '@web/modules/map-shell/filter-query'
-import HotCard from '@web/modules/map-shell/HotCard.vue'
 import MapControls from '@web/modules/map-shell/MapControls.vue'
 import MapNavigation from '@web/modules/map-shell/MapNavigation.vue'
 import MapTutorial from '@web/modules/map-shell/MapTutorial.vue'
@@ -32,12 +32,12 @@ import ShellToast from '@web/modules/map-shell/ShellToast.vue'
 import { browseLocation, dealLocation, panelSnapFor, shellQuery, venueLocation } from '@web/modules/map-shell/shell-routes'
 import { provideShellState } from '@web/modules/map-shell/shell-state'
 import { useBreakpoint, useFinePointer, usePrefersReducedMotion } from '@web/modules/map-shell/use-breakpoint'
-import { usePanelMorph } from '@web/modules/map-shell/use-panel-morph'
 import { provideSavedDeals } from '@web/modules/map-shell/use-saved-deals'
 import { useShellLayout } from '@web/modules/map-shell/use-shell-layout'
 import { provideToastQueue } from '@web/modules/map-shell/use-toast'
 import { SHEET_CONTROL_KEY } from '@web/modules/squad/sheet-control'
 import { provideSquadRoom } from '@web/modules/squad/use-squad-room'
+import { pendingNavigationFor } from '@web/router/pending-navigation'
 import type L from 'leaflet'
 import { computed, nextTick, onBeforeUnmount, onMounted, provide, ref, shallowRef, watch } from 'vue'
 import { type RouteLocationNormalizedLoaded, RouterView, useRoute, useRouter } from 'vue-router'
@@ -80,8 +80,10 @@ const isSquadPanel = computed(() => String(route.name ?? '').startsWith('squad')
 const dealsExperience = computed(
   () => ['browse', 'saved', 'deal', 'venue'].includes(String(route.name)) && route.query.discovery === '1',
 )
-const dealsPage = computed(() => dealsExperience.value && shell.view.value === 'list')
-const mapWorkspace = computed(() => !dealsPage.value && shell.view.value === 'map')
+// The shell has two layouts: the All Deals page (deal browsing in list view) and the map
+// workspace, with the navigation rail and the panel on the left, for everything else.
+const dealsPage = computed(() => shell.view.value === 'list')
+const mapWorkspace = computed(() => !dealsPage.value)
 const desktopMap = computed(() => mapWorkspace.value && breakpoint.value === 'desktop')
 const bottomNavigation = computed(() => breakpoint.value !== 'desktop')
 const navigationOpen = ref(false)
@@ -96,12 +98,29 @@ const wide = computed(() => dealsPage.value ||
   (['browse', 'saved', 'deal', 'venue'].includes(String(route.name)) && shell.cardMode.value),
 )
 const mapOnly = computed(() => !authPrompt.value && isBrowse.value && dealsExperience.value && shell.view.value === 'map' && !shell.split.value)
-// The panel is drawn at `panelWide`, which trails `wide` while the desktop card shrinks back;
-// the map frames itself for `wide` at once, so a deal opened from the list lands centred.
-const panelWide = ref(wide.value)
 const collapsed = computed(() => !authPrompt.value && panelHidden.value && breakpoint.value === 'desktop')
 const resultsPreviewHeight = ref<number | null>(null)
-const layout = useShellLayout({ breakpoint, wide, panelWide, header, collapsed, leftPanel: desktopMap, railVisible: mapPreferences.sidebarVisible, bottomNavigation, resultsPreviewHeight })
+const layout = useShellLayout({ breakpoint, wide, header, collapsed, leftPanel: desktopMap, railVisible: mapPreferences.sidebarVisible, bottomNavigation, resultsPreviewHeight })
+
+// A panel behind the session check (Room, Profile, Saved) waits on the network before the URL
+// changes. Past a short beat, open the panel with a loader so the click visibly lands; quick
+// navigations finish first and never flash it.
+const PANEL_LOADER_DELAY_MS = 100
+const pendingNavigation = pendingNavigationFor(router)
+const panelLoading = ref(false)
+let panelLoaderTimer: ReturnType<typeof setTimeout> | undefined
+watch(pendingNavigation, (to) => {
+  clearTimeout(panelLoaderTimer)
+  panelLoading.value = false
+  const opensPanel = to !== null && to.matched[0]?.meta.layout === 'canvas' && to.path !== route.path
+  if (!opensPanel) return
+  panelLoaderTimer = setTimeout(() => {
+    panelLoading.value = true
+    panelHidden.value = false
+    layout.snap.value = panelSnapFor(to.name, 'map')
+  }, PANEL_LOADER_DELAY_MS)
+})
+onBeforeUnmount(() => clearTimeout(panelLoaderTimer))
 // Lets a panel (the Squad room) tuck the phone sheet down to its peek height and back.
 provide(SHEET_CONTROL_KEY, {
   mode: layout.mode,
@@ -147,17 +166,6 @@ watch(
   },
   { immediate: true, flush: 'post' },
 )
-
-const controlsRef = ref<HTMLElement | null>(null)
-const panelTabRef = ref<HTMLElement | null>(null)
-usePanelMorph({
-  wide,
-  panelWide,
-  enabled: () => layout.mode.value === 'side' && !desktopMap.value && !reducedMotion.value,
-  widthFor: layout.widthFor,
-  panel: () => (panelRef.value?.$el as HTMLElement | undefined) ?? null,
-  rails: () => [controlsRef.value, panelTabRef.value],
-})
 
 // The outlet the panel is about: a deal's outlet or the venue being viewed.
 const selected = computed<SelectedDeal | null>(() =>
@@ -211,19 +219,19 @@ const selectedFocus = computed<Coordinates | null>((previousFocus) => {
 const mapFocus = computed<Coordinates | null>(() => locateFocus.value ?? selectedFocus.value)
 const mapFocusZoom = computed(() => locateFocus.value ? LOCATE_ZOOM : FOCUS_ZOOM)
 
-const showHot = computed(
-  () =>
-    isBrowse.value &&
-    !desktopMap.value &&
-    !panelWide.value &&
-    shell.hotDeals.value.length > 0 &&
-    // As on the Prototype board, the card only floats over the map on desktop.
-    layout.mode.value === 'side',
-)
+// Below the header the control column needs this much map (Near me + Nearby, then the zoom
+// pair, plus the 16px margin and some clearance). When the sheet leaves less, zoom goes first
+// (touch screens can pinch), then the whole column, so nothing slides under the header.
+const CONTROLS_BASE_ROOM_PX = 124
+const CONTROLS_ZOOM_ROOM_PX = 104
 const showControls = computed(
   () =>
     mapWorkspace.value &&
-    (layout.mode.value === 'side' || layout.snap.value < layout.heights.value.length - 1),
+    (layout.mode.value === 'side' ||
+      (layout.snap.value < layout.heights.value.length - 1 && layout.mapRoom.value >= CONTROLS_BASE_ROOM_PX)),
+)
+const showZoom = computed(
+  () => layout.mode.value === 'side' || layout.mapRoom.value >= CONTROLS_BASE_ROOM_PX + CONTROLS_ZOOM_ROOM_PX,
 )
 const panelLabel = computed(() => authPrompt.value ? 'Log in or sign up' : (typeof route.meta.panelLabel === 'string' ? route.meta.panelLabel : 'Results'))
 
@@ -328,8 +336,6 @@ const openVenue = (venueId: string) => {
   )
 }
 
-const openHot = (deal: SelectedDeal) => router.push(dealLocation(resultsQuery.value, deal.deal.id, deal.venue.id))
-
 // The Lobbie chip opens the chat, or closes it back to the results when it is already open.
 // Opening the chat clears the quick chips and the filter sheet, so Lobbie starts from all
 // deals; the search text stays. Closing it returns to the results as they are.
@@ -353,7 +359,7 @@ const leaflet = shallowRef<L.Map | null>(null)
 const flashMap = useFlashMap({
   map: leaflet,
   store: flash,
-  enabled: computed(() => isBrowse.value && !sheetOpen.value && !panelWide.value),
+  enabled: computed(() => isBrowse.value && !sheetOpen.value && !wide.value),
   user: shell.position,
   padding: layout.viewPadding,
   reducedMotion,
@@ -406,10 +412,25 @@ watch(
   { immediate: true },
 )
 
+// A new visitor should not land on the whole island: once their position is known (and they are
+// in Singapore) and the map is showing with nothing else in focus, centre on them a single time.
+// `locateFocus` flies through `focusOffset`, so they land in the visible part beside the panel.
+// After that the camera is theirs; Near me remains the way to come back.
+const visitorHere = shallowRef<Coordinates | null>(null)
+let centredOnArrival = false
+watch(
+  () => [visitorHere.value, shell.view.value, isBrowse.value, selectedFocus.value] as const,
+  ([here, view, browse, selected]) => {
+    if (centredOnArrival || !here || view !== 'map' || !browse || selected) return
+    centredOnArrival = true
+    locateFocus.value = { ...here }
+  },
+  { immediate: true, flush: 'post' },
+)
+
 onMounted(() => {
   document.documentElement.classList.add('is-canvas')
-  // Resolve distances without replacing the initial Singapore overview.
-  void shell.locate()
+  void shell.locate().then((here) => { visitorHere.value = here })
 })
 onBeforeUnmount(() => document.documentElement.classList.remove('is-canvas'))
 </script>
@@ -421,6 +442,8 @@ onBeforeUnmount(() => document.documentElement.classList.remove('is-canvas'))
     :style="shellStyle"
     data-testid="map-shell"
   >
+    <!-- First stop for keyboard users: jump past the navigation and header to the results. -->
+    <a class="map-shell__skip" href="#shell-main" :inert="backgroundInert">Skip to content</a>
     <MapNavigation v-if="desktopMap && mapPreferences.sidebarVisible.value && !bottomNavigation" :inert="navigationInert" :panel-open="!collapsed" @open-panel="panelHidden = false; layout.snap.value = Math.max(1, layout.snap.value)" @menu-change="navigationOpen = $event" />
     <!-- Header first so keyboard users reach the menu and search before the map. -->
     <ShellHeader
@@ -433,6 +456,7 @@ onBeforeUnmount(() => document.documentElement.classList.remove('is-canvas'))
       :deals-header="dealsPage"
       :map-layout="desktopMap"
       :sidebar-visible="mapPreferences.sidebarVisible.value"
+      :bottom-nav="bottomNavigation"
       :map-tools="mapWorkspace"
       :categories="shell.categories.value"
       :cuisines="shell.cuisines.value"
@@ -444,7 +468,8 @@ onBeforeUnmount(() => document.documentElement.classList.remove('is-canvas'))
       @menu-change="navigationOpen = $event"
       @ask-lobbie="toggleLobbie"
     />
-    <main class="map-shell__map" aria-label="Deal map" :inert="backgroundInert">
+    <!-- The map is a named region; the panel's content below is the page's main landmark. -->
+    <section class="map-shell__map" aria-label="Deal map" :inert="backgroundInert">
       <DealMap
         ref="dealMap"
         :pins="mapPins"
@@ -465,24 +490,26 @@ onBeforeUnmount(() => document.documentElement.classList.remove('is-canvas'))
         @moved="updateMapArea"
         @ready="leaflet = $event"
       />
-    </main>
+    </section>
 
-    <FlashEdgeBanner
-      v-if="flashMap.edge.value"
-      :banner="flashMap.edge.value"
-      :now="flash.now.value"
-      :life-ms="BANNER_LIFE_MS"
-      :inert="backgroundInert"
-      @open="flashMap.openDrop(flashMap.edge.value.drop)"
-      @hover="flashMap.setPaused"
-    />
+    <Transition name="flash-edge">
+      <FlashEdgeBanner
+        v-if="flashMap.edge.value"
+        :banner="flashMap.edge.value"
+        :now="flash.now.value"
+        :life-ms="BANNER_LIFE_MS"
+        :inert="backgroundInert"
+        @open="flashMap.edge.value && flashMap.openDrop(flashMap.edge.value.drop)"
+        @hover="flashMap.setPaused"
+      />
+    </Transition>
 
 
     <Transition name="shell-fade">
-      <div v-show="showControls" ref="controlsRef" class="map-shell__controls" :inert="backgroundInert">
+      <div v-show="showControls" class="map-shell__controls" :inert="backgroundInert">
         <MapControls
           :locating="shell.geoStatus.value === 'locating'"
-          :show-zoom="breakpoint !== 'phone'"
+          :show-zoom="showZoom"
           @near-me="nearMe"
           @zoom-in="dealMap?.zoomIn()"
           @zoom-out="dealMap?.zoomOut()"
@@ -490,13 +517,8 @@ onBeforeUnmount(() => document.documentElement.classList.remove('is-canvas'))
       </div>
     </Transition>
 
-    <Transition name="shell-fade">
-      <HotCard v-if="showHot" :inert="backgroundInert" class="map-shell__hot" :deals="shell.hotDeals.value" :reduced-motion="reducedMotion" @open="openHot" />
-    </Transition>
-
     <button
       v-if="layout.mode.value === 'side' && !mapOnly && !dealsPage"
-      ref="panelTabRef"
       type="button"
       class="map-shell__panel-tab"
       data-testid="panel-collapse"
@@ -507,9 +529,11 @@ onBeforeUnmount(() => document.documentElement.classList.remove('is-canvas'))
       :inert="backgroundInert"
       @click="panelHidden = !panelHidden"
     >
-      <ShellIcon :name="desktopMap ? (collapsed ? 'chevronRight' : 'chevronLeft') : (collapsed ? 'chevronLeft' : 'chevronRight')" :size="16" />
+      <ShellIcon :name="collapsed ? 'chevronRight' : 'chevronLeft'" :size="16" />
     </button>
 
+    <!-- An unstyled wrapper: the panel is positioned against .map-shell, so layout is unchanged. -->
+    <main id="shell-main" class="map-shell__main" tabindex="-1">
     <ShellPanel
       id="shell-panel"
       ref="panelRef"
@@ -517,12 +541,16 @@ onBeforeUnmount(() => document.documentElement.classList.remove('is-canvas'))
       v-model:snap="layout.snap.value"
       :mode="layout.mode.value"
       :heights="layout.heights.value"
-      :wide="panelWide"
+      :wide="wide"
       :collapsed="collapsed"
       :label="panelLabel"
     >
       <AuthPrompt v-if="authPrompt" />
-      <div v-show="!authPrompt" class="map-shell__panel-route">
+      <div v-if="panelLoading && !authPrompt" class="map-shell__panel-loading" role="status" data-testid="panel-loading">
+        <TicketLoader class="map-shell__ticket" />
+        <span>Loading…</span>
+      </div>
+      <div v-show="!authPrompt && !panelLoading" class="map-shell__panel-route">
       <BrowseListPanel v-if="listBackground" />
       <RouterView v-else v-slot="{ Component, route: child }">
         <component v-if="mapWorkspace" :is="Component" :key="keyFor(child)" />
@@ -532,6 +560,7 @@ onBeforeUnmount(() => document.documentElement.classList.remove('is-canvas'))
       </RouterView>
       </div>
     </ShellPanel>
+    </main>
 
     <DealDetailsDialog v-if="dealDialogOpen && !authPrompt" :restore-focus-to="dealDialogTrigger" @close="closeDealDialog" />
 
@@ -569,7 +598,24 @@ onBeforeUnmount(() => document.documentElement.classList.remove('is-canvas'))
 
 <style scoped>
 .map-shell__panel-route { height: 100%; }
-.map-shell :deep(.auth-prompt__content) { padding: 28px 22px; }
+
+.map-shell__panel-loading {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  min-height: 160px;
+  font: 600 0.9375rem/1.4 var(--font-sans);
+  color: var(--ink-muted);
+}
+
+/* The splash screen's tumbling ticket, in sunny against the panel's paper. */
+.map-shell__ticket { color: var(--sunny-deep); }
+/* Keep the bottom inset for the part of the sheet below the screen, or its last rows (the account
+   links and the Dark mode switch) cannot be scrolled into view. */
+.map-shell :deep(.auth-prompt__content) { padding: 28px 22px calc(28px + var(--sheet-offset, 0px) + env(safe-area-inset-bottom, 0px)); }
 .map-shell--map-workspace.map-shell--side :deep(.auth-prompt__content) { padding-top: calc(var(--shell-header-bottom) + 20px); }
 .map-shell {
   --shell-gutter: var(--space-4);
@@ -594,6 +640,31 @@ onBeforeUnmount(() => document.documentElement.classList.remove('is-canvas'))
   }
 }
 
+/* Hidden until focused, then shown above the header in the top-left corner. */
+.map-shell__skip {
+  position: absolute;
+  top: calc(env(safe-area-inset-top, 0px) + var(--space-2));
+  left: calc(env(safe-area-inset-left, 0px) + var(--space-2));
+  z-index: 100;
+  padding: 10px 16px;
+  font-weight: 700;
+  color: var(--on-accent);
+  background: var(--sunny);
+  border-radius: var(--radius-pill);
+  box-shadow: var(--shadow-pill);
+  text-decoration: none;
+  transform: translateY(calc(-100% - 24px));
+}
+
+.map-shell__skip:focus {
+  transform: none;
+}
+
+/* Programmatic focus target for the skip link; the panel inside shows where focus went. */
+.map-shell__main:focus {
+  outline: none;
+}
+
 /* Leaflet's panes use z-indexes up to 1000; isolating the map keeps them under the overlays. */
 .map-shell__map {
   position: absolute;
@@ -604,41 +675,28 @@ onBeforeUnmount(() => document.documentElement.classList.remove('is-canvas'))
 
 .map-shell__controls {
   position: absolute;
-  right: calc(var(--panel-w) + 2 * var(--shell-gutter));
-  bottom: var(--space-6);
+  right: calc(20px + env(safe-area-inset-right, 0px));
+  bottom: 28px;
   z-index: 10;
 }
 
-/* With the panel tucked away, the controls follow it to the right edge. */
-.map-shell__controls > .map-controls {
-  transition: transform var(--dur-sheet) var(--ease-drawer);
-}
-
-.map-shell--collapsed {
-  --map-centre-x: 50%;
-}
-
-.map-shell--collapsed .map-shell__controls > .map-controls {
-  transform: translateX(calc(var(--panel-w) + var(--shell-gutter)));
-}
-
-/* A tab on the panel's left edge hides it; it stays on the screen edge to bring it back. Placed
+/* A tab on the drawer's right edge hides it; it stays beside the rail to bring it back. Placed
    with top, not a transform, because the list/map morph slides it with transform. */
 .map-shell__panel-tab {
   position: absolute;
   top: calc(50% - 28px);
-  right: calc(var(--panel-w) + var(--shell-gutter));
+  left: calc(var(--map-rail-w) + var(--panel-w));
   z-index: 21;
   display: grid;
   place-items: center;
   width: 28px;
   height: 56px;
   padding: 0;
-  color: var(--ink);
+  color: var(--on-accent);
   background: var(--sunny);
   border: 1px solid var(--hairline);
-  border-right: 0;
-  border-radius: 12px 0 0 12px;
+  border-left: 0;
+  border-radius: 0 12px 12px 0;
   box-shadow: var(--shadow-pill);
   cursor: pointer;
   transition:
@@ -650,7 +708,7 @@ onBeforeUnmount(() => document.documentElement.classList.remove('is-canvas'))
 }
 
 .map-shell__panel-tab:hover {
-  color: var(--ink);
+  color: var(--on-accent);
   background: var(--sunny);
 }
 
@@ -659,25 +717,11 @@ onBeforeUnmount(() => document.documentElement.classList.remove('is-canvas'))
   outline-offset: 2px;
 }
 
-.map-shell--collapsed .map-shell__panel-tab {
-  transform: translateX(calc(var(--panel-w) + var(--shell-gutter)));
-}
-
-.map-shell__hot {
-  position: absolute;
-  bottom: var(--shell-gutter);
-  left: var(--shell-gutter);
-  z-index: 10;
-}
 
 
 
 /* The deals route is a dedicated browse page. Keep the map mounted for fast toggling, but
    let the cards use the full canvas until the visitor explicitly asks for a map. */
-.map-shell--discovery .shell-panel--side {
-  top: calc(var(--shell-header-bottom) + var(--space-4));
-}
-
 .map-shell--deals-page:not(.map-shell--map-only) .map-shell__map {
   visibility: hidden;
   pointer-events: none;
@@ -722,30 +766,22 @@ onBeforeUnmount(() => document.documentElement.classList.remove('is-canvas'))
   pointer-events: none;
 }
 
-.map-shell--map-only .map-shell__controls {
-  right: var(--shell-gutter);
-}
-
-.map-shell--map-only .map-shell__controls > .map-controls {
-  transform: none;
-}
-
 .map-shell--bottom-nav .shell-panel--sheet {
   bottom: var(--bottom-nav-h);
 }
 
-/* Below 992px the panel is a bottom sheet: the header spans the screen, and the controls and
-   hot card ride just above the visible part of the sheet. */
+/* Below 992px the panel is a bottom sheet: the header spans the screen, and the controls ride
+   just above the visible part of the sheet. */
 .map-shell--sheet {
-  --shell-gutter: var(--space-3);
+  /* 16px, the same as the All Deals header, so the map and list views line up. */
+  --shell-gutter: var(--space-4);
   --header-w: calc(100% - 2 * var(--shell-gutter));
   --map-centre-x: 50%;
   --toast-top: calc(var(--shell-header-bottom) + var(--space-3));
   --toast-bottom: auto;
 }
 
-.map-shell--sheet .map-shell__controls,
-.map-shell--sheet .map-shell__hot {
+.map-shell--sheet .map-shell__controls {
   right: var(--space-4);
   bottom: calc(var(--space-4) + var(--bottom-nav-h, 0px));
   transform: translateY(calc(-1 * var(--sheet-visible)));
@@ -753,13 +789,11 @@ onBeforeUnmount(() => document.documentElement.classList.remove('is-canvas'))
 }
 
 .map-shell--map-only.map-shell--sheet .map-shell__controls {
-  bottom: calc(var(--space-4) + var(--bottom-nav-h, 0px));
+  /* Full-bleed map: clear the home indicator as well as the bottom tab bar. */
+  bottom: calc(var(--space-4) + var(--bottom-nav-h, 0px) + env(safe-area-inset-bottom, 0px));
   transform: none;
 }
 
-.map-shell--sheet .map-shell__hot {
-  left: var(--shell-gutter);
-}
 
 
 .map-shell--deals-page.map-shell--sheet:not(.map-shell--map-only) .map-shell__map {
@@ -770,12 +804,6 @@ onBeforeUnmount(() => document.documentElement.classList.remove('is-canvas'))
 @media (min-width: 768px) and (max-width: 991.98px) {
   .map-shell--sheet {
     --sheet-gutter: var(--space-3);
-  }
-}
-
-@media (max-width: 599.98px) {
-  .map-shell--sheet {
-    --shell-gutter: 10px;
   }
 }
 
@@ -812,6 +840,13 @@ onBeforeUnmount(() => document.documentElement.classList.remove('is-canvas'))
   scroll-padding-top: calc(var(--shell-header-bottom) + 8px);
 }
 
+/* Squad screens (create, join, room) bring their own scrolling body instead of PanelFrame's, so
+   they need the same clearance under the floating search field and Room button. */
+.map-shell--map-workspace.map-shell--side :deep(.squad-room__body) {
+  padding-top: calc(var(--shell-header-bottom) + 8px);
+  scroll-padding-top: calc(var(--shell-header-bottom) + 8px);
+}
+
 /* The back link's negative top margin would tuck it under the floating search field. */
 .map-shell--map-workspace.map-shell--side :deep(.panel-frame__back) {
   margin-top: 0;
@@ -827,6 +862,11 @@ onBeforeUnmount(() => document.documentElement.classList.remove('is-canvas'))
 .map-shell--map-workspace :deep(.food-deal-grid) {
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 16px 12px;
+}
+
+/* The venue page asks for two wider cards instead. */
+.map-shell--map-workspace :deep(.food-deal-grid--two) {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .map-shell--map-workspace :deep(.food-deal-card__body) {
@@ -845,24 +885,6 @@ onBeforeUnmount(() => document.documentElement.classList.remove('is-canvas'))
     visibility 0s linear var(--dur-sheet);
 }
 
-.map-shell--map-workspace.map-shell--side .map-shell__controls {
-  right: 20px;
-  bottom: 28px;
-}
-
-.map-shell--map-workspace .map-shell__controls > .map-controls {
-  transform: none;
-}
-
-.map-shell--map-workspace .map-shell__panel-tab {
-  right: auto;
-  left: calc(var(--map-rail-w) + var(--panel-w));
-  border-right: 1px solid var(--hairline);
-  border-left: 0;
-  border-radius: 0 12px 12px 0;
-  transform: none;
-}
-
 .map-shell--map-workspace.map-shell--collapsed .map-shell__panel-tab {
   transform: translateX(calc(-1 * var(--panel-w)));
 }
@@ -872,8 +894,6 @@ onBeforeUnmount(() => document.documentElement.classList.remove('is-canvas'))
   .map-shell--map-workspace.map-shell--side .shell-panel--side,
   .map-shell--map-workspace.map-shell--side .shell-panel--side.is-collapsed,
   .map-shell--sheet .map-shell__controls,
-  .map-shell--sheet .map-shell__hot,
-  .map-shell__controls > .map-controls,
   .map-shell__panel-tab {
     transition: none;
   }

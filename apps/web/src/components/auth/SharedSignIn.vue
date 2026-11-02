@@ -91,10 +91,11 @@ const recovered = () => { recovery.value = false; notice.value = 'Password reset
     <p v-if="notice" role="status">{{ notice }}</p>
     <form @submit.prevent="signIn" :aria-busy="pending">
       <label for="admin-email" class="form-label">Email</label>
-      <input id="admin-email" v-model="email" type="email" autocomplete="username" class="form-control mb-3" required />
+      <input id="admin-email" v-model="email" name="email" type="email" autocomplete="username" spellcheck="false" autocapitalize="none" class="form-control mb-3" :aria-describedby="error ? 'sign-in-error' : undefined" required />
       <label for="admin-password" class="form-label">Password</label>
-      <input id="admin-password" v-model="password" type="password" autocomplete="current-password" class="form-control mb-3" :disabled="pending" required />
-      <p v-if="error" role="alert" class="text-danger">{{ error }}</p>
+      <input id="admin-password" v-model="password" name="password" type="password" autocomplete="current-password" class="form-control mb-3" :aria-describedby="error ? 'sign-in-error' : undefined" :disabled="pending" required />
+      <!-- Always mounted so each new sign-in error is announced; the fields point at it. -->
+      <div role="alert"><p v-if="error" id="sign-in-error" class="text-danger">{{ error }}</p></div>
       <button class="btn btn-primary" type="submit" :disabled="pending">{{ pending ? 'Signing in…' : 'Sign in' }}</button>
     </form>
     <div class="d-flex flex-wrap gap-2 mt-3">
@@ -106,7 +107,7 @@ const recovered = () => { recovery.value = false; notice.value = 'Password reset
     <form v-if="issuedEmail" data-testid="otp-form" class="mt-3" @submit.prevent="redeemCode" :aria-busy="pending">
       <p role="status">If email sign-in is available, check your email for a six digit sign-in code.</p>
       <label for="sign-in-code" class="form-label">Sign-in code</label>
-      <input id="sign-in-code" v-model="code" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]{6}" class="form-control mb-3" :disabled="pending" required />
+      <input id="sign-in-code" v-model="code" name="one-time-code" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]{6}" class="form-control mb-3" :disabled="pending" required />
       <button type="submit" class="btn btn-primary" :disabled="pending">Sign in with code</button>
     </form>
     </div>

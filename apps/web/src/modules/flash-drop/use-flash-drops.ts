@@ -38,13 +38,17 @@ export const createFlashDrops = (session: Session) => {
     }
   }
 
-  const loadCodes = async () => {
+  // Resolves false when the codes could not be loaded, so My codes can offer a retry instead of
+  // claiming there are none.
+  const loadCodes = async (): Promise<boolean> => {
     const request = ++latestCodes
     try {
       const response = await api.flashDrops.myCodes()
       if (request === latestCodes) codes.value = response.items
+      return true
     } catch (error) {
       console.error('Could not load flash codes', error)
+      return false
     }
   }
 

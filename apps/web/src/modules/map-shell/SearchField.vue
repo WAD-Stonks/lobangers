@@ -64,22 +64,28 @@ onBeforeUnmount(cancel)
         class="search-field__input"
         type="search"
         enterkeyhint="search"
+        name="q"
         autocomplete="off"
-        placeholder="Search dishes or stalls"
+        spellcheck="false"
+        placeholder="Search dishes or stalls…"
         :maxlength="MAX_LENGTH"
         :value="text"
         @input="onInput"
       />
     </label>
-    <button v-if="text" type="button" class="search-field__clear" aria-label="Clear search" @click="clear">
-      <ShellIcon name="close" :size="14" :stroke-width="2.6" />
-    </button>
+    <Transition name="search-clear">
+      <button v-if="text" type="button" class="search-field__clear" aria-label="Clear search" @click="clear">
+        <ShellIcon name="close" :size="14" :stroke-width="2.6" />
+      </button>
+    </Transition>
     <button v-if="submitButton" class="search-field__submit" type="submit" aria-label="Search deals"><ShellIcon name="search" :size="18" /></button>
   </form>
 </template>
 
 <style scoped>
-.search-field__submit { display: grid; place-items: center; flex: none; width: var(--hit); height: var(--hit); padding: 0; border: 0; border-radius: 50%; color: var(--ink); background: var(--sunny); cursor: pointer; }
+.search-field__submit { display: grid; place-items: center; flex: none; width: var(--hit); height: var(--hit); padding: 0; border: 0; border-radius: 50%; color: var(--on-accent); background: var(--sunny); cursor: pointer; transition: transform var(--dur-press) var(--ease-out), background-color 150ms ease; touch-action: manipulation; }
+.search-field__submit:hover { background: var(--sunny-deep); }
+.search-field__submit:active { transform: scale(0.92); }
 .search-field__submit:focus-visible { outline: 3px solid var(--sunny-ring); outline-offset: 2px; }
 
 .search-field {
@@ -91,10 +97,15 @@ onBeforeUnmount(cancel)
   height: var(--control-h);
   padding: 0 4px 0 18px;
   border-radius: var(--radius-pill);
+  transition:
+    border-color 150ms ease,
+    box-shadow var(--dur-small) var(--ease-out);
 }
 
+/* Focus grows a soft coral halo around the pill. */
 .search-field:focus-within {
   border-color: var(--coral);
+  box-shadow: var(--shadow-card), 0 0 0 4px var(--coral-soft);
 }
 
 .search-field__label {
@@ -110,6 +121,11 @@ onBeforeUnmount(cancel)
 
 .search-field__icon {
   color: var(--ink-muted);
+  transition: color 150ms ease;
+}
+
+.search-field:focus-within .search-field__icon {
+  color: var(--coral-deep);
 }
 
 /* 16px so iOS Safari doesn't zoom in on focus. */
@@ -152,10 +168,45 @@ onBeforeUnmount(cancel)
   z-index: -1;
   background: var(--paper-sunk);
   border-radius: 50%;
+  transition: transform var(--dur-press) var(--ease-out);
+}
+
+.search-field__clear:active::before {
+  transform: scale(0.88);
 }
 
 .search-field__clear:focus-visible {
   outline: 3px solid var(--sunny-ring);
   outline-offset: -2px;
+}
+
+.search-clear-enter-active {
+  transition:
+    opacity 150ms var(--ease-out),
+    transform 150ms var(--ease-out);
+}
+
+.search-clear-leave-active {
+  transition: opacity 100ms ease;
+}
+
+.search-clear-enter-from {
+  opacity: 0;
+  transform: scale(0.8);
+}
+
+.search-clear-leave-to {
+  opacity: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .search-clear-enter-from {
+    transform: none;
+  }
+
+  .search-field__submit:active,
+  .search-field__clear:active::before {
+    transform: none;
+  }
 }
 </style>

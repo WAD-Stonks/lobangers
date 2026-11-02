@@ -1,22 +1,37 @@
 <script setup lang="ts">
-import { nextTick, onMounted, ref } from 'vue'
+import { useSheetFocus } from '@web/modules/squad/use-sheet-focus'
+import { ref } from 'vue'
 
 // A small confirm sheet on the dark room surface ("Close the lobby?", "Remove Noah?"). Focus
-// starts on the safe choice; Escape or tapping outside keeps things as they are.
-withDefaults(
-  defineProps<{ title: string; body: string; confirmLabel: string; cancelLabel: string; busy?: boolean }>(),
-  { busy: false },
+// starts on the safe choice and stays inside; Escape or tapping outside keeps things as they
+// are, and focus goes back to the button that opened it.
+const props = withDefaults(
+  defineProps<{
+    title: string
+    body: string
+    confirmLabel: string
+    cancelLabel: string
+    busy?: boolean
+    returnFocus?: HTMLElement | null
+  }>(),
+  { busy: false, returnFocus: null },
 )
 const emit = defineEmits<{ confirm: []; cancel: [] }>()
 
+const dialog = ref<HTMLElement | null>(null)
 const cancelButton = ref<HTMLButtonElement | null>(null)
-onMounted(() => void nextTick(() => cancelButton.value?.focus()))
+const { onKeydown } = useSheetFocus({
+  root: dialog,
+  initial: cancelButton,
+  returnTo: () => props.returnFocus,
+  onEscape: () => emit('cancel'),
+})
 </script>
 
 <template>
   <div class="squad-overlay squad-overlay--fixed">
     <button type="button" class="squad-overlay__scrim" :aria-label="cancelLabel" tabindex="-1" @click="emit('cancel')" />
-    <div class="squad-sheet" role="dialog" aria-modal="true" aria-labelledby="squad-confirm-title" @keydown.escape="emit('cancel')">
+    <div ref="dialog" class="squad-sheet" role="dialog" aria-modal="true" aria-labelledby="squad-confirm-title" @keydown="onKeydown">
       <h2 id="squad-confirm-title" class="squad-sheet__title">{{ title }}</h2>
       <p>{{ body }}</p>
       <div class="squad-sheet__actions">

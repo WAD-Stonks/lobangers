@@ -97,19 +97,37 @@ const claim = async () => {
 
 <style scoped>
 .flash-claim {
+  /* A dark card by day. At night an inverted (light) card would glare inside a dark panel, so it
+     becomes a raised dark surface with a coral edge instead. */
+  --claim-bg: var(--ink-strong);
+  --claim-text: var(--on-ink);
+  --claim-accent: #f3a58e;
+  --claim-muted: #c9c6bf;
+  --claim-edge: transparent;
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
   padding: 14px 16px 16px;
-  color: var(--paper-white);
-  background: var(--ink-strong);
+  color: var(--claim-text);
+  background: var(--claim-bg);
   border-radius: var(--radius-card, 18px);
+  box-shadow: inset 0 0 0 1px var(--claim-edge);
+}
+
+.app-palette[data-theme='dark'] .flash-claim {
+  --claim-bg: var(--paper-sunk);
+  --claim-text: var(--ink);
+  --claim-accent: var(--coral-deep);
+  --claim-muted: var(--ink-muted);
+  --claim-edge: var(--coral-ring);
 }
 
 .flash-claim__head {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 8px;
+  min-width: 0;
 }
 
 .flash-claim__live {
@@ -127,7 +145,7 @@ const claim = async () => {
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: #f3a58e;
+  color: var(--claim-accent);
 }
 
 .flash-claim__timer {
@@ -136,12 +154,14 @@ const claim = async () => {
   font-size: 13px;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
+  color: var(--on-ink);
   background: var(--coral);
   border-radius: 9px;
 }
 
 .flash-claim__price {
   display: flex;
+  flex-wrap: wrap;
   align-items: baseline;
   gap: 10px;
   margin: 0;
@@ -155,14 +175,14 @@ const claim = async () => {
 }
 
 .flash-claim__price s {
-  color: #c9c6bf;
+  color: var(--claim-muted);
 }
 
 .flash-claim__saving {
   padding: 3px 7px;
   font-size: 12px;
   font-weight: 700;
-  color: var(--ink);
+  color: var(--on-accent);
   background: var(--sunny);
   border-radius: 8px;
 }
@@ -171,16 +191,17 @@ const claim = async () => {
 .flash-claim__note {
   margin: 0;
   font-size: var(--text-xs);
-  color: #c9c6bf;
+  color: var(--claim-muted);
 }
 
 .flash-claim__note {
-  color: var(--paper-white);
+  color: var(--claim-text);
 }
 
 .flash-claim__action {
   align-self: stretch;
   margin-top: 4px;
+  touch-action: manipulation;
 }
 
 .flash-claim__code {
@@ -205,6 +226,7 @@ const claim = async () => {
 }
 
 .flash-claim__code-value {
+  overflow-wrap: anywhere;
   font-family: var(--font-display);
   font-size: 1.6rem;
   letter-spacing: 0.12em;
@@ -220,7 +242,7 @@ const claim = async () => {
   margin: 0;
   font-size: var(--text-xs);
   font-weight: 600;
-  color: #f3a58e;
+  color: var(--claim-accent);
 }
 
 @keyframes flash-claim-blink {

@@ -4,7 +4,7 @@ import { OUTLET_NOT_CONFIRMED } from '@web/modules/browse-map/deal-format'
 import { regions } from '@web/modules/landing/deals'
 import { isLikelyStillOn, landingDealLink, promotionDates, venuesInRegion } from '@web/modules/landing/live-deals'
 import type { LandingDealsStatus } from '@web/modules/landing/use-landing-deals'
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { RouterLink } from 'vue-router'
 
 const emit = defineEmits<{ retry: [] }>()
@@ -37,15 +37,8 @@ const filtered = computed(() =>
   ),
 )
 const page = ref(0)
+// Four deals per page; landing-refinements.css lays them out in four or two columns.
 const pageSize = ref(4)
-const columnCount = ref(4)
-const updatePageSize = () => {
-  columnCount.value = window.innerWidth <= 1100 ? 2 : 4
-}
-onMounted(() => {
-  updatePageSize()
-  window.addEventListener('resize', updatePageSize)
-})
 let touchStart: { x: number; y: number } | null = null
 const startSwipe = (event: TouchEvent) => {
   const touch = event.touches[0]
@@ -67,9 +60,6 @@ const endSwipe = (event: TouchEvent) => {
 const pageCount = computed(() => Math.ceil(filtered.value.length / pageSize.value))
 const visibleDeals = computed(() => filtered.value.slice(page.value * pageSize.value, (page.value + 1) * pageSize.value))
 watch(filtered, () => { page.value = 0 }, { flush: 'sync' })
-onBeforeUnmount(() => {
-  window.removeEventListener('resize', updatePageSize)
-})
 </script>
 
 <template>
@@ -94,9 +84,9 @@ onBeforeUnmount(() => {
         </select>
       </div>
     </div>
-    <div v-if="liveState === 'loading'" role="status" aria-busy="true">
+    <div v-if="liveState === 'loading'" role="status">
       <p>Loading current food deals…</p>
-      <div class="landing-deal-grid" :style="{ gridTemplateColumns: `repeat(${columnCount}, minmax(0, 1fr))` }" aria-hidden="true">
+      <div class="landing-deal-grid" aria-hidden="true">
         <div v-for="index in pageSize" :key="index" class="landing-food-card landing-skeleton-card">
           <div class="landing-food-photo landing-skeleton" />
           <div class="landing-food-content"><span class="landing-skeleton" /><span class="landing-skeleton" /><span class="landing-skeleton" /></div>
@@ -106,11 +96,11 @@ onBeforeUnmount(() => {
     <div v-else-if="liveState === 'error'" class="landing-deals-error" role="alert">
       <p>Deals couldn't load right now.</p>
       <button type="button" class="landing-button secondary" @click="emit('retry')">Retry loading deals</button>
-      <RouterLink to="/browse">Explore the deal map →</RouterLink>
+      <RouterLink to="/browse">Explore the deal map <span aria-hidden="true">→</span></RouterLink>
     </div>
     <template v-else>
       <div class="landing-carousel">
-      <div id="landing-deal-carousel" class="landing-deal-grid" :style="{ gridTemplateColumns: `repeat(${columnCount}, minmax(0, 1fr))` }" @touchstart.passive="startSwipe" @touchend="endSwipe" @touchcancel="touchStart = null">
+      <div id="landing-deal-carousel" class="landing-deal-grid" @touchstart.passive="startSwipe" @touchend="endSwipe" @touchcancel="touchStart = null">
         <article v-for="deal in visibleDeals" :key="deal.id" class="landing-food-card" :aria-labelledby="`landing-offer-${deal.id} landing-restaurant-${deal.id}`">
           <RouterLink class="landing-card-link" :to="dealLink(deal)" :aria-label="`View ${deal.title}`" />
           <div class="landing-food-photo">
@@ -127,7 +117,7 @@ onBeforeUnmount(() => {
             </div>
             <div class="landing-outlet-summary">
               <span v-if="deal.outletUnconfirmed" class="landing-outlet-unsure" data-testid="outlet-unconfirmed">{{ OUTLET_NOT_CONFIRMED }}</span>
-              <button v-if="deal.venues.length > 1" type="button" class="landing-outlet-button" :aria-label="`View all ${deal.venues.length} outlets for ${deal.title}`" @click="openOutlets(deal)">+{{ deal.venues.length - 1 }} more {{ deal.venues.length === 2 ? 'outlet' : 'outlets' }}</button>
+              <button v-if="deal.venues.length > 1" type="button" class="landing-outlet-button" aria-haspopup="dialog" @click="openOutlets(deal)">+{{ deal.venues.length - 1 }} more {{ deal.venues.length === 2 ? 'outlet' : 'outlets' }}<span class="visually-hidden"> for {{ deal.title }}</span></button>
               <span v-else-if="!deal.venues.length" class="landing-outlet-count">{{ deal.venues.length === 0 ? 'No outlets listed' : '' }}</span>
             </div>
             <div class="landing-card-meta">
@@ -155,7 +145,7 @@ onBeforeUnmount(() => {
         <button type="button" aria-label="Close outlets" @click="outletDialog?.close()">✕</button>
       </div>
       <label for="landing-outlet-search">Find an outlet</label>
-      <input id="landing-outlet-search" v-model="outletSearch" type="search" placeholder="Search by outlet name" />
+      <input id="landing-outlet-search" v-model="outletSearch" type="search" name="outlet-search" autocomplete="off" spellcheck="false" placeholder="Search by outlet name…" />
       <p role="status">{{ visibleOutlets.length }} of {{ outletDeal?.venues.length ?? 0 }} outlets</p>
       <ul class="landing-outlet-list">
         <li v-for="venue in visibleOutlets" :key="venue.id"><RouterLink :to="outletDeal ? landingDealLink(outletDeal, venue.id) : '/browse'" @click="outletDialog?.close()">{{ venue.name }} <span aria-hidden="true">↗</span></RouterLink></li>

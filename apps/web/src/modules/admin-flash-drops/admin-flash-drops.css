@@ -1,7 +1,7 @@
 /* Admin Flash Drop review. Matches the overview's 14px cards, accent headings and status pills. */
 .fd-panel {
   --fd-radius: 14px;
-  --fd-line: #edf0f3;
+  --fd-line: var(--admin-line);
   display: grid;
   gap: 24px;
   min-width: 0;
@@ -15,7 +15,7 @@
 }
 .fd-description {
   margin: 0 0 6px;
-  color: #535e6e;
+  color: var(--admin-secondary-text);
   font-size: 14px;
 }
 .fd-updated {
@@ -27,7 +27,7 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  background: #fff;
+  background: var(--admin-surface);
 }
 .fd-refresh-symbol {
   font-size: 20px;
@@ -36,15 +36,15 @@
 .fd-notice {
   margin: 0;
   padding: 12px 16px;
-  border: 1px solid #f1e6b9;
+  border: 1px solid var(--admin-accent-border);
   border-radius: 10px;
-  background: #fffbea;
-  color: #5c4700;
+  background: var(--admin-accent-wash);
+  color: var(--admin-notice-ink);
 }
 .fd-success {
-  border-color: #d6e9dc;
-  background: #f5faf6;
-  color: #285c3b;
+  border-color: var(--admin-success-border);
+  background: var(--admin-success-wash);
+  color: var(--admin-success-ink);
 }
 .fd-alert {
   display: flex;
@@ -54,10 +54,10 @@
   gap: 8px 16px;
   margin: 0;
   padding: 12px 16px;
-  border: 1px solid #f1d9d3;
+  border: 1px solid var(--admin-danger-border);
   border-radius: 10px;
-  background: #fff1ee;
-  color: #912d27;
+  background: var(--admin-danger-bg);
+  color: var(--admin-danger-ink);
 }
 .fd-alert p {
   margin: 0;
@@ -81,10 +81,10 @@
   width: 100%;
   height: 100%;
   padding: 20px 24px;
-  border: 1px solid #e5e8ed;
+  border: 1px solid var(--admin-card-border);
   border-radius: var(--fd-radius);
-  background: #fff;
-  box-shadow: 0 3px 14px #20242b04;
+  background: var(--admin-surface);
+  box-shadow: var(--admin-shadow-card);
   color: inherit;
   font: inherit;
   text-align: left;
@@ -95,13 +95,13 @@
     background-color 150ms ease;
 }
 .fd-metric:hover {
-  border-color: #d6bd66;
-  background: #fffdf5;
-  box-shadow: 0 5px 18px #7c64100b;
+  border-color: var(--admin-accent-border-strong);
+  background: var(--admin-accent-hover-bg);
+  box-shadow: var(--admin-shadow-lift);
 }
 .fd-metric[data-current="true"] {
-  border-color: #d6bd66;
-  background: #fffdf5;
+  border-color: var(--admin-accent-border-strong);
+  background: var(--admin-accent-hover-bg);
 }
 .fd-metric-label {
   display: flex;
@@ -109,7 +109,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  color: #5f6875;
+  color: var(--admin-muted);
   font-size: 13px;
 }
 .fd-metric-icon {
@@ -117,20 +117,20 @@
   place-items: center;
   flex: 0 0 38px;
   height: 38px;
-  border: 1px solid #f1e6b9;
+  border: 1px solid var(--admin-accent-border);
   border-radius: 11px;
-  color: #826517;
-  background: #fff8dc;
+  color: var(--admin-accent-ink);
+  background: var(--admin-accent-soft);
 }
 .fd-metric-icon--live {
-  border-color: #f3d2c6;
-  color: #a8432a;
-  background: #fff1ec;
+  border-color: var(--admin-live-border);
+  color: var(--admin-live-ink);
+  background: var(--admin-live-bg);
 }
 .fd-metric-icon--neutral {
-  border-color: #e5e8ed;
-  color: #667184;
-  background: #f5f6f8;
+  border-color: var(--admin-card-border);
+  color: var(--admin-icon-ink);
+  background: var(--admin-neutral-bg);
 }
 .fd-metric strong {
   font-size: 40px;
@@ -149,8 +149,8 @@
 .fd-queue.card {
   padding: 24px;
   border-radius: var(--fd-radius);
-  border-color: #e5e8ed;
-  box-shadow: 0 3px 14px #20242b04;
+  border-color: var(--admin-card-border);
+  box-shadow: var(--admin-shadow-card);
 }
 .fd-panel h2 {
   margin: 0 0 4px;
@@ -192,11 +192,11 @@
 }
 .fd-tabs .btn[aria-selected="true"] {
   --bs-btn-bg: var(--admin-text);
-  --bs-btn-color: #fff;
+  --bs-btn-color: var(--admin-on-strong);
   --bs-btn-border-color: var(--admin-text);
-  --bs-btn-hover-bg: #343a44;
-  --bs-btn-hover-color: #fff;
-  --bs-btn-hover-border-color: #343a44;
+  --bs-btn-hover-bg: var(--admin-strong-hover);
+  --bs-btn-hover-color: var(--admin-on-strong);
+  --bs-btn-hover-border-color: var(--admin-strong-hover);
 }
 .fd-ops {
   display: grid;
@@ -226,7 +226,7 @@
   padding: 14px 20px 14px 24px;
   border: 0;
   border-bottom: 1px solid var(--fd-line);
-  background: #fff;
+  background: var(--admin-surface);
   color: inherit;
   font: inherit;
   text-align: left;
@@ -235,10 +235,10 @@
   touch-action: manipulation;
 }
 .fd-record:hover {
-  background: #fffdf6;
+  background: var(--admin-accent-hover-bg);
 }
 .fd-record[aria-current="true"] {
-  background: #fffbea;
+  background: var(--admin-accent-wash);
 }
 .fd-record[aria-current="true"]::before {
   position: absolute;
@@ -270,42 +270,42 @@
   display: inline-block;
   flex: none;
   padding: 3px 9px;
-  border: 1px solid #dde2ea;
+  border: 1px solid var(--admin-neutral-status-border);
   border-radius: 20px;
-  background: #edf0f4;
-  color: #465366;
+  background: var(--admin-neutral-status-bg);
+  color: var(--admin-neutral-status-ink);
   font-size: 11px;
   font-weight: 600;
   white-space: nowrap;
 }
 .fd-status[data-tone="review"] {
-  background: #fff8dc;
-  border-color: #f1e6b9;
-  color: #6a5100;
+  background: var(--admin-accent-soft);
+  border-color: var(--admin-accent-border);
+  color: var(--admin-warning-ink);
 }
 .fd-status[data-tone="live"] {
-  background: #fff1ec;
-  border-color: #f3d2c6;
-  color: #a8432a;
+  background: var(--admin-live-bg);
+  border-color: var(--admin-live-border);
+  color: var(--admin-live-ink);
 }
 .fd-status[data-tone="ok"] {
-  background: #edf7f0;
-  border-color: #d6e9dc;
-  color: #285c3b;
+  background: var(--admin-success-bg);
+  border-color: var(--admin-success-border);
+  color: var(--admin-success-ink);
 }
 .fd-status[data-tone="bad"] {
-  background: #fff1ee;
-  border-color: #f1d9d3;
-  color: #912d27;
+  background: var(--admin-danger-bg);
+  border-color: var(--admin-danger-border);
+  color: var(--admin-danger-ink);
 }
 .fd-fake {
   display: inline-flex;
   align-items: center;
   padding: 1px 7px;
-  border: 1px dashed #b98a12;
+  border: 1px dashed var(--admin-fake-border);
   border-radius: 6px;
-  background: #fffbea;
-  color: #7a5a00;
+  background: var(--admin-accent-wash);
+  color: var(--admin-fake-ink);
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.02em;

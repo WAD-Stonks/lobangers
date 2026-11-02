@@ -2,15 +2,21 @@
 import type { SquadDeal, SquadState } from '@broke-oclock/contracts/squad'
 import { THUMBS_DOWN_URL, THUMBS_UP_URL } from '@web/modules/squad/avatar-art'
 import { computed } from 'vue'
+import type { RouteLocationRaw } from 'vue-router'
 
 // What the room does next, at the bottom where thumbs reach: Yay and Nah while voting (tap as
 // often as you like), Vote again or Next deal once a vote falls short, the match, or the end
 // of the list. People who joined late watch; the buttons tell them why they can't vote.
-const props = defineProps<{ state: SquadState; deal: SquadDeal | null; busy: boolean }>()
+// `dealLink` builds the deal page link, so "Open the deal" is a real link.
+const props = defineProps<{
+  state: SquadState
+  deal: SquadDeal | null
+  busy: boolean
+  dealLink: (dealId: string) => RouteLocationRaw
+}>()
 const emit = defineEmits<{
   tap: [stance: 'YAY' | 'NAH']
   choose: [choice: 'AGAIN' | 'NEXT']
-  open: [dealId: string]
   addDeals: []
   close: []
 }>()
@@ -86,14 +92,14 @@ const percent = computed(() =>
     <template v-else-if="state.phase === 'MATCHED' && matched">
       <div class="squad-dock__actions">
         <a v-if="directions(matched)" class="lb-btn lb-btn--primary" :href="directions(matched) ?? undefined" target="_blank" rel="noopener noreferrer">Get directions</a>
-        <button type="button" class="lb-btn squad-btn-dark" @click="emit('open', matched.id)">Open the deal</button>
+        <RouterLink class="lb-btn squad-btn-dark" :to="dealLink(matched.id)">Open the deal</RouterLink>
       </div>
     </template>
 
     <template v-else-if="state.phase === 'OUT_OF_DEALS'">
       <p class="squad-dock__lead">That's all {{ state.deals.length }} {{ state.deals.length === 1 ? 'deal' : 'deals' }}! No match this time.</p>
       <div class="squad-dock__actions">
-        <button v-if="top" type="button" class="lb-btn lb-btn--primary" @click="emit('open', top.id)">Go with the top pick: {{ top.title }}</button>
+        <RouterLink v-if="top" class="lb-btn lb-btn--primary" :to="dealLink(top.id)">Go with the top pick: {{ top.title }}</RouterLink>
         <template v-if="isHost">
           <button type="button" class="lb-btn squad-btn-dark" :disabled="busy" @click="emit('addDeals')">Add more deals</button>
           <button type="button" class="squad-link squad-link--danger" :disabled="busy" @click="emit('close')">Close the room</button>

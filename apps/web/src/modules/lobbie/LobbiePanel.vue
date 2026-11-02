@@ -36,6 +36,8 @@ onMounted(() => {
 
 const toDeal = (row: DealRow) => lobbieDealLocation(route.query, row.deal.id, row.venue.id)
 
+// The composer stays focusable while Lobbie replies (readonly, not disabled), so this guard is
+// what stops a second message going out mid-reply.
 const submit = () => {
   if (!canSend.value) return
   const text = draft.value
@@ -179,8 +181,10 @@ watch(
           v-model="draft"
           class="lobbie__input"
           type="text"
+          name="message"
           :maxlength="ASSISTANT_MESSAGE_MAX_CHARS"
-          :disabled="chat.pending.value"
+          :readonly="chat.pending.value"
+          :aria-disabled="chat.pending.value ? 'true' : undefined"
           :placeholder="chat.pending.value ? 'Lobbie is typing…' : 'Ask for a lobang…'"
           autocomplete="off"
           enterkeyhint="send"
@@ -270,7 +274,7 @@ watch(
 }
 
 .lobbie__entry--user .lobbie__bubble {
-  color: var(--paper-white);
+  color: var(--on-ink);
   background: var(--ink-strong);
   border-radius: 18px 18px 6px 18px;
 }
@@ -421,6 +425,8 @@ watch(
   gap: var(--space-2);
   align-items: center;
   min-width: 0;
+  /* When the keyboard opens, scrolling the composer into view leaves room for the home bar. */
+  scroll-margin-bottom: max(var(--space-3), env(safe-area-inset-bottom));
 }
 
 .lobbie__input {
@@ -445,9 +451,16 @@ watch(
   box-shadow: 0 0 0 3px var(--sunny-ring);
 }
 
-.lobbie__input:disabled {
+.lobbie__input:read-only {
   cursor: progress;
   opacity: 0.7;
+}
+
+/* 16px on touch screens so iOS does not zoom the page when the composer takes focus. */
+@media (pointer: coarse) {
+  .lobbie__input {
+    font-size: max(1rem, var(--text-sm));
+  }
 }
 
 .lobbie__send {
@@ -457,7 +470,7 @@ watch(
   width: var(--hit);
   height: var(--hit);
   padding: 0;
-  color: var(--paper-white);
+  color: var(--on-ink);
   background: var(--ink-strong);
   border: 0;
   border-radius: 50%;

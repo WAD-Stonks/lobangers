@@ -1,4 +1,4 @@
-import { FILTER_QUERY_KEYS, type ShellView } from '@web/modules/map-shell/filter-query'
+import { FILTER_QUERY_KEYS, readView, type ShellView } from '@web/modules/map-shell/filter-query'
 import type { LocationQuery, RouteLocationRaw, RouteRecordNameGeneric } from 'vue-router'
 
 // Links between shell panels carry the visitor's filters, sort and view along, so going back
@@ -52,6 +52,16 @@ export const venueLocation = (query: LocationQuery, venueId: string): RouteLocat
   params: { venueId },
   query: shellQuery(query),
 })
+
+// Only deal browsing has an All Deals list. Every other panel (account prompts, Squad, codes,
+// Lobbie) opens beside the map, even when its entry link carries the list's view.
+const LIST_PANELS: readonly string[] = ['browse', 'saved', 'deal', 'venue']
+
+export const routeView = (route: {
+  readonly name?: RouteRecordNameGeneric | null
+  readonly query: LocationQuery
+}): ShellView =>
+  typeof route.name === 'string' && LIST_PANELS.includes(route.name) ? readView(route.query) : 'map'
 
 // Snap index (0 peek, 1 half, 2 full) a panel opens at on a bottom sheet. Forms and the list
 // view need room; browsing and deal details leave the map visible.

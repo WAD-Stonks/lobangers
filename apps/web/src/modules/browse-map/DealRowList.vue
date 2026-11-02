@@ -49,7 +49,7 @@ const isHot = (row: DealRow) => {
       >
         <span class="lb-tag deal-rows__status" :class="[`lb-tag--${dealFreshness(row.deal).tone}`, { 'is-expired': dealFreshness(row.deal).label === 'Expired', 'is-conflicting': dealFreshness(row.deal).label === 'Mixed reports' }]">{{ dealFreshness(row.deal).label }}</span>
         <span class="deal-rows__media" :class="{ 'deal-rows__media--placeholder': !row.deal.imageUrl && !row.deal.images[0] }">
-          <DealImage v-if="row.deal.imageUrl || row.deal.images[0]" :key="row.deal.id" class="deal-rows__image" :url="row.deal.imageUrl || row.deal.images[0]?.url" :alt="row.deal.imageAltText?.trim() || row.deal.images[0]?.alt || row.deal.title" />
+          <DealImage v-if="row.deal.imageUrl || row.deal.images[0]" :key="row.deal.id" class="deal-rows__image" :url="row.deal.imageUrl || row.deal.images[0]?.url" :alt="row.deal.imageAltText?.trim() || row.deal.images[0]?.alt || ''" />
           <CategoryBubble v-else :category="row.deal.category" :title="row.deal.title" :venue="row.venue.name" size="md" />
         </span>
         <span class="deal-rows__text">
@@ -86,6 +86,17 @@ const isHot = (row: DealRow) => {
   position: relative;
   min-width: 0;
   transition: transform 180ms ease;
+  /* New rows rise in, the first nine staggered. `backwards` releases transform afterwards so
+     the hover lift still works. Rows kept across a filter change don't replay. */
+  animation: deal-row-in 220ms var(--ease-out) backwards;
+  animation-delay: calc(var(--i, 0) * 30ms);
+}
+
+@keyframes deal-row-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
 }
 
 .deal-rows__row {
@@ -104,6 +115,11 @@ const isHot = (row: DealRow) => {
   text-decoration: none;
   border-radius: 16px;
   transition: box-shadow 180ms ease;
+  /* Long result lists: rows far off screen skip layout and paint until they scroll near.
+     `auto` remembers each row's real height once shown; skipped rows stay focusable and
+     findable in the page. On the link, not the <li>, so its hover shadow isn't clipped. */
+  content-visibility: auto;
+  contain-intrinsic-size: auto 220px;
 }
 
 .deal-rows > li:has(.deal-rows__row:active) {
@@ -142,7 +158,7 @@ const isHot = (row: DealRow) => {
   align-self: stretch;
   min-height: 140px;
   aspect-ratio: 4 / 5;
-  background: #e1e4e8;
+  background: var(--tint-other);
 }
 
 .deal-rows__image {
@@ -186,7 +202,7 @@ const isHot = (row: DealRow) => {
   place-items: center;
   width: 100%;
   aspect-ratio: 1;
-  background: #e1e4e8;
+  background: var(--tint-other);
 }
 
 /* biome-ignore lint/style/noDescendingSpecificity: the earlier, more specific rule is a modifier override for a different state of the same element */
@@ -270,11 +286,11 @@ const isHot = (row: DealRow) => {
   white-space: normal;
 }
 
-.deal-rows__status.is-conflicting { color: var(--bs-danger, #dc3545); background: #fde2e2; }
+.deal-rows__status.is-conflicting { color: var(--tag-end-ink); background: var(--tag-end-bg); }
 
 .deal-rows__status.is-expired,
 .deal-rows__ending.is-expired {
-  color: var(--bs-danger, #dc3545);
+  color: var(--coral-deep);
 }
 
 .deal-rows__chevron {
@@ -285,10 +301,17 @@ const isHot = (row: DealRow) => {
 @media (prefers-reduced-motion: reduce) {
   .deal-rows > li,
   .deal-rows__row { transition: none; }
+  .deal-rows > li { animation-name: deal-row-fade; }
   .deal-rows > li:hover,
   .deal-rows > li.is-hot,
   .deal-rows > li:has(.deal-rows__row:active) {
     transform: none;
+  }
+}
+
+@keyframes deal-row-fade {
+  from {
+    opacity: 0;
   }
 }
 </style>

@@ -109,13 +109,14 @@ export const createSquadRoom = () => {
   }
 
   // Follows a room by code; the first sync loads it without replaying old effects.
-  const open = (next: string) => {
+  // keepState holds the room a create/join just returned so the lobby shows at once, not a blank wait.
+  const open = (next: string, keepState = false) => {
     if (code.value === next && state.value) return
     generation += 1
     stop()
     code.value = next
     storeCode(next)
-    state.value = null
+    if (!keepState) state.value = null
     after = 0
     failures = 0
     error.value = ''
@@ -203,7 +204,7 @@ export const createSquadRoom = () => {
     },
     join: async (target: string, input: SquadJoin) => {
       const joined = await act(() => api.squad.join(target, input), 'Could not join that room.')
-      if (joined) open(target)
+      if (joined) open(target, true)
       return joined
     },
     create: async (input: {
@@ -213,7 +214,7 @@ export const createSquadRoom = () => {
       avatar: SquadAvatar
     }) => {
       const created = await act(() => api.squad.create(input), 'Could not open a room. Try again.')
-      if (created) open(created.code)
+      if (created) open(created.code, true)
       return created
     },
     start: () => act(() => api.squad.start(room()), 'Could not start the room.'),

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { CatalogueVenueDetail } from '@broke-oclock/contracts/admin-catalogue'
+import { formatDateTime } from '@web/lib/format'
 import { ref } from 'vue'
 
 defineProps<{ venue: CatalogueVenueDetail; disabled: boolean }>()
@@ -40,7 +41,7 @@ const record = () =>
         <label for="proof-source" class="form-label mt-3">Reviewed source type</label><select id="proof-source" v-model="sourceType" class="form-select"><option value="ADMIN_VERIFIED">Explicit administrator source verification</option><option value="OFFICIAL_MERCHANT">Official merchant</option><option value="OFFICIAL_PROPERTY">Official property</option><option v-if="kind === 'GEOGRAPHY'" value="ONEMAP">OneMap — geography only</option></select>
         <label for="proof-reference" class="form-label mt-3">Supporting-source reference</label><input id="proof-reference" v-model="reference" class="form-control" maxlength="2048" required />
         <label for="proof-url" class="form-label mt-3">Source URL (optional, required for OneMap)</label><input id="proof-url" v-model="sourceUrl" type="url" class="form-control" maxlength="2048" />
-        <label for="proof-observed" class="form-label mt-3">Observed at (optional, local time)</label><input id="proof-observed" v-model="observedAt" type="datetime-local" class="form-control" />
+        <label for="proof-observed" class="form-label mt-3">Observed at (optional, local time)</label><input id="proof-observed" v-model="observedAt" name="observed-at" type="datetime-local" class="form-control" />
         <label for="proof-statement" class="form-label mt-3">What does this source establish about this exact outlet?</label><textarea id="proof-statement" v-model="statement" class="form-control" maxlength="4000" required />
         <label for="proof-note" class="form-label mt-3">Reason for recording / withdrawing</label><textarea id="proof-note" v-model="note" class="form-control" maxlength="500" required />
         <label class="form-check mt-3"><input v-model="reviewedSource" type="checkbox" class="form-check-input" required /><span class="form-check-label">I personally reviewed a real supporting source for this exact merchant and outlet tuple. This is not inferred from selection.</span></label>
@@ -55,7 +56,7 @@ const record = () =>
       <li v-for="receipt in venue.evidence" :key="receipt.id" class="list-group-item">
         <strong>{{ receipt.kind }} · {{ receipt.provider === 'ADMIN' ? 'Manual verification / historical receipt' : receipt.provider }}</strong>
         <p>{{ receipt.reference }}</p><p>{{ receipt.statement }}</p>
-        <p class="small">{{ receipt.actorName }} · {{ receipt.recordedAt }} · tuple version {{ receipt.catalogueVersion ?? 'legacy' }}</p>
+        <p class="small">{{ receipt.actorName }} · <time :datetime="receipt.recordedAt">{{ formatDateTime(receipt.recordedAt) }}</time> · tuple version {{ receipt.catalogueVersion ?? 'legacy' }}</p>
         <code class="catalogue-hash">{{ receipt.subjectHash }}</code>
         <a v-if="receipt.sourceUrl && /^https?:\/\//.test(receipt.sourceUrl)" :href="receipt.sourceUrl" target="_blank" rel="noopener noreferrer">Open supporting source</a>
       </li>

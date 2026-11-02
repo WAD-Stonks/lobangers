@@ -8,6 +8,7 @@ import {
 import {
   codesLeftText,
   countdown,
+  distanceText,
   formatCents,
   radiusText,
   savingText,
@@ -36,6 +37,9 @@ describe('flash format', () => {
     expect(codesLeftText({ codesLeft: 12 })).toBe('12 codes left')
     expect(radiusText(500)).toBe('500\u00a0m')
     expect(radiusText(1000)).toBe('1\u00a0km')
+    expect(radiusText(1500)).toBe('1.5\u00a0km')
+    expect(distanceText(347)).toBe('350\u00a0m')
+    expect(distanceText(1260)).toBe('1.3\u00a0km')
   })
 
   it('counts down in minutes, then hours, and never below zero', () => {

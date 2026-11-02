@@ -179,6 +179,10 @@ onBeforeUnmount(() => {
   bottom: 0;
   z-index: 30;
   width: min(272px, calc(100vw - 96px));
+  /* A phone held sideways has little height above the controls; scroll inside instead. */
+  max-height: calc(100dvh - 140px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
   padding: var(--space-3);
   color: var(--ink);
   background: var(--paper-white);

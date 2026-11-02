@@ -4,11 +4,11 @@ import { categoryStyle } from '@web/modules/browse-map/category-style'
 import FoodSprite from '@web/modules/browse-map/FoodSprite.vue'
 import { foodKindFor } from '@web/modules/browse-map/food-kind'
 import { computed, ref } from 'vue'
+import type { RouteLocationRaw } from 'vue-router'
 
 // The deal the room is voting on. The photo is where yay stickers land; tapping the card opens
-// the deal's full details, and Back returns to the room.
-const props = defineProps<{ deal: SquadDeal; position: string }>()
-const emit = defineEmits<{ open: [] }>()
+// the deal's full details (a real link, so it can open in a new tab), and Back returns to the room.
+const props = defineProps<{ deal: SquadDeal; position: string; to: RouteLocationRaw }>()
 
 const photo = ref<HTMLElement | null>(null)
 const kind = computed(() =>
@@ -20,12 +20,11 @@ defineExpose({ photo })
 </script>
 
 <template>
-  <button
-    type="button"
+  <RouterLink
+    :to="to"
     class="squad-card"
     data-testid="squad-deal"
     :aria-label="`${deal.title}, ${deal.label}. Open the deal's details`"
-    @click="emit('open')"
   >
     <span ref="photo" class="squad-card__photo" :style="{ '--squad-tint': tint }">
       <img v-if="deal.imageUrl" class="squad-card__image" :src="deal.imageUrl" alt="" width="480" height="190" />
@@ -40,5 +39,5 @@ defineExpose({ photo })
       </span>
       <span class="squad-card__hint">Tap for details, comments and directions</span>
     </span>
-  </button>
+  </RouterLink>
 </template>

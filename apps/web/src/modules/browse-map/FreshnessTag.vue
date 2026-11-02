@@ -56,11 +56,11 @@ const freshness = computed(() => dealFreshness(props.deal))
   font-size: var(--text-xs);
   font-weight: 600;
   line-height: 1.5;
-  color: var(--paper-white);
+  color: var(--on-ink);
   white-space: nowrap;
   pointer-events: none;
   content: attr(data-tip);
-  background: var(--ink);
+  background: var(--ink-strong);
   border-radius: var(--radius-pill);
   opacity: 0;
   transform: translate(-50%, 2px);

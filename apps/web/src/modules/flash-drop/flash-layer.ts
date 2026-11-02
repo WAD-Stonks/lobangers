@@ -10,6 +10,8 @@ import '@web/modules/flash-drop/flash-drop.css'
 // so deal text is never parsed as HTML. Countdowns update their text in place every second.
 
 const METRES_PER_DEGREE_LAT = 111_320
+// Matches the pin and circle exit animations in flash-drop.css.
+const LEAVE_MS = 380
 
 const el = <K extends keyof HTMLElementTagNameMap>(tag: K, className: string, text?: string) => {
   const node = document.createElement(tag)
@@ -146,9 +148,14 @@ export const mountFlashLayer = (map: L.Map, onOpen: (drop: PublicFlashDrop) => v
     const wanted = new Map(drops.map((drop) => [drop.id, drop]))
     for (const [id, entry] of entries) {
       if (wanted.has(id)) continue
-      layer.removeLayer(entry.zone)
-      layer.removeLayer(entry.pin)
       entries.delete(id)
+      // The pin sinks into its dot and the circle draws back in, then both leave.
+      entry.pin.getElement()?.querySelector('.flash-pin__stack')?.classList.add('is-leaving')
+      entry.zone.getElement()?.classList.add('is-leaving')
+      setTimeout(() => {
+        layer.removeLayer(entry.zone)
+        layer.removeLayer(entry.pin)
+      }, LEAVE_MS)
     }
     for (const drop of drops) {
       const kept = entries.get(drop.id)

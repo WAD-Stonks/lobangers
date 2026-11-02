@@ -8,6 +8,7 @@ import {
   type MerchantFlashDrop,
   type MerchantFlashDropBody,
 } from '@broke-oclock/contracts/flash-drops'
+import { formatMoneyMinor } from '@web/lib/format'
 import type { MerchantDeal, MerchantOutlet } from '@web/modules/merchant/merchant-api'
 
 // Plain helpers for the Flash Drop part of the merchant dashboard: the form's fields, checking
@@ -120,7 +121,7 @@ export const startTimeOf = (form: FlashDropFormState, now: Date): Date | null =>
 const priceCentsOf = (form: FlashDropFormState) =>
   form.priceDollars === '' ? Number.NaN : Math.round(form.priceDollars * 100)
 
-export const moneyText = (cents: number) => `$${(cents / 100).toFixed(2)}`
+export const moneyText = (cents: number) => formatMoneyMinor(cents)
 
 // ----- Checking the form -----
 // Returns a message describing the first problem with the form, or '' if it is fine.
@@ -170,21 +171,41 @@ const checkStart = (form: FlashDropFormState, deal: MerchantDeal, now: Date) => 
   return ''
 }
 
+// Which control a problem belongs to, so the form can show it beside that field. 'form' is a
+// problem with no single field (the code stepper cannot be typed into).
+export type FlashDropField = 'dealId' | 'priceDollars' | 'outletId' | 'startLocal' | 'form'
+export type FlashDropProblem = { field: FlashDropField; message: string }
+
+const problem = (field: FlashDropField, message: string): FlashDropProblem | null =>
+  message ? { field, message } : null
+
+export const flashDropFormProblem = (
+  form: FlashDropFormState,
+  deal: MerchantDeal | undefined,
+  now: Date,
+): FlashDropProblem | null => {
+  if (!deal) return problem('dealId', 'Choose which deal to drop.')
+  const priceProblem = problem('priceDollars', checkPrice(form, deal))
+  if (priceProblem) return priceProblem
+  if (form.codeLimit < FLASH_DROP_MIN_CODES || form.codeLimit > FLASH_DROP_MAX_CODES) {
+    return problem(
+      'form',
+      `Give out between ${FLASH_DROP_MIN_CODES} and ${FLASH_DROP_MAX_CODES} codes.`,
+    )
+  }
+  if (form.outletId === '') return problem('outletId', 'Choose the outlet for the drop.')
+  if (!deal.outletIds.includes(form.outletId)) {
+    return problem('outletId', 'That deal does not run at the chosen outlet.')
+  }
+  // A start time the merchant picked is theirs to fix; with "Now" the deal's own dates clash.
+  return problem(form.startMode === 'LATER' ? 'startLocal' : 'dealId', checkStart(form, deal, now))
+}
+
 export const checkFlashDropForm = (
   form: FlashDropFormState,
   deal: MerchantDeal | undefined,
   now: Date,
-): string => {
-  if (!deal) return 'Choose which deal to drop.'
-  const priceProblem = checkPrice(form, deal)
-  if (priceProblem) return priceProblem
-  if (form.codeLimit < FLASH_DROP_MIN_CODES || form.codeLimit > FLASH_DROP_MAX_CODES) {
-    return `Give out between ${FLASH_DROP_MIN_CODES} and ${FLASH_DROP_MAX_CODES} codes.`
-  }
-  if (form.outletId === '') return 'Choose the outlet for the drop.'
-  if (!deal.outletIds.includes(form.outletId)) return 'That deal does not run at the chosen outlet.'
-  return checkStart(form, deal, now)
-}
+): string => flashDropFormProblem(form, deal, now)?.message ?? ''
 
 // What the server needs. Only call this once checkFlashDropForm has returned ''.
 export const toFlashDropBody = (form: FlashDropFormState, now: Date): MerchantFlashDropBody => ({

@@ -8,12 +8,13 @@ import { computed } from 'vue'
 const props = defineProps<{ banner: EdgeBanner; now: number; lifeMs: number }>()
 const emit = defineEmits<{ open: []; hover: [paused: boolean] }>()
 
-const HALF_WIDTH_PX = 150
-const style = computed(() => {
-  const width = typeof window === 'undefined' ? 1280 : window.innerWidth
-  const x = Math.min(Math.max(props.banner.point.x, HALF_WIDTH_PX + 8), width - HALF_WIDTH_PX - 8)
-  return { left: `${x}px`, top: `${props.banner.point.y}px`, '--flash-life': `${props.lifeMs}ms` }
-})
+// The banner's x is kept clear of the map's edges in CSS (see .flash-edge `left`), so it follows
+// the map's real width through resizes and rotation without measuring the window.
+const style = computed(() => ({
+  '--flash-x': `${props.banner.point.x}px`,
+  top: `${props.banner.point.y}px`,
+  '--flash-life': `${props.lifeMs}ms`,
+}))
 const arrow = computed(() => ({ transform: `rotate(${props.banner.point.angle}deg)` }))
 const drop = computed(() => props.banner.drop)
 const label = computed(
@@ -52,7 +53,11 @@ const label = computed(
 
 <style scoped>
 .flash-edge {
+  /* Half the banner's widest size plus an 8px gap, but never past the middle of a tiny map. */
+  --flash-edge-gap: min(158px, 50%);
+
   position: absolute;
+  left: clamp(var(--flash-edge-gap), var(--flash-x, 50%), calc(100% - var(--flash-edge-gap)));
   z-index: 6;
   display: flex;
   align-items: center;
@@ -62,7 +67,7 @@ const label = computed(
   min-height: var(--hit);
   padding: 9px 12px 12px 9px;
   text-align: left;
-  color: var(--paper-white);
+  color: var(--on-ink);
   background: var(--ink-strong);
   border: 0;
   border-radius: 16px;
@@ -89,7 +94,7 @@ const label = computed(
   place-items: center;
   width: 32px;
   height: 32px;
-  color: var(--ink);
+  color: var(--on-accent);
   background: var(--sunny);
   border-radius: 50%;
 }
@@ -103,14 +108,17 @@ const label = computed(
 
 .flash-edge__kicker {
   display: flex;
+  min-width: 0;
+  overflow: hidden;
   white-space: nowrap;
   align-items: center;
   gap: 6px;
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: #f3a58e;
+  /* --flash-* roles live in flash-drop.css, which the map layer always loads. */
+  color: var(--flash-kicker, #f3a58e);
 }
 
 .flash-edge__title {
@@ -139,7 +147,7 @@ const label = computed(
   left: 14px;
   height: 3px;
   overflow: hidden;
-  background: rgba(255, 255, 255, 0.14);
+  background: var(--flash-track, rgb(255 255 255 / 0.14));
   border-radius: 2px;
 }
 
@@ -156,8 +164,21 @@ const label = computed(
   animation-play-state: paused;
 }
 
+/* MapShell wraps the banner in <Transition name="flash-edge">: it shrinks back the way it came. */
+.flash-edge.flash-edge-leave-active {
+  pointer-events: none;
+  animation: flash-edge-out 220ms var(--ease-out) both;
+}
+
 @keyframes flash-edge-in {
   from {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.85);
+  }
+}
+
+@keyframes flash-edge-out {
+  to {
     opacity: 0;
     transform: translate(-50%, -50%) scale(0.85);
   }
@@ -167,6 +188,10 @@ const label = computed(
   .flash-edge {
     animation-name: flash-edge-fade;
     animation-duration: 150ms;
+  }
+
+  .flash-edge.flash-edge-leave-active {
+    animation: flash-edge-fade 150ms ease reverse both;
   }
 
   .flash-edge:active {

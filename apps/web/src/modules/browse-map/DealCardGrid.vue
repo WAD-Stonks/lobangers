@@ -57,4 +57,11 @@ onBeforeUnmount(() => observer?.disconnect())
   padding: 0;
   list-style: none;
 }
+
+/* Cards far off screen skip layout and paint until they scroll near; `auto` keeps each card's
+   real height once shown. On the card itself so its focus outline isn't clipped. */
+.deal-cards__column > li > * {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 340px;
+}
 </style>

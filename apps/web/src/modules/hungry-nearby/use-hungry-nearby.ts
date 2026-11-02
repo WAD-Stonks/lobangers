@@ -267,7 +267,7 @@ export const provideHungryNearby = (options: HungryNearbyOptions): HungryNearby 
   const store = createHungryNearby(options)
   store.start()
   onBeforeUnmount(store.stop)
-  useNearbyMap(options.map, store)
+  useNearbyMap(options.map, store, options.position)
   provide(NEARBY_KEY, store)
   return store
 }

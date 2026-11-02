@@ -13,7 +13,7 @@ import { SHEET_CONTROL_KEY } from '@web/modules/squad/sheet-control'
 import { useSquadEffects } from '@web/modules/squad/use-squad-effects'
 import type { SquadRoom } from '@web/modules/squad/use-squad-room'
 import { computed, inject, onBeforeUnmount, ref, watch } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { type RouteLocationRaw, useRoute, useRouter } from 'vue-router'
 
 // The live room: who's here and how they voted, the deal on the table, and Yay or Nah. Every
 // tap anyone makes plays as an effect for everyone.
@@ -30,6 +30,14 @@ const card = ref<InstanceType<typeof SquadDealCard> | null>(null)
 const leaving = ref(false)
 // Closing ends the room for everyone, so the host confirms it first.
 const closing = ref(false)
+// The button that opened the Leave or Close sheet, so focus returns there when it closes.
+const sheetTrigger = ref<HTMLElement | null>(null)
+const openSheet = (sheet: 'leave' | 'close', event?: Event) => {
+  const trigger = event?.currentTarget ?? document.activeElement
+  sheetTrigger.value = trigger instanceof HTMLElement ? trigger : null
+  if (sheet === 'leave') leaving.value = true
+  else closing.value = true
+}
 // Kept so "Rejoin" works after the seat is gone from the member list.
 const lastSelf = ref<{ name: string; avatar: SquadAvatar } | null>(null)
 
@@ -100,15 +108,13 @@ const choose = (choice: 'AGAIN' | 'NEXT') => {
   effects.whoosh(choice === 'AGAIN' ? 'again' : 'next', 'You')
 }
 
-const openDeal = (dealId: string) => {
+// The deal page link, tagged so its Back button returns to this room.
+const dealLink = (dealId: string): RouteLocationRaw => {
   const target = props.state.deals.find((item) => item.id === dealId)
-  if (!target) return
-  const location = dealLocation(route.query, target.id, target.venueId ?? undefined)
-  void router.push(
-    typeof location === 'object' && 'query' in location
-      ? { ...location, query: { ...location.query, from: 'squad', room: props.state.code } }
-      : location,
-  )
+  const location = dealLocation(route.query, dealId, target?.venueId ?? undefined)
+  return typeof location === 'object' && 'query' in location
+    ? { ...location, query: { ...location.query, from: 'squad', room: props.state.code } }
+    : location
 }
 
 const share = async () => {
@@ -132,9 +138,13 @@ const rejoin = () => {
   void props.room.join(props.state.code, { displayName: lastSelf.value.name, avatar: lastSelf.value.avatar })
 }
 
-const browse = () => {
-  props.room.forget()
-  void router.push({ name: 'browse' })
+const BROWSE: RouteLocationRaw = { name: 'browse' }
+
+// A real link to the map; the room is forgotten only for an in-app navigation.
+const browse = (event: MouseEvent, navigate: (event?: MouseEvent) => Promise<unknown>) => {
+  const pending = navigate(event)
+  if (event.defaultPrevented) props.room.forget()
+  return pending
 }
 </script>
 
@@ -146,14 +156,16 @@ const browse = () => {
         <p>{{ stillVoting }} still voting. Code {{ state.code }} works while the room is open.</p>
         <div class="squad-sheet__actions">
           <button type="button" class="lb-btn lb-btn--primary" data-testid="squad-rejoin" :disabled="room.busy.value" @click="rejoin">Rejoin Room {{ state.code }}</button>
-          <button type="button" class="lb-btn squad-btn-dark" @click="browse">Browse deals</button>
+          <RouterLink v-slot="{ href, navigate }" :to="BROWSE" custom>
+            <a :href="href" class="lb-btn squad-btn-dark" @click="browse($event, navigate)">Browse deals</a>
+          </RouterLink>
         </div>
       </div>
     </template>
 
     <template v-else>
       <header class="squad-live__bar">
-        <button type="button" class="squad-link" data-testid="squad-leave" @click="leaving = true"><span aria-hidden="true">←</span> Leave room</button>
+        <button type="button" class="squad-link" data-testid="squad-leave" @click="openSheet('leave', $event)"><span aria-hidden="true">←</span> Leave room</button>
         <span class="squad-live__tools">
           <button type="button" class="lb-btn squad-btn-dark squad-btn-small" @click="share">Share code</button>
           <button
@@ -185,13 +197,13 @@ const browse = () => {
         <p>Everyone else left or went quiet. Invite more people, or close the room. Your saved deals stay saved.</p>
         <div class="squad-sheet__actions">
           <button type="button" class="lb-btn lb-btn--primary" @click="share">Share the code</button>
-          <button v-if="state.me?.isHost" type="button" class="lb-btn squad-btn-dark" @click="closing = true">Close the room</button>
-          <button v-else type="button" class="lb-btn squad-btn-dark" @click="leaving = true">Leave the room</button>
+          <button v-if="state.me?.isHost" type="button" class="lb-btn squad-btn-dark" @click="openSheet('close', $event)">Close the room</button>
+          <button v-else type="button" class="lb-btn squad-btn-dark" @click="openSheet('leave', $event)">Leave the room</button>
         </div>
       </div>
 
       <div class="squad-live__stage">
-        <SquadDealCard v-if="deal" ref="card" :deal="deal" :position="position" @open="openDeal(deal.id)" />
+        <SquadDealCard v-if="deal" ref="card" :deal="deal" :position="position" :to="dealLink(deal.id)" />
         <div v-if="state.phase === 'MATCHED' && deal" class="squad-match" role="status" data-testid="squad-match">
           <strong>It's a match!</strong>
           <span>{{ state.tally.yesPeople }} of {{ state.tally.voters }} said yay to {{ deal.title }}</span>
@@ -203,10 +215,10 @@ const browse = () => {
         :deal="deal"
         :busy="room.busy.value"
         @tap="tap"
+        :deal-link="dealLink"
         @choose="choose"
-        @open="openDeal"
         @add-deals="router.push({ name: 'squad-new', query: { room: state.code } })"
-        @close="closing = true"
+        @close="openSheet('close')"
       />
       <p v-if="room.error.value" class="squad-error" role="alert">{{ room.error.value }}</p>
     </template>
@@ -218,6 +230,7 @@ const browse = () => {
       :others="otherVoters.map((member) => member.name)"
       :is-host="!!state.me?.isHost"
       :busy="room.busy.value"
+      :return-focus="sheetTrigger"
       @leave="leave"
       @stay="leaving = false"
     />
@@ -228,6 +241,7 @@ const browse = () => {
       confirm-label="Close the room"
       cancel-label="Keep the room open"
       :busy="room.busy.value"
+      :return-focus="sheetTrigger"
       @confirm="closeRoom"
       @cancel="closing = false"
     />

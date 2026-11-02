@@ -50,28 +50,32 @@ const timers = new WeakMap<HTMLElement, ReturnType<typeof setTimeout>[]>()
 
 const LABEL_MARGIN_PX = 8
 
-// Slides the "Another lobanger" label sideways so it never runs off the edge of the map.
+// Slides the "Another lobanger" label sideways so it never runs off the edge of the map. Reads
+// both rects first and works out the unshifted position from the current shift, so there is a
+// single style write (none when the shift is unchanged) instead of write, read, write.
 export const fitLabel = (root: HTMLElement) => {
   const label = root.querySelector<HTMLElement>('.nearby-person__label')
   const map = root.closest('.leaflet-container')
   if (!label || !map) return
-  label.style.setProperty('--label-shift', '0px')
+  const current = Number.parseFloat(label.style.getPropertyValue('--label-shift')) || 0
   const bounds = map.getBoundingClientRect()
   const rect = label.getBoundingClientRect()
-  const tooFarLeft = bounds.left + LABEL_MARGIN_PX - rect.left
-  const tooFarRight = rect.right - (bounds.right - LABEL_MARGIN_PX)
-  const shift = tooFarLeft > 0 ? tooFarLeft : tooFarRight > 0 ? -tooFarRight : 0
-  label.style.setProperty('--label-shift', `${Math.round(shift)}px`)
+  const tooFarLeft = bounds.left + LABEL_MARGIN_PX - (rect.left - current)
+  const tooFarRight = rect.right - current - (bounds.right - LABEL_MARGIN_PX)
+  const shift = Math.round(tooFarLeft > 0 ? tooFarLeft : tooFarRight > 0 ? -tooFarRight : 0)
+  if (shift !== current) label.style.setProperty('--label-shift', `${shift}px`)
 }
 
 // Squash and show the poked face, then spring back. Purely local fun: nothing is sent.
 export const poke = (root: HTMLElement, avatar: PresenceAvatar) => {
   const image = root.querySelector('img')
   for (const timer of timers.get(root) ?? []) clearTimeout(timer)
-  root.classList.remove('is-poked')
-  // Restart the animation when poked again mid-squash.
-  void root.offsetWidth
   fitLabel(root)
+  // Restart the animation when poked again mid-squash. Only then is a forced reflow needed.
+  if (root.classList.contains('is-poked')) {
+    root.classList.remove('is-poked')
+    void root.offsetWidth
+  }
   root.classList.add('is-poked', 'is-labelled')
   if (image) image.src = avatarSrc(avatar, 'poked')
   timers.set(root, [

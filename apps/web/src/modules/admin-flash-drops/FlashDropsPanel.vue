@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import TicketLoading from '@web/components/TicketLoading.vue'
 import '@web/modules/admin-flash-drops/admin-flash-drops.css'
 import '@web/modules/admin-flash-drops/admin-flash-drop-detail.css'
 import '@web/modules/admin-flash-drops/admin-flash-drops-responsive.css'
@@ -76,7 +77,7 @@ onUnmounted(state.dispose)
     <p v-if="notice" class="fd-notice fd-success" role="status">{{ notice }}</p>
     <ul class="fd-metrics" aria-label="Flash drop summary">
       <li v-for="metric in metrics" :key="metric.view">
-        <button type="button" class="fd-metric" :data-current="view === metric.view" :aria-pressed="view === metric.view" :aria-controls="'flash-queue'" @click="showView(metric.view)">
+        <button type="button" class="fd-metric" :data-current="view === metric.view" :aria-controls="'flash-queue'" @click="showView(metric.view)">
           <span class="fd-metric-label"><span>{{ metric.label }}</span><span class="fd-metric-icon" :class="metric.tone && `fd-metric-icon--${metric.tone}`"><AdminIcon :name="metric.icon" /></span></span>
           <strong>{{ metric.count }}</strong>
           <span class="fd-metric-hint">{{ metric.hint }}<span v-if="metric.arrow" aria-hidden="true"> →</span></span>
@@ -91,7 +92,7 @@ onUnmounted(state.dispose)
         </div>
       </div>
       <div id="flash-tabpanel" role="tabpanel" :aria-labelledby="`flash-tab-${view}`" :aria-busy="status === 'loading'">
-        <p v-if="status === 'loading' && !items.length" class="fd-state" role="status">Loading flash drops…</p>
+        <TicketLoading v-if="status === 'loading' && !items.length" class="fd-state" label="Loading flash drops…" />
         <div v-else-if="status === 'error'" class="fd-alert fd-state-alert" role="alert"><p>Unable to load flash drops. Nothing was changed.</p><button type="button" class="btn btn-outline-secondary" @click="state.refresh()">Try again</button></div>
         <p v-else-if="status === 'ready' && !items.length" class="fd-state" role="status">Nothing here right now.</p>
         <div v-else-if="items.length" class="fd-ops">

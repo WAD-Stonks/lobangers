@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import TicketLoading from '@web/components/TicketLoading.vue'
 import FlashDropForm from '@web/modules/merchant/FlashDropForm.vue'
 import FlashDropList from '@web/modules/merchant/FlashDropList.vue'
 import {
@@ -51,8 +52,12 @@ const formKey = ref(0)
 const saving = ref(false)
 const serverError = ref('')
 const formHolder = ref<HTMLElement | null>(null)
+// The button that opened the form, so focus goes back to it when the form closes.
+let formOpener: HTMLElement | null = null
 
 const showFormWith = async (initial: FlashDropFormState, drop: MerchantFlashDrop | null) => {
+  const active = document.activeElement
+  if (!showForm.value) formOpener = active instanceof HTMLElement ? active : null
   formInitial.value = initial
   editingDrop.value = drop
   serverError.value = ''
@@ -73,8 +78,11 @@ const openForm = (dealId?: string) => {
 }
 defineExpose({ openForm })
 
-const closeForm = () => {
+const closeForm = async () => {
   showForm.value = false
+  await nextTick()
+  if (formOpener?.isConnected) formOpener.focus()
+  formOpener = null
 }
 
 // ----- Loading -----
@@ -109,7 +117,7 @@ const sendDrop = async (form: FlashDropFormState) => {
       ? await resendFlashDrop(editingDrop.value, body)
       : await createFlashDrop(body)
     putDrop(sent)
-    showForm.value = false
+    void closeForm()
     successMessage.value = `“${sent.dealTitle}” was sent for review. LoBangers usually replies within 30 minutes.`
   } catch (error) {
     serverError.value = flashDropErrorMessage(error, 'Could not send the flash drop. Please try again.')
@@ -195,7 +203,7 @@ onBeforeUnmount(() => clearInterval(timer))
       />
     </div>
 
-    <p v-if="loading" class="text-secondary" role="status">Loading your flash drops…</p>
+    <TicketLoading v-if="loading" class="text-secondary" label="Loading your flash drops…" />
     <FlashDropList
       v-else
       :drops="drops"

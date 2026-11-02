@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { BButton } from '@broke-oclock/ui'
 import { authClient } from '@web/lib/auth-client'
-import { computed, reactive, ref } from 'vue'
+import { focusFirstInvalid } from '@web/lib/form-focus'
+import { computed, nextTick, reactive, ref } from 'vue'
 import { RouterLink } from 'vue-router'
 
 const emit = defineEmits<{ registered: [needsVerification: boolean] }>()
@@ -10,6 +11,7 @@ const form = reactive({ name: '', email: '', password: '', confirm: '' })
 const touched = reactive({ name: false, email: false, password: false, confirm: false })
 const pending = ref(false)
 const submitError = ref('')
+const formEl = ref<HTMLFormElement | null>(null)
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
@@ -29,7 +31,12 @@ const isValid = computed(() => Object.values(errors.value).every((message) => !m
 
 const register = async () => {
   for (const key of Object.keys(touched) as (keyof typeof touched)[]) touched[key] = true
-  if (pending.value || !isValid.value) return
+  if (pending.value) return
+  if (!isValid.value) {
+    await nextTick()
+    focusFirstInvalid(formEl.value)
+    return
+  }
   pending.value = true
   submitError.value = ''
   try {
@@ -61,29 +68,80 @@ const register = async () => {
 </script>
 
 <template>
-  <form class="card card-body p-4" novalidate :aria-busy="pending" @submit.prevent="register">
+  <form ref="formEl" class="card card-body p-4" novalidate :aria-busy="pending" @submit.prevent="register">
     <h1 class="h3 mb-1">Create an account</h1>
     <p class="text-secondary mb-4">Save deals and share your own finds.</p>
 
     <div class="mb-3">
       <label for="reg-name" class="form-label">Name</label>
-      <input id="reg-name" v-model="form.name" type="text" autocomplete="name" maxlength="80" class="form-control" :class="{ 'is-invalid': touched.name && errors.name }" :disabled="pending" @blur="touched.name = true" />
-      <div class="invalid-feedback">{{ errors.name }}</div>
+      <input
+        id="reg-name"
+        v-model="form.name"
+        name="name"
+        type="text"
+        autocomplete="name"
+        maxlength="80"
+        class="form-control"
+        :class="{ 'is-invalid': touched.name && errors.name }"
+        :aria-invalid="touched.name && !!errors.name"
+        aria-describedby="reg-name-feedback"
+        :disabled="pending"
+        @blur="touched.name = true"
+      />
+      <div id="reg-name-feedback" class="invalid-feedback">{{ errors.name }}</div>
     </div>
     <div class="mb-3">
       <label for="reg-email" class="form-label">Email</label>
-      <input id="reg-email" v-model="form.email" type="email" autocomplete="email" class="form-control" :class="{ 'is-invalid': touched.email && errors.email }" :disabled="pending" @blur="touched.email = true" />
-      <div class="invalid-feedback">{{ errors.email }}</div>
+      <input
+        id="reg-email"
+        v-model="form.email"
+        name="email"
+        type="email"
+        autocomplete="email"
+        spellcheck="false"
+        autocapitalize="none"
+        class="form-control"
+        :class="{ 'is-invalid': touched.email && errors.email }"
+        :aria-invalid="touched.email && !!errors.email"
+        aria-describedby="reg-email-feedback"
+        :disabled="pending"
+        @blur="touched.email = true"
+      />
+      <div id="reg-email-feedback" class="invalid-feedback">{{ errors.email }}</div>
     </div>
     <div class="mb-3">
       <label for="reg-password" class="form-label">Password</label>
-      <input id="reg-password" v-model="form.password" type="password" autocomplete="new-password" class="form-control" :class="{ 'is-invalid': touched.password && errors.password }" :disabled="pending" @blur="touched.password = true" />
-      <div class="invalid-feedback">{{ errors.password }}</div>
+      <input
+        id="reg-password"
+        v-model="form.password"
+        name="password"
+        type="password"
+        autocomplete="new-password"
+        class="form-control"
+        :class="{ 'is-invalid': touched.password && errors.password }"
+        :aria-invalid="touched.password && !!errors.password"
+        aria-describedby="reg-password-feedback"
+        :disabled="pending"
+        @blur="touched.password = true"
+      />
+      <div id="reg-password-feedback" class="invalid-feedback">{{ errors.password }}</div>
     </div>
     <div class="mb-3">
       <label for="reg-confirm" class="form-label">Confirm password</label>
-      <input id="reg-confirm" v-model="form.confirm" type="password" autocomplete="new-password" class="form-control" :class="{ 'is-invalid': touched.confirm && errors.confirm }" :disabled="pending" @blur="touched.confirm = true" />
-      <div class="invalid-feedback">{{ errors.confirm }}</div>
+      <input
+        id="reg-confirm"
+        v-model="form.confirm"
+        name="confirm"
+        type="password"
+        autocomplete="new-password"
+        class="form-control"
+        :class="{ 'is-invalid': touched.confirm && errors.confirm }"
+        :aria-invalid="touched.confirm && !!errors.confirm"
+        aria-describedby="reg-confirm-feedback"
+        :disabled="pending"
+        @blur="touched.confirm = true"
+      />
+      <div id="reg-confirm-feedback" class="invalid-feedback">{{ errors.confirm }}</div>
     </div>
 
     <div v-if="submitError" class="alert alert-danger py-2" role="alert">{{ submitError }}</div>

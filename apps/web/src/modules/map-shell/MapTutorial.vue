@@ -38,9 +38,11 @@ const locate = (scroll = false) => {
   const bottom = Math.min(window.innerHeight - 8, rect.bottom + 6)
   bounds.value = right > left && bottom > top ? { left, top, width: right - left, height: bottom - top } : null
 }
+// Body-wide mutations and scrolls arrive in bursts; measure at most once per frame, and never
+// push the pending frame back (a steady stream of mutations would otherwise starve it).
 const refresh = () => {
   if (typeof requestAnimationFrame !== 'function') { locate(); return }
-  if (frame !== null) cancelAnimationFrame(frame)
+  if (frame !== null) return
   frame = requestAnimationFrame(() => { frame = null; locate() })
 }
 const spotlightStyle = computed(() => bounds.value ? {
@@ -100,7 +102,7 @@ onBeforeUnmount(() => {
 .map-tutorial { position: fixed; inset: 0; z-index: 90; }
 .map-tutorial__spotlight { position: fixed; border: 3px solid var(--sunny); border-radius: 18px; box-shadow: 0 0 0 9999px rgb(20 22 20 / 0.6); pointer-events: none; }
 .map-tutorial__scrim { position: absolute; inset: 0; background: rgb(20 22 20 / 0.6); }
-.map-tutorial__card { position: absolute; right: 20px; bottom: 20px; width: min(380px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); padding: 20px; overflow-y: auto; background: var(--paper-white); border-radius: 24px; box-shadow: 0 20px 70px rgb(0 0 0 / 0.25); }
+.map-tutorial__card { position: absolute; right: calc(20px + env(safe-area-inset-right, 0px)); bottom: calc(20px + env(safe-area-inset-bottom, 0px)); width: min(380px, calc(100vw - 32px)); max-height: calc(100dvh - 32px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)); padding: 20px; overflow-y: auto; overscroll-behavior: contain; background: var(--paper-white); border-radius: 24px; box-shadow: 0 20px 70px rgb(0 0 0 / 0.25); }
 .map-tutorial__card header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .map-tutorial__progress { color: var(--coral-deep); font-size: 0.8rem; font-weight: 750; }
 .map-tutorial__card h2 { margin: 8px 0 12px; font-size: 1.4rem; font-weight: 750; line-height: 1.2; }
@@ -110,7 +112,7 @@ onBeforeUnmount(() => {
 .map-tutorial__card footer button:first-child { margin-right: auto; }
 .map-tutorial__card footer button:disabled { cursor: default; }
 @media (max-width: 767.98px) {
-  .map-tutorial__card { right: 16px; bottom: 16px; padding: 16px; }
-  .map-tutorial__card--top { top: 16px; bottom: auto; }
+  .map-tutorial__card { right: calc(16px + env(safe-area-inset-right, 0px)); bottom: calc(16px + env(safe-area-inset-bottom, 0px)); padding: 16px; }
+  .map-tutorial__card--top { top: calc(16px + env(safe-area-inset-top, 0px)); bottom: auto; }
 }
 </style>

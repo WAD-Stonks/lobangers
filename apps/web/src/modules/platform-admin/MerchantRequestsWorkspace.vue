@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import TicketLoading from '@web/components/TicketLoading.vue'
+import { formatDateTime } from '@web/lib/format'
 import type { usePlatformAdmin } from '@web/modules/platform-admin/use-platform-admin'
 
 defineProps<{ s: ReturnType<typeof usePlatformAdmin> }>()
@@ -8,7 +10,7 @@ defineProps<{ s: ReturnType<typeof usePlatformAdmin> }>()
         <h2 id="merchant-requests" class="h4">Merchant requests</h2>
         <label for="request-status" class="form-label">Request status</label>
         <select id="request-status" v-model="s.requestStatus" :disabled="s.busy" class="form-select mb-3"><option>PENDING</option><option>APPROVED</option><option>REJECTED</option></select>
-        <p v-if="s.requests.loading" role="status">Loading requests…</p>
+        <TicketLoading v-if="s.requests.loading" label="Loading requests…" />
         <p v-if="s.requests.error" role="alert">{{ s.requests.error }}</p>
         <button type="button" class="btn btn-outline-secondary mb-3" :disabled="s.busy || s.requests.loading" data-testid="reload-requests" @click="s.loadRequests()">Reload requests</button>
         <p v-if="!s.requests.loading && !s.requests.error && !s.requests.data?.items.length">No requests match this status.</p>
@@ -18,7 +20,7 @@ defineProps<{ s: ReturnType<typeof usePlatformAdmin> }>()
           <h3 class="h5">{{ s.selectedRequest.venueName }} / {{ s.selectedRequest.merchantName }}</h3>
           <p>{{ s.selectedRequest.userName }} ({{ s.selectedRequest.userEmail }})</p>
           <p>{{ s.selectedRequest.message }}</p>
-          <p>Status: {{ s.selectedRequest.status }} | Version {{ s.selectedRequest.version }} | {{ s.selectedRequest.createdAt }}</p>
+          <p>Status: {{ s.selectedRequest.status }} | Version {{ s.selectedRequest.version }} | <time :datetime="s.selectedRequest.createdAt">{{ formatDateTime(s.selectedRequest.createdAt) }}</time></p>
           <p v-if="s.selectedRequest.reviewNote">Review note: {{ s.selectedRequest.reviewNote }}</p>
           <p v-if="s.requestError || s.staleRequests.has(s.selectedRequest.id)" role="alert">{{ s.requestError || 'Request changed. Reload requests before trying again.' }}</p>
           <form v-if="s.selectedRequest.status === 'PENDING'" id="request-form" @submit.prevent="s.reviewRequest">

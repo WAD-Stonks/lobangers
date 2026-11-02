@@ -6,6 +6,8 @@ import {
   defaultSquadName,
   formatCountdown,
   joinProblemFor,
+  NEARBY_METRES,
+  nearbyDealIds,
   nearestDeals,
   normaliseCode,
   squadNameError,
@@ -163,6 +165,20 @@ describe('squad form helpers', () => {
     expect(nearestDeals(DEALS, null).map((row) => row.deal.id)).toEqual(DEALS.map((d) => d.id))
   })
 
+  it('picks every nearby deal for a random room, capped at the room limit', () => {
+    const rows = ['a', 'b', 'c', 'd'].map((id, index) => ({
+      deal: { ...KOPI, id },
+      venueName: id,
+      distanceMetres: index === 3 ? NEARBY_METRES + 1 : index * 100,
+    }))
+    expect([...nearbyDealIds(rows, 10, () => 0)].sort()).toEqual(['a', 'b', 'c'])
+    expect(nearbyDealIds(rows, 2, () => 0)).toHaveLength(2)
+    // No position: every deal counts as nearby.
+    const unlocated = rows.map((row) => ({ ...row, distanceMetres: null }))
+    expect([...nearbyDealIds(unlocated, 10, () => 0)].sort()).toEqual(['a', 'b', 'c', 'd'])
+    expect(rows).toHaveLength(4)
+  })
+
   it('formats the lobby countdown and sorts join refusals by field', () => {
     expect(formatCountdown(27 * 60_000 + 41_000)).toBe('27:41')
     expect(formatCountdown(-5)).toBe('0:00')
@@ -208,6 +224,23 @@ describe('SquadLobby', () => {
     expect(guest.wrapper.find('[data-testid="squad-start"]').exists()).toBe(false)
     expect(guest.wrapper.find('[aria-label^="Remove"]').exists()).toBe(false)
     expect(guest.wrapper.find('[data-testid="squad-leave-lobby"]').exists()).toBe(true)
+  })
+
+  it('asks a guest before leaving the lobby, and Stay keeps them in', async () => {
+    const { default: SquadLobby } = await import('@web/modules/squad/SquadLobby.vue')
+    const room = fakeRoom(lobbyState([HOST, GUEST], GUEST))
+    const { wrapper } = await mountAt(SquadLobby, '/squad/KOPI', { room })
+    await wrapper.get('[data-testid="squad-leave-lobby"]').trigger('click')
+    expect(room.leave).not.toHaveBeenCalled()
+    expect(wrapper.get('[role="dialog"]').text()).toContain('Leave Room')
+    await wrapper.get('[role="dialog"]').trigger('keydown', { key: 'Escape' })
+    expect(wrapper.find('[role="dialog"]').exists()).toBe(false)
+    expect(room.leave).not.toHaveBeenCalled()
+
+    await wrapper.get('[data-testid="squad-leave-lobby"]').trigger('click')
+    await wrapper.get('[data-testid="squad-leave-confirm"]').trigger('click')
+    await flushPromises()
+    expect(room.leave).toHaveBeenCalledTimes(1)
   })
 })
 

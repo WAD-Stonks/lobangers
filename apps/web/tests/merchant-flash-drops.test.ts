@@ -252,6 +252,9 @@ describe('FlashDropForm', () => {
       'The flash price has to be lower than the usual $3.50.',
     )
     expect(wrapper.emitted('submit')).toBeUndefined()
+    const price = wrapper.get('#flash-price')
+    expect(price.attributes('aria-invalid')).toBe('true')
+    expect(price.attributes('aria-describedby')).toContain('flash-priceDollars-error')
   })
 
   it('submits a valid drop and updates the preview and stepper', async () => {

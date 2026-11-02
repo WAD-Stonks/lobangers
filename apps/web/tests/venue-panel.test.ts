@@ -1,20 +1,27 @@
 import type { VenueDetailResponse } from '@broke-oclock/contracts/venues'
-import { flushPromises, mount } from '@vue/test-utils'
+import { flushPromises, type VueWrapper } from '@vue/test-utils'
 import { ApiClientError } from '@web/lib/api-client'
-import VenuePanel from '@web/modules/venues-feed/VenuePanel.vue'
-import { beforeEach, expect, it, vi } from 'vitest'
-import { h } from 'vue'
-import { createMemoryHistory, createRouter } from 'vue-router'
+import { clearVenueDetailCache } from '@web/modules/venues-feed/venue-detail-cache'
+import { makeDeal, mountShell, SIGNED_OUT } from '@web-tests/support/shell-fixtures'
+import { afterEach, beforeEach, expect, it, vi } from 'vitest'
+import { ref } from 'vue'
 
 // Synthetic REST boundary: page projection only, not live venue data.
-const rest = vi.hoisted(() => ({ venue: vi.fn() }))
+const rest = vi.hoisted(() => ({ venue: vi.fn(), list: vi.fn(), bookmarks: vi.fn() }))
 vi.mock('@web/lib/api-client', () => ({
   ApiClientError: class ApiClientError extends Error {
     constructor(readonly code: string) {
       super(code)
     }
   },
-  api: { venues: { get: rest.venue } },
+  api: {
+    venues: { get: rest.venue },
+    deals: { list: rest.list },
+    account: { bookmarks: rest.bookmarks },
+  },
+}))
+vi.mock('@web/lib/auth-client', () => ({
+  authClient: { useSession: () => ref(SIGNED_OUT), getSession: async () => ({ data: null }) },
 }))
 
 const venueId = 'aaaaaaaaaaaaaaaaaaaaaaaa'
@@ -66,20 +73,11 @@ const detail: VenueDetailResponse = {
   ],
 }
 
-const stub = { render: () => h('div') }
+let mounted: VueWrapper[] = []
 
 const mountAt = async (path: string) => {
-  const router = createRouter({
-    history: createMemoryHistory(),
-    routes: [
-      { path: '/', name: 'browse', component: stub },
-      { path: '/deals/:dealId', name: 'deal', component: stub },
-      { path: '/venues/:venueId', name: 'venue', component: VenuePanel },
-    ],
-  })
-  await router.push(path)
-  const wrapper = mount(VenuePanel, { global: { plugins: [router] } })
-  await flushPromises()
+  const { wrapper, router } = await mountShell(path)
+  mounted = [...mounted, wrapper]
   return { wrapper, router }
 }
 
@@ -90,6 +88,13 @@ const openTab = async (wrapper: Awaited<ReturnType<typeof mountAt>>['wrapper'], 
 
 beforeEach(() => {
   vi.resetAllMocks()
+  clearVenueDetailCache()
+  rest.list.mockResolvedValue({ items: [], categories: [] })
+})
+
+afterEach(() => {
+  for (const wrapper of mounted) wrapper.unmount()
+  mounted = []
 })
 
 it('titles the panel with the venue and links each ongoing deal to its deal panel', async () => {
@@ -100,17 +105,26 @@ it('titles the panel with the venue and links each ongoing deal to its deal pane
   expect(wrapper.find('.venue-panel__logo').text()).toBe('SK')
   expect(wrapper.text()).toContain('1 Example Street, Singapore 520001')
   expect(wrapper.get('[role="tab"][aria-selected="true"]').text()).toBe('Now')
-  const cards = wrapper.findAll('[data-testid="venue-deal-card"]')
+  const cards = wrapper.findAll('[data-testid="food-deal-grid"] .food-deal-card')
   expect(cards).toHaveLength(2)
-  expect(cards[0]?.find('img').attributes('src')).toBe('https://example.test/kopi.jpg')
-  expect(cards[0]?.text()).toContain('$3.50')
-  expect(cards[0]?.text()).toContain('Until 31 Oct 2026')
-  expect(cards[1]?.text()).toContain('20% off')
-  expect(cards[1]?.text()).toContain('While stocks last')
-  const link = wrapper
-    .findAll('a')
-    .find((anchor) => anchor.attributes('href')?.startsWith('/deals/'))
+  expect(cards[0]?.text()).toContain('Kopi set')
+  expect(cards[0]?.text()).toContain('Synthetic Kopi Tampines')
+  expect(cards[1]?.text()).toContain('Toast discount')
+  expect(cards[1]?.find('.food-deal-card__placeholder').exists()).toBe(true)
+  const link = wrapper.find('[data-testid="food-deal-grid"] a.food-deal-card__link')
   expect(link?.attributes('href')).toBe(`/deals/bbbbbbbbbbbbbbbbbbbbbbbb?cat=food&at=${venueId}`)
+})
+
+it('reopens a recently viewed venue at once without asking the server again', async () => {
+  rest.venue.mockResolvedValue(detail)
+  const first = await mountAt(`/venues/${venueId}`)
+  first.wrapper.unmount()
+
+  const reopened = (await mountAt(`/venues/${venueId}`)).wrapper
+  expect(reopened.text()).not.toContain('Loading venue')
+  expect(reopened.find('h1').text()).toBe('Synthetic Kopi Tampines')
+  await flushPromises()
+  expect(rest.venue).toHaveBeenCalledTimes(1)
 })
 
 it('lists past deals on the Past tab and details on About', async () => {
@@ -143,6 +157,24 @@ it('resets the panel to the top when the tab changes', async () => {
   await openTab(wrapper, 'Past')
   await flushPromises()
   expect(body.scrollTop).toBe(0)
+})
+
+it("reuses the map's loaded deal so the card shows its freshness and other outlets", async () => {
+  const loaded = makeDeal({
+    id: 'bbbbbbbbbbbbbbbbbbbbbbbb',
+    title: 'Kopi set',
+    votes: { alive: 5, dead: 0 },
+    venues: [
+      { id: venueId, name: 'Synthetic Kopi Tampines', lat: 1.35, lng: 103.94 },
+      { id: 'e'.repeat(24), name: 'Synthetic Kopi Bedok', lat: 1.32, lng: 103.93 },
+    ],
+  })
+  rest.list.mockResolvedValue({ items: [loaded], categories: ['DRINKS'] })
+  rest.venue.mockResolvedValue(detail)
+  const { wrapper } = await mountAt(`/venues/${venueId}`)
+  const card = wrapper.findAll('[data-testid="food-deal-grid"] .food-deal-card')[0]
+  expect(card?.text()).toContain('Likely still on')
+  expect(card?.text()).toContain('+1 more outlet')
 })
 
 it('shows not found for a missing venue and retries other failures', async () => {

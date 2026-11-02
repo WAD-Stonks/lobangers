@@ -5,12 +5,15 @@ import {
   FLASH_DROP_MIN_CODES,
   FLASH_DROP_RADII,
 } from '@broke-oclock/contracts/flash-drops'
+import { focusFirstInvalid } from '@web/lib/form-focus'
+import { useUnsavedChanges } from '@web/lib/use-unsaved-changes'
 import ChoiceChips from '@web/modules/merchant/ChoiceChips.vue'
 import FakeBadge from '@web/modules/merchant/FakeBadge.vue'
 import {
   bannerPreview,
-  checkFlashDropForm,
   type FlashDropFormState,
+  type FlashDropProblem,
+  flashDropFormProblem,
   moneyText,
   outletAfterDealChange,
   outletsForDeal,
@@ -19,7 +22,7 @@ import {
   stepCodes,
 } from '@web/modules/merchant/flash-drop-rules'
 import type { MerchantDeal, MerchantOutlet } from '@web/modules/merchant/merchant-api'
-import { computed, ref } from 'vue'
+import { computed, nextTick, ref } from 'vue'
 
 const props = defineProps<{
   deals: MerchantDeal[] // only the merchant's current deals
@@ -38,7 +41,22 @@ const emit = defineEmits<{
 
 // The form keeps its own copy; the parent gives it a new key each time it opens.
 const form = ref<FlashDropFormState>({ ...props.initial })
-const formError = ref('')
+const problem = ref<FlashDropProblem | null>(null)
+const formEl = ref<HTMLFormElement | null>(null)
+
+// Each problem shows under its own field; one with no field shows above the buttons.
+const fieldError = (field: FlashDropProblem['field']) =>
+  problem.value?.field === field ? problem.value.message : ''
+const invalid = (field: FlashDropProblem['field']) => (fieldError(field) ? 'true' : undefined)
+const describedBy = (field: FlashDropProblem['field'], ...rest: string[]) =>
+  [fieldError(field) ? `flash-${field}-error` : '', ...rest].filter(Boolean).join(' ') || undefined
+
+// Cancel or leaving the page asks first once anything has changed.
+const isDirty = computed(() => JSON.stringify(form.value) !== JSON.stringify(props.initial))
+const { confirmDiscard } = useUnsavedChanges(isDirty)
+const cancel = () => {
+  if (confirmDiscard()) emit('cancel')
+}
 
 const deal = computed(() => props.deals.find((item) => item.id === form.value.dealId))
 const outletChoices = computed(() =>
@@ -69,19 +87,23 @@ const changeCodes = (direction: 1 | -1) => {
   form.value = { ...form.value, codeLimit: stepCodes(form.value.codeLimit, direction) }
 }
 
-const send = () => {
+const send = async () => {
   if (props.saving) return // already sending: ignore a second click
-  formError.value = checkFlashDropForm(form.value, deal.value, new Date())
-  if (formError.value) return
+  problem.value = flashDropFormProblem(form.value, deal.value, new Date())
+  if (problem.value) {
+    await nextTick()
+    focusFirstInvalid(formEl.value)
+    return
+  }
   emit('submit', { ...form.value })
 }
 
-// Our own check first; otherwise whatever the server said.
-const shownError = computed(() => formError.value || props.serverError)
+// A problem with no field of its own first; otherwise whatever the server said.
+const shownError = computed(() => fieldError('form') || (problem.value ? '' : props.serverError))
 </script>
 
 <template>
-  <form class="card card-body mb-4" novalidate aria-labelledby="flash-form-title" @submit.prevent="send">
+  <form ref="formEl" class="card card-body mb-4" novalidate aria-labelledby="flash-form-title" @submit.prevent="send">
     <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
       <h3 id="flash-form-title" class="h4 mb-0 title" tabindex="-1">
         {{ editing ? 'Edit and resend flash drop' : 'New flash drop' }}
@@ -94,13 +116,19 @@ const shownError = computed(() => formError.value || props.serverError)
       id="flash-deal"
       v-model="form.dealId"
       name="dealId"
-      class="form-select mb-3"
+      class="form-select"
+      :class="fieldError('dealId') ? 'is-invalid mb-1' : 'mb-3'"
+      :aria-invalid="invalid('dealId')"
+      :aria-describedby="describedBy('dealId')"
       :disabled="editing"
       @change="onDealChange"
     >
       <option value="">Choose a deal</option>
       <option v-for="item in deals" :key="item.id" :value="item.id">{{ item.title }}</option>
     </select>
+    <p v-if="fieldError('dealId')" id="flash-dealId-error" class="small text-danger mb-3" role="alert">
+      {{ fieldError('dealId') }}
+    </p>
 
     <div class="row g-3 mb-3">
       <div class="col-sm-6">
@@ -116,8 +144,13 @@ const shownError = computed(() => formError.value || props.serverError)
           step="0.01"
           placeholder="e.g. 1.50…"
           class="form-control"
-          aria-describedby="flash-price-hint"
+          :class="{ 'is-invalid': fieldError('priceDollars') }"
+          :aria-invalid="invalid('priceDollars')"
+          :aria-describedby="describedBy('priceDollars', 'flash-price-hint')"
         />
+        <p v-if="fieldError('priceDollars')" id="flash-priceDollars-error" class="small text-danger mt-1 mb-0" role="alert">
+          {{ fieldError('priceDollars') }}
+        </p>
         <p id="flash-price-hint" class="small text-secondary mt-1 mb-0">
           <template v-if="deal?.priceCents">Usual price {{ moneyText(deal.priceCents) }}.</template>
           <template v-else>Pick a price people will notice.</template>
@@ -157,7 +190,12 @@ const shownError = computed(() => formError.value || props.serverError)
       name="flash-outlet"
       legend="Outlet (the drop circles this stall)"
       :choices="outletChoices"
+      :invalid="!!fieldError('outletId')"
+      :describedby="describedBy('outletId')"
     />
+    <p v-if="fieldError('outletId')" id="flash-outletId-error" class="small text-danger mt-n2 mb-3" role="alert">
+      {{ fieldError('outletId') }}
+    </p>
 
     <ChoiceChips v-model="form.startMode" name="flash-start" legend="Starts" :choices="startChoices" />
     <div v-if="form.startMode === 'LATER'" class="mb-3">
@@ -168,10 +206,16 @@ const shownError = computed(() => formError.value || props.serverError)
         name="startAt"
         type="datetime-local"
         class="form-control"
+        :class="{ 'is-invalid': fieldError('startLocal') }"
         :min="limits.min"
         :max="limits.max"
+        :aria-invalid="invalid('startLocal')"
+        :aria-describedby="describedBy('startLocal', 'flash-start-hint')"
       />
-      <p class="small text-secondary mt-1 mb-0">Up to 7 days from now.</p>
+      <p v-if="fieldError('startLocal')" id="flash-startLocal-error" class="small text-danger mt-1 mb-0" role="alert">
+        {{ fieldError('startLocal') }}
+      </p>
+      <p id="flash-start-hint" class="small text-secondary mt-1 mb-0">Up to 7 days from now.</p>
     </div>
 
     <ChoiceChips v-model="form.durationMinutes" name="flash-length" legend="Lasts" :choices="durationChoices" />
@@ -194,7 +238,7 @@ const shownError = computed(() => formError.value || props.serverError)
       <button type="submit" class="btn btn-primary" :disabled="saving">
         {{ saving ? 'Sending…' : 'Send for review' }}
       </button>
-      <button type="button" class="btn btn-outline-secondary" @click="emit('cancel')">Cancel</button>
+      <button type="button" class="btn btn-outline-secondary" @click="cancel">Cancel</button>
     </div>
   </form>
 </template>
@@ -222,7 +266,7 @@ const shownError = computed(() => formError.value || props.serverError)
   padding: 10px 14px;
   border-radius: 14px;
   background: var(--ink-strong);
-  color: var(--paper-white);
+  color: var(--on-ink);
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   overflow-wrap: anywhere;

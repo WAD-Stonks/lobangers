@@ -81,7 +81,7 @@ onMounted(() => {
   flex-direction: column;
   gap: var(--space-4);
   min-height: 0;
-  padding: var(--space-5) 22px calc(var(--space-6) + var(--sheet-offset, 0px));
+  padding: var(--space-5) 22px calc(var(--space-6) + var(--sheet-offset, 0px) + env(safe-area-inset-bottom, 0px));
   overflow-y: auto;
   overscroll-behavior: contain;
 }

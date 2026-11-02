@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { BButton } from '@broke-oclock/ui'
 import { authClient } from '@web/lib/auth-client'
-import { computed, reactive, ref } from 'vue'
+import { focusFirstInvalid } from '@web/lib/form-focus'
+import { computed, nextTick, reactive, ref } from 'vue'
 import { RouterLink } from 'vue-router'
 
 const emit = defineEmits<{ signedIn: [] }>()
@@ -10,6 +11,7 @@ const form = reactive({ email: '', password: '' })
 const touched = reactive({ email: false, password: false })
 const pending = ref(false)
 const submitError = ref('')
+const formEl = ref<HTMLFormElement | null>(null)
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
@@ -29,7 +31,12 @@ const isValid = computed(() => !errors.value.email && !errors.value.password)
 const signIn = async () => {
   touched.email = true
   touched.password = true
-  if (pending.value || !isValid.value) return
+  if (pending.value) return
+  if (!isValid.value) {
+    await nextTick()
+    focusFirstInvalid(formEl.value)
+    return
+  }
   pending.value = true
   submitError.value = ''
   try {
@@ -60,7 +67,7 @@ const signIn = async () => {
 </script>
 
 <template>
-  <form class="card card-body p-4" novalidate :aria-busy="pending" @submit.prevent="signIn">
+  <form ref="formEl" class="card card-body p-4" novalidate :aria-busy="pending" @submit.prevent="signIn">
     <h1 class="h3 mb-1">Log in</h1>
     <p class="text-secondary mb-4">Welcome back. Sign in to see your saved deals.</p>
 
@@ -69,8 +76,11 @@ const signIn = async () => {
       <input
         id="login-email"
         v-model="form.email"
+        name="email"
         type="email"
         autocomplete="username"
+        spellcheck="false"
+        autocapitalize="none"
         class="form-control"
         :class="{ 'is-invalid': touched.email && errors.email }"
         :aria-invalid="touched.email && !!errors.email"
@@ -86,6 +96,7 @@ const signIn = async () => {
       <input
         id="login-password"
         v-model="form.password"
+        name="password"
         type="password"
         autocomplete="current-password"
         class="form-control"

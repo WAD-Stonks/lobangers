@@ -16,7 +16,7 @@ import {
   squadNameError,
 } from '@web/modules/squad/squad-forms'
 import { messageFor, useSquadRoom } from '@web/modules/squad/use-squad-room'
-import { computed, ref, watch } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import '@web/modules/squad/squad.css'
 
@@ -35,7 +35,7 @@ const avatar = ref<SquadAvatar>(randomAvatar())
 const codeError = ref('')
 const nameError = ref('')
 const pending = ref(false)
-const shake = ref(0)
+const codeInput = ref<HTMLInputElement | null>(null)
 // A room already voting: the visitor confirms they will watch first.
 const live = ref<SquadPeek | null>(null)
 const full = ref<{ code: string; message: string; hostName: string | null } | null>(null)
@@ -65,9 +65,21 @@ const onName = (next: string) => {
   name.value = next
   nameError.value = ''
 }
-const failCode = (message: string) => {
+// Replays the CSS shake on the same input (no remount, so focus and caret stay put) and puts
+// focus back in the code. Reduced motion turns the animation off, so there is nothing to replay.
+const replayShake = (input: HTMLInputElement) => {
+  for (const animation of input.getAnimations?.() ?? []) {
+    animation.cancel()
+    animation.play()
+  }
+}
+const failCode = async (message: string) => {
   codeError.value = message
-  shake.value += 1
+  await nextTick()
+  const input = codeInput.value
+  if (!input) return
+  replayShake(input)
+  if (document.activeElement !== input) input.focus()
 }
 
 const join = async (target: string) => {
@@ -82,7 +94,7 @@ const join = async (target: string) => {
   live.value = null
   if (problem === 'name') nameError.value = message
   else if (problem === 'full') full.value = { code: target, message, hostName: null }
-  else failCode(message)
+  else void failCode(message)
 }
 
 const submit = async () => {
@@ -112,16 +124,18 @@ const submit = async () => {
     }
     await join(target)
   } catch (error) {
-    failCode(messageFor(error, 'Could not reach that room. Check your connection and try again.'))
+    void failCode(messageFor(error, 'Could not reach that room. Check your connection and try again.'))
   } finally {
     pending.value = false
   }
 }
 
-const tryAnother = () => {
+const tryAnother = async () => {
   full.value = null
   live.value = null
   code.value = ''
+  await nextTick()
+  codeInput.value?.focus()
 }
 </script>
 
@@ -156,8 +170,8 @@ const tryAnother = () => {
           <label class="squad-field__label" for="squad-code">Room code</label>
           <input
             id="squad-code"
+            ref="codeInput"
             name="code"
-            :key="shake"
             class="squad-code-input"
             :class="{ 'is-bad': codeError }"
             type="text"
@@ -167,7 +181,7 @@ const tryAnother = () => {
             autocapitalize="characters"
             spellcheck="false"
             enterkeyhint="go"
-            placeholder="KOPI"
+            placeholder="KOPI…"
             data-testid="squad-code"
             :aria-invalid="codeError ? 'true' : 'false'"
             :aria-describedby="codeError ? 'squad-code-error' : undefined"

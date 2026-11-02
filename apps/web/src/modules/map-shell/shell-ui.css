@@ -27,6 +27,7 @@
     transform var(--dur-press) var(--ease-out),
     background-color 150ms ease,
     color 150ms ease;
+  touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
 }
 
@@ -46,22 +47,24 @@
 }
 
 .lb-btn--primary {
+  color: var(--on-accent);
   background: var(--sunny);
   border-color: var(--sunny-deep);
 }
 
 .lb-btn--primary:hover {
+  color: var(--on-accent);
   background: var(--sunny-deep);
 }
 
 .lb-btn--ink {
-  color: var(--paper-white);
+  color: var(--on-ink);
   background: var(--ink-strong);
   border-color: var(--ink-strong);
 }
 
 .lb-btn--ink:hover {
-  color: var(--paper-white);
+  color: var(--on-ink);
   background: var(--ink-strong-hover);
 }
 
@@ -94,6 +97,7 @@
     background-color 150ms ease,
     color 150ms ease,
     border-color 150ms ease;
+  touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
 }
 
@@ -101,9 +105,16 @@
   transform: scale(0.97);
 }
 
+/* An option that would leave zero deals stays visible but can't be picked. */
+.lb-chip:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+  transform: none;
+}
+
 .lb-chip[aria-pressed="true"],
 .lb-chip.is-on {
-  color: var(--paper-white);
+  color: var(--on-ink);
   background: var(--ink-strong);
   border-color: var(--ink-strong);
 }
@@ -125,7 +136,7 @@
 }
 
 @media (hover: hover) and (pointer: fine) {
-  .lb-chip:not([aria-pressed="true"]):hover {
+  .lb-chip:not([aria-pressed="true"], :disabled):hover {
     border-color: var(--hairline-strong);
   }
 }
@@ -138,9 +149,23 @@
   height: 20px;
   padding: 0 5px;
   font: 700 0.6875rem / 1 var(--font-sans);
-  color: var(--paper-white);
+  /* --coral-deep lightens in dark mode like --ink-strong, so it takes the same text colour. */
+  color: var(--on-ink);
   background: var(--coral-deep);
   border-radius: var(--radius-pill);
+}
+
+/* Live count: re-key the span on each new value and it rises into place. */
+.lb-tick {
+  display: inline-block;
+  animation: lb-tick var(--dur-small) var(--ease-out);
+}
+
+@keyframes lb-tick {
+  from {
+    opacity: 0;
+    transform: translateY(40%);
+  }
 }
 
 /* Square map control: 44px target, white by default, ink for the list/map toggle. */
@@ -178,7 +203,7 @@
 }
 
 .lb-ctrl--ink {
-  color: var(--paper-white);
+  color: var(--on-ink);
   background: var(--ink-strong);
   border-color: var(--ink-strong);
 }
@@ -279,6 +304,7 @@
   transition:
     color 150ms ease,
     border-color var(--dur-small) ease;
+  touch-action: manipulation;
 }
 
 .lb-tab[aria-selected="true"] {
@@ -312,7 +338,12 @@
 
 /* Shimmering placeholder row while deals load. */
 .lb-skeleton {
-  background: linear-gradient(90deg, var(--paper-sunk) 0%, #f8f7f4 50%, var(--paper-sunk) 100%);
+  background: linear-gradient(
+    90deg,
+    var(--paper-sunk) 0%,
+    var(--paper-hover) 50%,
+    var(--paper-sunk) 100%
+  );
   background-size: 200% 100%;
   border-radius: 10px;
   animation: lb-shimmer 1.2s ease-in-out infinite;

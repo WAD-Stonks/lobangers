@@ -3,13 +3,12 @@ import type { SquadState } from '@broke-oclock/contracts/squad'
 import { avatarUrl } from '@web/modules/squad/avatar-art'
 import { useSquadRoom } from '@web/modules/squad/use-squad-room'
 import { computed } from 'vue'
-import { useRouter } from 'vue-router'
+import type { RouteLocationRaw } from 'vue-router'
 
 // How a room ended for this visitor: the host closed it, nobody joined in time, everyone
 // left, or the host removed them. Either way the next step is a new room or the map.
 const props = defineProps<{ state: SquadState }>()
 const room = useSquadRoom()
-const router = useRouter()
 
 const hostName = computed(() => props.state.members.find((member) => member.isHost)?.name ?? 'The host')
 const face = computed(
@@ -39,8 +38,13 @@ const copy = computed(() => {
     : { title: `${hostName.value} closed Room ${code}`, body: 'The room is over. Start your own, or go back to the map.' }
 })
 
-const go = async (to: { name: string }) => {
-  await router.push(to)
+const NEW_ROOM: RouteLocationRaw = { name: 'squad-new' }
+const MAP: RouteLocationRaw = { name: 'browse' }
+
+// Real links; the room is forgotten only once the new page is showing.
+const go = async (event: MouseEvent, navigate: (event?: MouseEvent) => Promise<unknown>) => {
+  await navigate(event)
+  if (!event.defaultPrevented) return
   room?.forget()
 }
 </script>
@@ -51,8 +55,12 @@ const go = async (to: { name: string }) => {
     <h2 class="squad-room__title">{{ copy.title }}</h2>
     <p>{{ copy.body }}</p>
     <div class="squad-sheet__actions">
-      <button type="button" class="lb-btn lb-btn--primary" @click="go({ name: 'squad-new' })">Start a new room</button>
-      <button type="button" class="lb-btn squad-btn-dark" @click="go({ name: 'browse' })">Back to the map</button>
+      <RouterLink v-slot="{ href, navigate }" :to="NEW_ROOM" custom>
+        <a :href="href" class="lb-btn lb-btn--primary" @click="go($event, navigate)">Start a new room</a>
+      </RouterLink>
+      <RouterLink v-slot="{ href, navigate }" :to="MAP" custom>
+        <a :href="href" class="lb-btn squad-btn-dark" @click="go($event, navigate)">Back to the map</a>
+      </RouterLink>
     </div>
   </div>
 </template>

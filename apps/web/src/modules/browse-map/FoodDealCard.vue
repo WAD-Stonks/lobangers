@@ -26,7 +26,7 @@ const emit = defineEmits<{ hover: [venueId: string | null] }>()
       <DealPhoto
         v-if="props.row.deal.images[0]"
         :src="props.row.deal.images[0].url"
-        :alt="props.row.deal.images[0].alt ?? props.row.deal.title"
+        :alt="props.row.deal.images[0].alt ?? ''"
         class="food-deal-card__image"
       />
       <div v-else class="food-deal-card__placeholder" aria-hidden="true">🍽️</div>
@@ -194,11 +194,11 @@ const emit = defineEmits<{ hover: [venueId: string | null] }>()
   margin-left: auto;
 }
 
-.food-deal-card__status.is-conflicting { color: var(--bs-danger, #dc3545); background: #fde2e2; }
+.food-deal-card__status.is-conflicting { color: var(--tag-end-ink); background: var(--tag-end-bg); }
 
 .food-deal-card__status.is-expired,
 .food-deal-card__validity.is-expired {
-  color: var(--bs-danger, #dc3545);
+  color: var(--coral-deep);
 }
 
 @media (hover: hover) and (pointer: fine) {

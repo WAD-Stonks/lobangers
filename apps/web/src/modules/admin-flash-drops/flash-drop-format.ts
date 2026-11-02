@@ -3,6 +3,7 @@ import type {
   FlashDropDisplayStatus,
   FlashDropView,
 } from '@broke-oclock/contracts/flash-drops'
+import { formatMoneyMinor } from '@web/lib/format'
 
 // Presentation helpers for the admin Flash Drop review. Times are always shown in SGT.
 export const SINGAPORE_TIME_ZONE = 'Asia/Singapore'
@@ -46,7 +47,8 @@ export const listStatusLabel = (drop: AdminFlashDrop) =>
     ? `${drop.claimedCount}/${drop.codeLimit} claimed`
     : statusLabel(drop.status)
 
-export const formatPrice = (cents: number) => `$${(cents / 100).toFixed(2)}`
+// "$5.00" via the shared Intl formatter.
+export const formatPrice = (cents: number) => formatMoneyMinor(cents)
 
 export const percentOff = (flashCents: number, usualCents: number | null) =>
   usualCents && usualCents > flashCents ? Math.round(100 - (100 * flashCents) / usualCents) : null

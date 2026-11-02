@@ -177,9 +177,14 @@ const routes: RouteRecordRaw[] = [
     path: '/forgot-password',
     name: 'forgot-password',
     component: ForgotPasswordPage,
-    meta: { guestOnly: true },
+    meta: { layout: 'auth', guestOnly: true },
   },
-  { path: '/reset-password', name: 'reset-password', component: ResetPasswordPage },
+  {
+    path: '/reset-password',
+    name: 'reset-password',
+    component: ResetPasswordPage,
+    meta: { layout: 'auth' },
+  },
   {
     path: '/add',
     name: 'submit-deal',

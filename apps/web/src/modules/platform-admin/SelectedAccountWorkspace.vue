@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import TicketLoading from '@web/components/TicketLoading.vue'
+import { formatDateTime } from '@web/lib/format'
 import AccountAccessPanel from '@web/modules/platform-admin/AccountAccessPanel.vue'
 import type { usePlatformAdmin } from '@web/modules/platform-admin/use-platform-admin'
 import WorkspaceTabs from '@web/modules/platform-admin/WorkspaceTabs.vue'
@@ -22,7 +24,7 @@ watch([detailTab, () => props.active], (_value, previous) => {
 </script>
 <template>
   <div class="selected-account">
-    <p v-if="s.detail.loading" role="status">Loading account details…</p>
+    <TicketLoading v-if="s.detail.loading" label="Loading account details…" />
     <p v-if="s.detail.error" role="alert">{{ s.detail.error }}</p>
     <button type="button" v-if="s.selectedId && !s.detail.data" data-testid="reload-account" class="btn btn-outline-secondary" :disabled="s.busy || s.detail.loading" @click="s.selectAccount(s.selectedId)">Reload account</button>
     <section v-if="s.detail.data" aria-label="Account details" class="workspace-surface selected-account-surface">
@@ -30,7 +32,7 @@ watch([detailTab, () => props.active], (_value, previous) => {
         <div><h2 ref="heading" data-testid="selected-account-heading" tabindex="-1" class="h5">{{ s.detail.data.name }}</h2><p class="record-email">{{ s.detail.data.email }}</p></div>
         <div class="selected-account-actions"><span class="record-role">{{ s.detail.data.role }}</span><button type="button" data-testid="close-account-details" class="btn close-details" aria-label="Close account details" :disabled="s.busy" @click="emit('close')">×</button></div>
       </header>
-      <dl class="account-metadata"><div><dt>Account ID:</dt><dd>{{ s.detail.data.id }}</dd></div><div><dt>Version</dt><dd>{{ s.detail.data.version }}</dd></div><div><dt>Created</dt><dd>{{ s.detail.data.createdAt }}</dd></div></dl>
+      <dl class="account-metadata"><div><dt>Account ID:</dt><dd translate="no">{{ s.detail.data.id }}</dd></div><div><dt>Version</dt><dd>{{ s.detail.data.version }}</dd></div><div><dt>Created</dt><dd><time :datetime="s.detail.data.createdAt">{{ formatDateTime(s.detail.data.createdAt) }}</time></dd></div></dl>
       <div class="detail-tools">
         <button type="button" data-testid="reload-account" class="btn btn-outline-secondary" :disabled="s.busy || s.detail.loading" @click="s.selectAccount(s.selectedId)">Reload account</button>
         <button type="button" data-testid="account-audit" class="btn btn-outline-secondary" :disabled="s.busy" @click="emit('activity')">View this account's audit</button>

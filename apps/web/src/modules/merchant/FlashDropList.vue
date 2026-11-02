@@ -152,12 +152,18 @@ const claimedPercent = (drop: MerchantFlashDrop) =>
   text-wrap: balance;
 }
 .badge-review {
-  background: #e6ddff;
-  color: #3d2a85;
+  --review-bg: #e6ddff;
+  --review-ink: #3d2a85;
+  background: var(--review-bg);
+  color: var(--review-ink);
+}
+.app-palette[data-theme='dark'] .badge-review {
+  --review-bg: #2e2650;
+  --review-ink: #c9bcff;
 }
 .badge-approved {
   background: var(--ink-strong);
-  color: var(--paper-white);
+  color: var(--on-ink);
 }
 .badge-live {
   background: var(--coral);

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { FlashCode } from '@broke-oclock/contracts/flash-drops'
+import TicketLoading from '@web/components/TicketLoading.vue'
 import { authClient } from '@web/lib/auth-client'
 import { countdown, formatCents } from '@web/modules/flash-drop/flash-format'
 import { useFlashDrops } from '@web/modules/flash-drop/use-flash-drops'
@@ -21,17 +22,21 @@ const active = computed(() => (flash?.codes.value ?? []).filter(isActive))
 const past = computed(() => (flash?.codes.value ?? []).filter((code) => !isActive(code)))
 const loginTo = computed(() => ({ name: 'login', query: { redirect: route.fullPath } }))
 
-// Until the first load answers, say so instead of flashing the empty state.
+// Until the first load answers, say so instead of flashing the empty state. A failed load says
+// so too, with a retry, rather than showing "No codes yet".
 const loading = ref(false)
-onMounted(async () => {
-  if (!signedIn.value || !flash) return
+const loadFailed = ref(false)
+const load = async () => {
+  if (!signedIn.value || !flash || loading.value) return
   loading.value = true
+  loadFailed.value = false
   try {
-    await flash.loadCodes()
+    loadFailed.value = !(await flash.loadCodes())
   } finally {
     loading.value = false
   }
-})
+}
+onMounted(load)
 </script>
 
 <template>
@@ -42,7 +47,11 @@ onMounted(async () => {
         <RouterLink class="lb-btn lb-btn--primary" :to="loginTo">Log in</RouterLink>
       </template>
       <template v-else>
-        <p v-if="loading && !active.length && !past.length" class="my-codes__empty" role="status">Loading your codes…</p>
+        <TicketLoading v-if="loading && !active.length && !past.length" class="my-codes__empty" label="Loading your codes…" />
+        <div v-else-if="loadFailed && !active.length && !past.length" class="my-codes__error" role="alert" data-testid="my-codes-error">
+          <p class="my-codes__empty lb-text-wrap">We couldn't load your codes. Check your connection and try again.</p>
+          <button type="button" class="lb-btn" @click="load">Try again</button>
+        </div>
         <p v-else-if="!active.length && !past.length" class="my-codes__empty lb-text-wrap">
           No codes yet. When a Flash Drop pops up on the map, open it and claim a code. It will wait for you here.
         </p>
@@ -92,6 +101,13 @@ onMounted(async () => {
   color: var(--ink-muted);
 }
 
+.my-codes__error {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-3);
+}
+
 .my-codes__heading {
   margin: 0 0 var(--space-2);
   font-size: var(--text-xs);
@@ -114,6 +130,7 @@ onMounted(async () => {
   display: flex;
   flex-direction: column;
   gap: 4px;
+  min-width: 0;
   padding: 14px 16px;
   background: var(--paper-white);
   border: 2px dashed var(--coral);
@@ -127,12 +144,15 @@ onMounted(async () => {
 
 .my-codes__top {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
 }
 
 .my-codes__value {
+  min-width: 0;
+  overflow-wrap: anywhere;
   font-family: var(--font-display);
   font-size: 1.4rem;
   font-weight: 600;
@@ -145,7 +165,7 @@ onMounted(async () => {
   font-size: 12px;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
-  color: var(--paper-white);
+  color: var(--on-ink);
   background: var(--coral);
   border-radius: 8px;
 }

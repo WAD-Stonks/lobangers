@@ -30,6 +30,11 @@ const to = computed(() => ({ name: 'squad-new', query: { deal: props.dealId } })
 
 <style scoped>
 .squad-cta {
+  /* Dark like the Squad room. --ink-strong turns light at night, so dark mode pins a raised
+     charcoal surface instead of an inverted card. */
+  --cta-bg: var(--ink-strong);
+  --cta-text: var(--on-ink);
+  --cta-muted: #c9c6bf;
   display: flex;
   align-items: center;
   gap: 12px;
@@ -37,17 +42,23 @@ const to = computed(() => ({ name: 'squad-new', query: { deal: props.dealId } })
   box-sizing: border-box;
   min-height: 64px;
   padding: 12px 14px;
-  color: var(--paper-white);
+  color: var(--cta-text);
   text-decoration: none;
-  background: var(--ink-strong);
+  background: var(--cta-bg);
   border-radius: 18px;
   transition:
     transform var(--dur-press) var(--ease-out),
     box-shadow 160ms ease;
 }
 
+.app-palette[data-theme='dark'] .squad-cta {
+  --cta-bg: var(--paper-sunk);
+  --cta-text: var(--ink);
+  --cta-muted: var(--ink-muted);
+}
+
 .squad-cta:hover {
-  color: var(--paper-white);
+  color: var(--cta-text);
 }
 
 @media (hover: hover) and (pointer: fine) {
@@ -71,7 +82,7 @@ const to = computed(() => ({ name: 'squad-new', query: { deal: props.dealId } })
   place-items: center;
   width: 40px;
   height: 40px;
-  color: var(--ink);
+  color: var(--on-accent);
   background: var(--sunny);
   border-radius: 12px;
 }
@@ -90,11 +101,11 @@ const to = computed(() => ({ name: 'squad-new', query: { deal: props.dealId } })
 
 .squad-cta__text span {
   font-size: var(--text-xs);
-  color: #c9c6bf;
+  color: var(--cta-muted);
 }
 
 .squad-cta__chev {
-  color: #c9c6bf;
+  color: var(--cta-muted);
 }
 
 @media (prefers-reduced-motion: reduce) {
