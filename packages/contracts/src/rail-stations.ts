@@ -1,4 +1,3 @@
-
 export type RailLine = 'NS' | 'EW' | 'NE' | 'CC' | 'DT' | 'TE' | 'BP' | 'SK' | 'PG'
 
 export type RailStation = readonly [
