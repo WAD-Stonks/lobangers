@@ -1,12 +1,14 @@
-# Vercel setup - not deployed
+# Vercel setup and release status
 
 ## Projects and safety boundary
 
-Both projects exist in `noahmhs-projects` (`team_FRUcWuiMYuhmD9AYY8BStn20`) and are connected to `WAD-Stonks/broke-oclock`. Automatic Git deployment creation is disabled in each project's settings (`gitProviderOptions.createDeployments: "disabled"`); both checked-in Vercel configs also set `git.deploymentEnabled: false` as an additional guard. Neither project has a deployment, and no cron or deployment workflow is configured. Git connection and local builds are not deployments. Do not enable automatic deployments, run bare `vercel` or `vercel deploy`, change protection, or apply the Atlas schema without explicit approval.
+Both projects exist in `noahmhs-projects` (`team_FRUcWuiMYuhmD9AYY8BStn20`) and are connected to `WAD-Stonks/broke-oclock`. Automatic Git deployment creation is disabled in each project's settings (`gitProviderOptions.createDeployments: "disabled"`); both checked-in Vercel configs also set `git.deploymentEnabled: false` as an additional guard. Git connection and local builds are not deployments. Do not enable automatic deployments, run bare `vercel` or `vercel deploy`, change protection, or apply the Atlas schema without explicit approval.
+
+Release snapshot, 2 November 2026: the web deployment from main `8b82781` reached Ready. The API build from the same revision completed, but Vercel CLI 65.4 rejected its packaging with `duplicated_cron_job` for `/api/ingestion/scheduled-runs` at `0 0 * * *`. The correction below is awaiting PR review and merge; no corrected API deployment or live API readiness is claimed. No further deployment is authorized before merge. Automatic Git deployment and protection settings are unchanged, and ingestion remains disabled.
 
 - Web: [broke-oclock-web](https://vercel.com/noahmhs-projects/broke-oclock-web), ID `prj_6U8UcFhnd4LDw97qaROzzuMRhkWq`, root `apps/web`, framework Vite, output `dist`.
 - API: [broke-oclock-api](https://vercel.com/noahmhs-projects/broke-oclock-api), ID `prj_lPCumjeKv8KG8TOS1ATPyA9vDbyk`, root `apps/api`, custom Build Output API (framework setting Other).
-- Assigned domains: `broke-oclock-web.vercel.app` and `broke-oclock-api.vercel.app`. They are reserved project domains, not live application verification.
+- Assigned domains: `broke-oclock-web.vercel.app` and `broke-oclock-api.vercel.app`. Domain assignment alone is not live application verification.
 - Checked-in install command for both projects: `cd ../.. && pnpm install --frozen-lockfile --ignore-scripts`. Root `packageManager` pins pnpm 10.34.6. Node remains `22.x`; source outside each project root must be included.
 - Checked-in web build: `pnpm run build`.
 - Checked-in API build: `cd ../.. && pnpm run build:vercel:api`. This explicitly generates Prisma and runs pinned esbuild through Node/tsx. All install hooks remain disabled; no runtime bootstrap, global executable or lifecycle exception is needed.
@@ -20,6 +22,8 @@ The native Express build succeeded but its generated Node handler still imported
 
 The output is `apps/api/.vercel/output`, with an `api.func` handler and catch-all routing that retains the original request path for the Express `/api/*` routes. Vercel CLI collects this into its selected output directory. This is packaging, not new product endpoints.
 
+`scripts/build-vercel-api.ts` is the sole cron declaration owner. It emits one daily job (`/api/ingestion/scheduled-runs`, `0 0 * * *`) into `.vercel/output/config.json`, as supported by the [Build Output API configuration](https://vercel.com/docs/build-output-api/configuration#crons). Do not repeat it in `apps/api/vercel.json`: source and output declarations together caused the duplicate-job rejection. The generated function retains `maxDuration: 300` for all API endpoints, Node 22, and the same catch-all routing. No web or GitHub scheduler is added. Artifact correctness does not prove production cron registration, authentication, plan compatibility or live ingestion acceptance.
+
 Prisma generation includes `native` and `rhel-openssl-3.0.x`; the function explicitly targets Linux x86_64/Node22. The script copies schema and native-engine files beside the bundled client. No credentials are embedded. Never deploy a macOS-generated artifact to another architecture without checking its target engine; prefer a Linux build for the first approved release. Neither this script nor Vercel builds run `db push`.
 
 ## Routing
@@ -28,7 +32,7 @@ Prisma generation includes `native` and `rhel-openssl-3.0.x`; the function expli
 
 ## Environment readiness
 
-The API project's production configuration was verified on 11 October 2026:
+Historical setup snapshot, 11 October 2026: the API project's production configuration was verified with these non-secret settings:
 
 - `WEB_ORIGIN=https://broke-oclock-web.vercel.app`
 - `BETTER_AUTH_URL=https://broke-oclock-web.vercel.app`
@@ -37,11 +41,11 @@ The API project's production configuration was verified on 11 October 2026:
 - `INGESTION_ENABLED=false`
 - `MONEYDIGEST_REUSE_APPROVED=false`
 
-The two origins and storage-provider value matched the intended settings. The final three values were added during the authorized setup update and read back. `DATABASE_URL` and `BETTER_AUTH_SECRET` were absent, with no hidden production variables reported. Google, Resend, OneMap and UploadThing credential variables were also absent. This is a dated setup snapshot, not database or live-provider acceptance.
+At that time, `DATABASE_URL`, `BETTER_AUTH_SECRET` and provider credentials were absent. This historical snapshot is superseded by the authorized Production configuration update reported on 2 November 2026: API runtime settings from the main worktree's root `.env` were synchronized, including database/auth, Google, Resend, OneMap, UploadThing, Gemini and Groq configuration. The web has only `VITE_CARTO_API_KEY`. No secret values are recorded here. Configuration presence is not database, provider or inbox-delivery acceptance; `INGESTION_ENABLED=false` remains in effect.
 
-Manage runtime values directly in **broke-oclock-api → Settings → Environment Variables → Production**. The web currently needs no environment variables. GitHub Environment secrets cannot be read back via GitHub CLI and are not automatically transferred by Vercel Git integration. GitHub-to-Vercel secret synchronization is not planned; existing GitHub settings are retained but are not the Vercel runtime source.
+Manage server runtime values directly in **broke-oclock-api → Settings → Environment Variables → Production**. Keep API credentials out of the web project; its CARTO key is publishable browser configuration. GitHub Environment secrets cannot be read back via GitHub CLI and are not automatically transferred by Vercel Git integration. GitHub-to-Vercel secret synchronization is not planned; existing GitHub settings are retained but are not the Vercel runtime source.
 
-Before deployment, securely populate `DATABASE_URL` with the intended Atlas database and the existing intended `BETTER_AUTH_SECRET` in the API project's Production environment. Do not replace a previously used auth secret casually. Native Google and email-OTP sign-in/recovery are implemented but unavailable without their configured provider pairs. Google needs `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET` and the exact frontend-origin callback `/api/auth/callback/google`; email needs `RESEND_API_KEY`/`EMAIL_FROM` with a verified sender. OneMap lookup needs `ONEMAP_EMAIL`/`ONEMAP_EMAIL_PASSWORD`. Add `UPLOADTHING_TOKEN` only when live uploads are intended; without it uploads return 503. See [the environment inventory](environment-variables.md) for consumers and acceptance boundaries. Do not add VERCEL_TOKEN or unused legacy settings to app runtime. Environment entry does not authorize deployment, database schema application or administrator provisioning.
+Keep the intended Atlas target and existing auth secret stable. Configured provider pairs still require separate acceptance: Google's exact frontend-origin callback `/api/auth/callback/google`, Resend's verified sender, OneMap lookup and UploadThing upload behavior. See [the environment inventory](environment-variables.md) for consumers and acceptance boundaries. Do not add VERCEL_TOKEN or unused legacy settings to app runtime. Environment entry does not authorize deployment, database schema application or administrator provisioning.
 
 Vercel's default SSO protection is preserved (`all_except_custom_domains`). That protection can block unauthenticated requests to the assigned vercel.app domains, including the cross-project proxy. Decide approved public-production access/custom domains or a supported server-side bypass before deployment. Do not put a bypass token in frontend code or silently turn protection off.
 

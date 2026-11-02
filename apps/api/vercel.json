@@ -4,12 +4,6 @@
   "git": {
     "deploymentEnabled": false
   },
-  "crons": [
-    {
-      "path": "/api/ingestion/scheduled-runs",
-      "schedule": "0 0 * * *"
-    }
-  ],
   "buildCommand": "cd ../.. && pnpm run build:vercel:api",
   "installCommand": "cd ../.. && pnpm install --frozen-lockfile --ignore-scripts"
 }
