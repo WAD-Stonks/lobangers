@@ -291,7 +291,7 @@ watch(
 }
 
 .lobbie__deals {
-  margin: 0;
+  margin: var(--space-2) 0 0;
 }
 
 .lobbie__suggestions {

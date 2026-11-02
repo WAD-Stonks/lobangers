@@ -23,7 +23,11 @@ watch(visible, async (prompt) => {
     heading.value?.focus({ preventScroll: true })
   } else returnFocus?.focus()
 }, { immediate: true })
-const cancel = () => { if (authPrompt.value) authPrompt.value.resolve(null); else void router.push('/browse') }
+const cancel = () => {
+  if (authPrompt.value) authPrompt.value.resolve(null)
+  else if (router.options.history.state.back) router.back()
+  else void router.push('/browse')
+}
 </script>
 
 <template>
@@ -73,7 +77,7 @@ const cancel = () => { if (authPrompt.value) authPrompt.value.resolve(null); els
         <button class="auth-prompt__secondary" type="button" @click="choose('login')">Log in</button>
       </template>
       <template v-else>
-      <button class="auth-prompt__close" type="button" aria-label="Close login prompt" @click="cancel">×</button>
+      <button class="auth-prompt__back" type="button" @click="cancel"><ShellIcon name="back" :size="16" />Back</button>
       <h2 id="auth-prompt-title" ref="heading" tabindex="-1">Log in or sign up</h2>
       <p>Save your favourite deals and join the community with a free account.</p>
       <button class="auth-prompt__primary" type="button" @click="choose('login')">Log in</button>
@@ -89,7 +93,8 @@ const cancel = () => { if (authPrompt.value) authPrompt.value.resolve(null); els
 h2 { outline: none; margin: 0; font-size: 1.5rem; }
 p { margin: 0 0 12px; color: var(--ink-muted); line-height: 1.5; }
 button { min-height: 44px; border-radius: 12px; font-weight: 650; }
-.auth-prompt__close { position: absolute; top: 8px; right: 12px; width: 36px; min-height: 36px; border: 0; background: transparent; font-size: 24px; }
+.auth-prompt__back { display: inline-flex; align-items: center; justify-self: start; gap: 6px; min-height: var(--hit); margin: -12px 0 0; padding: 0; border: 0; background: transparent; font: 700 0.8125rem/1 var(--font-sans); color: var(--ink-muted); cursor: pointer; }
+.auth-prompt__back:hover { color: var(--ink); }
 .auth-prompt__primary { border: 1px solid var(--sunny); background: var(--sunny); color: var(--ink); }
 .auth-prompt__secondary { border: 1px solid var(--hairline); background: white; color: var(--ink); }
 
