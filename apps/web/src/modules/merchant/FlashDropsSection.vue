@@ -9,10 +9,6 @@ import {
   getFlashDrops,
   type MerchantFlashDrop,
   resendFlashDrop,
-  simulateApproval,
-  simulateClaim,
-  simulateStart,
-  USE_SAMPLE_DATA,
 } from '@web/modules/merchant/flash-drop-api'
 import {
   blankFlashDropForm,
@@ -23,17 +19,15 @@ import {
 import type { MerchantDeal, MerchantOutlet } from '@web/modules/merchant/merchant-api'
 import { nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 
-const props = withDefaults(
-  defineProps<{
-    deals: MerchantDeal[] // the merchant's current deals
-    outlets: MerchantOutlet[]
-    sample?: boolean // sample data mode; tests can switch it off
-  }>(),
-  { sample: USE_SAMPLE_DATA },
-)
+const props = defineProps<{
+  deals: MerchantDeal[] // the merchant's current deals
+  outlets: MerchantOutlet[]
+}>()
 
-// How often the "min left" text refreshes, and (sample data only) a fake code is claimed.
+// How often the "min left" text refreshes.
 const TICK_MS = 4000
+// How often the drops are fetched again, so approvals and claimed codes show up.
+const REFRESH_MS = 30_000
 
 const drops = ref<MerchantFlashDrop[]>([])
 const loading = ref(true)
@@ -98,6 +92,17 @@ const loadDrops = async () => {
   }
 }
 
+// Fetches the drops again without the loading spinner. A failure keeps the list as it is; the
+// next refresh tries again.
+const refreshDrops = async () => {
+  if (loading.value) return
+  try {
+    drops.value = await getFlashDrops()
+  } catch (error) {
+    console.warn('Could not refresh flash drops', error)
+  }
+}
+
 // Swap one drop in the list for its updated copy (or add it at the top if it is new).
 const putDrop = (updated: MerchantFlashDrop) => {
   const known = drops.value.some((drop) => drop.id === updated.id)
@@ -150,32 +155,17 @@ const confirmEnd = async (drop: MerchantFlashDrop) => {
 
 const openResend = (drop: MerchantFlashDrop) => showFormWith(formFromDrop(drop), drop)
 
-// ----- Demo only (sample data) -----
-const approveDemo = (drop: MerchantFlashDrop) => {
-  const approved = simulateApproval(drop)
-  putDrop(approved)
-  successMessage.value =
-    approved.status === 'LIVE'
-      ? `Demo: LoBangers approved “${drop.dealTitle}”. It is live now.`
-      : `Demo: LoBangers approved “${drop.dealTitle}”. It goes live at its start time.`
-}
-const startDemo = (drop: MerchantFlashDrop) => {
-  putDrop(simulateStart(drop))
-}
-
-// Every few seconds: refresh the clock and, with sample data, let one fake person claim a code
-// from each live drop.
-const tick = () => {
-  now.value = new Date()
-  if (!props.sample) return
-  for (const drop of drops.value) if (drop.status === 'LIVE') putDrop(simulateClaim(drop))
-}
-let timer: ReturnType<typeof setInterval> | undefined
+let clockTimer: ReturnType<typeof setInterval> | undefined
+let refreshTimer: ReturnType<typeof setInterval> | undefined
 onMounted(() => {
   loadDrops()
-  timer = setInterval(tick, TICK_MS)
+  clockTimer = setInterval(() => (now.value = new Date()), TICK_MS)
+  refreshTimer = setInterval(refreshDrops, REFRESH_MS)
 })
-onBeforeUnmount(() => clearInterval(timer))
+onBeforeUnmount(() => {
+  clearInterval(clockTimer)
+  clearInterval(refreshTimer)
+})
 </script>
 
 <template>
@@ -197,7 +187,6 @@ onBeforeUnmount(() => clearInterval(timer))
         :editing="editingDrop !== null"
         :saving="saving"
         :server-error="serverError"
-        :sample="sample"
         @submit="sendDrop"
         @cancel="closeForm"
       />
@@ -207,13 +196,10 @@ onBeforeUnmount(() => clearInterval(timer))
     <FlashDropList
       v-else
       :drops="drops"
-      :sample="sample"
       :busy-id="busyId"
       :now="now"
       @end="confirmEnd"
       @resend="openResend"
-      @approve="approveDemo"
-      @start="startDemo"
     />
   </section>
 </template>
