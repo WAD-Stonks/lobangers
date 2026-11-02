@@ -88,7 +88,7 @@ const cancel = () => {
 </template>
 
 <style scoped>
-.auth-prompt { height: 100%; overflow-y: auto; color: var(--ink); background: var(--paper-white); }
+.auth-prompt { height: 100%; overflow-y: auto; color: var(--ink); background: var(--page-background, var(--paper-white)); }
 .auth-prompt__content { position: relative; display: grid; gap: 12px; padding: 40px 28px 24px; }
 h2 { outline: none; margin: 0; font-size: 1.5rem; }
 p { margin: 0 0 12px; color: var(--ink-muted); line-height: 1.5; }
@@ -102,7 +102,7 @@ button { min-height: 44px; border-radius: 12px; font-weight: 650; }
 .auth-prompt__content--saved h2 { font-family: var(--font-sans); font-size: clamp(1.75rem, 2.3vw, 2.25rem); font-weight: 750; line-height: 1.15; letter-spacing: -.035em; }
 .saved-prompt__intro { font-size: 1rem; margin: 4px 0 12px; }
 .saved-prompt__benefits { display: grid; gap: 12px; margin: 0 0 12px; }
-.saved-prompt__benefit { display: flex; align-items: center; gap: 16px; padding: 16px; border-radius: 18px; background: #fbfaf7; }
+.saved-prompt__benefit { display: flex; align-items: center; gap: 16px; padding: 16px; border-radius: 18px; background: var(--paper-white); }
 .saved-prompt__icon { display: grid; place-items: center; flex: 0 0 52px; height: 52px; border-radius: 50%; background: #fff0b4; }
 .saved-prompt__benefit h3 { margin: 0 0 4px; font-size: 1rem; line-height: 1.3; font-weight: 700; }
 .saved-prompt__benefit p { margin: 0; font-size: .9375rem; line-height: 1.4; }
