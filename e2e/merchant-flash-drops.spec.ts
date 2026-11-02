@@ -1,8 +1,9 @@
 import { expect, type Page, test } from '@playwright/test'
 
-// Merchant Flash Drop journeys on /merchant. The page still runs on its in-browser sample data
-// (USE_SAMPLE_DATA in merchant-api.ts), so only the signed-in merchant session is mocked here.
-// Every account below is a labelled synthetic fixture; nothing touches a real account.
+// Merchant Flash Drop journeys on /merchant. Flash drops still run on their in-browser sample
+// data (USE_SAMPLE_DATA in merchant-api.ts), but the merchant's outlets and deals come from the
+// server, so those routes are mocked here along with the signed-in merchant session.
+// Every account, outlet and deal below is a labelled synthetic fixture; nothing touches real data.
 const now = new Date().toISOString()
 const SYNTHETIC_MERCHANT = {
   id: 'e'.repeat(24),
@@ -21,6 +22,37 @@ const SYNTHETIC_SESSION = {
   updatedAt: now,
 }
 
+// The outlets and deals the sample flash drops were written against (two branches of one
+// franchise; sample-4 has a set price for a flash drop to beat).
+const SYNTHETIC_OUTLETS = [
+  { id: 'outlet-1', name: 'Ah Seng Chicken Rice (Maxwell)', address: '1 Kadayanallur St, #01-10' },
+  { id: 'outlet-2', name: 'Ah Seng Chicken Rice (Tiong Bahru)', address: '30 Seng Poh Rd, #02-05' },
+]
+const syntheticDeal = (id: string, title: string, offer: Record<string, unknown>) => ({
+  id,
+  title,
+  description: 'Fake deal for tests.',
+  category: 'FOOD',
+  cuisine: 'CHINESE',
+  outletIds: ['outlet-1', 'outlet-2'],
+  offerType: 'BUY_ONE_GET_ONE',
+  discountPercent: null,
+  priceCents: null,
+  startDate: '',
+  endDate: '',
+  terms: '',
+  endedAt: null,
+  photo: null,
+  ...offer,
+})
+const SYNTHETIC_DEALS = [
+  syntheticDeal('sample-1', '1-for-1 Roast Chicken Rice', {}),
+  syntheticDeal('sample-4', 'Steamed chicken rice set', {
+    offerType: 'FIXED_PRICE',
+    priceCents: 350,
+  }),
+]
+
 const signInAsMerchant = async (page: Page) => {
   await page.route(/basemaps\.cartocdn\.com|onemap\.gov\.sg/, (route) => route.abort())
   await page.route('**/api/**', (route) => {
@@ -31,7 +63,10 @@ const signInAsMerchant = async (page: Page) => {
       return route.fulfill({
         json: { user: SYNTHETIC_MERCHANT, session: { expiresAt: SYNTHETIC_SESSION.expiresAt } },
       })
-    // The merchant page itself makes no API calls while it uses sample data.
+    if (path === '/api/merchant/outlets')
+      return route.fulfill({ json: { items: SYNTHETIC_OUTLETS } })
+    if (path === '/api/merchant/deals') return route.fulfill({ json: { items: SYNTHETIC_DEALS } })
+    // Flash drops make no API calls while they use sample data.
     return route.fulfill({
       status: 404,
       json: { error: { code: 'NOT_FOUND', message: 'Not found' } },
@@ -61,7 +96,7 @@ const expectNoSideScroll = async (page: Page) => {
 
 test('send a flash drop for review, approve it (demo) and end it early', async ({ page }) => {
   await signInAsMerchant(page)
-  await expect(page.getByText('every deal and flash drop on this page is made up')).toBeVisible()
+  await expect(page.getByText('the flash drops on this page are sample data')).toBeVisible()
 
   await dealCard(page, 'Steamed chicken rice set')
     .getByRole('button', { name: 'Flash drop this' })

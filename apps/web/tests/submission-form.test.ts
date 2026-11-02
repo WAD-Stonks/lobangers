@@ -76,10 +76,10 @@ const errorTexts = (wrapper: FormWrapper) =>
     .filter(Boolean)
 
 describe('add a deal form', () => {
-  it('shows its heading, sample-mode notice and field labels', () => {
+  it('shows its heading and field labels, with no sample-mode notice', () => {
     const wrapper = mountForm()
     expect(wrapper.get('h1').text()).toBe('Add a deal')
-    expect(wrapper.text()).toContain('Sample mode')
+    expect(wrapper.text()).not.toContain('Sample mode')
     expect(wrapper.findAll('label').map((label) => label.text())).toEqual([
       'Title',
       'Description',

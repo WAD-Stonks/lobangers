@@ -1,13 +1,16 @@
 import { api } from '@web/lib/api-client'
+import { uploadPhoto } from '@web/lib/photo-upload'
 import axios from 'axios'
 
-// ⚠️ SAMPLE DATA SWITCH ⚠️
-// The backend routes (/api/merchant/...) are built. While this is true, every function below
-// still uses the fake outlets and deals further down instead of calling the server, so the
-// page can be clicked through. Changes are kept in the browser only and reset when you refresh.
-// Set this to false to use real data. The merchant then needs an approved stall (an active
-// stall grant) or the page shows "You don't manage any outlets yet".
+// ⚠️ FLASH DROP SAMPLE DATA SWITCH ⚠️
+// Only the flash drops section (flash-drop-api.ts) still reads this. The outlets and deals
+// below always come from the server (/api/merchant/...). Set it to false once flash drops
+// should use the real flash drop routes too.
 export const USE_SAMPLE_DATA = true
+
+// The photo rules the upload server enforces: one JPEG, PNG or WebP image, up to 4 MB.
+export const PHOTO_TYPES = ['image/jpeg', 'image/png', 'image/webp']
+export const MAX_PHOTO_BYTES = 4 * 1024 * 1024
 
 // An outlet (stall/branch) this merchant has been approved to manage.
 export interface MerchantOutlet {
@@ -32,10 +35,19 @@ export interface MerchantDeal {
   endDate: string // 'YYYY-MM-DD' (last day of the deal), or '' for no end date
   terms: string
   endedAt: string | null // set when the merchant ends the deal early
+  photo?: DealPhoto | null // the deal's one optional photo (the server always sends it)
 }
 
-// Everything the form sends: a deal without the fields the server fills in.
-export type DealInput = Omit<MerchantDeal, 'id' | 'endedAt'>
+export interface DealPhoto {
+  key: string // the UploadThing key that names the file
+  url: string
+}
+
+// Everything the form sends: a deal without the fields the server fills in. photoKey is the
+// photo to keep or attach (see savePhoto), or null for no photo.
+export type DealInput = Omit<MerchantDeal, 'id' | 'endedAt' | 'photo'> & {
+  photoKey: string | null
+}
 
 // ---------------------------------------------------------------------------------------------
 // Requests to the server. Each function returns the data the page needs.
@@ -44,51 +56,46 @@ export type DealInput = Omit<MerchantDeal, 'id' | 'endedAt'>
 // ---------------------------------------------------------------------------------------------
 
 export const getOutlets = async (): Promise<MerchantOutlet[]> => {
-  if (USE_SAMPLE_DATA) return sampleOutlets
   const response = await api.http.get('/merchant/outlets')
   return response.data.items
 }
 
 export const getDeals = async (): Promise<MerchantDeal[]> => {
-  if (USE_SAMPLE_DATA) return [...sampleDeals]
   const response = await api.http.get('/merchant/deals')
   return response.data.items
 }
 
 export const createDeal = async (input: DealInput): Promise<MerchantDeal> => {
-  if (USE_SAMPLE_DATA) {
-    const deal = { ...input, id: `sample-${Date.now()}`, endedAt: null }
-    sampleDeals.push(deal)
-    return deal
-  }
   const response = await api.http.post('/merchant/deals', input)
   return response.data
 }
 
 export const updateDeal = async (id: string, input: DealInput): Promise<MerchantDeal> => {
-  if (USE_SAMPLE_DATA) {
-    const index = sampleDeals.findIndex((deal) => deal.id === id)
-    const deal = { ...input, id, endedAt: null }
-    sampleDeals[index] = deal
-    return deal
-  }
   const response = await api.http.patch(`/merchant/deals/${id}`, input)
   return response.data
 }
 
 export const endDeal = async (id: string): Promise<MerchantDeal> => {
-  if (USE_SAMPLE_DATA) {
-    const index = sampleDeals.findIndex((deal) => deal.id === id)
-    const deal = { ...sampleDeals[index], endedAt: new Date().toISOString() } as MerchantDeal
-    sampleDeals[index] = deal
-    return deal
-  }
   const response = await api.http.post(`/merchant/deals/${id}/end`)
   return response.data
 }
 
+// Uploads a newly chosen photo to UploadThing and returns its key, which the deal is then saved
+// with. The server checks that this same merchant uploaded it.
+export const savePhoto = async (photo: File): Promise<string> => {
+  try {
+    return (await uploadPhoto(photo)).key
+  } catch {
+    throw new Error(PHOTO_UPLOAD_FAILED)
+  }
+}
+
+const PHOTO_UPLOAD_FAILED = 'PHOTO_UPLOAD_FAILED'
+
 // Turns a failed request into a sentence the merchant can understand.
 export const errorMessageFor = (error: unknown, fallback: string): string => {
+  if (error instanceof Error && error.message === PHOTO_UPLOAD_FAILED)
+    return 'Could not upload the photo. Please try again.'
   if (axios.isAxiosError(error)) {
     const status = error.response?.status
     if (status === 401) return 'Your session has ended. Please log in again.'
@@ -106,77 +113,3 @@ export const errorMessageFor = (error: unknown, fallback: string): string => {
   }
   return fallback
 }
-
-// ---------------------------------------------------------------------------------------------
-// Sample data (only used while USE_SAMPLE_DATA is true). Two branches of one franchise, so you
-// can try a deal that runs at just one branch and one that runs at both.
-// ---------------------------------------------------------------------------------------------
-
-const sampleOutlets: MerchantOutlet[] = [
-  { id: 'outlet-1', name: 'Ah Seng Chicken Rice (Maxwell)', address: '1 Kadayanallur St, #01-10' },
-  { id: 'outlet-2', name: 'Ah Seng Chicken Rice (Tiong Bahru)', address: '30 Seng Poh Rd, #02-05' },
-]
-
-const sampleDeals: MerchantDeal[] = [
-  {
-    id: 'sample-1',
-    title: '1-for-1 Roast Chicken Rice',
-    description: 'Buy one plate of roast chicken rice and get a second plate free.',
-    category: 'FOOD',
-    cuisine: 'CHINESE',
-    outletIds: ['outlet-1', 'outlet-2'],
-    offerType: 'BUY_ONE_GET_ONE',
-    discountPercent: null,
-    priceCents: null,
-    startDate: '',
-    endDate: '',
-    terms: 'Dine-in only.\nWeekdays 2pm to 5pm.',
-    endedAt: null,
-  },
-  {
-    id: 'sample-2',
-    title: '20% off set meals',
-    description: 'All set meals are 20% off at our Tiong Bahru branch.',
-    category: 'FOOD',
-    cuisine: 'CHINESE',
-    outletIds: ['outlet-2'],
-    offerType: 'PERCENT_OFF',
-    discountPercent: 20,
-    priceCents: null,
-    startDate: '2026-12-01',
-    endDate: '2026-12-31',
-    terms: '',
-    endedAt: null,
-  },
-  {
-    id: 'sample-3',
-    title: '$3 chicken rice lunch',
-    description: 'Plain chicken rice for $3 during lunch.',
-    category: 'FOOD',
-    cuisine: 'CHINESE',
-    outletIds: ['outlet-1'],
-    offerType: 'FIXED_PRICE',
-    discountPercent: null,
-    priceCents: 300,
-    startDate: '2026-09-01',
-    endDate: '2026-09-30',
-    terms: 'While stocks last.',
-    endedAt: null,
-  },
-  // A current deal with a set price, so a flash drop has a "usual price" to beat.
-  {
-    id: 'sample-4',
-    title: 'Steamed chicken rice set',
-    description: 'Steamed chicken rice with soup and a drink.',
-    category: 'FOOD',
-    cuisine: 'CHINESE',
-    outletIds: ['outlet-1', 'outlet-2'],
-    offerType: 'FIXED_PRICE',
-    discountPercent: null,
-    priceCents: 350,
-    startDate: '',
-    endDate: '',
-    terms: '',
-    endedAt: null,
-  },
-]

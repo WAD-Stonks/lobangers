@@ -37,6 +37,9 @@ export const dealLocationIdsSchema = z
   .max(MAX_LOCATIONS)
   .refine((ids) => new Set(ids).size === ids.length, 'Each location may be chosen once')
 
+// UploadThing key from uploadPhoto(); the server checks this user uploaded it.
+export const dealPhotoKeySchema = z.string().trim().min(1).max(256)
+
 type OfferFields = {
   offerType: z.infer<typeof offerTypeSchema>
   discountPercent: number | null
@@ -64,8 +67,7 @@ export const submitDealBodySchema = z
     startDate: dealDateSchema,
     endDate: dealDateSchema,
     terms: z.string().trim().min(1).max(1000),
-    // UploadThing key from uploadPhoto(); the server checks this user uploaded it.
-    photoKey: z.string().trim().min(1).max(256),
+    photoKey: dealPhotoKeySchema,
   })
   .superRefine(checkDealFields)
 

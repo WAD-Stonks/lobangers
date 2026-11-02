@@ -12,7 +12,6 @@ import {
   type Stall,
   searchStalls,
   submitDeal,
-  USE_SAMPLE_DATA,
 } from '@web/modules/add-deal/add-deal-api'
 import { computed, nextTick, ref } from 'vue'
 
@@ -237,10 +236,6 @@ const clearForm = () => {
       Found a food deal? Share it here. An admin checks every deal before it appears on the map.
     </p>
 
-    <p v-if="USE_SAMPLE_DATA" class="alert alert-warning">
-      Sample mode: the stalls are made up, and submitting shows a success message but does not
-      send the deal anywhere.
-    </p>
     <p v-if="errorMessage" class="alert alert-danger" role="alert">{{ errorMessage }}</p>
 
     <!-- Pop-up after submitting. v-model opens/closes it; OK closes it. -->
