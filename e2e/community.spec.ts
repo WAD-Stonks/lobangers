@@ -6,7 +6,7 @@ const id = 'c'.repeat(24)
 const userId = 'a'.repeat(24)
 const venue = { id: 'b'.repeat(24), name: 'Synthetic community outlet', lat: 1.3, lng: 103.8 }
 for (const width of [320, 390, 1280]) {
-  test(`vote, comment, delete and report at ${width}px`, async ({ page }, info) => {
+  test(`vote, comment, delete and report at ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height: 844 })
     let vote: string | null = null
     let comments: {
@@ -155,7 +155,6 @@ for (const width of [320, 390, 1280]) {
     await expect(community.getByLabel('Share your experience')).toHaveValue(
       'Synthetic draft to keep',
     )
-    await page.screenshot({ path: info.outputPath(`all-comments-${width}.png`) })
     await expect(page.getByRole('link', { name: 'Get directions', exact: true })).toHaveCount(0)
     await expect(community.getByRole('heading', { name: 'Comments 12', exact: true })).toBeFocused()
     await community.getByRole('button', { name: 'Load 5 more comments', exact: true }).click()
@@ -177,8 +176,6 @@ for (const width of [320, 390, 1280]) {
     await expect(community.getByTestId('vote-alive')).toBeEnabled()
     await community.getByTestId('vote-alive').click()
     await expect(community.locator('.deal-community-status')).toHaveText('Likely still on')
-    await community.locator('.deal-community-verification').scrollIntoViewIfNeeded()
-    await page.screenshot({ path: info.outputPath(`verification-${width}.png`) })
     await community
       .getByLabel('Share your experience')
       .fill('The synthetic outlet honoured this deal.')
@@ -186,7 +183,6 @@ for (const width of [320, 390, 1280]) {
     await expect(community.locator('.deal-community-body').first()).toHaveText(
       'The synthetic outlet honoured this deal.',
     )
-    await page.screenshot({ path: info.outputPath(`comments-${width}.png`) })
     const touchTargets = await community
       .locator('button:visible')
       .evaluateAll((buttons) => buttons.map((button) => button.getBoundingClientRect().height))

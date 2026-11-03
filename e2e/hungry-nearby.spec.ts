@@ -60,6 +60,8 @@ const people = (page: Page) => page.locator('.nearby-person-anchor[title="Anothe
 
 const openMap = async (page: Page) => {
   await page.goto('/browse')
+  // The lazy route must mount before an absent splash can mean it has finished.
+  await expect(page.getByTestId('map-shell')).toBeVisible()
   await expect(page.getByTestId('splash-screen')).toBeHidden()
   await expect(page.locator('.deal-map-pin__badge').first()).toBeVisible()
 }

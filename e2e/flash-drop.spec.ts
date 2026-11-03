@@ -11,6 +11,8 @@ test.use({ geolocation: HOME, permissions: ['geolocation'] })
 
 const settledMap = async (page: import('@playwright/test').Page) => {
   await page.goto('/browse')
+  // The lazy route must mount before an absent splash can mean it has finished.
+  await expect(page.getByTestId('map-shell')).toBeVisible()
   await expect(page.getByTestId('splash-screen')).toBeHidden()
   await expect(page.locator('.flash-pin__oval').first()).toBeVisible()
 }
@@ -80,7 +82,10 @@ test('a drop off screen docks its banner to the edge and flies there', async ({ 
     }),
   ])
   await page.goto('/browse')
+  await expect(page.getByTestId('map-shell')).toBeVisible()
   await expect(page.getByTestId('splash-screen')).toBeHidden()
+  // Off-screen drops still mount a pin; wait for the real layer before its idle banner.
+  await expect(page.locator('.flash-pin__oval').first()).toBeAttached()
   const edge = page.getByTestId('flash-edge-banner')
   await expect(edge).toBeVisible({ timeout: 6000 })
   await expect(edge).toContainText('away')
