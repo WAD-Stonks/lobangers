@@ -1,7 +1,7 @@
 import { displayStatus, type StoredStatus } from '@api/modules/flash-drops/policy'
 import type { Database } from '@api/modules/platform-admin/transaction'
 import { activeRecord } from '@api/modules/platform-admin/venues'
-import type { MerchantFlashDrop } from '@broke-oclock/contracts/flash-drops'
+import type { FlashCodeValidity, MerchantFlashDrop } from '@broke-oclock/contracts/flash-drops'
 
 // Loads the deal and outlet a drop points at and projects the shapes each audience sees. Drops
 // store ids only; the deal title and outlet name are read fresh so a rename shows everywhere.
@@ -19,6 +19,8 @@ export const dropSelect = {
   usualPriceMinor: true,
   startsAt: true,
   endsAt: true,
+  codeValidity: true,
+  codesExpireAt: true,
   radiusMetres: true,
   codeLimit: true,
   claimedCount: true,
@@ -40,6 +42,8 @@ export type DropRow = {
   usualPriceMinor: number | null
   startsAt: Date
   endsAt: Date
+  codeValidity: FlashCodeValidity | null
+  codesExpireAt: Date | null
   radiusMetres: number
   codeLimit: number
   claimedCount: number
@@ -146,6 +150,10 @@ export const flashOfferOf = (row: DropRow, deal: Pick<DealFacts, 'priceMinor'> |
   }
 }
 
+// When codes claimed from this drop stop working; older drops' codes end with their window.
+export const codesExpireAtOf = (row: Pick<DropRow, 'endsAt' | 'codesExpireAt'>) =>
+  (row.codesExpireAt ?? row.endsAt).toISOString()
+
 // The fields every audience (merchant and admin) shares.
 export const toDropCore = (row: DropRow, context: DropContext, now: Date) => {
   const deal = context.deals.get(row.dealId)
@@ -158,6 +166,8 @@ export const toDropCore = (row: DropRow, context: DropContext, now: Date) => {
     ...flashOfferOf(row, deal),
     startsAt: row.startsAt.toISOString(),
     endsAt: row.endsAt.toISOString(),
+    codeValidity: row.codeValidity ?? null,
+    codesExpireAt: codesExpireAtOf(row),
     radiusMetres: row.radiusMetres,
     codeLimit: row.codeLimit,
     claimedCount: row.claimedCount,

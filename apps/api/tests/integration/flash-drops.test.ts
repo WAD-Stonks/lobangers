@@ -461,6 +461,174 @@ describe('live flash deals', () => {
   })
 })
 
+describe('claimed codes', () => {
+  it('keeps codes working after claiming closes, even when the merchant ends early', async () => {
+    const { outlet } = await stall(merchant, 'Codes outlive', 1.38)
+    const saved = await draft(outlet.id, { codeValidity: 'THREE_DAYS' })
+    expect(saved.codeValidity).toBe('THREE_DAYS')
+    const live = (await goLive(saved)).body
+    const threeDaysAfter = new Date(Date.parse(live.endsAt) + 3 * 86_400_000).toISOString()
+    expect(live.codesExpireAt).toBe(threeDaysAfter)
+    const active = await call(null, 'GET', '/flash-drops/active')
+    expect(
+      active.body.items.find((item: { id: string }) => item.id === saved.id).codesExpireAt,
+    ).toBe(threeDaysAfter)
+
+    const claimed = await call(member, 'POST', `/flash-drops/${saved.id}/claims`)
+    expect(claimed.body).toMatchObject({ active: true, expiresAt: threeDaysAfter })
+
+    const ended = await call(merchant, 'POST', `/merchant/flash-drops/${saved.id}/end`, {
+      version: live.version,
+    })
+    expect(ended.body.status).toBe('ENDED')
+    // Nobody new can claim, but the code already claimed still works at the counter.
+    expect((await call(otherMerchant, 'POST', `/flash-drops/${saved.id}/claims`)).status).toBe(412)
+    const codes = await call(member, 'GET', '/flash-drops/codes')
+    expect(
+      codes.body.items.find((item: { dropId: string }) => item.dropId === saved.id),
+    ).toMatchObject({ active: true, expiresAt: threeDaysAfter })
+  })
+
+  it('lasts until the end of the day when the merchant picks nothing', async () => {
+    const { outlet } = await stall(merchant, 'Default validity', 1.39)
+    const saved = await draft(outlet.id)
+    expect(saved.codeValidity).toBe('END_OF_DAY')
+    const live = (await goLive(saved)).body
+    // 11:59:59.999 pm in Singapore is 3:59:59.999 pm UTC.
+    expect(live.codesExpireAt).toMatch(/T15:59:59\.999Z$/)
+    expect(Date.parse(live.codesExpireAt)).toBeGreaterThan(Date.parse(live.endsAt))
+  })
+
+  it('ends older codes with their window, as before', async () => {
+    const { outlet } = await stall(merchant, 'Legacy codes', 1.41)
+    const saved = await draft(outlet.id)
+    await goLive(saved)
+    await db.flashDrop.update({
+      where: { id: saved.id },
+      data: { codeValidity: null, codesExpireAt: null },
+    })
+    const claimed = await call(member, 'POST', `/flash-drops/${saved.id}/claims`)
+    expect(claimed.body.expiresAt).toBe(claimed.body.endsAt)
+  })
+})
+
+describe('live updates', () => {
+  type Push = { channels: string[]; event: string; data: unknown }
+  let pushes: Push[] = []
+
+  const usePublisher = async () => {
+    const realtime = await import('@api/modules/flash-drops/realtime')
+    pushes = []
+    realtime.setFlashPublisher({
+      trigger: async (channels, event, data) => {
+        pushes.push({ channels, event, data })
+      },
+      authorizeChannel: (socketId, channel) => ({ auth: `signed:${socketId}:${channel}` }),
+    })
+    return () => realtime.setFlashPublisher(null)
+  }
+
+  it('says when live updates are off, so browsers keep polling', async () => {
+    const config = await call(null, 'GET', '/flash-drops/realtime')
+    expect(config).toMatchObject({ status: 200, body: { pusher: null } })
+    const auth = await call(merchant, 'POST', '/merchant/flash-drops/realtime/auth', {
+      socketId: '1.2',
+      channel: `private-merchant-flash-${merchant.id}`,
+    })
+    expect(auth.status).toBe(412)
+  })
+
+  it('signs a merchant into their own channel only', async () => {
+    const stop = await usePublisher()
+    try {
+      const sign = (account: Account | null, owner: Account) =>
+        call(account, 'POST', '/merchant/flash-drops/realtime/auth', {
+          socketId: '1.2',
+          channel: `private-merchant-flash-${owner.id}`,
+        })
+      const own = await sign(merchant, merchant)
+      expect(own.status).toBe(200)
+      expect(own.body.auth).toBe(`signed:1.2:private-merchant-flash-${merchant.id}`)
+      expect((await sign(merchant, otherMerchant)).status).toBe(403)
+      expect((await sign(member, member)).status).toBe(403)
+      expect((await sign(null, merchant)).status).toBe(401)
+      const malformed = await call(merchant, 'POST', '/merchant/flash-drops/realtime/auth', {
+        socketId: '1.2',
+        channel: 'private-squad-ABCD',
+      })
+      expect(malformed.status).toBe(400)
+    } finally {
+      stop()
+    }
+  })
+
+  it('pushes go live, each new claim, ending and removal to the map and the merchant', async () => {
+    const stop = await usePublisher()
+    try {
+      const both = ['flash-drops', `private-merchant-flash-${merchant.id}`]
+      const kinds = () => pushes.map((push) => (push.data as { kind: string }).kind)
+      const { outlet } = await stall(merchant, 'Pushed', 1.42)
+      const saved = await draft(outlet.id)
+      // A draft is private: nothing is pushed.
+      expect(pushes).toEqual([])
+
+      const live = (await goLive(saved)).body
+      expect(pushes[0]).toEqual({
+        channels: both,
+        event: 'changed',
+        data: { dropId: saved.id, kind: 'LIVE' },
+      })
+      await call(member, 'POST', `/flash-drops/${saved.id}/claims`)
+      // Claiming again returns the same code and changes nothing, so nothing is pushed.
+      await call(member, 'POST', `/flash-drops/${saved.id}/claims`)
+      expect(kinds()).toEqual(['LIVE', 'CLAIMED'])
+
+      await call(merchant, 'POST', `/merchant/flash-drops/${saved.id}/end`, {
+        version: live.version,
+      })
+      expect(kinds()).toEqual(['LIVE', 'CLAIMED', 'ENDED'])
+
+      const other = await draft(outlet.id)
+      const otherLive = (await goLive(other)).body
+      await call(admin, 'POST', `/admin/flash-drops/${other.id}/decision`, {
+        decision: 'STOP',
+        note: 'Synthetic removal.',
+        version: otherLive.version,
+      })
+      expect(pushes.at(-1)).toEqual({
+        channels: both,
+        event: 'changed',
+        data: { dropId: other.id, kind: 'STOPPED' },
+      })
+    } finally {
+      stop()
+    }
+  })
+
+  it('never fails the write when a push fails', async () => {
+    const realtime = await import('@api/modules/flash-drops/realtime')
+    const errors = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    realtime.setFlashPublisher({
+      trigger: async () => {
+        throw new Error('Synthetic Pusher outage')
+      },
+      authorizeChannel: () => ({ auth: 'unused' }),
+    })
+    try {
+      const { outlet } = await stall(merchant, 'Push outage', 1.43)
+      const saved = await draft(outlet.id)
+      expect((await goLive(saved)).status).toBe(200)
+      expect(errors).toHaveBeenCalledWith(
+        'Flash realtime publish failed',
+        expect.objectContaining({ dropId: saved.id, kind: 'LIVE' }),
+      )
+    } finally {
+      realtime.setFlashPublisher(null)
+      errors.mockRestore()
+    }
+  })
+})
+
 describe('admin removal', () => {
   it('lets admins remove a live flash deal with a note, voiding its codes, and logs it', async () => {
     const { outlet } = await stall(merchant, 'Remove', 1.4)

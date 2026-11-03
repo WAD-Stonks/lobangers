@@ -1,4 +1,5 @@
 import { goLiveMerchantFlashDrop } from '@api/modules/flash-drops/merchant'
+import { publishFlashChange } from '@api/modules/flash-drops/realtime'
 import {
   authenticatedActor,
   createRestHandler,
@@ -22,5 +23,6 @@ export const goLiveMerchantDrop = (dependencies: RestDependencies) =>
     const { dropId } = parseRestInput(flashDropParamsSchema, request.params)
     const { version } = parseRestInput(merchantFlashDropVersionSchema, request.body)
     const drop = await goLiveMerchantFlashDrop(context.db, actor, dropId, version, new Date())
+    await publishFlashChange(actor.userId, { dropId, kind: 'LIVE' })
     response.json(merchantFlashDropSchema.parse(drop))
   })

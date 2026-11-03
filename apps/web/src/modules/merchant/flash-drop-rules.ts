@@ -1,15 +1,19 @@
 import {
+  DEFAULT_FLASH_CODE_VALIDITY,
   FLASH_DROP_DURATIONS,
   FLASH_DROP_MAX_CODES,
   FLASH_DROP_MAX_LEAD_DAYS,
   FLASH_DROP_MIN_CODES,
   FLASH_DROP_RADII,
+  type FlashCodeValidity,
   type FlashDropDisplayStatus,
   type MerchantFlashDrop,
   type MerchantFlashDropBody,
 } from '@broke-oclock/contracts/flash-drops'
 import { formatMoneyMinor } from '@web/lib/format'
-import { offerText, offerTitle } from '@web/modules/flash-drop/flash-format'
+import { offerText, offerTitle, whenText } from '@web/modules/flash-drop/flash-format'
+
+export { whenText }
 
 // Plain helpers for flash deals on the merchant dashboard: the flash part of the deal form,
 // checking it before saving, and the sentences shown on each flash deal. The flash offer itself
@@ -39,7 +43,8 @@ export interface FlashFieldsState {
   // GO_LIVE starts it the moment the merchant presses Go live; LATER at the time in startLocal.
   startMode: 'GO_LIVE' | 'LATER'
   startLocal: string // 'YYYY-MM-DDTHH:mm' from the datetime-local box, used when LATER
-  durationMinutes: FlashDropDuration
+  durationMinutes: FlashDropDuration // how long people can claim codes
+  codeValidity: FlashCodeValidity // how long a claimed code works once claiming closes
   radiusMetres: FlashDropRadius
 }
 
@@ -49,6 +54,7 @@ export const blankFlashFields = (): FlashFieldsState => ({
   startMode: 'GO_LIVE',
   startLocal: '',
   durationMinutes: 30,
+  codeValidity: DEFAULT_FLASH_CODE_VALIDITY,
   radiusMetres: 500,
 })
 
@@ -64,6 +70,7 @@ export const flashFieldsFromDrop = (drop: MerchantFlashDrop): FlashFieldsState =
     startMode: drop.startsOnGoLive ? 'GO_LIVE' : 'LATER',
     startLocal: drop.startsOnGoLive ? '' : toLocalInput(new Date(drop.startsAt)),
     durationMinutes: FLASH_DROP_DURATIONS.find((value) => value === minutes) ?? 30,
+    codeValidity: drop.codeValidity ?? DEFAULT_FLASH_CODE_VALIDITY,
     radiusMetres: FLASH_DROP_RADII.find((value) => value === drop.radiusMetres) ?? 500,
   }
 }
@@ -160,6 +167,7 @@ export type FlashDealInput = Omit<
   | 'usualPriceCents'
   | 'startsAt'
   | 'durationMinutes'
+  | 'codeValidity'
   | 'radiusMetres'
   | 'codeLimit'
   | 'version'
@@ -176,6 +184,7 @@ export const toFlashDropBody = (
   usualPriceCents: deal.offerType === 'FIXED_PRICE' ? usualCentsOf(fields) : null,
   startsAt: fields.startMode === 'GO_LIVE' ? null : (pickedStartOf(fields)?.toISOString() ?? null),
   durationMinutes: fields.durationMinutes,
+  codeValidity: fields.codeValidity,
   radiusMetres: fields.radiusMetres,
   codeLimit: fields.codeLimit,
 })
@@ -185,21 +194,19 @@ export const toFlashDropBody = (
 export const radiusLabel = (metres: number) =>
   metres >= 1000 ? `${metres / 1000} km` : `${metres} m`
 
-// "Today 6:00 pm", "Tomorrow 12:30 pm", "Yesterday 12:00 pm" or "Sat 7 Nov, 6:00 pm".
-export const whenText = (iso: string, now: Date) => {
-  const date = new Date(iso)
-  const time = date
-    .toLocaleTimeString('en-SG', { hour: 'numeric', minute: '2-digit', hour12: true })
-    .toLowerCase()
-  const dayDiff = Math.round(
-    (new Date(date.toDateString()).getTime() - new Date(now.toDateString()).getTime()) / DAY_MS,
-  )
-  if (dayDiff === 0) return `Today ${time}`
-  if (dayDiff === 1) return `Tomorrow ${time}`
-  if (dayDiff === -1) return `Yesterday ${time}`
-  const day = date.toLocaleDateString('en-SG', { weekday: 'short', day: 'numeric', month: 'short' })
-  return `${day}, ${time}`
+// The chips for how long a claimed code works once claiming closes.
+export const CODE_VALIDITY_LABELS: Record<FlashCodeValidity, string> = {
+  TWO_HOURS: '2 hours',
+  END_OF_DAY: 'Until end of day',
+  THREE_DAYS: '3 days',
+  SEVEN_DAYS: '7 days',
 }
+
+// "until today 8:00 pm" for codes that still work, or null once they have expired.
+const codesUntil = (drop: MerchantFlashDrop, now: Date) =>
+  Date.parse(drop.codesExpireAt) > now.getTime()
+    ? `until ${whenText(drop.codesExpireAt, now).toLowerCase()}`
+    : null
 
 // When a flash deal starts, in words: a draft may start "when you press Go live".
 const startText = (drop: MerchantFlashDrop, now: Date) =>
@@ -228,11 +235,20 @@ export const statusSentence = (drop: MerchantFlashDrop, now: Date) => {
         : `Draft. Nobody can see it yet. Press Go live to start it ${whenText(drop.startsAt, now).toLowerCase()}.`,
     SCHEDULED: () =>
       `Going live ${whenText(drop.startsAt, now).toLowerCase()} for ${durationMinutesOf(drop)} min.`,
-    LIVE: () => `Live now · ${minutesLeft(drop, now)} min left`,
-    ENDED: () =>
-      drop.claimedCount >= drop.codeLimit
-        ? `All ${drop.codeLimit} codes claimed.`
-        : `Ended. ${drop.claimedCount} of ${drop.codeLimit} codes claimed.`,
+    LIVE: () => {
+      const left = `Live now · ${minutesLeft(drop, now)} min left to claim`
+      const until = codesUntil(drop, now)
+      return until ? `${left} · codes work ${until}` : left
+    },
+    ENDED: () => {
+      const claimed =
+        drop.claimedCount >= drop.codeLimit
+          ? `All ${drop.codeLimit} codes claimed.`
+          : `Ended. ${drop.claimedCount} of ${drop.codeLimit} codes claimed.`
+      // Codes outlive claiming, so the merchant knows to keep honouring them.
+      const until = codesUntil(drop, now)
+      return until && drop.claimedCount > 0 ? `${claimed} Codes still work ${until}.` : claimed
+    },
     STOPPED: () => 'Removed by LoBangers.',
   }
   return sentences[drop.status]()

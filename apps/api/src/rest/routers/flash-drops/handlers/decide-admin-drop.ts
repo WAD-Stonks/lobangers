@@ -1,4 +1,5 @@
 import { decideFlashDrop } from '@api/modules/flash-drops/admin'
+import { publishFlashChange } from '@api/modules/flash-drops/realtime'
 import {
   authenticatedActor,
   createRestHandler,
@@ -21,9 +22,13 @@ export const decideAdminDrop = (dependencies: RestDependencies) =>
     const actor = authenticatedActor(requireSession(context))
     const { dropId } = parseRestInput(flashDropParamsSchema, request.params)
     const input = parseRestInput(adminFlashDropDecisionSchema, request.body)
-    response.json(
-      adminFlashDropSchema.parse(
-        await decideFlashDrop(context.db, actor, dropId, input, new Date()),
-      ),
+    const { drop, merchantUserId } = await decideFlashDrop(
+      context.db,
+      actor,
+      dropId,
+      input,
+      new Date(),
     )
+    await publishFlashChange(merchantUserId, { dropId, kind: 'STOPPED' })
+    response.json(adminFlashDropSchema.parse(drop))
   })
