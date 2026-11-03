@@ -5,7 +5,9 @@ import { withLeading } from '@web/components/select-options'
 import { api } from '@web/lib/api-client'
 import { focusFirstInvalid } from '@web/lib/form-focus'
 import { errorCode } from '@web/modules/ingestion-admin/errors'
+import ShellIcon from '@web/modules/map-shell/ShellIcon.vue'
 import { computed, nextTick, onMounted, ref } from 'vue'
+import { useRouter } from 'vue-router'
 
 const search = ref('')
 const venues = ref<AccountVenue[]>([])
@@ -133,10 +135,17 @@ onMounted(() => {
   findVenues()
   loadMyRequests()
 })
+
+const router = useRouter()
+const goBack = () => {
+  if (router.options.history.state.back) router.back()
+  else void router.push('/deals')
+}
 </script>
 
 <template>
   <section class="container py-4 merchant-access">
+    <button type="button" class="merchant-access__back" @click="goBack"><ShellIcon name="back" :size="16" />Back</button>
     <h1 class="h2 mb-3">Merchant access</h1>
     <p class="text-secondary">
       Run a stall? Request access to manage its deals. An administrator reviews every request.
@@ -233,5 +242,29 @@ onMounted(() => {
 /* A readable form width on wide screens; Bootstrap's container still handles phone gutters. */
 .merchant-access {
   max-width: 52rem;
+}
+
+.merchant-access__back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: var(--hit, 44px);
+  margin-bottom: 8px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font: 700 0.875rem / 1 var(--font-sans);
+  color: var(--ink-muted);
+  cursor: pointer;
+}
+
+.merchant-access__back:hover {
+  color: var(--ink);
+}
+
+.merchant-access__back:focus-visible {
+  outline: 3px solid var(--focus-ring, var(--sunny-ring));
+  outline-offset: 3px;
+  border-radius: 4px;
 }
 </style>
