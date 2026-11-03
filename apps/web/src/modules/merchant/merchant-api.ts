@@ -2,12 +2,6 @@ import { api } from '@web/lib/api-client'
 import { uploadPhoto } from '@web/lib/photo-upload'
 import axios from 'axios'
 
-// ⚠️ FLASH DROP SAMPLE DATA SWITCH ⚠️
-// Only the flash drops section (flash-drop-api.ts) still reads this. The outlets and deals
-// below always come from the server (/api/merchant/...). Set it to false once flash drops
-// should use the real flash drop routes too.
-export const USE_SAMPLE_DATA = true
-
 // The photo rules the upload server enforces: one JPEG, PNG or WebP image, up to 4 MB.
 export const PHOTO_TYPES = ['image/jpeg', 'image/png', 'image/webp']
 export const MAX_PHOTO_BYTES = 4 * 1024 * 1024
