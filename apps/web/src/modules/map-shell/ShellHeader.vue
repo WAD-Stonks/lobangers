@@ -27,6 +27,8 @@ const session = authClient.useSession()
 // Merchants already have access, and staff can't request it, so only visitors and regular
 // accounts are offered it.
 const offerMerchantAccess = computed(() => !session.value.data || session.value.data.user.role === 'USER')
+// Merchants get their dashboard in the same spot, so it is one click away and not only in menus.
+const isMerchant = computed(() => session.value.data?.user.role === 'MERCHANT')
 const props = withDefaults(
   defineProps<{
     filters: BrowseFilters
@@ -82,6 +84,7 @@ defineExpose({ focusAllFilters: () => {
       <div class="shell-header__actions">
         <SquadHeaderButton :compact="bottomNav" />
         <RouterLink v-if="offerMerchantAccess" class="shell-header__contribute" :to="navigationTo('/me/merchant-access')" data-testid="become-merchant">Become a merchant</RouterLink>
+        <RouterLink v-else-if="isMerchant" class="shell-header__contribute" to="/merchant" data-testid="header-merchant-dashboard">Merchant dashboard</RouterLink>
         <ProfileMenu v-if="session.data" class="shell-header__profile" />
         <RouterLink v-else class="shell-header__account" to="/login" aria-label="Log in"><ShellIcon name="user" :size="22" /></RouterLink>
       </div>

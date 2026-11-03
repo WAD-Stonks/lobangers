@@ -2,6 +2,7 @@ import { DomainError } from '@api/modules/domain-error'
 import {
   FLASH_DROP_MANY_CODES,
   FLASH_DROP_MAX_LEAD_DAYS,
+  type FlashCodeValidity,
   type FlashDropDisplayStatus,
   type FlashDropView,
 } from '@broke-oclock/contracts/flash-drops'
@@ -31,7 +32,9 @@ export type DropTiming = {
 }
 
 const MINUTE_MS = 60_000
+const HOUR_MS = 3_600_000
 const DAY_MS = 86_400_000
+const SINGAPORE_OFFSET_MS = 8 * HOUR_MS
 // A form filled in a minute ago with "start now" is still on time.
 const START_GRACE_MS = MINUTE_MS
 const EARTH_RADIUS_METRES = 6_371_000
@@ -93,6 +96,41 @@ export const scheduleWindow = (startsAtIso: string, durationMinutes: number, now
   // "Start now" begins at the moment it is sent, never a minute in the past.
   const start = startsAt < now ? now : startsAt
   return { startsAt: start, endsAt: new Date(start.getTime() + durationMinutes * MINUTE_MS) }
+}
+
+// The last moment of the Singapore day that `at` falls in (11:59:59.999 pm).
+const endOfSingaporeDay = (at: Date) =>
+  new Date(
+    (Math.floor((at.getTime() + SINGAPORE_OFFSET_MS) / DAY_MS) + 1) * DAY_MS -
+      SINGAPORE_OFFSET_MS -
+      1,
+  )
+
+const VALIDITY_MS: Record<Exclude<FlashCodeValidity, 'END_OF_DAY'>, number> = {
+  TWO_HOURS: 2 * HOUR_MS,
+  THREE_DAYS: 3 * DAY_MS,
+  SEVEN_DAYS: 7 * DAY_MS,
+}
+
+// When claimed codes stop working: counted from when claiming closes, so people can claim in
+// the short window and still have time to get to the counter.
+export const codesExpireAt = (claimingEndsAt: Date, validity: FlashCodeValidity): Date =>
+  validity === 'END_OF_DAY'
+    ? endOfSingaporeDay(claimingEndsAt)
+    : new Date(claimingEndsAt.getTime() + VALIDITY_MS[validity])
+
+export type CodeTiming = {
+  status: StoredStatus
+  endsAt: Date
+  codesExpireAt: Date | null
+}
+
+// A claimed code is good until it expires, even after claiming closes or the merchant ends the
+// drop early; an admin removing the drop cancels it. Older drops have no expiry, and their codes
+// end with the window as they always did.
+export const codeIsActive = (drop: CodeTiming, now: Date): boolean => {
+  if (!drop.codesExpireAt) return drop.status === 'APPROVED' && drop.endsAt > now
+  return (drop.status === 'APPROVED' || drop.status === 'ENDED_EARLY') && drop.codesExpireAt > now
 }
 
 // Short codes people read out at a counter: no 0/O or 1/I to mix up.

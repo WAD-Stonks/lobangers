@@ -1,8 +1,13 @@
 import { randomInt } from 'node:crypto'
 import type { AuthenticatedActor } from '@api/modules/account/security-access'
 import { DomainError } from '@api/modules/domain-error'
-import { isDraft, isLive, newClaimCode } from '@api/modules/flash-drops/policy'
-import { dropSelect, flashOfferOf, loadContext } from '@api/modules/flash-drops/records'
+import { codeIsActive, isDraft, isLive, newClaimCode } from '@api/modules/flash-drops/policy'
+import {
+  codesExpireAtOf,
+  dropSelect,
+  flashOfferOf,
+  loadContext,
+} from '@api/modules/flash-drops/records'
 import type { Database } from '@api/modules/platform-admin/transaction'
 import type {
   ActiveFlashDropsResponse,
@@ -48,6 +53,7 @@ export const listActiveFlashDrops = async (
         ...flashOfferOf(row, deal),
         startsAt: row.startsAt.toISOString(),
         endsAt: row.endsAt.toISOString(),
+        codesExpireAt: codesExpireAtOf(row),
         radiusMetres: row.radiusMetres,
         codesLeft: Math.max(0, row.codeLimit - row.claimedCount),
         codeLimit: row.codeLimit,
@@ -95,8 +101,9 @@ const toCode = (claim: ClaimRow, { byId, context }: DropRows, now: Date): FlashC
     ...withoutUsual(flashOfferOf(drop, context.deals.get(drop.dealId))),
     claimedAt: claim.createdAt.toISOString(),
     endsAt: drop.endsAt.toISOString(),
-    // A code is good until its drop ends or is stopped; it no longer matters if codes ran out.
-    active: drop.endsAt > now && drop.status === 'APPROVED',
+    expiresAt: codesExpireAtOf(drop),
+    // It no longer matters if codes ran out or claiming has closed.
+    active: codeIsActive(drop, now),
     demo: drop.demo,
   }
 }
@@ -135,7 +142,7 @@ export const claimFlashCode = async (
   actor: AuthenticatedActor,
   dropId: string,
   now: Date,
-): Promise<{ created: boolean; code: FlashCode }> => {
+): Promise<{ created: boolean; code: FlashCode; merchantUserId: string }> => {
   const existing = await claimRow(database, dropId, actor.userId)
   const result = existing
     ? { created: false, claim: existing }
@@ -163,9 +170,11 @@ export const claimFlashCode = async (
         if (counted.count !== 1) throw soldOut()
         return writeClaim(database, dropId, actor.userId)
       })()
-  const code = toCode(result.claim, await loadDrops(database, [dropId]), now)
-  if (!code) throw new DomainError('NOT_FOUND', 'Flash drop not found')
-  return { created: result.created, code }
+  const drops = await loadDrops(database, [dropId])
+  const code = toCode(result.claim, drops, now)
+  const drop = drops.byId.get(dropId)
+  if (!code || !drop) throw new DomainError('NOT_FOUND', 'Flash drop not found')
+  return { created: result.created, code, merchantUserId: drop.merchantUserId }
 }
 
 export const listMyFlashCodes = async (

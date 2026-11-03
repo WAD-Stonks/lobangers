@@ -58,7 +58,9 @@ const runAction = (action: ToastAction) => {
   align-items: center;
   gap: var(--space-3);
   box-sizing: border-box;
-  max-width: calc(100vw - 2 * var(--shell-gutter));
+  /* Sized to its text, not to the room right of the map centre, so words never split. */
+  width: max-content;
+  max-width: min(28rem, calc(100vw - 2 * var(--shell-gutter)));
   min-height: 48px;
   padding: 12px 22px;
   font-size: 0.875rem;
@@ -86,7 +88,7 @@ const runAction = (action: ToastAction) => {
 
 .shell-toast__text {
   min-width: 0;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
 }
 
 /* Text button inside the pill; the padding makes a 44px target without growing the pill. */

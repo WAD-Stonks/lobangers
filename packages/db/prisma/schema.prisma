@@ -834,6 +834,14 @@ enum FlashDropStatus {
   ENDED_EARLY
 }
 
+// How long a claimed code can be used at the counter once claiming closes.
+enum FlashCodeValidity {
+  TWO_HOURS
+  END_OF_DAY
+  THREE_DAYS
+  SEVEN_DAYS
+}
+
 model FlashDrop {
   id              String          @id @default(auto()) @map("_id") @db.ObjectId
   dealId          String          @db.ObjectId
@@ -846,8 +854,13 @@ model FlashDrop {
   // Only for a fixed-price flash offer, and the usual price it beats (optional).
   flashPriceMinor Int?
   usualPriceMinor Int?
+  // The claim window: codes can be claimed from startsAt until endsAt.
   startsAt        DateTime
   endsAt          DateTime
+  // Claimed codes stay good until codesExpireAt, worked out from codeValidity whenever the
+  // window is set. Older flash deals have neither, and their codes end with the window.
+  codeValidity    FlashCodeValidity?
+  codesExpireAt   DateTime?
   radiusMetres    Int
   codeLimit       Int
   claimedCount    Int             @default(0)

@@ -57,6 +57,17 @@ export const votingOutcome = (
 // Once this share of voters picks the next deal, the room moves on without waiting for the rest.
 export const SKIP_DEAL_PERCENT = 80
 
+// After a match the squad may still keep looking, but only once that same share picks it.
+export const keepLookingOutcome = (
+  voterIds: readonly string[],
+  ballots: readonly Ballot[],
+): 'NEXT' | null => {
+  if (voterIds.length === 0) return null
+  const cast = byMember(ballots)
+  const next = voterIds.filter((id) => cast.get(id)?.choice === 'NEXT').length
+  return next * 100 >= voterIds.length * SKIP_DEAL_PERCENT ? 'NEXT' : null
+}
+
 // Otherwise everyone must choose, and voting again needs more than half, so the room stays
 // together.
 export const choiceOutcome = (
@@ -64,9 +75,8 @@ export const choiceOutcome = (
   ballots: readonly Ballot[],
 ): 'AGAIN' | 'NEXT' | null => {
   if (voterIds.length === 0) return null
+  if (keepLookingOutcome(voterIds, ballots)) return 'NEXT'
   const cast = byMember(ballots)
-  const next = voterIds.filter((id) => cast.get(id)?.choice === 'NEXT').length
-  if (next * 100 >= voterIds.length * SKIP_DEAL_PERCENT) return 'NEXT'
   if (!voterIds.every((id) => cast.get(id)?.choice)) return null
   const again = voterIds.filter((id) => cast.get(id)?.choice === 'AGAIN').length
   return again * 2 > voterIds.length ? 'AGAIN' : 'NEXT'

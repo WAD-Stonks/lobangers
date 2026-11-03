@@ -10,11 +10,15 @@ import {
   flashCodeSchema,
   flashCodesResponseSchema,
   flashDropParamsSchema,
+  flashRealtimeConfigSchema,
   type MerchantFlashDropBody,
+  type MerchantFlashRealtimeAuth,
   merchantFlashDropBodySchema,
   merchantFlashDropSchema,
   merchantFlashDropsResponseSchema,
   merchantFlashDropVersionSchema,
+  merchantFlashRealtimeAuthResponseSchema,
+  merchantFlashRealtimeAuthSchema,
 } from '@broke-oclock/contracts/flash-drops'
 import type { AxiosInstance } from 'axios'
 
@@ -27,7 +31,17 @@ export const createFlashDropsClient = (http: AxiosInstance) => ({
   claim: (dropId: string) =>
     request(http.post(`/flash-drops/${id(dropId)}/claims`), flashCodeSchema),
   myCodes: () => request(http.get('/flash-drops/codes'), flashCodesResponseSchema),
+  // The Pusher key for live updates, or null when the API has none and browsers poll.
+  realtimeConfig: () => request(http.get('/flash-drops/realtime'), flashRealtimeConfigSchema),
   merchant: {
+    realtimeAuth: (input: MerchantFlashRealtimeAuth) =>
+      request(
+        http.post(
+          '/merchant/flash-drops/realtime/auth',
+          validateInput(merchantFlashRealtimeAuthSchema, input),
+        ),
+        merchantFlashRealtimeAuthResponseSchema,
+      ),
     list: () => request(http.get('/merchant/flash-drops'), merchantFlashDropsResponseSchema),
     create: (input: MerchantFlashDropBody) =>
       request(

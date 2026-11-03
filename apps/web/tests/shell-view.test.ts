@@ -1,4 +1,4 @@
-import { routeView } from '@web/modules/map-shell/shell-routes'
+import { panelSnapFor, routeView } from '@web/modules/map-shell/shell-routes'
 import { describe, expect, it } from 'vitest'
 
 describe('routeView', () => {
@@ -22,5 +22,15 @@ describe('routeView', () => {
 
   it('defaults to the map', () => {
     expect(routeView({ name: 'browse', query: {} })).toBe('map')
+  })
+})
+
+describe('panelSnapFor', () => {
+  it('opens Squad screens over the whole screen, forms full and deals at half', () => {
+    for (const name of ['squad-new', 'squad-join', 'squad-room'])
+      expect(panelSnapFor(name, 'map')).toBe(3)
+    expect(panelSnapFor('login', 'map')).toBe(2)
+    expect(panelSnapFor('deal', 'map')).toBe(1)
+    expect(panelSnapFor('browse', 'list')).toBe(2)
   })
 })

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { SquadAvatar, SquadEvent, SquadState } from '@broke-oclock/contracts/squad'
+import type { SquadAvatar, SquadEvent, SquadMember, SquadState } from '@broke-oclock/contracts/squad'
 import { dealLocation } from '@web/modules/map-shell/shell-routes'
 import { useToast } from '@web/modules/map-shell/use-toast'
 import SquadConfirm from '@web/modules/squad/SquadConfirm.vue'
@@ -8,6 +8,7 @@ import SquadDock from '@web/modules/squad/SquadDock.vue'
 import SquadEffectsLayer from '@web/modules/squad/SquadEffectsLayer.vue'
 import SquadLeave from '@web/modules/squad/SquadLeave.vue'
 import SquadMembers from '@web/modules/squad/SquadMembers.vue'
+import SquadOptionsMenu from '@web/modules/squad/SquadOptionsMenu.vue'
 import { shareRoom } from '@web/modules/squad/share-room'
 import { SHEET_CONTROL_KEY } from '@web/modules/squad/sheet-control'
 import { useSquadEffects } from '@web/modules/squad/use-squad-effects'
@@ -16,7 +17,8 @@ import { computed, inject, onBeforeUnmount, ref, watch } from 'vue'
 import { type RouteLocationRaw, useRoute, useRouter } from 'vue-router'
 
 // The live room: who's here and how they voted, the deal on the table, and Yay or Nah. Every
-// tap anyone makes plays as an effect for everyone.
+// tap anyone makes plays as an effect for everyone, and the latest one is named under the tally.
+// The host can close the room from Options or remove someone by tapping their face, any time.
 const props = defineProps<{ room: SquadRoom; state: SquadState }>()
 
 const route = useRoute()
@@ -28,15 +30,23 @@ const effects = useSquadEffects()
 const root = ref<HTMLElement | null>(null)
 const card = ref<InstanceType<typeof SquadDealCard> | null>(null)
 const leaving = ref(false)
-// Closing ends the room for everyone, so the host confirms it first.
+// Closing ends the room for everyone, so the host confirms it first; so does removing someone.
 const closing = ref(false)
+const removing = ref<SquadMember | null>(null)
 // The button that opened the Leave or Close sheet, so focus returns there when it closes.
 const sheetTrigger = ref<HTMLElement | null>(null)
 const openSheet = (sheet: 'leave' | 'close', event?: Event) => {
-  const trigger = event?.currentTarget ?? document.activeElement
-  sheetTrigger.value = trigger instanceof HTMLElement ? trigger : null
+  rememberTrigger(event)
   if (sheet === 'leave') leaving.value = true
   else closing.value = true
+}
+const rememberTrigger = (event?: Event) => {
+  const trigger = event?.currentTarget ?? document.activeElement
+  sheetTrigger.value = trigger instanceof HTMLElement ? trigger : null
+}
+const askRemove = (member: SquadMember) => {
+  rememberTrigger()
+  removing.value = member
 }
 // Kept so "Rejoin" works after the seat is gone from the member list.
 const lastSelf = ref<{ name: string; avatar: SquadAvatar } | null>(null)
@@ -88,24 +98,41 @@ const playYay = (memberId: string | null) => {
 }
 const playNah = () => effects.nah(root.value?.clientWidth ?? 360)
 
+// The latest thing someone did, under the tally ("Ashley yay'd it").
+const feed = ref('Room is live. Tap as many times as you like.')
+const FEED_TEXT: Partial<Record<SquadEvent['kind'], (name: string) => string>> = {
+  YAY: (name) => `${name} yay'd it`,
+  NAH: (name) => `${name} said nah`,
+  AGAIN: (name) => `${name} wants to vote again`,
+  NEXT: (name) => `${name} wants ${props.state.phase === 'MATCHED' ? 'to keep looking' : 'the next deal'}`,
+}
+const note = (kind: SquadEvent['kind'], memberId: string | null) => {
+  const text = FEED_TEXT[kind]
+  if (text) feed.value = text(nameOf(memberId))
+}
+const nextKind = () => (props.state.phase === 'MATCHED' ? 'look' : 'next')
+
 const stopListening = props.room.onEffect((event: SquadEvent) => {
+  note(event.kind, event.memberId)
   if (event.kind === 'YAY') playYay(event.memberId)
   else if (event.kind === 'NAH') playNah()
   else if (event.kind === 'AGAIN') effects.whoosh('again', nameOf(event.memberId))
-  else if (event.kind === 'NEXT') effects.whoosh('next', nameOf(event.memberId))
+  else if (event.kind === 'NEXT') effects.whoosh(nextKind(), nameOf(event.memberId))
 })
 onBeforeUnmount(stopListening)
 watch(() => `${props.state.dealIndex}:${props.state.round}`, effects.clearStickers)
 
 const tap = (stance: 'YAY' | 'NAH') => {
   props.room.tap(stance)
+  note(stance, props.state.me?.memberId ?? null)
   if (stance === 'YAY') playYay(props.state.me?.memberId ?? null)
   else playNah()
 }
 
 const choose = (choice: 'AGAIN' | 'NEXT') => {
   void props.room.choose(choice)
-  effects.whoosh(choice === 'AGAIN' ? 'again' : 'next', 'You')
+  note(choice, props.state.me?.memberId ?? null)
+  effects.whoosh(choice === 'AGAIN' ? 'again' : nextKind(), 'You')
 }
 
 // The deal page link, tagged so its Back button returns to this room.
@@ -131,6 +158,14 @@ const leave = async () => {
 const closeRoom = async () => {
   await props.room.close()
   closing.value = false
+}
+
+const removeMember = async () => {
+  const member = removing.value
+  if (!member) return
+  const done = await props.room.remove(member.id)
+  removing.value = null
+  if (done) toast.show(`${member.name} was removed`)
 }
 
 const rejoin = () => {
@@ -167,7 +202,7 @@ const browse = (event: MouseEvent, navigate: (event?: MouseEvent) => Promise<unk
       <header class="squad-live__bar">
         <button type="button" class="squad-link" data-testid="squad-leave" @click="openSheet('leave', $event)"><span aria-hidden="true">←</span> Leave room</button>
         <span class="squad-live__tools">
-          <button type="button" class="lb-btn squad-btn-dark squad-btn-small" @click="share">Share code</button>
+          <SquadOptionsMenu :is-host="!!state.me?.isHost" @share="share" @close="openSheet('close')" />
           <button
             v-if="sheet?.mode.value === 'sheet'"
             type="button"
@@ -186,7 +221,7 @@ const browse = (event: MouseEvent, navigate: (event?: MouseEvent) => Promise<unk
         <span class="squad-live__position">{{ position }}</span>
       </div>
 
-      <SquadMembers :state="state" />
+      <SquadMembers :state="state" @remove="askRemove" />
 
       <p v-if="state.me?.spectator" class="squad-banner squad-banner--watch">
         You're watching. Everything happens live, but only people who joined before the start can vote.
@@ -216,6 +251,7 @@ const browse = (event: MouseEvent, navigate: (event?: MouseEvent) => Promise<unk
         :busy="room.busy.value"
         @tap="tap"
         :deal-link="dealLink"
+        :feed="feed"
         @choose="choose"
         @add-deals="router.push({ name: 'squad-new', query: { room: state.code } })"
         @close="openSheet('close')"
@@ -244,6 +280,17 @@ const browse = (event: MouseEvent, navigate: (event?: MouseEvent) => Promise<unk
       :return-focus="sheetTrigger"
       @confirm="closeRoom"
       @cancel="closing = false"
+    />
+    <SquadConfirm
+      v-if="removing"
+      :title="`Remove ${removing.name}?`"
+      :body="`${removing.name} leaves Room ${state.code} and can't rejoin with the code.`"
+      confirm-label="Remove"
+      :cancel-label="`Keep ${removing.name}`"
+      :busy="room.busy.value"
+      :return-focus="sheetTrigger"
+      @confirm="removeMember"
+      @cancel="removing = null"
     />
   </div>
 </template>

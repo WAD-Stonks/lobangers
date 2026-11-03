@@ -25,6 +25,7 @@ const drop = (id: string, lat: number, overrides: Record<string, unknown> = {}) 
     lat,
     lng: 103.9,
     endsAt: inMinutes(30),
+    codesExpireAt: inMinutes(180),
     codesLeft: 5,
     ...overrides,
   }) as never

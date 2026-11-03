@@ -25,6 +25,8 @@ const drop = (extra: Partial<AdminFlashDrop> = {}): AdminFlashDrop => ({
   usualPriceCents: 300,
   startsAt: '2026-10-31T10:00:00.000Z',
   endsAt: '2026-10-31T10:30:00.000Z',
+  codeValidity: 'END_OF_DAY',
+  codesExpireAt: '2026-10-31T15:59:59.999Z',
   radiusMetres: 500,
   codeLimit: 40,
   claimedCount: 0,

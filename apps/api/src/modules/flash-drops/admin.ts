@@ -170,7 +170,7 @@ export const decideFlashDrop = (
   dropId: string,
   input: AdminFlashDropDecision,
   now: Date,
-): Promise<AdminFlashDrop> =>
+): Promise<{ drop: AdminFlashDrop; merchantUserId: string }> =>
   accessTransaction(database, async (tx) => {
     const admin = await requireCurrentAdmin(tx, actor)
     const current = await tx.flashDrop.findUnique({ where: { id: dropId }, select: dropSelect })
@@ -223,5 +223,9 @@ export const decideFlashDrop = (
       select: dropSelect,
     })
     const context = await loadContext(tx, [row, ...rivals])
-    return toAdminDrop(tx, row, context, rivals, now)
+    // The merchant is told live, so their dashboard shows it was removed.
+    return {
+      drop: await toAdminDrop(tx, row, context, rivals, now),
+      merchantUserId: row.merchantUserId,
+    }
   })
