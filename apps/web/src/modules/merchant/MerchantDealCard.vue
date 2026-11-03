@@ -5,7 +5,7 @@ import { computed } from 'vue'
 
 // One deal on the merchant dashboard, as a card: its photo (or the map's food illustration when
 // it has none) with a status badge, the title, the description, the offer and dates on one line,
-// and where it runs. Buttons go in the actions slot; anything extra (such as how many flash codes
+// where it runs, and its terms and conditions. Buttons go in the actions slot; anything extra (such as how many flash codes
 // were claimed) goes in the default slot.
 export type CardTone = 'live' | 'scheduled' | 'draft' | 'ended' | 'removed'
 
@@ -15,6 +15,7 @@ const props = defineProps<{
   offer: string // e.g. "$4.50", "1-for-1", "30% off"
   dates: string // e.g. "1 Dec to no end date"
   location: string
+  terms: string // shown under a TERMS AND CONDITIONS heading; left out when there are none
   category: string // picks the food illustration when there is no photo
   photoUrl: string | null
   badge: string
@@ -43,6 +44,10 @@ const muted = computed(() => props.tone === 'ended' || props.tone === 'removed')
         <strong>{{ offer }}</strong><template v-if="offer && dates"> · </template>{{ dates }}
       </p>
       <p class="merchant-card__location">{{ location }}</p>
+      <div v-if="terms.trim()" class="merchant-card__terms">
+        <strong class="merchant-card__terms-title">TERMS AND CONDITIONS</strong>
+        <p class="merchant-card__terms-text">{{ terms.trim() }}</p>
+      </div>
       <slot />
       <div v-if="$slots.actions" class="merchant-card__actions">
         <slot name="actions" />
@@ -125,9 +130,11 @@ const muted = computed(() => props.tone === 'ended' || props.tone === 'removed')
   color: var(--on-ink);
 }
 
+/* Dark text on yellow in both themes, like the app's yellow buttons (--ink turns light in dark
+   mode). */
 .merchant-card__badge--draft {
   background: var(--sunny);
-  color: var(--ink);
+  color: var(--on-accent);
 }
 
 .merchant-card__badge--removed {
@@ -177,6 +184,23 @@ const muted = computed(() => props.tone === 'ended' || props.tone === 'removed')
 
 .merchant-card__offer strong {
   color: var(--ink);
+}
+
+/* Terms keep the line breaks the merchant typed, one condition per line. */
+.merchant-card__terms {
+  color: var(--ink-muted);
+  font-size: 0.8rem;
+}
+
+.merchant-card__terms-title {
+  display: block;
+  color: var(--ink);
+  font-size: 0.7rem;
+  letter-spacing: 0.04em;
+}
+
+.merchant-card__terms-text {
+  white-space: pre-line;
 }
 
 /* Buttons sit at the bottom, so they line up across a row of cards. */

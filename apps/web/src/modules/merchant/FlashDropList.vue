@@ -58,6 +58,7 @@ const claimedPercent = (drop: MerchantFlashDrop) =>
         :offer="offerOf(drop)"
         :dates="flashWhenText(drop, now)"
         :location="`At: ${drop.outletName}`"
+        :terms="drop.deal.terms"
         :category="drop.deal.category"
         :photo-url="drop.deal.photo?.url ?? null"
         :badge="STATUS_LABELS[drop.status]"

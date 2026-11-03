@@ -46,7 +46,7 @@ describe('DealSection', () => {
 })
 
 describe('MerchantDealCard', () => {
-  const card = (photoUrl: string | null) =>
+  const card = (photoUrl: string | null, terms = 'Dine-in only.\nWhile stocks last.') =>
     mount(MerchantDealCard, {
       props: {
         title: 'Synthetic Whopper set',
@@ -54,6 +54,7 @@ describe('MerchantDealCard', () => {
         offer: '$6.90',
         dates: 'Now to no end date',
         location: 'At: Synthetic Stall',
+        terms,
         category: 'FOOD',
         photoUrl,
         badge: 'Live',
@@ -76,6 +77,24 @@ describe('MerchantDealCard', () => {
     expect(wrapper.get('.merchant-card__actions').text()).toBe('Edit')
   })
 
+  it('ends with the terms and conditions under their heading, one condition per line', () => {
+    const terms = card(null).get('.merchant-card__terms')
+    expect(terms.get('strong').text()).toBe('TERMS AND CONDITIONS')
+    expect(terms.get('p').text()).toBe('Dine-in only.\nWhile stocks last.')
+    // After the location, before the buttons.
+    const body = card(null).get('.merchant-card__body').element
+    const order = [...body.children].map((child) => child.className)
+    expect(order.indexOf('merchant-card__terms')).toBe(order.indexOf('merchant-card__location') + 1)
+    expect(card(null, '  ').find('.merchant-card__terms').exists()).toBe(false)
+  })
+
+  it('keeps the Draft badge text dark in both themes', async () => {
+    const { default: source } = await import('@web/modules/merchant/MerchantDealCard.vue?raw')
+    const rule = source.match(/\.merchant-card__badge--draft \{([^}]*)\}/)?.[1] ?? ''
+    // --ink turns light in dark mode, which is unreadable on yellow; --on-accent stays dark.
+    expect(rule).toContain('color: var(--on-accent)')
+  })
+
   it('shows the food illustration when the deal has no photo', () => {
     const wrapper = card(null)
     expect(wrapper.find('img').exists()).toBe(false)
@@ -84,7 +103,7 @@ describe('MerchantDealCard', () => {
 })
 
 describe('MapNavigation on a phone', () => {
-  const mountBar = async (role: string | null) => {
+  const mountBar = async (role: string | null, bottom = true) => {
     auth.useSession.mockReturnValue(
       ref({ data: role ? { user: { id: 'u', name: 'Synthetic', role } } : null }),
     )
@@ -105,18 +124,24 @@ describe('MapNavigation on a phone', () => {
     await router.push('/')
     await router.isReady()
     const wrapper = mount(MapNavigation, {
-      props: { bottom: true, panelOpen: true },
+      props: { bottom, panelOpen: true },
       global: { plugins: [router], stubs: { BrandMenu: true } },
     })
     await flushPromises()
     return wrapper
   }
 
-  it('gives merchants a Dashboard button in place of Share', async () => {
+  it('gives merchants a Dashboard button in place of Share on a phone', async () => {
     const wrapper = await mountBar('MERCHANT')
     const dashboard = wrapper.get('[data-testid="map-merchant-dashboard"]')
     expect(dashboard.text()).toBe('Dashboard')
     expect(dashboard.attributes('href')).toContain('/merchant')
+    expect(wrapper.find('[data-testid="map-share"]').exists()).toBe(false)
+  })
+
+  it('gives merchants Dashboard on the desktop side rail too', async () => {
+    const wrapper = await mountBar('MERCHANT', false)
+    expect(wrapper.get('[data-testid="map-merchant-dashboard"]').text()).toBe('Dashboard')
     expect(wrapper.find('[data-testid="map-share"]').exists()).toBe(false)
   })
 

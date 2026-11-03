@@ -44,8 +44,8 @@ onBeforeUnmount(() => emit('menuChange', false))
       <RouterLink v-if="bottom" v-slot="{ href, navigate }" :to="navigationTo('/deals')" custom><a :href="href" data-testid="nav-home" :aria-current="isActive(['home']) ? 'page' : undefined" @click="openPanel($event, navigate)"><ShellIcon name="ticket" :size="23" /><span>All deals</span></a></RouterLink>
       <RouterLink v-slot="{ href, navigate }" :to="mapTo" custom><a :href="href" :aria-current="isActive(['browse', 'deal', 'venue']) ? 'page' : undefined" @click="openPanel($event, navigate)"><ShellIcon :name="bottom ? 'map' : 'ticket'" :size="23" /><span>{{ bottom ? 'Map' : 'Deals' }}</span></a></RouterLink>
       <RouterLink v-slot="{ href, navigate }" :to="savedTo" custom><a :href="href" :aria-current="isActive(['saved']) ? 'page' : undefined" @click="openPanel($event, navigate)"><ShellIcon name="bookmark" :size="23" /><span>Saved</span></a></RouterLink>
-      <!-- Merchants get their dashboard here instead of Share: on a phone this bar replaces the
-           header menu that links to it. -->
+      <!-- Merchants add and edit deals from their dashboard, so they get it in Share's spot, in
+           both the phone bottom bar and the desktop side rail. -->
       <RouterLink v-if="isMerchant" v-slot="{ href, navigate }" :to="navigationTo('/merchant')" custom><a :href="href" data-testid="map-merchant-dashboard" :aria-current="isActive(['merchant']) ? 'page' : undefined" @click="openPanel($event, navigate)"><ShellIcon name="store" :size="23" /><span>Dashboard</span></a></RouterLink>
       <RouterLink v-else v-slot="{ href, navigate }" :to="navigationTo('/add')" custom><a :href="href" data-testid="map-share" :aria-current="isActive(['submit-deal']) ? 'page' : undefined" @click="openPanel($event, navigate)"><ShellIcon name="plus" :size="23" /><span>Share</span></a></RouterLink>
     </nav>

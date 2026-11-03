@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { useCanAddDeal } from '@web/lib/use-can-add-deal'
+import { computed } from 'vue'
 import { RouterLink } from 'vue-router'
 
 const features = [
@@ -33,6 +35,12 @@ const features = [
     description: 'Find the Flash Drop codes you claimed and check their offer details and expiry.',
   },
 ]
+
+// Merchants add deals from their dashboard, so the Share a deal row is not for them.
+const canAddDeal = useCanAddDeal()
+const shownFeatures = computed(() =>
+  features.filter((feature) => feature.path !== '/add' || canAddDeal.value),
+)
 </script>
 
 <template>
@@ -46,7 +54,7 @@ const features = [
 
     <h2 class="h4 mt-5 mb-3">Explore LoBangers</h2>
     <dl class="row g-0 module-list">
-      <template v-for="feature in features" :key="feature.path">
+      <template v-for="feature in shownFeatures" :key="feature.path">
         <dt class="col-md-4 py-3"><RouterLink :to="feature.path">{{ feature.name }}</RouterLink></dt>
         <dd class="col-md-8 py-3 mb-0">{{ feature.description }}</dd>
       </template>

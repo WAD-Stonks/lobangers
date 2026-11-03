@@ -9,6 +9,8 @@ declare module 'vue-router' {
     guestOnly?: boolean
     /** If set, the signed-in user's role must be one of these. */
     roles?: readonly string[]
+    /** Signed-in users with one of these roles are sent to the given path instead. */
+    roleRedirects?: Readonly<Record<string, string>>
   }
 }
 
@@ -68,5 +70,7 @@ export const authGuard = async (
   }
   if (!session) return { name: 'sign-in', query: { redirect: to.fullPath } }
   if (roles && !roles.includes(session.user.role)) return '/'
+  const elsewhere = to.meta.roleRedirects?.[session.user.role]
+  if (elsewhere) return elsewhere
   return true
 }
