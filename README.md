@@ -10,6 +10,8 @@ The app is hosted on the cloud (Vercel) at:
 
 **https://lobangers.vercel.app**
 
+Both Vercel projects automatically deploy commits to `main` when their production branch is set to `main` and Git deployments are enabled in the project settings. Other branches, including pull request branches, do not trigger automatic deployments.
+
 ## Test accounts
 
 | Role     | Email                       | Password                                   |
