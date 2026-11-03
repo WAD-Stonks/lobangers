@@ -2,12 +2,6 @@ import { api } from '@web/lib/api-client'
 import { uploadPhoto } from '@web/lib/photo-upload'
 import axios from 'axios'
 
-// ⚠️ FLASH DROP SAMPLE DATA SWITCH ⚠️
-// Only the flash drops section (flash-drop-api.ts) still reads this. The outlets and deals
-// below always come from the server (/api/merchant/...). Set it to false once flash drops
-// should use the real flash drop routes too.
-export const USE_SAMPLE_DATA = true
-
 // The photo rules the upload server enforces: one JPEG, PNG or WebP image, up to 4 MB.
 export const PHOTO_TYPES = ['image/jpeg', 'image/png', 'image/webp']
 export const MAX_PHOTO_BYTES = 4 * 1024 * 1024
@@ -78,6 +72,12 @@ export const updateDeal = async (id: string, input: DealInput): Promise<Merchant
 export const endDeal = async (id: string): Promise<MerchantDeal> => {
   const response = await api.http.post(`/merchant/deals/${id}/end`)
   return response.data
+}
+
+// Deletes a scheduled or ended deal: it leaves the map and the dashboard. Live deals are ended
+// first.
+export const deleteDeal = async (id: string): Promise<void> => {
+  await api.http.delete(`/merchant/deals/${id}`)
 }
 
 // Uploads a newly chosen photo to UploadThing and returns its key, which the deal is then saved

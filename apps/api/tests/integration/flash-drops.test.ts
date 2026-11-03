@@ -3,12 +3,17 @@ import { randomBytes, randomUUID } from 'node:crypto'
 import { createServer, type Server } from 'node:http'
 import { fileURLToPath } from 'node:url'
 import { promisify } from 'node:util'
+import {
+  registerSyntheticOutletFixtureDatabase,
+  seedSyntheticOutletProof,
+} from '@api/../tests/fixtures/outlet-proof'
 import { parseConfig } from '@api/config'
 import { MongoMemoryReplSet } from 'mongodb-memory-server'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 
-// Flash Drop through real HTTP against a disposable replica set: a merchant sends a drop, an
-// admin reviews it, visitors claim codes. All stalls, deals and people are SYNTHETIC.
+// Flash deals through real HTTP against a disposable replica set: a merchant saves a draft and
+// sends it live, visitors claim codes, admins can remove one. All stalls, deals and people are
+// SYNTHETIC.
 
 const origin = 'http://localhost:5173'
 const root = fileURLToPath(new URL('../../../../', import.meta.url))
@@ -58,10 +63,12 @@ const call = async (account: Account | null, method: string, path: string, body?
     },
     body: body === undefined ? undefined : JSON.stringify(body),
   })
-  return { status: response.status, body: await response.json() }
+  // Deleting a draft answers 204 with no body.
+  const text = await response.text()
+  return { status: response.status, body: text ? JSON.parse(text) : null }
 }
 
-// A synthetic stall with one outlet, granted to the merchant, and one priced deal there.
+// A synthetic stall with one outlet, granted to the merchant. Flash deals bring their own deal.
 const stall = async (owner: Account, name: string, lat = 1.3236) => {
   const brand = await db.merchant.create({ data: { name: `Synthetic ${name}` } })
   const outlet = await db.venue.create({
@@ -74,28 +81,23 @@ const stall = async (owner: Account, name: string, lat = 1.3236) => {
     },
   })
   await db.stallGrant.create({ data: { userId: owner.id, venueId: outlet.id } })
-  const deal = await call(owner, 'POST', '/merchant/deals', {
-    title: `Synthetic ${name} chicken rice`,
-    description: 'Fake deal. Plain chicken rice.',
-    category: 'FOOD',
-    cuisine: 'CHINESE',
-    outletIds: [outlet.id],
-    offerType: 'FIXED_PRICE',
-    discountPercent: null,
-    priceCents: 400,
-    startDate: '',
-    endDate: '',
-    terms: '',
-  })
-  expect(deal.status).toBe(201)
-  return { outlet, dealId: deal.body.id as string }
+  return { outlet }
 }
 
-const dropBody = (dealId: string, outletId: string, overrides: Record<string, unknown> = {}) => ({
-  dealId,
+// "Save as flash deal" from the deal form: the deal, whose own offer is the flash offer ($1.50,
+// usually $4.00), plus the flash details. startsAt null means it starts at Go live.
+const dropBody = (outletId: string, overrides: Record<string, unknown> = {}) => ({
+  title: 'Synthetic chicken rice',
+  description: 'Fake deal. Plain chicken rice.',
+  category: 'FOOD',
+  cuisine: 'CHINESE',
+  offerType: 'FIXED_PRICE',
+  discountPercent: null,
+  priceCents: 150,
+  usualPriceCents: 400,
+  terms: '',
   outletId,
-  flashPriceCents: 150,
-  startsAt: new Date().toISOString(),
+  startsAt: null,
   durationMinutes: 30,
   radiusMetres: 500,
   codeLimit: 10,
@@ -104,11 +106,24 @@ const dropBody = (dealId: string, outletId: string, overrides: Record<string, un
 
 const inMinutes = (minutes: number) => new Date(Date.now() + minutes * 60_000).toISOString()
 
+// A saved draft, ready for Go live.
+const draft = async (outletId: string, overrides: Record<string, unknown> = {}) => {
+  const saved = await call(merchant, 'POST', '/merchant/flash-drops', dropBody(outletId, overrides))
+  expect(saved.status).toBe(201)
+  return saved.body
+}
+
+const goLive = (drop: { id: string; version: number }, account: Account = merchant) =>
+  call(account, 'POST', `/merchant/flash-drops/${drop.id}/go-live`, { version: drop.version })
+
+const ids = (items: { id: string }[]) => items.map((item) => item.id)
+
 beforeAll(async () => {
   mongo = await MongoMemoryReplSet.create({
     replSet: { count: 1, storageEngine: 'wiredTiger', ip: '127.0.0.1' },
   })
-  const databaseUrl = mongo.getUri(`flash_${randomUUID().replaceAll('-', '')}`)
+  // The deals_ prefix lets the synthetic outlet-proof fixture write to this database.
+  const databaseUrl = mongo.getUri(`deals_${randomUUID().replaceAll('-', '')}`)
   vi.stubEnv('DATABASE_URL', databaseUrl)
   vi.stubEnv('NODE_ENV', 'test')
   await promisify(execFile)('pnpm', ['--dir', 'packages/db', 'run', 'push'], {
@@ -119,6 +134,7 @@ beforeAll(async () => {
     shell: process.platform === 'win32',
   })
   db = (await import('@broke-oclock/db')).db
+  registerSyntheticOutletFixtureDatabase(db, databaseUrl)
   const { createApp } = await import('@api/app')
   server = createServer()
   await new Promise<void>((resolve) => server?.listen(0, '127.0.0.1', resolve))
@@ -155,187 +171,274 @@ afterAll(async () => {
   vi.unstubAllEnvs()
 })
 
-describe('merchant flash drops', () => {
-  it('sends a drop of their own deal for review', async () => {
-    const { outlet, dealId } = await stall(merchant, 'Review')
-    const created = await call(
-      merchant,
-      'POST',
-      '/merchant/flash-drops',
-      dropBody(dealId, outlet.id),
-    )
-    expect(created.status).toBe(201)
-    expect(created.body).toMatchObject({
-      dealId,
+describe('merchant flash deal drafts', () => {
+  it('saves a flash deal as a draft only its merchant can see', async () => {
+    const { outlet } = await stall(merchant, 'Draft')
+    const saved = await draft(outlet.id)
+    expect(saved).toMatchObject({
       outletId: outlet.id,
-      status: 'IN_REVIEW',
+      status: 'DRAFT',
+      startsOnGoLive: true,
       flashPriceCents: 150,
       usualPriceCents: 400,
       codeLimit: 10,
       claimedCount: 0,
       version: 1,
       demo: false,
+      dealTitle: 'Synthetic chicken rice',
+      offerType: 'FIXED_PRICE',
+      discountPercent: null,
+      deal: { title: 'Synthetic chicken rice', offerType: 'FIXED_PRICE', priceCents: 150 },
     })
-    const listed = await call(merchant, 'GET', '/merchant/flash-drops')
-    expect(listed.body.items.map((item: { id: string }) => item.id)).toContain(created.body.id)
+
+    expect(ids((await call(merchant, 'GET', '/merchant/flash-drops')).body.items)).toContain(
+      saved.id,
+    )
+    expect(
+      ids((await call(otherMerchant, 'GET', '/merchant/flash-drops')).body.items),
+    ).not.toContain(saved.id)
+    // Not public, not an ordinary deal, and not in any admin tab.
+    expect(ids((await call(null, 'GET', '/flash-drops/active')).body.items)).not.toContain(saved.id)
+    expect(ids((await call(merchant, 'GET', '/merchant/deals')).body.items)).not.toContain(
+      saved.dealId,
+    )
+    for (const view of ['scheduled', 'live', 'ended']) {
+      const tab = await call(admin, 'GET', `/admin/flash-drops?view=${view}`)
+      expect(ids(tab.body.items)).not.toContain(saved.id)
+    }
+    const deal = await db.deal.findUniqueOrThrow({ where: { id: saved.dealId } })
+    expect(deal).toMatchObject({ reviewStatus: 'APPROVED', publishedAt: null })
   })
 
-  it('refuses visitors, members, other merchants and deals at other outlets', async () => {
-    const { outlet, dealId } = await stall(merchant, 'Guarded')
+  it('refuses visitors, members and merchants without the outlet', async () => {
+    const { outlet } = await stall(merchant, 'Guarded')
+    expect((await call(null, 'POST', '/merchant/flash-drops', dropBody(outlet.id))).status).toBe(
+      401,
+    )
+    expect((await call(member, 'POST', '/merchant/flash-drops', dropBody(outlet.id))).status).toBe(
+      403,
+    )
     expect(
-      (await call(null, 'POST', '/merchant/flash-drops', dropBody(dealId, outlet.id))).status,
-    ).toBe(401)
-    expect(
-      (await call(member, 'POST', '/merchant/flash-drops', dropBody(dealId, outlet.id))).status,
+      (await call(otherMerchant, 'POST', '/merchant/flash-drops', dropBody(outlet.id))).status,
     ).toBe(403)
+
+    // Someone else's draft looks missing to every write.
+    const mine = await draft(outlet.id)
+    const path = `/merchant/flash-drops/${mine.id}`
     expect(
-      (await call(otherMerchant, 'POST', '/merchant/flash-drops', dropBody(dealId, outlet.id)))
-        .status,
-    ).toBe(403)
-    const other = await stall(otherMerchant, 'Elsewhere')
-    expect(
-      (
-        await call(
-          otherMerchant,
-          'POST',
-          '/merchant/flash-drops',
-          dropBody(dealId, other.outlet.id),
-        )
-      ).status,
+      (await call(otherMerchant, 'PUT', path, { ...dropBody(outlet.id), version: 1 })).status,
     ).toBe(404)
+    expect((await goLive(mine, otherMerchant)).status).toBe(404)
+    expect((await call(otherMerchant, 'DELETE', path, { version: 1 })).status).toBe(404)
   })
 
-  it('explains price, timing and overlap problems', async () => {
-    const { outlet, dealId } = await stall(merchant, 'Rules')
-    const dear = await call(
-      merchant,
-      'POST',
-      '/merchant/flash-drops',
-      dropBody(dealId, outlet.id, { flashPriceCents: 400 }),
-    )
-    expect(dear.status).toBe(400)
-    expect(dear.body.error.message).toMatch(/lower than the usual price/)
-    const past = await call(
-      merchant,
-      'POST',
-      '/merchant/flash-drops',
-      dropBody(dealId, outlet.id, { startsAt: inMinutes(-10) }),
-    )
-    expect(past.status).toBe(400)
-    const odd = await call(
-      merchant,
-      'POST',
-      '/merchant/flash-drops',
-      dropBody(dealId, outlet.id, { durationMinutes: 45 }),
-    )
-    expect(odd.status).toBe(400)
+  it('explains price and timing problems', async () => {
+    const { outlet } = await stall(merchant, 'Rules')
+    const save = (overrides: Record<string, unknown>) =>
+      call(merchant, 'POST', '/merchant/flash-drops', dropBody(outlet.id, overrides))
+    // The usual price has to be above the flash price, and only goes with a fixed price.
+    expect((await save({ usualPriceCents: 150 })).status).toBe(400)
     expect(
-      (await call(merchant, 'POST', '/merchant/flash-drops', dropBody(dealId, outlet.id))).status,
-    ).toBe(201)
-    const twice = await call(
-      merchant,
-      'POST',
-      '/merchant/flash-drops',
-      dropBody(dealId, outlet.id, { startsAt: inMinutes(10) }),
+      (await save({ offerType: 'BUY_ONE_GET_ONE', priceCents: null, usualPriceCents: 400 })).status,
+    ).toBe(400)
+    expect((await save({ usualPriceCents: null })).status).toBe(201)
+    expect((await save({ startsAt: inMinutes(-10) })).status).toBe(400)
+    expect((await save({ startsAt: inMinutes(8 * 24 * 60) })).status).toBe(400)
+    expect((await save({ durationMinutes: 45 })).status).toBe(400)
+    expect((await save({ offerType: 'PERCENT_OFF' })).status).toBe(400) // no discount given
+  })
+
+  it('takes the same offer types as a deal: 1-for-1, % off and other', async () => {
+    const { outlet } = await stall(merchant, 'Offers', 1.32)
+    const save = (overrides: Record<string, unknown>) =>
+      call(
+        merchant,
+        'POST',
+        '/merchant/flash-drops',
+        dropBody(outlet.id, { priceCents: null, usualPriceCents: null, ...overrides }),
+      )
+    const bogo = await save({ offerType: 'BUY_ONE_GET_ONE' })
+    expect(bogo.status).toBe(201)
+    expect(bogo.body).toMatchObject({
+      offerType: 'BUY_ONE_GET_ONE',
+      discountPercent: null,
+      flashPriceCents: null,
+      usualPriceCents: null,
+    })
+    const off = await save({ offerType: 'PERCENT_OFF', discountPercent: 30 })
+    expect(off.body).toMatchObject({ offerType: 'PERCENT_OFF', discountPercent: 30 })
+    expect((await save({ offerType: 'OTHER' })).body.offerType).toBe('OTHER')
+
+    // Live, the map shows the offer, and so do claimed codes.
+    await goLive(bogo.body)
+    const active = await call(null, 'GET', '/flash-drops/active')
+    expect(
+      active.body.items.find((item: { id: string }) => item.id === bogo.body.id),
+    ).toMatchObject({ offerType: 'BUY_ONE_GET_ONE', flashPriceCents: null, usualPriceCents: null })
+    const code = await call(member, 'POST', `/flash-drops/${bogo.body.id}/claims`)
+    expect(code.body).toMatchObject({ offerType: 'BUY_ONE_GET_ONE', flashPriceCents: null })
+  })
+
+  it('reads a flash deal made before offer types as a fixed flash price', async () => {
+    const { outlet } = await stall(merchant, 'Legacy', 1.31)
+    const saved = await draft(outlet.id)
+    // Old flash deals stored only a flash price; the usual price was the deal's own price.
+    await db.flashDrop.update({
+      where: { id: saved.id },
+      data: { offerType: null, usualPriceMinor: null, flashPriceMinor: 150 },
+    })
+    await db.deal.update({ where: { id: saved.dealId }, data: { priceMinor: 400 } })
+    const listed = await call(merchant, 'GET', '/merchant/flash-drops')
+    expect(listed.body.items.find((item: { id: string }) => item.id === saved.id)).toMatchObject({
+      offerType: 'FIXED_PRICE',
+      flashPriceCents: 150,
+      usualPriceCents: 400,
+    })
+  })
+
+  it('edits a draft, then sends it live at its saved time', async () => {
+    const { outlet } = await stall(merchant, 'Scheduled', 1.33)
+    const saved = await draft(outlet.id, { startsAt: inMinutes(60) })
+    expect(saved.startsOnGoLive).toBe(false)
+    const path = `/merchant/flash-drops/${saved.id}`
+
+    const edited = await call(merchant, 'PUT', path, {
+      ...dropBody(outlet.id, { title: 'Synthetic duck rice', startsAt: inMinutes(90) }),
+      version: 1,
+    })
+    expect(edited.status).toBe(200)
+    expect(edited.body).toMatchObject({
+      status: 'DRAFT',
+      dealTitle: 'Synthetic duck rice',
+      version: 2,
+    })
+    expect((await call(merchant, 'PUT', path, { ...dropBody(outlet.id), version: 1 })).status).toBe(
+      409,
     )
-    expect(twice.status).toBe(409)
+
+    const live = await goLive(edited.body)
+    expect(live.status).toBe(200)
+    expect(live.body).toMatchObject({ status: 'SCHEDULED', version: 3 })
+    expect(Date.parse(live.body.startsAt)).toBe(Date.parse(edited.body.startsAt))
+    // Scheduled, so not on the map yet, but admins can see it.
+    expect(ids((await call(null, 'GET', '/flash-drops/active')).body.items)).not.toContain(saved.id)
+    expect(
+      ids((await call(admin, 'GET', '/admin/flash-drops?view=scheduled')).body.items),
+    ).toContain(saved.id)
+
+    // Gone live: no more edits, and no second Go live.
+    expect((await call(merchant, 'PUT', path, { ...dropBody(outlet.id), version: 3 })).status).toBe(
+      412,
+    )
+    expect((await goLive(live.body)).status).toBe(412)
+
+    // Another flash deal at the same outlet and time cannot go live too.
+    const rival = await draft(outlet.id, { startsAt: inMinutes(95) })
+    const clash = await goLive(rival)
+    expect(clash.status).toBe(409)
+    expect(clash.body.error.message).toMatch(/already covers that time/)
+  })
+
+  it('refuses Go live once a saved start time has passed', async () => {
+    const { outlet } = await stall(merchant, 'Late', 1.34)
+    const saved = await draft(outlet.id, { startsAt: inMinutes(5) })
+    await db.flashDrop.update({
+      where: { id: saved.id },
+      data: { startsAt: new Date(Date.now() - 10 * 60_000) },
+    })
+    const late = await goLive(saved)
+    expect(late.status).toBe(400)
+    expect(late.body.error.message).toMatch(/start time has passed/)
+  })
+
+  it('deletes a draft for good, and a past flash deal from the history', async () => {
+    const { outlet } = await stall(merchant, 'Delete', 1.35)
+    const saved = await draft(outlet.id)
+    const path = `/merchant/flash-drops/${saved.id}`
+    expect((await call(merchant, 'POST', `${path}/end`, { version: 1 })).status).toBe(412)
+    expect((await call(merchant, 'DELETE', path, { version: 1 })).status).toBe(204)
+    expect(ids((await call(merchant, 'GET', '/merchant/flash-drops')).body.items)).not.toContain(
+      saved.id,
+    )
+    expect(await db.flashDrop.findUnique({ where: { id: saved.id } })).toBeNull()
+    expect(
+      (await db.deal.findUniqueOrThrow({ where: { id: saved.dealId } })).deletedAt,
+    ).toBeInstanceOf(Date)
+
+    // A live flash deal has to be ended first.
+    const live = (await goLive(await draft(outlet.id))).body
+    const livePath = `/merchant/flash-drops/${live.id}`
+    expect((await call(merchant, 'DELETE', livePath, { version: live.version })).status).toBe(412)
+    await call(member, 'POST', `/flash-drops/${live.id}/claims`)
+    const ended = (await call(merchant, 'POST', `${livePath}/end`, { version: live.version })).body
+
+    // Once past, it leaves the merchant's history but its record and the claimed code stay.
+    expect((await call(otherMerchant, 'DELETE', livePath, { version: ended.version })).status).toBe(
+      404,
+    )
+    expect((await call(merchant, 'DELETE', livePath, { version: ended.version })).status).toBe(204)
+    expect(ids((await call(merchant, 'GET', '/merchant/flash-drops')).body.items)).not.toContain(
+      live.id,
+    )
+    const kept = await db.flashDrop.findUniqueOrThrow({ where: { id: live.id } })
+    expect(kept.deletedAt).toBeInstanceOf(Date)
+    const codes = await call(member, 'GET', '/flash-drops/codes')
+    expect(codes.body.items.map((item: { dropId: string }) => item.dropId)).toContain(live.id)
+    // Deleted means gone for the merchant: no second delete or edit.
+    expect((await call(merchant, 'DELETE', livePath, { version: kept.version })).status).toBe(404)
   })
 })
 
-describe('admin review and claims', () => {
-  it('sends back with a note, then approves the fixed version and logs both', async () => {
-    const { outlet, dealId } = await stall(merchant, 'Lifecycle')
-    const drop = (
-      await call(merchant, 'POST', '/merchant/flash-drops', dropBody(dealId, outlet.id))
-    ).body
+describe('live flash deals', () => {
+  it('goes live at once, shows its deal on the map for the window, and ends early', async () => {
+    const { outlet } = await stall(merchant, 'Live', 1.37)
+    await seedSyntheticOutletProof(db, outlet.id)
+    const saved = await draft(outlet.id)
+    const publicDealIds = async () => ids((await call(null, 'GET', '/deals')).body.items)
+    expect(await publicDealIds()).not.toContain(saved.dealId)
 
-    expect((await call(member, 'GET', '/admin/flash-drops')).status).toBe(403)
-    const queue = await call(admin, 'GET', '/admin/flash-drops?view=review')
-    expect(queue.status).toBe(200)
-    const listed = queue.body.items.find((item: { id: string }) => item.id === drop.id)
-    expect(listed.checks).toMatchObject({
-      merchantHoldsOutlet: true,
-      priceLower: true,
-      manyCodes: false,
+    const live = await goLive(saved)
+    expect(live.status).toBe(200)
+    expect(live.body.status).toBe('LIVE')
+    const active = await call(null, 'GET', '/flash-drops/active')
+    expect(active.body.items.find((item: { id: string }) => item.id === saved.id)).toMatchObject({
+      dealId: saved.dealId,
+      offerType: 'FIXED_PRICE',
+      flashPriceCents: 150,
+      usualPriceCents: 400,
+      codesLeft: 10,
     })
-    expect(queue.body.counts.review).toBeGreaterThan(0)
+    // Its deal opens on the map while it runs, but never joins the merchant's ordinary deals.
+    expect(await publicDealIds()).toContain(saved.dealId)
+    expect(ids((await call(merchant, 'GET', '/merchant/deals')).body.items)).not.toContain(
+      saved.dealId,
+    )
+    const deal = await db.deal.findUniqueOrThrow({ where: { id: saved.dealId } })
+    expect(deal.validUntil?.toISOString()).toBe(live.body.endsAt)
 
-    const noNote = await call(admin, 'POST', `/admin/flash-drops/${drop.id}/decision`, {
-      decision: 'SEND_BACK',
-      note: '',
-      version: 1,
+    const ended = await call(merchant, 'POST', `/merchant/flash-drops/${saved.id}/end`, {
+      version: live.body.version,
     })
-    expect(noNote.status).toBe(400)
-    const back = await call(admin, 'POST', `/admin/flash-drops/${drop.id}/decision`, {
-      decision: 'SEND_BACK',
-      note: 'Please use a 300 m radius.',
-      version: 1,
+    expect(ended.body.status).toBe('ENDED')
+    expect(ids((await call(null, 'GET', '/flash-drops/active')).body.items)).not.toContain(saved.id)
+    expect(await publicDealIds()).not.toContain(saved.dealId)
+    const again = await call(merchant, 'POST', `/merchant/flash-drops/${saved.id}/end`, {
+      version: ended.body.version,
     })
-    expect(back.status).toBe(200)
-    expect(back.body).toMatchObject({
-      status: 'SENT_BACK',
-      reviewNote: 'Please use a 300 m radius.',
-    })
-
-    const stale = await call(admin, 'POST', `/admin/flash-drops/${drop.id}/decision`, {
-      decision: 'APPROVE',
-      note: '',
-      version: 1,
-    })
-    expect(stale.status).toBe(409)
-
-    const resent = await call(merchant, 'PUT', `/merchant/flash-drops/${drop.id}`, {
-      ...dropBody(dealId, outlet.id, { radiusMetres: 300 }),
-      version: 2,
-    })
-    expect(resent.status).toBe(200)
-    expect(resent.body).toMatchObject({
-      status: 'IN_REVIEW',
-      radiusMetres: 300,
-      reviewNote: null,
-      version: 3,
-    })
-
-    const approved = await call(admin, 'POST', `/admin/flash-drops/${drop.id}/decision`, {
-      decision: 'APPROVE',
-      note: '',
-      version: 3,
-    })
-    expect(approved.body.status).toBe('LIVE')
-    const audit = await db.platformAudit.findMany({
-      where: { subjectId: drop.id },
-      orderBy: { id: 'asc' },
-    })
-    expect(audit.map((entry) => entry.action)).toEqual([
-      'FLASH_DROP_SENT_BACK',
-      'FLASH_DROP_APPROVED',
-    ])
-
-    const overview = await call(admin, 'GET', '/admin/overview')
-    expect(overview.body.counts.liveFlashDrops).toBeGreaterThan(0)
+    expect(again.body.status).toBe('ENDED')
   })
 
-  it('gives each person one code, never more codes than the limit, and stops cleanly', async () => {
-    const { outlet, dealId } = await stall(merchant, 'Claims', 1.36)
-    const drop = (
-      await call(merchant, 'POST', '/merchant/flash-drops', dropBody(dealId, outlet.id))
-    ).body
-    expect((await call(member, 'POST', `/flash-drops/${drop.id}/claims`)).status).toBe(404)
-    await call(admin, 'POST', `/admin/flash-drops/${drop.id}/decision`, {
-      decision: 'APPROVE',
-      note: '',
-      version: 1,
-    })
+  it('gives each person one code, never more codes than the limit', async () => {
+    const { outlet } = await stall(merchant, 'Claims', 1.36)
+    const saved = await draft(outlet.id)
+    expect((await call(member, 'POST', `/flash-drops/${saved.id}/claims`)).status).toBe(404)
+    await goLive(saved)
 
-    const active = await call(null, 'GET', '/flash-drops/active')
-    const shown = active.body.items.find((item: { id: string }) => item.id === drop.id)
-    expect(shown).toMatchObject({ codesLeft: 10, flashPriceCents: 150, demo: false })
-
-    expect((await call(null, 'POST', `/flash-drops/${drop.id}/claims`)).status).toBe(401)
-    const first = await call(member, 'POST', `/flash-drops/${drop.id}/claims`)
+    expect((await call(null, 'POST', `/flash-drops/${saved.id}/claims`)).status).toBe(401)
+    const first = await call(member, 'POST', `/flash-drops/${saved.id}/claims`)
     expect(first.status).toBe(201)
     expect(first.body.code).toMatch(/^LB-[A-Z2-9]{6}$/)
-    const again = await call(member, 'POST', `/flash-drops/${drop.id}/claims`)
+    const again = await call(member, 'POST', `/flash-drops/${saved.id}/claims`)
     expect(again.status).toBe(200)
     expect(again.body.code).toBe(first.body.code)
 
@@ -344,64 +447,83 @@ describe('admin review and claims', () => {
       Array.from({ length: 15 }, (_, index) => signUp(`Synthetic crowd ${index}`)),
     )
     const results = await Promise.all(
-      crowd.map((person) => call(person, 'POST', `/flash-drops/${drop.id}/claims`)),
+      crowd.map((person) => call(person, 'POST', `/flash-drops/${saved.id}/claims`)),
     )
     expect(results.filter((result) => result.status === 201)).toHaveLength(9)
     expect(results.every((result) => [201, 409].includes(result.status))).toBe(true)
-    const stored = await db.flashDrop.findUniqueOrThrow({ where: { id: drop.id } })
+    const stored = await db.flashDrop.findUniqueOrThrow({ where: { id: saved.id } })
     expect(stored.claimedCount).toBe(10)
-    expect(await db.flashDropClaim.count({ where: { dropId: drop.id } })).toBe(10)
+    expect(await db.flashDropClaim.count({ where: { dropId: saved.id } })).toBe(10)
 
     const mine = await call(member, 'GET', '/flash-drops/codes')
     expect(mine.body.items[0]).toMatchObject({ code: first.body.code, active: true })
-    const gone = await call(null, 'GET', '/flash-drops/active')
-    expect(gone.body.items.map((item: { id: string }) => item.id)).not.toContain(drop.id)
+    expect(ids((await call(null, 'GET', '/flash-drops/active')).body.items)).not.toContain(saved.id)
   })
+})
 
-  it('stops a live drop for everyone and voids its codes', async () => {
-    const { outlet, dealId } = await stall(merchant, 'Stop', 1.4)
-    const drop = (
-      await call(merchant, 'POST', '/merchant/flash-drops', dropBody(dealId, outlet.id))
-    ).body
-    await call(admin, 'POST', `/admin/flash-drops/${drop.id}/decision`, {
-      decision: 'APPROVE',
-      note: '',
-      version: 1,
-    })
-    await call(member, 'POST', `/flash-drops/${drop.id}/claims`)
-    const stopped = await call(admin, 'POST', `/admin/flash-drops/${drop.id}/decision`, {
+describe('admin removal', () => {
+  it('lets admins remove a live flash deal with a note, voiding its codes, and logs it', async () => {
+    const { outlet } = await stall(merchant, 'Remove', 1.4)
+    const saved = await draft(outlet.id)
+    const live = (await goLive(saved)).body
+    await call(member, 'POST', `/flash-drops/${saved.id}/claims`)
+
+    expect((await call(member, 'GET', '/admin/flash-drops')).status).toBe(403)
+    const tab = await call(admin, 'GET', '/admin/flash-drops')
+    expect(tab.status).toBe(200)
+    const listed = tab.body.items.find((item: { id: string }) => item.id === saved.id)
+    expect(listed.checks).toMatchObject({ merchantHoldsOutlet: true, priceLower: true })
+    expect(tab.body.counts.live).toBeGreaterThan(0)
+
+    const decide = (body: Record<string, unknown>) =>
+      call(admin, 'POST', `/admin/flash-drops/${saved.id}/decision`, body)
+    expect((await decide({ decision: 'STOP', note: '', version: live.version })).status).toBe(400)
+    // There is no review step any more.
+    expect((await decide({ decision: 'APPROVE', note: '', version: live.version })).status).toBe(
+      400,
+    )
+    expect((await decide({ decision: 'STOP', note: 'x', version: 1 })).status).toBe(409)
+    const removed = await decide({
       decision: 'STOP',
-      note: 'Stall ran out early.',
-      version: 2,
+      note: 'Misleading price.',
+      version: live.version,
     })
-    expect(stopped.body.status).toBe('STOPPED')
-    const active = await call(null, 'GET', '/flash-drops/active')
-    expect(active.body.items.map((item: { id: string }) => item.id)).not.toContain(drop.id)
+    expect(removed.status).toBe(200)
+    expect(removed.body.status).toBe('STOPPED')
+
+    expect(ids((await call(null, 'GET', '/flash-drops/active')).body.items)).not.toContain(saved.id)
     const codes = await call(member, 'GET', '/flash-drops/codes')
     expect(
-      codes.body.items.find((item: { dropId: string }) => item.dropId === drop.id).active,
+      codes.body.items.find((item: { dropId: string }) => item.dropId === saved.id).active,
     ).toBe(false)
     const ownView = await call(merchant, 'GET', '/merchant/flash-drops')
-    expect(ownView.body.items.find((item: { id: string }) => item.id === drop.id)).toMatchObject({
+    expect(ownView.body.items.find((item: { id: string }) => item.id === saved.id)).toMatchObject({
       status: 'STOPPED',
-      reviewNote: 'Stall ran out early.',
+      reviewNote: 'Misleading price.',
     })
+    expect(
+      (await db.deal.findUniqueOrThrow({ where: { id: saved.dealId } })).publishedAt,
+    ).toBeNull()
+    const audit = await db.platformAudit.findMany({ where: { subjectId: saved.id } })
+    expect(audit.map((entry) => entry.action)).toEqual(['FLASH_DROP_STOPPED'])
   })
 
-  it('lets the merchant withdraw a drop in review', async () => {
-    const { outlet, dealId } = await stall(merchant, 'Withdraw', 1.42)
-    const drop = (
-      await call(merchant, 'POST', '/merchant/flash-drops', dropBody(dealId, outlet.id))
-    ).body
-    const ended = await call(merchant, 'POST', `/merchant/flash-drops/${drop.id}/end`, {
+  it('cannot see or remove a draft', async () => {
+    const { outlet } = await stall(merchant, 'Private', 1.42)
+    const saved = await draft(outlet.id)
+    const attempt = await call(admin, 'POST', `/admin/flash-drops/${saved.id}/decision`, {
+      decision: 'STOP',
+      note: 'Not allowed.',
       version: 1,
     })
-    expect(ended.body.status).toBe('ENDED')
-    const late = await call(admin, 'POST', `/admin/flash-drops/${drop.id}/decision`, {
-      decision: 'APPROVE',
-      note: '',
-      version: 2,
-    })
-    expect(late.status).toBe(412)
+    expect(attempt.status).toBe(404)
+  })
+
+  it('counts live and scheduled flash deals on the admin overview', async () => {
+    const { outlet } = await stall(merchant, 'Overview', 1.44)
+    await goLive(await draft(outlet.id, { startsAt: inMinutes(120) }))
+    const overview = await call(admin, 'GET', '/admin/overview')
+    expect(overview.body.counts.pendingFlashDrops).toBeGreaterThan(0)
+    expect(overview.body.counts.liveFlashDrops).toBeGreaterThan(0)
   })
 })

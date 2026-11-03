@@ -1,8 +1,8 @@
 import { randomInt } from 'node:crypto'
 import type { AuthenticatedActor } from '@api/modules/account/security-access'
 import { DomainError } from '@api/modules/domain-error'
-import { isLive, newClaimCode } from '@api/modules/flash-drops/policy'
-import { dropSelect, loadContext, usualPrice } from '@api/modules/flash-drops/records'
+import { isDraft, isLive, newClaimCode } from '@api/modules/flash-drops/policy'
+import { dropSelect, flashOfferOf, loadContext } from '@api/modules/flash-drops/records'
 import type { Database } from '@api/modules/platform-admin/transaction'
 import type {
   ActiveFlashDropsResponse,
@@ -45,8 +45,7 @@ export const listActiveFlashDrops = async (
         venueName: venue.name,
         lat: venue.latitude,
         lng: venue.longitude,
-        flashPriceCents: row.flashPriceMinor,
-        usualPriceCents: usualPrice(deal),
+        ...flashOfferOf(row, deal),
         startsAt: row.startsAt.toISOString(),
         endsAt: row.endsAt.toISOString(),
         radiusMetres: row.radiusMetres,
@@ -80,6 +79,10 @@ const loadDrops = async (database: Database, dropIds: readonly string[]) => {
   }
 }
 
+// A claimed code shows the flash offer but not the usual price.
+const withoutUsual = ({ usualPriceCents: _usual, ...offer }: ReturnType<typeof flashOfferOf>) =>
+  offer
+
 const toCode = (claim: ClaimRow, { byId, context }: DropRows, now: Date): FlashCode | null => {
   const drop = byId.get(claim.dropId)
   if (!drop) return null
@@ -89,7 +92,7 @@ const toCode = (claim: ClaimRow, { byId, context }: DropRows, now: Date): FlashC
     dealId: drop.dealId,
     dealTitle: context.deals.get(drop.dealId)?.title ?? 'Unavailable',
     venueName: context.venues.get(drop.venueId)?.name ?? 'Unavailable',
-    flashPriceCents: drop.flashPriceMinor,
+    ...withoutUsual(flashOfferOf(drop, context.deals.get(drop.dealId))),
     claimedAt: claim.createdAt.toISOString(),
     endsAt: drop.endsAt.toISOString(),
     // A code is good until its drop ends or is stopped; it no longer matters if codes ran out.
@@ -141,7 +144,8 @@ export const claimFlashCode = async (
           where: { id: dropId },
           select: dropSelect,
         })
-        if (!drop || drop.status === 'PENDING' || drop.status === 'SENT_BACK')
+        // Drafts are the merchant's own, so they read as missing.
+        if (!drop || isDraft(drop.status))
           throw new DomainError('NOT_FOUND', 'Flash drop not found')
         if (!isLive(drop, now)) {
           if (drop.claimedCount >= drop.codeLimit) throw soldOut()

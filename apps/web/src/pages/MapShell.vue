@@ -13,6 +13,7 @@ import { FOCUS_ZOOM, LOCATE_ZOOM } from '@web/modules/browse-map/map-config'
 import type { Coordinates, SelectedDeal } from '@web/modules/browse-map/types'
 import { BANNER_LIFE_MS } from '@web/modules/flash-drop/banner-schedule'
 import FlashEdgeBanner from '@web/modules/flash-drop/FlashEdgeBanner.vue'
+import { watchFlashAlerts } from '@web/modules/flash-drop/use-flash-alerts'
 import { provideFlashDrops } from '@web/modules/flash-drop/use-flash-drops'
 import { useFlashMap } from '@web/modules/flash-drop/use-flash-map'
 import { provideHungryNearby } from '@web/modules/hungry-nearby/use-hungry-nearby'
@@ -394,6 +395,10 @@ const flashMap = useFlashMap({
   reducedMotion,
   open: (drop) => router.push(dealLocation(route.query, drop.dealId, drop.venueId)),
 })
+// Everyone with the site open hears when a flash deal goes live; "Show me" opens it.
+watchFlashAlerts(flash, toast, (drop) =>
+  router.push(dealLocation(route.query, drop.dealId, drop.venueId)),
+)
 // Hungry Nearby: opt-in lobangers on the same Leaflet map; the toggle lives in MapControls.
 provideHungryNearby({ session, map: leaflet, position: shell.position, locate: shell.locate })
 

@@ -41,8 +41,8 @@ export const readAdminOverview = async (context: RestContext, config: AppConfig)
         source: { select: { name: true } },
       },
     }),
-    // Waiting for review and still able to run.
-    context.db.flashDrop.count({ where: { status: 'PENDING', endsAt: { gt: now } } }),
+    // Gone live but not started yet (there is no review step any more).
+    context.db.flashDrop.count({ where: { status: 'APPROVED', startsAt: { gt: now } } }),
     context.db.flashDrop.count({
       where: { status: 'APPROVED', startsAt: { lte: now }, endsAt: { gt: now } },
     }),

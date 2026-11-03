@@ -10,6 +10,8 @@ import {
   countdown,
   distanceText,
   formatCents,
+  offerText,
+  offerTitle,
   radiusText,
   savingText,
 } from '@web/modules/flash-drop/flash-format'
@@ -40,6 +42,25 @@ describe('flash format', () => {
     expect(radiusText(1500)).toBe('1.5\u00a0km')
     expect(distanceText(347)).toBe('350\u00a0m')
     expect(distanceText(1260)).toBe('1.3\u00a0km')
+  })
+
+  it('names each kind of flash offer, as on the banner, pin and claim card', () => {
+    const offer = (
+      offerType: 'BUY_ONE_GET_ONE' | 'PERCENT_OFF' | 'FIXED_PRICE' | 'OTHER',
+      extra = {},
+    ) => ({
+      offerType,
+      discountPercent: null,
+      flashPriceCents: null,
+      dealTitle: 'Synthetic chicken rice',
+      ...extra,
+    })
+    expect(offerText(offer('FIXED_PRICE', { flashPriceCents: 150 }))).toBe('$1.50')
+    expect(offerText(offer('BUY_ONE_GET_ONE'))).toBe('1-for-1')
+    expect(offerText(offer('PERCENT_OFF', { discountPercent: 30 }))).toBe('30% off')
+    expect(offerText(offer('OTHER'))).toBe('')
+    expect(offerTitle(offer('BUY_ONE_GET_ONE'))).toBe('1-for-1 Synthetic chicken rice')
+    expect(offerTitle(offer('OTHER'))).toBe('Synthetic chicken rice')
   })
 
   it('counts down in minutes, then hours, and never below zero', () => {

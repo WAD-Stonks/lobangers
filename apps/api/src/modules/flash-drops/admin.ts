@@ -2,8 +2,10 @@ import { type AuthenticatedActor, readActiveSession } from '@api/modules/account
 import { DomainError } from '@api/modules/domain-error'
 import {
   clashes,
+  DRAFT_STATUSES,
   displayStatus,
   distanceMetres,
+  isDraft,
   manyCodes,
   viewOf,
 } from '@api/modules/flash-drops/policy'
@@ -11,9 +13,9 @@ import {
   type DropContext,
   type DropRow,
   dropSelect,
+  flashOfferOf,
   loadContext,
-  toMerchantDrop,
-  usualPrice,
+  toDropCore,
 } from '@api/modules/flash-drops/records'
 import { appendAdminAudit } from '@api/modules/platform-admin/audit'
 import {
@@ -30,9 +32,10 @@ import type {
   FlashDropView,
 } from '@broke-oclock/contracts/flash-drops'
 
-// Admin review of merchant flash drops: every drop is approved before it can go live, can be
-// sent back with a note, and an approved drop can be stopped at any time. Each decision is
-// written to the platform audit log in the same transaction.
+// Admin oversight of merchant flash deals. Merchants send their own flash deals live; admins see
+// every one once it has gone live (scheduled, live or ended) and can remove it, which stops it at
+// once and hides it from the map while keeping the record and its claimed codes. Each removal is
+// written to the platform audit log in the same transaction. Drafts stay the merchant's own.
 
 const MAX_LISTED = 100
 const DAY_MS = 86_400_000
@@ -100,16 +103,19 @@ const toAdminDrop = async (
         })
         .slice(0, 10)
     : []
-  const usual = usualPrice(deal)
+  const offer = flashOfferOf(row, deal)
+  const usual = offer.usualPriceCents
   return {
-    ...toMerchantDrop(row, context, now),
+    ...toDropCore(row, context, now),
     merchantName: (venue && context.merchants.get(venue.merchantId)) ?? 'Unavailable',
     outletLat: venue?.latitude ?? 0,
     outletLng: venue?.longitude ?? 0,
     checks: {
       merchantHoldsOutlet: !!grant && !grant.revokedAt,
       outletLocated: !!venue?.geographyEvidence,
-      priceLower: usual === null ? null : row.flashPriceMinor < usual,
+      // Only a fixed flash price with a usual price can be compared.
+      priceLower:
+        usual === null || offer.flashPriceCents === null ? null : offer.flashPriceCents < usual,
       manyCodes: manyCodes(row.codeLimit),
       overlaps,
     },
@@ -125,13 +131,16 @@ export const listAdminFlashDrops = (
   readAsAdmin(database, actor, async (tx) => {
     const since = new Date(now.getTime() - ENDED_WINDOW_DAYS * DAY_MS)
     const rows = await tx.flashDrop.findMany({
-      where: { OR: [{ endsAt: { gt: since } }, { status: 'PENDING' }] },
+      where: { endsAt: { gt: since }, status: { notIn: [...DRAFT_STATUSES] } },
       orderBy: [{ startsAt: 'asc' }, { id: 'asc' }],
       take: 500,
       select: dropSelect,
     })
-    const counts = { review: 0, scheduled: 0, live: 0, ended: 0 }
-    for (const row of rows) counts[viewOf(displayStatus(row, now))] += 1
+    const counts = { scheduled: 0, live: 0, ended: 0 }
+    for (const row of rows) {
+      const shown = viewOf(displayStatus(row, now))
+      if (shown) counts[shown] += 1
+    }
     const listed = rows
       .filter((row) => viewOf(displayStatus(row, now)) === view)
       .sort((a, b) =>
@@ -141,9 +150,7 @@ export const listAdminFlashDrops = (
       )
       .slice(0, MAX_LISTED)
     // Overlaps are checked against every drop that could still run, not just this tab.
-    const rivals = rows.filter(
-      (row) => ['PENDING', 'APPROVED'].includes(row.status) && row.endsAt > now,
-    )
+    const rivals = rows.filter((row) => row.status === 'APPROVED' && row.endsAt > now)
     const context = await loadContext(tx, [...listed, ...rivals])
     const claimedToday = await tx.flashDropClaim.count({
       where: { createdAt: { gte: startOfSingaporeDay(now) } },
@@ -154,11 +161,8 @@ export const listAdminFlashDrops = (
     }
   })
 
-const OUTCOME = {
-  APPROVE: { status: 'APPROVED', action: 'FLASH_DROP_APPROVED', from: ['IN_REVIEW'] },
-  SEND_BACK: { status: 'SENT_BACK', action: 'FLASH_DROP_SENT_BACK', from: ['IN_REVIEW'] },
-  STOP: { status: 'STOPPED', action: 'FLASH_DROP_STOPPED', from: ['SCHEDULED', 'LIVE'] },
-} as const
+// Only a flash deal that is scheduled or live can be removed.
+const REMOVABLE = ['SCHEDULED', 'LIVE']
 
 export const decideFlashDrop = (
   database: Database,
@@ -170,45 +174,51 @@ export const decideFlashDrop = (
   accessTransaction(database, async (tx) => {
     const admin = await requireCurrentAdmin(tx, actor)
     const current = await tx.flashDrop.findUnique({ where: { id: dropId }, select: dropSelect })
-    if (!current) throw new DomainError('NOT_FOUND', 'Flash drop not found')
+    // Drafts are the merchant's own and read as missing.
+    if (!current || isDraft(current.status))
+      throw new DomainError('NOT_FOUND', 'Flash deal not found')
     if (current.version !== input.version) throw conflict()
-    const outcome = OUTCOME[input.decision]
     const shown = displayStatus(current, now)
-    if (!(outcome.from as readonly string[]).includes(shown))
+    if (!REMOVABLE.includes(shown))
       throw new DomainError(
         'PRECONDITION_FAILED',
-        `This drop is ${shown.toLowerCase().replace('_', ' ')} and cannot be changed that way`,
+        `This flash deal is ${shown.toLowerCase()} and cannot be removed`,
       )
     const note = input.note.trim()
     const result = await tx.flashDrop.updateMany({
       where: { id: dropId, version: current.version, status: current.status },
       data: {
-        status: outcome.status,
-        reviewNote: note || null,
+        status: 'STOPPED',
+        reviewNote: note,
         reviewedById: admin.id,
         reviewedAt: now,
         version: current.version + 1,
       },
     })
     if (result.count !== 1) throw conflict()
+    // Its deal is taken off the map too.
+    await tx.deal.updateMany({
+      where: { id: current.dealId },
+      data: { validUntil: now, publishedAt: null },
+    })
     await appendAdminAudit(tx, admin, {
-      action: outcome.action,
+      action: 'FLASH_DROP_STOPPED',
       subjectType: 'FLASH_DROP',
       subjectId: dropId,
       venueId: current.venueId,
       targetUserId: current.merchantUserId,
-      note: note || 'Approved flash drop',
+      note,
       details: {
         operationVersionBefore: current.version,
         operationVersionAfter: current.version + 1,
-        previousStatus: current.status === 'PENDING' ? 'PENDING' : 'APPROVED',
-        newStatus: outcome.status,
+        previousStatus: 'APPROVED',
+        newStatus: 'STOPPED',
         changedFields: ['status'],
       },
     })
     const row = await tx.flashDrop.findUniqueOrThrow({ where: { id: dropId }, select: dropSelect })
     const rivals = await tx.flashDrop.findMany({
-      where: { status: { in: ['PENDING', 'APPROVED'] }, endsAt: { gt: now } },
+      where: { status: 'APPROVED', endsAt: { gt: now } },
       take: 500,
       select: dropSelect,
     })
