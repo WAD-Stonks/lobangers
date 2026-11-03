@@ -4,16 +4,34 @@ import DealPhoto from '@web/modules/browse-map/DealPhoto.vue'
 import { dealFreshness, formatEnding, formatMoreOutlets, OUTLET_NOT_CONFIRMED } from '@web/modules/browse-map/deal-format'
 import SaveDealButton from '@web/modules/browse-map/SaveDealButton.vue'
 import type { DealRow } from '@web/modules/browse-map/types'
+import { computed, ref, watch } from 'vue'
 import type { RouteLocationRaw } from 'vue-router'
 import { RouterLink } from 'vue-router'
 
-const props = defineProps<{ row: DealRow; to: RouteLocationRaw }>()
+// `naturalRatio` lets the photo frame take the photo's own shape (the masonry grid); otherwise the
+// frame stays a fixed poster so cards in a row line up (the landing carousel).
+const props = defineProps<{ row: DealRow; to: RouteLocationRaw; naturalRatio?: boolean }>()
 const emit = defineEmits<{ hover: [venueId: string | null] }>()
+
+// Extreme banners and long posters are capped so one card can't swamp a column; `contain` still
+// shows the whole photo inside the capped frame.
+const MIN_PHOTO_RATIO = 1 / 2
+const MAX_PHOTO_RATIO = 3
+
+const photoRatio = ref<number | null>(null)
+watch(() => props.row.deal.images[0]?.url, () => { photoRatio.value = null })
+
+const onPhotoRatio = (ratio: number) => {
+  if (props.naturalRatio) photoRatio.value = Math.min(MAX_PHOTO_RATIO, Math.max(MIN_PHOTO_RATIO, ratio))
+}
+
+const photoStyle = computed(() => (photoRatio.value ? { '--photo-ratio': String(photoRatio.value) } : undefined))
 </script>
 
 <template>
   <article
     class="food-deal-card"
+    :class="{ 'food-deal-card--natural': props.naturalRatio }"
     :aria-label="`${props.row.deal.title} at ${props.row.venue.name}`"
     @mouseenter="emit('hover', props.row.venue.id)"
     @mouseleave="emit('hover', null)"
@@ -22,12 +40,13 @@ const emit = defineEmits<{ hover: [venueId: string | null] }>()
       <span class="visually-hidden">View {{ props.row.deal.title }} at {{ props.row.venue.name }}</span>
     </RouterLink>
     <SaveDealButton :deal-id="row.deal.id" :title="row.deal.title" />
-    <div class="food-deal-card__photo">
+    <div class="food-deal-card__photo" :style="photoStyle">
       <DealPhoto
         v-if="props.row.deal.images[0]"
         :src="props.row.deal.images[0].url"
         :alt="props.row.deal.images[0].alt ?? ''"
         class="food-deal-card__image"
+        @ratio="onPhotoRatio"
       />
       <div v-else class="food-deal-card__placeholder" aria-hidden="true">🍽️</div>
       <span class="food-deal-card__status" :class="{ 'is-expired': dealFreshness(props.row.deal).label === 'Expired', 'is-conflicting': dealFreshness(props.row.deal).label === 'Mixed reports' }">{{ dealFreshness(props.row.deal).label }}</span>
@@ -66,6 +85,11 @@ const emit = defineEmits<{ hover: [venueId: string | null] }>()
   transition: transform 180ms ease, box-shadow 180ms ease;
 }
 
+/* In the masonry grid each card is as tall as its photo and text need. */
+.food-deal-card--natural {
+  height: auto;
+}
+
 .food-deal-card:focus-within {
   outline: 3px solid var(--sunny-ring);
   outline-offset: 2px;
@@ -90,11 +114,12 @@ const emit = defineEmits<{ hover: [venueId: string | null] }>()
   background: var(--paper-sunk);
 }
 
-/* Keep the poster frame independent of the amount of text below it. */
+/* Keep the photo frame independent of the amount of text below it. A poster shape holds the
+   space until the photo loads and reports its own ratio. */
 .food-deal-card__photo::before {
   content: '';
   display: block;
-  aspect-ratio: 4 / 5;
+  aspect-ratio: var(--photo-ratio, 4 / 5);
 }
 
 .food-deal-card__image {

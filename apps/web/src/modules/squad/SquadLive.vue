@@ -9,6 +9,7 @@ import SquadEffectsLayer from '@web/modules/squad/SquadEffectsLayer.vue'
 import SquadLeave from '@web/modules/squad/SquadLeave.vue'
 import SquadMembers from '@web/modules/squad/SquadMembers.vue'
 import SquadOptionsMenu from '@web/modules/squad/SquadOptionsMenu.vue'
+import SquadResultBadge from '@web/modules/squad/SquadResultBadge.vue'
 import { shareRoom } from '@web/modules/squad/share-room'
 import { SHEET_CONTROL_KEY } from '@web/modules/squad/sheet-control'
 import { useSquadEffects } from '@web/modules/squad/use-squad-effects'
@@ -121,6 +122,8 @@ const stopListening = props.room.onEffect((event: SquadEvent) => {
 })
 onBeforeUnmount(stopListening)
 watch(() => `${props.state.dealIndex}:${props.state.round}`, effects.clearStickers)
+// Leaving takes the photo's stickers with you, so they're gone if you come back too.
+watch(left, (gone) => { if (gone) effects.clearStickers() })
 
 const tap = (stance: 'YAY' | 'NAH') => {
   props.room.tap(stance)
@@ -238,10 +241,23 @@ const browse = (event: MouseEvent, navigate: (event?: MouseEvent) => Promise<unk
       </div>
 
       <div class="squad-live__stage">
-        <SquadDealCard v-if="deal" ref="card" :deal="deal" :position="position" :to="dealLink(deal.id)" />
+        <SquadDealCard
+          v-if="deal"
+          ref="card"
+          :class="{ 'squad-card--hit': state.phase === 'MATCHED', 'squad-card--miss': state.phase === 'DECIDING' }"
+          :deal="deal"
+          :position="position"
+          :to="dealLink(deal.id)"
+        />
         <div v-if="state.phase === 'MATCHED' && deal" class="squad-match" role="status" data-testid="squad-match">
+          <SquadResultBadge kind="match" />
           <strong>It's a match!</strong>
           <span>{{ state.tally.yesPeople }} of {{ state.tally.voters }} said yay to {{ deal.title }}</span>
+        </div>
+        <div v-else-if="state.phase === 'DECIDING' && deal" class="squad-match squad-match--miss" role="status" data-testid="squad-no-match">
+          <SquadResultBadge kind="miss" />
+          <strong>No match</strong>
+          <span>Only {{ state.tally.yesPeople }} of {{ state.tally.voters }} said yay</span>
         </div>
       </div>
 
@@ -259,7 +275,7 @@ const browse = (event: MouseEvent, navigate: (event?: MouseEvent) => Promise<unk
       <p v-if="room.error.value" class="squad-error" role="alert">{{ room.error.value }}</p>
     </template>
 
-    <SquadEffectsLayer :effects="effects" />
+    <SquadEffectsLayer v-if="!left" :effects="effects" />
     <SquadLeave
       v-if="leaving"
       :code="state.code"

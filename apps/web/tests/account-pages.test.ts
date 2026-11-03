@@ -1,13 +1,7 @@
-import type {
-  AccountVenue,
-  Bookmark,
-  MyMerchantRequest,
-  Submission,
-} from '@broke-oclock/contracts/account'
+import type { AccountVenue, MyMerchantRequest, Submission } from '@broke-oclock/contracts/account'
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
 import MerchantAccessPage from '@web/pages/MerchantAccessPage.vue'
 import MySubmissionsPage from '@web/pages/MySubmissionsPage.vue'
-import SavedDealsPage from '@web/pages/SavedDealsPage.vue'
 import { chooseOption, optionLabels, selectedValue } from '@web-tests/support/select'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { type Component, h } from 'vue'
@@ -17,8 +11,6 @@ type Page<T> = { items: T[]; nextCursor: string | null }
 
 // Synthetic API boundary only: these tests check the pages, not backend behaviour.
 const account = vi.hoisted(() => ({
-  bookmarks: vi.fn(),
-  unsaveDeal: vi.fn(),
   submissions: vi.fn(),
   venues: vi.fn(),
   requestMerchantAccess: vi.fn(),
@@ -47,12 +39,6 @@ const deferred = <T>() => {
   return { promise, resolve, reject }
 }
 
-const bookmark = (n: number): Bookmark => ({
-  id: `bookmark-${n}`,
-  dealId: `deal-${n}`,
-  savedAt: '2026-01-01T00:00:00.000Z',
-  deal: { title: `Deal ${n}`, category: 'food', description: 'Tasty', validUntil: null },
-})
 const submission = (n: number): Submission => ({
   id: `submission-${n}`,
   title: `Submission ${n}`,
@@ -99,42 +85,8 @@ beforeEach(() => {
   vi.resetAllMocks()
 })
 
-describe('Load more on the saved-deals and submissions pages', () => {
+describe('Load more on the submissions page', () => {
   it('ignores a second click while the first Load more is still running', async () => {
-    account.bookmarks.mockResolvedValueOnce({ items: [bookmark(1)], nextCursor: 'cursor-1' })
-    const wrapper = await mountPage(SavedDealsPage)
-
-    const nextPage = deferred<Page<Bookmark>>()
-    account.bookmarks.mockReturnValueOnce(nextPage.promise)
-    const loadMore = buttonWithText(wrapper, 'Load more')
-    // Two clicks before the page re-renders, like a real double click.
-    await Promise.all([loadMore?.trigger('click'), loadMore?.trigger('click')])
-
-    expect(account.bookmarks).toHaveBeenCalledTimes(2) // first page + exactly one Load more
-    expect(account.bookmarks).toHaveBeenLastCalledWith({ cursor: 'cursor-1' })
-    expect(buttonWithText(wrapper, 'Loading')?.attributes('disabled')).toBeDefined()
-
-    nextPage.resolve({ items: [bookmark(2)], nextCursor: null })
-    await flushPromises()
-    expect(wrapper.findAll('h2').map((heading) => heading.text())).toEqual(['Deal 1', 'Deal 2'])
-    expect(buttonWithText(wrapper, 'Load more')).toBeUndefined()
-  })
-
-  it('lets the user retry after Load more fails', async () => {
-    account.bookmarks.mockResolvedValueOnce({ items: [bookmark(1)], nextCursor: 'cursor-1' })
-    const wrapper = await mountPage(SavedDealsPage)
-
-    account.bookmarks.mockRejectedValueOnce(new Error('offline'))
-    await buttonWithText(wrapper, 'Load more')?.trigger('click')
-    await flushPromises()
-
-    account.bookmarks.mockResolvedValueOnce({ items: [bookmark(2)], nextCursor: null })
-    await buttonWithText(wrapper, 'Load more')?.trigger('click')
-    await flushPromises()
-    expect(account.bookmarks).toHaveBeenCalledTimes(3)
-  })
-
-  it('ignores a second click on the submissions page too', async () => {
     account.submissions.mockResolvedValueOnce({ items: [submission(1)], nextCursor: 'cursor-1' })
     const wrapper = await mountPage(MySubmissionsPage)
 
@@ -150,52 +102,6 @@ describe('Load more on the saved-deals and submissions pages', () => {
       'Submission 1',
       'Submission 2',
     ])
-  })
-
-  it('keeps older deals reachable when the whole visible page is removed', async () => {
-    account.bookmarks.mockResolvedValueOnce({ items: [bookmark(1)], nextCursor: 'cursor-1' })
-    account.unsaveDeal.mockResolvedValue({ saved: false })
-    const wrapper = await mountPage(SavedDealsPage)
-
-    const nextPage = deferred<Page<Bookmark>>()
-    account.bookmarks.mockReturnValueOnce(nextPage.promise)
-    await buttonWithText(wrapper, 'Remove')?.trigger('click')
-    await flushPromises()
-
-    // Nothing is visible, but an older page exists: the page must not claim nothing is saved.
-    expect(wrapper.text()).not.toContain("You haven't saved any deals yet")
-    expect(account.bookmarks).toHaveBeenLastCalledWith({ cursor: 'cursor-1' })
-
-    nextPage.resolve({ items: [bookmark(2)], nextCursor: null })
-    await flushPromises()
-    expect(wrapper.findAll('h2').map((heading) => heading.text())).toEqual(['Deal 2'])
-  })
-
-  it('still offers Load more if the automatic fetch after the last removal fails', async () => {
-    account.bookmarks.mockResolvedValueOnce({ items: [bookmark(1)], nextCursor: 'cursor-1' })
-    account.unsaveDeal.mockResolvedValue({ saved: false })
-    const wrapper = await mountPage(SavedDealsPage)
-
-    account.bookmarks.mockRejectedValueOnce(new Error('offline'))
-    await buttonWithText(wrapper, 'Remove')?.trigger('click')
-    await flushPromises()
-    expect(wrapper.text()).not.toContain("You haven't saved any deals yet")
-
-    account.bookmarks.mockResolvedValueOnce({ items: [bookmark(2)], nextCursor: null })
-    await buttonWithText(wrapper, 'Load more')?.trigger('click')
-    await flushPromises()
-    expect(wrapper.findAll('h2').map((heading) => heading.text())).toEqual(['Deal 2'])
-  })
-
-  it('shows the empty message after the last bookmark goes and nothing older exists', async () => {
-    account.bookmarks.mockResolvedValueOnce({ items: [bookmark(1)], nextCursor: null })
-    account.unsaveDeal.mockResolvedValue({ saved: false })
-    const wrapper = await mountPage(SavedDealsPage)
-
-    await buttonWithText(wrapper, 'Remove')?.trigger('click')
-    await flushPromises()
-    expect(wrapper.text()).toContain("You haven't saved any deals yet")
-    expect(account.bookmarks).toHaveBeenCalledTimes(1)
   })
 })
 

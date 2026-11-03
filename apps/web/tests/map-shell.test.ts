@@ -672,6 +672,19 @@ describe('opening deals and venues', () => {
     expect(router.currentRoute.value.fullPath).toBe(`/venues/${HAWKER_VENUE.id}`)
   })
 
+  it('re-flies to the same outlet when a new panel opens on it', async () => {
+    const { router, wrapper } = await mountAt(`/venues/${HAWKER_VENUE.id}`)
+    await flushPromises()
+    const venueFocus = map(wrapper).props('focus')
+    expect(venueFocus).toEqual({ lat: HAWKER_VENUE.lat, lng: HAWKER_VENUE.lng })
+
+    await router.push(`/deals/${NOODLES.id}?at=${HAWKER_VENUE.id}`)
+    await flushPromises()
+    const dealFocus = map(wrapper).props('focus')
+    expect(dealFocus).toEqual({ lat: HAWKER_VENUE.lat, lng: HAWKER_VENUE.lng })
+    expect(dealFocus).not.toBe(venueFocus)
+  })
+
   it('resets the panel to the top when the deal changes', async () => {
     const { router, wrapper } = await mountAt(`/deals/${NOODLES.id}`)
     const body = wrapper.get('[data-testid="panel-body"]').element as HTMLElement
@@ -730,6 +743,39 @@ describe('saved results panel', () => {
     await flushPromises()
     expect(rest.unsave).toHaveBeenCalledWith(KOPI.id)
     expect(wrapper.findAll('.food-deal-card')).toHaveLength(0)
+  })
+
+  it('hides expired saved deals until Show expired deals is ticked', async () => {
+    auth.session.current = SIGNED_IN
+    rest.bookmarks.mockResolvedValue({ items: [{ dealId: KOPI.id }], nextCursor: null })
+    const { wrapper, router } = await mountAt('/saved')
+    const toggle = wrapper.get<HTMLInputElement>('[data-testid="saved-show-expired"]')
+    expect(toggle.element.checked).toBe(false)
+    expect(rest.list).toHaveBeenLastCalledWith({ validNow: 'true' })
+    await toggle.setValue(true)
+    await flushPromises()
+    expect(router.currentRoute.value.query.now).toBe('0')
+    expect(rest.list).toHaveBeenLastCalledWith({ validNow: 'false' })
+    await wrapper.get('[data-testid="saved-show-expired"]').setValue(false)
+    await flushPromises()
+    expect(router.currentRoute.value.query.now).toBeUndefined()
+    expect(rest.list).toHaveBeenLastCalledWith({ validNow: 'true' })
+  })
+
+  it('offers Show expired deals only on Saved', async () => {
+    const { wrapper } = await mountAt('/browse')
+    expect(wrapper.find('[data-testid="saved-show-expired"]').exists()).toBe(false)
+  })
+})
+
+describe('account tabs', () => {
+  it('has no Saved tab on desktop, since Saved has its own place in the navigation', async () => {
+    auth.session.current = SIGNED_IN
+    const { wrapper } = await mountAt('/me/profile')
+    const tabs = wrapper
+      .findAll('[aria-label="Account sections"] [role="tab"]')
+      .map((tab) => tab.text())
+    expect(tabs).toEqual(['Submitted', 'Settings'])
   })
 })
 
@@ -880,7 +926,9 @@ describe('map navigation rail', () => {
       'map-navigation--bottom',
     )
     expect(wrapper.get('[data-testid="map-navigation"] a[aria-current="page"]').text()).toBe('Map')
-    expect(wrapper.get('.map-navigation__avatar').text()).toBe('S')
+    // The account slot is a More menu on phones, not the avatar.
+    expect(wrapper.get('.map-navigation__account').text()).toBe('More')
+    expect(wrapper.find('.map-navigation__avatar').exists()).toBe(false)
     expect(
       (wrapper.get('[data-testid="map-shell"]').element as HTMLElement).style.getPropertyValue(
         '--bottom-nav-h',

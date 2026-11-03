@@ -150,4 +150,32 @@ onMounted(() => {
   border-top: 1px solid var(--hairline);
   transform: translateY(calc(-1 * var(--sheet-offset, 0px)));
 }
+
+/* Phones: a bottom sheet shows only part of the screen, so the frame spends less on spacing and
+   the title, and tightens again on short screens (an iPhone in Safari leaves about 660px). */
+@media (max-width: 767.98px) {
+  .panel-frame__body {
+    gap: clamp(10px, 1.8vh, 16px);
+    padding-inline: 18px;
+  }
+
+  .panel-frame__title {
+    font-size: 1.375rem;
+  }
+
+  .panel-frame__actions {
+    padding-inline: 18px;
+  }
+}
+
+@media (max-width: 767.98px) and (max-height: 760px) {
+  .panel-frame__body {
+    padding-top: var(--space-4);
+  }
+
+  .panel-frame__actions {
+    padding-top: 10px;
+    padding-bottom: max(10px, env(safe-area-inset-bottom));
+  }
+}
 </style>

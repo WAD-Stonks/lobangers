@@ -1,4 +1,10 @@
 <script setup lang="ts">
+import {
+  CONTENT_DRAG_IGNORE,
+  type ContentDragIntent,
+  contentDragIntent,
+  scrollState,
+} from '@web/modules/map-shell/sheet-content-drag'
 import { snapIndex } from '@web/modules/map-shell/sheet-snap'
 import { computed, ref } from 'vue'
 
@@ -51,25 +57,72 @@ const sheetStyle = computed(() =>
     : undefined,
 )
 
+const beginDrag = (y: number, time: number) => {
+  dragging.value = true
+  startY = y
+  lastY = y
+  lastTime = time
+  velocity = 0
+}
+
+const moveDrag = (y: number, time: number) => {
+  const elapsed = time - lastTime
+  // Upward movement grows the sheet, so velocity is positive going up.
+  if (elapsed > 0) velocity = (lastY - y) / elapsed
+  lastY = y
+  lastTime = time
+  dragDelta.value = startY - y
+}
+
 const onPointerDown = (event: PointerEvent) => {
   if (props.mode !== 'sheet' || event.button !== 0) return
   const target = event.currentTarget as HTMLElement
   target.setPointerCapture(event.pointerId)
-  dragging.value = true
-  startY = event.clientY
-  lastY = event.clientY
-  lastTime = event.timeStamp
-  velocity = 0
+  beginDrag(event.clientY, event.timeStamp)
 }
 
 const onPointerMove = (event: PointerEvent) => {
-  if (!dragging.value) return
-  const elapsed = event.timeStamp - lastTime
-  // Upward movement grows the sheet, so velocity is positive going up.
-  if (elapsed > 0) velocity = (lastY - event.clientY) / elapsed
-  lastY = event.clientY
-  lastTime = event.timeStamp
-  dragDelta.value = startY - event.clientY
+  if (dragging.value) moveDrag(event.clientY, event.timeStamp)
+}
+
+// A drag that starts in the content. The content pans natively (touch-action: pan-y), which
+// cancels pointer events once it scrolls, so this listens to touch events and only takes the
+// gesture (preventDefault) when the content has nothing to scroll that way.
+let contentIntent: ContentDragIntent | null = null
+let touchStartX = 0
+let touchStartY = 0
+let touchScroll = { atTop: true, scrollable: false }
+
+const onContentTouchStart = (event: TouchEvent) => {
+  const touch = event.touches[0]
+  const root = event.currentTarget as HTMLElement
+  const target = event.target as Element
+  if (props.mode !== 'sheet' || event.touches.length !== 1 || !touch || target.closest(CONTENT_DRAG_IGNORE)) {
+    contentIntent = null
+    return
+  }
+  contentIntent = 'pending'
+  touchStartX = touch.clientX
+  touchStartY = touch.clientY
+  touchScroll = scrollState(target, root)
+}
+
+const onContentTouchMove = (event: TouchEvent) => {
+  const touch = event.touches[0]
+  if (!contentIntent || contentIntent === 'scroll' || !touch) return
+  if (contentIntent === 'pending') {
+    contentIntent = contentDragIntent({ dx: touch.clientX - touchStartX, dy: touch.clientY - touchStartY, ...touchScroll })
+    if (contentIntent !== 'sheet') return
+    beginDrag(touchStartY, event.timeStamp)
+  }
+  event.preventDefault()
+  moveDrag(touch.clientY, event.timeStamp)
+}
+
+const onContentTouchEnd = () => {
+  const ownsGesture = contentIntent === 'sheet'
+  contentIntent = null
+  if (ownsGesture) release()
 }
 
 const release = () => {
@@ -125,7 +178,13 @@ const handleLabel = computed(
     >
       <span class="shell-panel__grip-bar" aria-hidden="true" />
     </button>
-    <div class="shell-panel__content">
+    <div
+      class="shell-panel__content"
+      @touchstart="onContentTouchStart"
+      @touchmove="onContentTouchMove"
+      @touchend="onContentTouchEnd"
+      @touchcancel="onContentTouchEnd"
+    >
       <slot />
     </div>
   </section>

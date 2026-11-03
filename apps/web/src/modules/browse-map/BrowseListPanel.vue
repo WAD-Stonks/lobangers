@@ -13,11 +13,13 @@ import PanelFrame from '@web/modules/map-shell/PanelFrame.vue'
 import ShellIcon from '@web/modules/map-shell/ShellIcon.vue'
 import { dealLocation } from '@web/modules/map-shell/shell-routes'
 import { useShell } from '@web/modules/map-shell/shell-state'
+import { useSavedDeals } from '@web/modules/map-shell/use-saved-deals'
 import { computed } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 
 // Results can be displayed as compact rows or photo cards in either map or full-width mode.
 const shell = useShell()
+const saved = useSavedDeals()
 // Merchants add deals from their dashboard, so the Add a deal prompt is not for them.
 const canAddDeal = useCanAddDeal()
 const route = useRoute()
@@ -64,6 +66,24 @@ const onSort = (value: string) => shell.setSort(value as SortKey)
 const clearAll = () => {
   void shell.applyFilters({ ...createDefaultFilters() })
 }
+
+// Saved hides deals that have ended until the visitor asks for them; it is the same "Valid now"
+// filter the filter sheet sets, so the choice lives in the URL (?now=0) like every other filter.
+const showExpired = computed(() => !shell.filters.value.validNow)
+const onShowExpired = (event: Event) => {
+  const checked = (event.target as HTMLInputElement).checked
+  void shell.applyFilters({ ...shell.filters.value, validNow: !checked }, 'replace')
+}
+// Bookmarks exist but none is live: point at the checkbox instead of saying nothing is saved.
+const savedAllEnded = computed(() => shell.savedOnly.value && !showExpired.value && saved.count.value > 0)
+
+const emptyCopy = computed(() => {
+  if (hasNarrowing.value) return { title: 'No deals match all of these', body: 'Remove a filter or clear them all to see more.' }
+  if (shell.area.value) return { title: 'No deals in this area', body: 'Move the map or zoom out to find more deals.' }
+  if (savedAllEnded.value) return { title: 'None of your saved deals are live', body: 'Tick Show expired deals to see the ones that have ended.' }
+  if (shell.savedOnly.value) return { title: 'No saved deals yet', body: 'Save deals using the bookmark button to see them here.' }
+  return { title: 'No deals yet', body: 'Check back soon, or add one you know about.' }
+})
 </script>
 
 <template>
@@ -102,6 +122,11 @@ const clearAll = () => {
       </label>
     </div>
 
+    <label v-if="shell.savedOnly.value" class="browse-list__expired">
+      <input type="checkbox" :checked="showExpired" data-testid="saved-show-expired" @change="onShowExpired" />
+      Show expired deals
+    </label>
+
     <p v-if="shell.locationMessage.value" class="browse-list__note" role="status" data-testid="location-status">
       {{ cardMode ? 'Enable location to find and sort deals near you.' : shell.locationMessage.value }}
       <button v-if="cardMode && !located" class="lb-btn" type="button" :disabled="shell.geoStatus.value === 'locating'" @click="shell.locate()">Use my location</button>
@@ -136,10 +161,8 @@ const clearAll = () => {
     </div>
 
     <div v-else-if="isEmpty" class="lb-state" data-testid="deals-status">
-      <p class="lb-state__title">{{ hasNarrowing ? 'No deals match all of these' : shell.area.value ? 'No deals in this area' : shell.savedOnly.value ? 'No saved deals yet' : 'No deals yet' }}</p>
-      <p class="lb-state__body">
-        {{ hasNarrowing ? 'Remove a filter or clear them all to see more.' : shell.area.value ? 'Move the map or zoom out to find more deals.' : shell.savedOnly.value ? 'Save deals using the bookmark button to see them here.' : 'Check back soon, or add one you know about.' }}
-      </p>
+      <p class="lb-state__title">{{ emptyCopy.title }}</p>
+      <p class="lb-state__body">{{ emptyCopy.body }}</p>
       <button v-if="hasNarrowing" type="button" class="lb-btn lb-btn--ink" data-testid="clear-filters" @click="clearAll">
         Clear filters
       </button>
@@ -359,6 +382,26 @@ const clearAll = () => {
   pointer-events: none;
 }
 
+.browse-list__expired {
+  display: inline-flex;
+  align-self: flex-start;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 44px;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.browse-list__expired input {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  accent-color: var(--ink);
+  cursor: pointer;
+}
+
 .browse-list__note {
   margin: 0;
   padding: var(--space-2) var(--space-3);
@@ -449,5 +492,24 @@ const clearAll = () => {
   font-weight: 600;
   background: var(--sunny-wash);
   border-radius: 18px;
+}
+
+/* Phones: the count and Sort share one row, and the toolbar sits close to the results, so the
+   first deals show without scrolling. The pill's icon already says it sorts. */
+@media (max-width: 599.98px) {
+  .browse-list--full-page :deep(.panel-frame__heading) {
+    flex-wrap: nowrap;
+    padding-top: 8px;
+    padding-bottom: 0;
+    gap: 12px;
+  }
+
+  .browse-list__sort-caption {
+    display: none;
+  }
+
+  .browse-list__toolbar {
+    padding-bottom: 0;
+  }
 }
 </style>

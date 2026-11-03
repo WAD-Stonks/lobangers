@@ -68,7 +68,8 @@
   color: var(--squad-highlight-hover);
 }
 
-.squad-room__title--small {
+/* Doubled class: squad.css sets the base title after this sheet is imported. */
+.squad-room__title.squad-room__title--small {
   font-size: 1.3rem;
 }
 

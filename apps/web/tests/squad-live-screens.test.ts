@@ -77,7 +77,7 @@ describe('SquadDock after a match', () => {
     })
     const keep = wrapper.get('[data-testid="squad-keep-looking"]')
     expect(keep.text()).toContain('Keep looking')
-    expect(keep.text()).toContain('1 of 2')
+    expect(keep.text()).toContain('1/2')
     await keep.trigger('click')
     expect(wrapper.emitted('choose')).toEqual([['NEXT']])
     expect(wrapper.text()).toContain('Get directions')

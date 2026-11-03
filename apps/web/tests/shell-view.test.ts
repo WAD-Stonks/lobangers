@@ -33,4 +33,9 @@ describe('panelSnapFor', () => {
     expect(panelSnapFor('deal', 'map')).toBe(1)
     expect(panelSnapFor('browse', 'list')).toBe(2)
   })
+
+  it('opens the Lobbie chat and the sign-in prompt full so their input and button are in view', () => {
+    expect(panelSnapFor('lobbie', 'map')).toBe(2)
+    expect(panelSnapFor('auth-required', 'map')).toBe(2)
+  })
 })

@@ -34,10 +34,13 @@ export type Drop = {
 export type WhooshKind = 'again' | 'next' | 'look'
 export type Whoosh = { readonly id: number; readonly text: string; readonly kind: WhooshKind }
 
+// "You want", but "Ashley wants".
+const wants = (name: string) => `${name} ${name === 'You' ? 'want' : 'wants'}`
+
 const WHOOSH_TEXT: Record<WhooshKind, (name: string) => string> = {
-  again: (name) => `${name} wants to vote again`,
-  next: (name) => `${name} wants the next deal`,
-  look: (name) => `${name} wants to keep looking`,
+  again: (name) => `${wants(name)} to vote again`,
+  next: (name) => `${wants(name)} the next deal`,
+  look: (name) => `${wants(name)} to keep looking`,
 }
 
 type Box = { left: number; top: number; width: number; height: number }

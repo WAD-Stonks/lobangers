@@ -36,18 +36,17 @@ const directions = (deal: SquadDeal) =>
   deal.lat !== null && deal.lng !== null
     ? `https://www.google.com/maps/dir/?api=1&destination=${deal.lat},${deal.lng}`
     : null
-const percent = computed(() =>
-  tally.value.voters === 0 ? 0 : Math.round((tally.value.yesPeople / tally.value.voters) * 100),
-)
+// The bar tracks who has voted, so the squad can see who it's still waiting on.
+const votedShare = computed(() => (tally.value.voters === 0 ? 0 : tally.value.voted / tally.value.voters))
 </script>
 
 <template>
   <div class="squad-dock" data-testid="squad-dock">
     <template v-if="state.phase === 'VOTING'">
       <div class="squad-tally" aria-live="polite">
-        <span><strong>{{ tally.yesPeople }} of {{ tally.voters }}</strong> say yay · {{ tally.voted }} voted</span>
-        <span class="squad-tally__bar" aria-hidden="true"><i :style="{ transform: `scaleX(${percent / 100})` }" /></span>
-        <span class="squad-tally__rule">More than half needed</span>
+        <span><strong>{{ tally.voted }} of {{ tally.voters }} voted</strong> · {{ tally.yesPeople }} yay</span>
+        <span class="squad-tally__bar" aria-hidden="true"><i :style="{ transform: `scaleX(${votedShare})` }" /></span>
+        <span class="squad-tally__rule">Match at over half yay</span>
         <span class="squad-tally__feed" aria-hidden="true">{{ feed }}</span>
       </div>
       <p v-if="spectator" class="squad-dock__note">You joined after the room started, so you're watching this one.</p>
@@ -62,10 +61,8 @@ const percent = computed(() =>
     </template>
 
     <template v-else-if="state.phase === 'DECIDING'">
-      <p class="squad-dock__lead">
-        Only {{ tally.yesPeople }} of {{ tally.voters }} said yay. Everyone picks: vote again, or move on?
-      </p>
-      <p class="squad-dock__note">Next deal moves on once 80% pick it. Vote again needs more than half. {{ tally.again + tally.next }} of {{ tally.voters }} have picked.</p>
+      <p class="squad-dock__lead">Give it another go, or move on?</p>
+      <p class="squad-dock__note">Vote again needs over half. Next deal needs 80%.</p>
       <div class="squad-dock__votes">
         <button
           type="button"
@@ -93,7 +90,7 @@ const percent = computed(() =>
     </template>
 
     <template v-else-if="state.phase === 'MATCHED' && matched">
-      <p class="squad-dock__note">Changed your mind? Keep looking moves on once 80% pick it. {{ tally.next }} of {{ tally.voters }} so far.</p>
+      <p class="squad-dock__note">Changed your mind? Keep looking needs 80%.</p>
       <div class="squad-dock__match">
         <button
           type="button"
@@ -104,7 +101,7 @@ const percent = computed(() =>
           :aria-pressed="myChoice === 'NEXT'"
           @click="emit('choose', 'NEXT')"
         >
-          Keep looking <span class="squad-vote__count">{{ tally.next }} of {{ tally.voters }}</span>
+          Keep looking <span class="squad-vote__count">{{ tally.next }}/{{ tally.voters }}</span>
         </button>
         <a v-if="directions(matched)" class="lb-btn lb-btn--primary squad-dock__go" :href="directions(matched) ?? undefined" target="_blank" rel="noopener noreferrer">Get directions</a>
         <RouterLink v-else class="lb-btn lb-btn--primary squad-dock__go" :to="dealLink(matched.id)">Open the deal</RouterLink>

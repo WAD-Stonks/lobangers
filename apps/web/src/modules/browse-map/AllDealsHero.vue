@@ -126,6 +126,11 @@ p { margin: 0 0 12px; font-size: 1rem; line-height: 1.45; color: var(--hero-body
   .all-deals-hero .all-deals-hero__art { position: relative; inset: auto; left: auto; right: -20px; bottom: -24px; align-self: flex-end; width: calc(100% + 40px); height: auto; flex-shrink: 0; margin-top: -24px; object-fit: contain; object-position: right bottom; }
   .all-deals-hero__accent--coral { width: 20px; height: 28px; left: -22px; top: -10px; }
   .all-deals-hero__accent--yellow { display: none; }
+  /* The headline says it already, and the art crops from the top, so the banner leaves room
+     for the first deals on a phone screen. */
+  .all-deals-hero p[data-hero-subtitle] { display: none; }
+  .all-deals-hero h2 { margin-bottom: 14px; }
+  .all-deals-hero .all-deals-hero__art { max-height: 116px; object-fit: cover; }
 }
 @media (prefers-reduced-motion: reduce) {
   .all-deals-hero__actions .lb-btn, .all-deals-hero__arrow { transition: none; }

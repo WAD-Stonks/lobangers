@@ -210,14 +210,18 @@ const mapPins = computed(() => {
     ? pins
     : pins.filter((candidate) => !flashVenueIds.value.has(candidate.id))
 })
-// Recomputed only when the focused outlet changes, so reloading deals never re-flies the map.
-const selectedFocus = computed<Coordinates | null>((previousFocus) => {
+// Recomputed only when the focused outlet or the panel changes, so reloading deals never re-flies
+// the map. A new panel re-flies even to the same outlet: on a phone the Squad room covers the map,
+// so opening its deal (a shorter sheet) must bring the pin into the part left showing.
+const panelFocus = computed<{ readonly focus: Coordinates; readonly panel: string } | null>((previous) => {
   const pin = selectedPin.value
   if (!pin) return null
-  return previousFocus && previousFocus.lat === pin.lat && previousFocus.lng === pin.lng
-    ? previousFocus
-    : { lat: pin.lat, lng: pin.lng }
+  const panel = String(route.name ?? '')
+  return previous && previous.focus.lat === pin.lat && previous.focus.lng === pin.lng && previous.panel === panel
+    ? previous
+    : { focus: { lat: pin.lat, lng: pin.lng }, panel }
 })
+const selectedFocus = computed<Coordinates | null>(() => panelFocus.value?.focus ?? null)
 // "Near me" outranks the open deal until the next navigation clears it, so the latest ask wins.
 const mapFocus = computed<Coordinates | null>(() => locateFocus.value ?? selectedFocus.value)
 const mapFocusZoom = computed(() => locateFocus.value ? LOCATE_ZOOM : FOCUS_ZOOM)
@@ -936,10 +940,12 @@ onBeforeUnmount(() => document.documentElement.classList.remove('is-canvas'))
   scroll-padding-top: calc(var(--shell-header-bottom) + 24px);
 }
 
-/* Compact cards in the desktop results drawer; full posters remain uncropped. */
+/* Compact cards in the desktop results drawer; full posters remain uncropped. Up to three
+   columns, dropping to two when a narrow drawer would squeeze a card under 170px. */
 .map-shell--map-workspace :deep(.food-deal-grid) {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 16px 12px;
+  --masonry-row-gap: 16px;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, max(170px, calc((100% - 2 * 12px) / 3))), 1fr));
+  column-gap: 12px;
 }
 
 /* The venue page asks for two wider cards instead. */
@@ -952,7 +958,7 @@ onBeforeUnmount(() => document.documentElement.classList.remove('is-canvas'))
 }
 
 .map-shell--map-workspace :deep(.browse-list__skeleton-cards) {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, max(170px, calc((100% - 2 * 20px) / 3))), 1fr));
 }
 
 .map-shell--map-workspace.map-shell--side .shell-panel--side.is-collapsed {

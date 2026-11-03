@@ -5,10 +5,6 @@
   position: relative;
 }
 
-.squad-options > .lb-btn {
-  gap: 6px;
-}
-
 .squad-options__menu {
   position: absolute;
   top: calc(100% + 6px);
@@ -80,7 +76,7 @@
 .squad-dock__match .squad-vote,
 .squad-dock__go {
   min-height: 56px;
-  border-radius: 18px;
+  border-radius: var(--radius-pill);
 }
 
 /* Short phones (an iPhone in Safari leaves about 660px): smaller seats and no card hint, so
@@ -102,6 +98,31 @@
 
   .squad-vote {
     min-height: 56px;
+  }
+}
+
+/* Phone width: Yay / Nah step down a size so they don't dominate the dock, and the half-width
+   pills tighten up so every label stays on one line. */
+@media (max-width: 600px) {
+  .squad-room .squad-dock .squad-vote--again,
+  .squad-room .squad-dock .squad-vote--next,
+  .squad-room .squad-dock .squad-dock__go {
+    padding-inline: 12px;
+    font-size: 0.875rem;
+    white-space: nowrap;
+  }
+
+  .squad-vote--yay,
+  .squad-vote--nah {
+    min-height: 52px;
+    font-size: 1.1rem;
+    border-radius: 16px;
+  }
+
+  .squad-vote--yay img,
+  .squad-vote--nah img {
+    width: 24px;
+    height: 24px;
   }
 }
 

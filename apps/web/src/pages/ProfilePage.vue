@@ -116,17 +116,14 @@ onMounted(loadProfile)
         <p v-if="saveNotice" class="text-success small mb-0" role="status">{{ saveNotice }}</p>
       </form>
 
-      <hr />
-      <p class="mb-0 small">
-        <RouterLink to="/saved">Saved deals</RouterLink> ·
-        <RouterLink to="/me/submissions">My submissions</RouterLink>
-        <template v-if="profile.role === 'MERCHANT'">
-          · <RouterLink to="/merchant">Merchant dashboard</RouterLink>
-        </template>
-        <template v-else-if="profile.role === 'USER'">
-          · <RouterLink to="/me/merchant-access">Merchant access</RouterLink>
-        </template>
-      </p>
+      <!-- Saved and Submitted have their own tabs; only the role's merchant link stays here. -->
+      <template v-if="profile.role === 'MERCHANT' || profile.role === 'USER'">
+        <hr />
+        <p class="mb-0 small">
+          <RouterLink v-if="profile.role === 'MERCHANT'" to="/merchant">Merchant dashboard</RouterLink>
+          <RouterLink v-else to="/me/merchant-access">Merchant access</RouterLink>
+        </p>
+      </template>
     </div>
   </section>
 </template>

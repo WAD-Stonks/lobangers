@@ -66,9 +66,18 @@ export const routeView = (route: {
 
 // Snap index (0 peek, 1 half, 2 full, 3 expanded) a panel opens at on a bottom sheet. Squad
 // screens take the whole screen so the room, its stickers and its buttons all fit at once;
-// forms and the list view need room; browsing and deal details leave the map visible.
+// forms, the Lobbie chat, the sign-in prompt and the list view need room; browsing and deal
+// details leave the map visible.
 const EXPANDED_PANELS = new Set(['squad-new', 'squad-join', 'squad-room'])
-const FULL_HEIGHT_PANELS = new Set(['add-deal', 'login', 'register', 'profile', 'saved'])
+const FULL_HEIGHT_PANELS = new Set([
+  'add-deal',
+  'login',
+  'register',
+  'profile',
+  'saved',
+  'lobbie',
+  'auth-required',
+])
 
 export const panelSnapFor = (
   name: RouteRecordNameGeneric | null | undefined,
