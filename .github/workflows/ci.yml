@@ -21,6 +21,8 @@ jobs:
           run_install: false
       - name: Install from the single lockfile
         run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Audit dependencies for high and critical vulnerabilities
+        run: pnpm run audit
       - name: Create ephemeral local configuration and generate client
         run: pnpm run setup
       - name: Lint, schema, typechecks, unit tests and builds
