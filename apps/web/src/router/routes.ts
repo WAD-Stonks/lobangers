@@ -2,7 +2,6 @@ import AuthPrompt from '@web/modules/account/AuthPrompt.vue'
 import LoginPanel from '@web/modules/account/LoginPanel.vue'
 import ProfilePanel from '@web/modules/account/ProfilePanel.vue'
 import RegisterPanel from '@web/modules/account/RegisterPanel.vue'
-// import AddDealPanel from '@web/modules/add-deal/AddDealPanel.vue'
 import BrowseListPanel from '@web/modules/browse-map/BrowseListPanel.vue'
 import DealPanel from '@web/modules/browse-map/DealPanel.vue'
 import MyCodesPanel from '@web/modules/flash-drop/MyCodesPanel.vue'
@@ -71,13 +70,6 @@ const routes: RouteRecordRaw[] = [
         component: LobbiePanel,
         meta: { panelLabel: 'Ask Lobbie' },
       },
-      // The "Add a deal" map overlay is commented out; adding a deal is the full /add page.
-      // {
-      //   path: '/add',
-      //   name: 'add-deal',
-      //   component: AddDealPanel,
-      //   meta: { requiresAuth: true, panelLabel: 'Add a deal' },
-      // },
       {
         path: '/login',
         name: 'login',
