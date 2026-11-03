@@ -63,6 +63,43 @@ export const withOutletScopes = async <Deal extends { id: string; merchantId: st
   })
 }
 
+const MS_PER_HOUR = 3_600_000
+
+// Votes cast inside the community window, grouped by deal, in one round trip.
+export const findRecentVotes = async (
+  database: Database,
+  dealIds: readonly string[],
+  now: Date,
+  windowHours: number,
+) => {
+  if (dealIds.length === 0) return new Map<string, never[]>()
+  const votes = await database.dealVote.findMany({
+    where: {
+      dealId: { in: [...dealIds] },
+      updatedAt: { gt: new Date(now.getTime() - windowHours * MS_PER_HOUR), lte: now },
+    },
+    select: { dealId: true, value: true, updatedAt: true },
+  })
+  return groupBy(votes, (vote) => vote.dealId)
+}
+
+// Each deal's imported image sources (as publicImportedImageSelect), keyed by deal id.
+export const findDealSources = async (database: Database, dealIds: readonly string[]) => {
+  const sources =
+    dealIds.length === 0
+      ? []
+      : await database.dealSource.findMany({
+          where: { dealId: { in: [...dealIds] } },
+          orderBy: publicImportedImageSelect.orderBy,
+          select: { dealId: true, ...publicImportedImageSelect.select },
+        })
+  const sourcesByDeal = groupBy(sources, (source) => source.dealId)
+  return (dealId: string) =>
+    (sourcesByDeal.get(dealId) ?? [])
+      .slice(0, MAX_IMAGE_SOURCES)
+      .map(({ importedPost, images }) => ({ importedPost, images }))
+}
+
 // Adds `sources` (as publicImportedImageSelect) and the first active upload as `images`.
 export const withDealMedia = async <Deal extends { id: string }>(
   database: Database,
@@ -70,25 +107,18 @@ export const withDealMedia = async <Deal extends { id: string }>(
 ) => {
   if (deals.length === 0) return []
   const dealIds = deals.map((deal) => deal.id)
-  const [sources, uploads] = await Promise.all([
-    database.dealSource.findMany({
-      where: { dealId: { in: dealIds } },
-      orderBy: publicImportedImageSelect.orderBy,
-      select: { dealId: true, ...publicImportedImageSelect.select },
-    }),
+  const [sourcesOf, uploads] = await Promise.all([
+    findDealSources(database, dealIds),
     database.uploadedFile.findMany({
       where: { dealId: { in: dealIds }, ...activeRecord },
       orderBy: { createdAt: 'asc' },
       select: { dealId: true, url: true },
     }),
   ])
-  const sourcesByDeal = groupBy(sources, (source) => source.dealId)
   const uploadsByDeal = groupBy(uploads, (upload) => upload.dealId)
   return deals.map((deal) => ({
     ...deal,
-    sources: (sourcesByDeal.get(deal.id) ?? [])
-      .slice(0, MAX_IMAGE_SOURCES)
-      .map(({ importedPost, images }) => ({ importedPost, images })),
+    sources: sourcesOf(deal.id),
     images: (uploadsByDeal.get(deal.id) ?? []).slice(0, 1).map(({ url }) => ({ url })),
   }))
 }

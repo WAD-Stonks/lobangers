@@ -73,7 +73,7 @@ onBeforeUnmount(() => { fitRequest++; resizeObserver?.disconnect() })
         <button type="button" class="lb-btn lb-btn--primary" data-testid="show-map" @click="shell.setView('map')"><ShellIcon name="map" :size="21" />Show map<ShellIcon name="back" class="all-deals-hero__arrow" :size="21" /></button>
       </div>
     </div>
-    <img class="all-deals-hero__art" src="/landing/all-deals-hero-transparent.png" alt="" aria-hidden="true" width="2170" height="725" />
+    <img class="all-deals-hero__art" src="/landing/all-deals-hero-1520.webp" srcset="/landing/all-deals-hero-800.webp 800w, /landing/all-deals-hero-1520.webp 1520w" sizes="(max-width: 699.98px) calc(100vw + 40px), 760px" alt="" aria-hidden="true" width="1520" height="508" />
   </section>
 </template>
 

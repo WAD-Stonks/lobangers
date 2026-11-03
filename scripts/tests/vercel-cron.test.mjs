@@ -73,5 +73,7 @@ test('real API build declares exactly one daily cron across source and output', 
     launcherType: 'Nodejs',
     shouldAddHelpers: true,
     maxDuration: 300,
+    // Beside the Singapore MongoDB Atlas cluster; each query is a round trip to it.
+    regions: ['sin1'],
   })
 })
