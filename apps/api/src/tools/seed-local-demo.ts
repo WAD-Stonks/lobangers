@@ -13,11 +13,11 @@ import type { Database } from '@api/modules/platform-admin/transaction'
 // default it only runs against a database on this machine; the shared team database needs the
 // explicit --shared-db flag. Running it again replaces the previous fake records, nothing else.
 //
-//   DATABASE_URL='mongodb://127.0.0.1:27017/broke_oclock?replicaSet=rs0&directConnection=true' \
-//     pnpm --dir apps/api run seed:local-demo -- --admin you@example.com --merchant you@example.com
+//   pnpm run db:seed:demo -- --admin admin@example.test --merchant merchant@example.test
 //
 // --admin and --merchant (optional, repeatable) give accounts you already signed up with in the
-// app those roles; a merchant also gets the fake chicken rice stall and owns the fake drops.
+// app those roles; use distinct accounts because each account has one role. A merchant also
+// gets the fake chicken rice stall and owns the fake drops.
 // On a shared database, drops are only created when --merchant names the owner.
 
 const DEMO_TAG = 'DEMO-LOCAL'
@@ -128,6 +128,15 @@ export const assertSeedTarget = (databaseUrl: string | undefined, sharedAllowed:
 
 const argValues = (flag: string) =>
   process.argv.flatMap((arg, index) => (arg === flag ? [process.argv[index + 1] ?? ''] : []))
+
+export const assertDistinctDemoRoles = (
+  admins: readonly string[],
+  merchants: readonly string[],
+) => {
+  const adminEmails = new Set(admins.map((email) => email.trim().toLowerCase()))
+  if (merchants.some((email) => adminEmails.has(email.trim().toLowerCase())))
+    throw new Error('Use distinct accounts for --admin and --merchant; each account has one role.')
+}
 
 const clearPreviousDemo = async (db: Database) => {
   const merchants = await db.merchant.findMany({
@@ -246,6 +255,7 @@ export const seedLocalDemo = async (
   db: Database,
   options: { admins: string[]; merchants: string[]; shared: boolean },
 ) => {
+  assertDistinctDemoRoles(options.admins, options.merchants)
   const now = new Date()
   await clearPreviousDemo(db)
   const places = []
@@ -350,11 +360,14 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
   try {
     const shared = process.argv.includes('--shared-db')
     assertSeedTarget(process.env.DATABASE_URL, shared)
+    const admins = argValues('--admin')
+    const merchants = argValues('--merchant')
+    assertDistinctDemoRoles(admins, merchants)
     const { db } = await import('@broke-oclock/db')
     try {
       await seedLocalDemo(db, {
-        admins: argValues('--admin'),
-        merchants: argValues('--merchant'),
+        admins,
+        merchants,
         shared: shared && !isLocalDatabase(process.env.DATABASE_URL ?? ''),
       })
     } finally {
