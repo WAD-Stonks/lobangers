@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import AppSelect from '@web/components/AppSelect.vue'
+import { useCanAddDeal } from '@web/lib/use-can-add-deal'
 import AllDealsHero from '@web/modules/browse-map/AllDealsHero.vue'
 import type { SortKey } from '@web/modules/browse-map/apply-filters'
 import DealRowList from '@web/modules/browse-map/DealRowList.vue'
@@ -17,6 +18,8 @@ import { RouterLink, useRoute, useRouter } from 'vue-router'
 
 // Results can be displayed as compact rows or photo cards in either map or full-width mode.
 const shell = useShell()
+// Merchants add deals from their dashboard, so the Add a deal prompt is not for them.
+const canAddDeal = useCanAddDeal()
 const route = useRoute()
 const router = useRouter()
 
@@ -153,7 +156,7 @@ const clearAll = () => {
       />
     </template>
 
-    <div class="browse-list__cta">
+    <div v-if="canAddDeal" class="browse-list__cta">
       <span>Know a deal that isn't here?</span>
       <RouterLink class="lb-btn lb-btn--primary" :to="{ name: 'submit-deal' }">Add a deal</RouterLink>
     </div>

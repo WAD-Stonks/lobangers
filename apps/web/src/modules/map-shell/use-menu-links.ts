@@ -69,7 +69,11 @@ export const useMenuLinks = () => {
       },
       { label: 'About', links: [{ label: 'About Lobangers', to: '/about' }] },
       { label: 'Administration', links: visibleSiteLinks.value.filter((link) => link.roles) },
-    ].filter((group) => group.links.length > 0 || group.label === 'Contribute'),
+      // Contribute always holds Add a deal, except for merchants, who add deals from their dashboard.
+    ].filter(
+      (group) =>
+        group.links.length > 0 || (group.label === 'Contribute' && user.value?.role !== 'MERCHANT'),
+    ),
   )
 
   const logOut = async () => {

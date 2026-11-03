@@ -174,7 +174,7 @@ const logOut = () => { close(); return signOut() }
         </RouterLink>
 
         <ul v-for="group in menuGroups" :key="group.label" class="brand-menu__links" :aria-label="group.label">
-          <li v-if="group.label === 'Contribute'">
+          <li v-if="group.label === 'Contribute' && user?.role !== 'MERCHANT'">
             <RouterLink class="brand-menu__link" :to="navigationTo({ name: 'submit-deal' })" @click="closeDrawer">
               <ShellIcon name="plus" :size="22" />Add a deal
             </RouterLink>
