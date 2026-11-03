@@ -370,7 +370,7 @@ const toggleSave = async () => {
   align-items: flex-start;
   justify-content: space-between;
   gap: var(--space-3);
-  margin-top: calc(var(--space-2) * -1);
+  margin-top: var(--space-1);
 }
 
 .deal-panel__venue {
