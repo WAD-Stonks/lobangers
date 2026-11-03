@@ -12,6 +12,17 @@
       "destination": "https://broke-oclock-api.vercel.app/api/:path*"
     },
     {
+      "source": "/deals/:dealId",
+      "has": [
+        {
+          "type": "header",
+          "key": "user-agent",
+          "value": ".*(WhatsApp|TelegramBot|facebookexternalhit|Facebot|Twitterbot|Slackbot|Discordbot|LinkedInBot|SkypeUriPreview|Applebot|Pinterestbot|redditbot|Embedly|Viber|Snapchat|Googlebot|bingbot).*"
+        }
+      ],
+      "destination": "https://broke-oclock-api.vercel.app/api/share/deals/:dealId"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }

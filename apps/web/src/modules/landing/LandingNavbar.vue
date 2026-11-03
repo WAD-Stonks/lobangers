@@ -2,19 +2,18 @@
 import logo from '@web/assets/lobangers-logo.svg'
 import AccountMenu from '@web/components/AccountMenu.vue'
 import ProfileMenu from '@web/components/ProfileMenu.vue'
-import { useSiteMenu } from '@web/components/use-site-menu'
 import { authClient } from '@web/lib/auth-client'
 import { useTheme } from '@web/lib/theme'
-import { computed, nextTick, ref } from 'vue'
+import BrandMenu from '@web/modules/map-shell/BrandMenu.vue'
+import { provideSavedDeals } from '@web/modules/map-shell/use-saved-deals'
+import { computed, nextTick } from 'vue'
 import { RouterLink } from 'vue-router'
 
 const session = authClient.useSession()
 // Merchants get their dashboard in the top links, not only in the avatar menu.
 const isMerchant = computed(() => session.value.data?.user.role === 'MERCHANT')
-const root = ref<HTMLElement | null>(null)
-const toggleButton = ref<HTMLElement | null>(null)
-const panel = ref<HTMLElement | null>(null)
-const { isOpen, toggle, close } = useSiteMenu({ root, toggle: toggleButton, panel })
+// The site menu is the same drawer as on every other page; it shows the saved-deals count.
+provideSavedDeals(session)
 const { isDark, toggle: toggleTheme } = useTheme()
 
 // The new theme spreads out in a circle from the switch. The browser snapshots the page, the
@@ -61,8 +60,9 @@ const switchTheme = async (event: MouseEvent) => {
 </script>
 
 <template>
-  <header ref="root" class="landing-header">
+  <header class="landing-header">
     <nav class="landing-nav" aria-label="Primary navigation">
+      <BrandMenu compact />
       <RouterLink to="/" class="landing-brand" aria-label="Lobangers home">
         <img :src="logo" alt="LOBANGERS" width="816" height="170" />
       </RouterLink>
@@ -89,13 +89,6 @@ const switchTheme = async (event: MouseEvent) => {
       <div class="landing-account">
         <ProfileMenu v-if="session.data" />
         <AccountMenu v-else />
-      </div>
-      <button ref="toggleButton" class="landing-menu-toggle" type="button" :aria-expanded="isOpen" aria-controls="landing-mobile-menu" @click="toggle">{{ isOpen ? 'Close' : 'Menu' }} <span aria-hidden="true">{{ isOpen ? '✕' : '☰' }}</span></button>
-      <div v-if="isOpen" id="landing-mobile-menu" ref="panel" class="landing-mobile-menu">
-        <RouterLink to="/deals" @click="close">All deals</RouterLink>
-        <RouterLink to="/browse" @click="close">Map</RouterLink>
-        <a v-if="!session.data" href="#story" @click="close">How it works</a>
-        <AccountMenu />
       </div>
     </nav>
   </header>

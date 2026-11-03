@@ -23,8 +23,7 @@
   }
 
   /* Navigation */
-  .landing-skip,
-  .landing-mobile-menu {
+  .landing-skip {
     background: var(--dark-card);
   }
   .landing-nav {

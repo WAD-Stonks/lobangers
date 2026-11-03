@@ -61,11 +61,17 @@ for (const width of [320, 390, 1440]) {
       'href',
       `/venues/${venueId}`,
     )
-    if (width < 1100) await page.locator('.landing-menu-toggle').click()
-    const how = page.getByRole('link', { name: 'How it works', exact: true })
-    await expect(how).toHaveAttribute('href', '#story')
-    await how.click()
-    await expect(page.locator('.landing-mobile-menu')).toHaveCount(0)
+    // The site menu opens the same drawer as on every other page.
+    await page.getByTestId('nav-toggle').click()
+    await expect(page.getByTestId('nav-menu')).toBeVisible()
+    await page.keyboard.press('Escape')
+    await expect(page.getByTestId('nav-menu')).toHaveCount(0)
+    // Phones fold the bar's links away; wider screens keep How it works in the bar.
+    if (width >= 800) {
+      const how = page.getByRole('link', { name: 'How it works', exact: true })
+      await expect(how).toHaveAttribute('href', '#story')
+      await how.click()
+    }
     await page.locator('#cuisines').scrollIntoViewIfNeeded()
     // The All Deals card: the whole card opens the deal over the All Deals list.
     // One row per page, as many cards as the width fits.

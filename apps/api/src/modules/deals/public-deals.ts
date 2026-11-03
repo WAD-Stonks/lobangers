@@ -154,6 +154,7 @@ const publicDealScalarSelect = {
   description: true,
   terms: true,
   origin: true,
+  validFrom: true,
   validUntil: true,
   rawValidityText: true,
   // Only comments that are neither deleted by their author nor hidden by moderation.
@@ -323,6 +324,24 @@ export const findPublicBrowse = async (
   return { items: toPins(scoped, relations, policy, now), categories: categoriesOf(scoped) }
 }
 
+// One public deal by id, as browse would show it; null when it is not public.
+export const findPublicDealPin = async (
+  database: Database,
+  dealId: string,
+  now: Date,
+  policy: CommunityPolicy = DEFAULT_COMMUNITY_POLICY,
+): Promise<DealPin | null> => {
+  const deals = (await findDealScalars(database, { ...eligibleDealWhere, id: dealId })).filter(
+    isCurrentApproval,
+  )
+  if (deals.length === 0) return null
+  const [scoped, relations] = await Promise.all([
+    withOutletScopes(database, deals),
+    findPinRelations(database, deals, now, policy),
+  ])
+  return toPins(scoped, relations, policy, now)[0] ?? null
+}
+
 export const toDealPin = (
   deal: PublicDealRow,
   policy: CommunityPolicy = DEFAULT_COMMUNITY_POLICY,
@@ -342,6 +361,7 @@ export const toDealPin = (
     terms: deal.terms,
     ...publicImportedImage(deal),
     images: imagesFor(deal),
+    ...(deal.validFrom ? { validFrom: deal.validFrom.toISOString() } : {}),
     validUntil: deal.validUntil?.toISOString() ?? null,
     rawValidityText: deal.rawValidityText,
     ...(isLimitedTime(deal) ? { limitedTime: true } : {}),

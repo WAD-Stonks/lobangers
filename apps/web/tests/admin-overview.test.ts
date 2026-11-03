@@ -103,7 +103,6 @@ it('characterization: repeated confirmed anonymous probes preserve an open recov
   })
   const w = await open()
   try {
-    await w.get('[data-testid="use-password"]').trigger('click')
     await w.get('[data-testid="recovery-open"]').trigger('click')
     await w.get('#recovery-email').setValue('recovery@example.test')
     const signIn = w.getComponent(SharedSignIn).element

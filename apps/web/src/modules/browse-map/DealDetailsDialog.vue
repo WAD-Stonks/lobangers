@@ -39,8 +39,11 @@ const sizePoster = () => {
   // The poster starts at the top of the first grid row whatever its width, so read it once.
   const mediaTop = media.getBoundingClientRect().top
   const ratio = image.naturalWidth / image.naturalHeight
-  let low = 280
-  let high = available - 360
+  // The whole poster stays in view above the action bar, however long the overview runs.
+  const actionsTop = root.querySelector('.panel-frame__actions')?.getBoundingClientRect().top ?? root.getBoundingClientRect().bottom
+  const fitsWidth = (actionsTop - mediaTop - 24) * ratio
+  let high = Math.min(available - 360, fitsWidth)
+  let low = Math.min(280, high)
   let bestWidth = low
   let bestDifference = Infinity
   // Find a column width whose proportional poster height matches the overview.
@@ -57,7 +60,10 @@ const sizePoster = () => {
     else high = width
   }
   body.style.setProperty('--poster-width', `${bestWidth}px`)
-  root.classList.toggle('deal-dialog--stacked', bestDifference > 16)
+  // A poster held to the visible height sits beside a longer overview; otherwise a poster that
+  // can't match the overview goes above it.
+  const heldToView = bestWidth >= high - 2 && high === fitsWidth
+  root.classList.toggle('deal-dialog--stacked', bestDifference > 16 && !heldToView)
   sizedFor = layoutKey
 }
 const schedulePoster = () => {
@@ -293,7 +299,7 @@ onBeforeUnmount(() => {
 /* The frame keeps the photo's shape, as wide as the popup allows until it reaches the height cap,
    so short landscape photos don't leave a gap below and portrait posters still fit on screen. */
 .deal-dialog__content :deep(.deal-gallery) {
-  --gallery-max-height: min(62dvh, 660px);
+  --gallery-max-height: min(56dvh, 580px);
   align-self: center;
   width: min(100%, calc(var(--gallery-max-height) * var(--frame-ratio)));
   background: transparent;

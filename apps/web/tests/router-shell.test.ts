@@ -295,8 +295,10 @@ describe('map shell routes', () => {
     expect(navbar.find('a[href="#cuisines"]').exists()).toBe(false)
     expect(navbar.get('.landing-account a[href="/login"]').text()).toBe('Log in')
     expect(navbar.get('.landing-account a[href="/register"]').text()).toBe('Sign up')
-    await navbar.get('.landing-menu-toggle').trigger('click')
-    expect(navbar.get('#landing-mobile-menu a[href="/deals"]').text()).toBe('All deals')
+    // The same site menu drawer as every other page.
+    await navbar.get('[data-testid="nav-toggle"]').trigger('click')
+    expect(navbar.get('[data-testid="nav-menu"]').attributes('role')).toBe('dialog')
+    expect(navbar.get('[data-testid="nav-menu"]').text()).toContain('All deals')
   })
 
   it.each([

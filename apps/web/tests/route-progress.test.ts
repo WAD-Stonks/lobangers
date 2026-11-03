@@ -23,7 +23,12 @@ const setup = async () => {
   trackPendingNavigation(router)
   await router.push('/')
   let release = () => {}
-  router.beforeEach(() => new Promise<void>((resolve) => { release = () => resolve() }))
+  router.beforeEach(
+    () =>
+      new Promise<void>((resolve) => {
+        release = () => resolve()
+      }),
+  )
   const wrapper = mount(RouteProgress, { global: { plugins: [router] } })
   return { router, wrapper, release: () => release() }
 }
