@@ -19,13 +19,14 @@ const DAY_MS = 86_400_000
 let mongo: MongoMemoryReplSet | undefined
 let server: Server | undefined
 let baseURL = ''
+let databaseUrl = ''
 let db: typeof import('@broke-oclock/db').db
 
 beforeAll(async () => {
   mongo = await MongoMemoryReplSet.create({
     replSet: { count: 1, storageEngine: 'wiredTiger', ip: '127.0.0.1' },
   })
-  const databaseUrl = mongo.getUri(`deals_${randomUUID().replaceAll('-', '')}`)
+  databaseUrl = mongo.getUri(`deals_${randomUUID().replaceAll('-', '')}`)
   vi.stubEnv('DATABASE_URL', databaseUrl)
   vi.stubEnv('NODE_ENV', 'test')
   await promisify(execFile)('pnpm', ['--dir', 'packages/db', 'run', 'push'], {
@@ -163,6 +164,41 @@ describe('GET /api/deals', () => {
       params: { validNow: 'false' },
     })
     expect(response.data.items.map((deal) => deal.title).sort()).toEqual(['Kopi $1', 'Old toast'])
+  })
+
+  it('lets the CDN briefly cache the anonymous browse response', async () => {
+    const response = await client().get('/api/deals')
+    expect(response.headers['cache-control']).toBe('public, s-maxage=30, stale-while-revalidate=60')
+  })
+
+  // On MongoDB every nested relation is its own round trip, run one after another, and the
+  // database sits far from some function regions. Loading a collection twice doubles that.
+  it('loads each collection once per browse, sharing outlet scopes with categories', async () => {
+    const { PrismaClient } = await import('@broke-oclock/db')
+    const { findPublicBrowse } = await import('@api/modules/deals/public-deals')
+    const counted = new PrismaClient({
+      datasourceUrl: databaseUrl,
+      log: [{ emit: 'event', level: 'query' }],
+    })
+    const models: string[] = []
+    counted.$on('query', (event) => {
+      models.push(/db\.(\w+)\./.exec(event.query)?.[1] ?? 'unknown')
+    })
+    try {
+      const result = await findPublicBrowse(counted, { validNow: 'true' }, new Date())
+      expect(result.items.map((deal) => deal.title)).toEqual(['Kopi $1'])
+      expect(result.categories).toEqual(['DRINKS', 'FOOD'])
+      const reads = (model: string) => models.filter((name) => name === model).length
+      // The eligible deals plus one id-only read for the visitor's filters.
+      expect(reads('Deal')).toBe(2)
+      expect(reads('DealVenue')).toBe(1)
+      expect(reads('Merchant')).toBe(1)
+      // Selected outlets and the merchant's outlets are two different reads of Venue.
+      expect(reads('Venue')).toBe(2)
+      expect(reads('DealVote')).toBe(1)
+    } finally {
+      await counted.$disconnect()
+    }
   })
 
   it('rejects unknown query keys and other methods', async () => {
