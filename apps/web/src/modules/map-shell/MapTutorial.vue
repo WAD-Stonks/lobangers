@@ -9,7 +9,7 @@ const steps = [
   { title: 'Open a deal', body: 'Choose a map pin or a result to see the full poster, offer, outlet and dates. Check the terms before heading out. Save keeps it in your saved deals; directions opens your route.', target: '.deal-panel__media, [data-testid="shell-panel"] [data-panel-heading]' },
   { title: 'Check community verification', body: 'Recent Still on and Gone reports help show whether an offer is likely to be available. Check the report dates and terms. Community reports are helpful context, not a guarantee; sign in to contribute your own report.', target: '.deal-community-verification, [data-testid="deal-community"]' },
   { title: 'Read the conversation', body: 'Comments can add tips, restrictions and recent experiences. Read them without an account, or sign in to add your own experience. View all comments opens the full discussion when more comments are available.', target: '.deal-community-discussion, [data-testid="deal-community"]' },
-  { title: 'Where to add a deal', body: 'The Share shortcut and Add a deal menu button lead to the contribution page. Sign in to open it. Deal submissions from the map are currently marked coming soon.', target: '[data-testid="map-share"], [data-testid="nav-toggle"]' },
+  { title: 'Where to add a deal', body: 'The Share shortcut and Add a deal menu button lead to the contribution page. Sign in, add the offer details and a photo, then submit it for admin review before it appears on the map.', target: '[data-testid="map-share"], [data-testid="nav-toggle"]' },
 ] as const
 const current = computed(() => steps[props.step] ?? steps[0])
 const card = ref<HTMLElement | null>(null)
