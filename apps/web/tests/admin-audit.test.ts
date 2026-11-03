@@ -59,6 +59,38 @@ it('labels system attribution in the account activity workspace', async () => {
   expect(wrapper.text()).not.toContain('()')
   wrapper.unmount()
 })
+it('initializes contextual audit queries without an unfiltered read and fences superseded context', async () => {
+  const component = await panel()
+  let release!: (value: { items: (typeof row)[]; nextCursor: string | null }) => void
+  const list = vi
+    .fn()
+    .mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          release = resolve
+        }),
+    )
+    .mockResolvedValue({ items: [], nextCursor: null })
+  const wrapper = mount(component, {
+    props: { list, initialFilters: { subjectType: 'DEAL', subjectId: id } },
+  })
+  try {
+    expect(list).toHaveBeenCalledTimes(1)
+    expect(list).toHaveBeenCalledWith({ limit: 25, subjectType: 'DEAL', subjectId: id })
+    const userId = 'a'.repeat(24)
+    await wrapper.setProps({ initialFilters: { userId } })
+    await flushPromises()
+    release({ items: [row], nextCursor: id })
+    await flushPromises()
+    expect(list).toHaveBeenCalledTimes(2)
+    expect(list).toHaveBeenLastCalledWith({ limit: 25, userId })
+    expect(wrapper.find('[data-testid="audit-entry"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="audit-more"]').exists()).toBe(false)
+    expect((wrapper.get('[name="userId"]').element as HTMLInputElement).value).toBe(userId)
+  } finally {
+    wrapper.unmount()
+  }
+})
 it('labels system policy actors without a fabricated human identity', async () => {
   const component = await panel()
   const list = vi.fn().mockResolvedValue({
@@ -113,12 +145,12 @@ it('validates combined filters, resets cursors and keeps safe error and empty st
   expect(wrapper.text()).toContain('No audit entries match')
   await wrapper.get('[name="actorId"]').setValue(id)
   await chooseOption(wrapper, '[name="action"]', 'DEAL_UPDATED')
-  await wrapper.get('[name="from"]').setValue('2026-01-01T00:00:00Z')
+  await wrapper.get('[name="from"]').setValue('2026-01-01T08:00:00')
   await wrapper.get('form').trigger('submit')
   await flushPromises()
   expect(list).toHaveBeenCalledTimes(1)
-  expect(wrapper.text()).toContain('both UTC dates')
-  await wrapper.get('[name="until"]').setValue('2026-01-02T00:00:00Z')
+  expect(wrapper.text()).toContain('both dates')
+  await wrapper.get('[name="until"]').setValue('2026-01-02T08:00:00')
   list.mockRejectedValueOnce(new Error('Synthetic private server error'))
   await wrapper.get('form').trigger('submit')
   await flushPromises()
@@ -126,14 +158,37 @@ it('validates combined filters, resets cursors and keeps safe error and empty st
     limit: 25,
     actorId: id,
     action: 'DEAL_UPDATED',
-    from: '2026-01-01T00:00:00Z',
-    until: '2026-01-02T00:00:00Z',
+    from: '2026-01-01T00:00:00.000Z',
+    until: '2026-01-02T00:00:00.000Z',
   })
   expect(wrapper.text()).toContain('Unable to load audit history')
   expect(wrapper.text()).not.toContain('Synthetic private server error')
   await wrapper.get('[data-testid="audit-retry"]').trigger('click')
   await flushPromises()
   expect(wrapper.text()).toContain('No audit entries match')
+  wrapper.unmount()
+})
+it('rejects unsupported date input without applying the previous date and recovers after correction', async () => {
+  const component = await panel()
+  const list = vi.fn().mockResolvedValue({ items: [], nextCursor: null })
+  const wrapper = mount(component, { props: { list } })
+  await flushPromises()
+  await wrapper.get('[name="from"]').setValue('2026-01-01T08:00:00')
+  await wrapper.get('[name="until"]').setValue('2026-01-02T08:00:00')
+  await wrapper.get('[name="from"]').setValue('10000-01-01T08:00:00')
+  expect(wrapper.get('[name="from"]').attributes('aria-invalid')).toBe('true')
+  expect(wrapper.get('[role="alert"]').text()).toContain('four-digit year')
+  await wrapper.get('form').trigger('submit')
+  expect(list).toHaveBeenCalledTimes(1)
+  await wrapper.get('[name="from"]').setValue('2026-01-01T09:00:00')
+  await wrapper.get('form').trigger('submit')
+  await flushPromises()
+  expect(list).toHaveBeenLastCalledWith({
+    limit: 25,
+    from: '2026-01-01T01:00:00.000Z',
+    until: '2026-01-02T00:00:00.000Z',
+  })
+  expect(wrapper.find('[role="alert"]').exists()).toBe(false)
   wrapper.unmount()
 })
 it('clears protected rows and filters on denial or access loss and ignores late responses', async () => {

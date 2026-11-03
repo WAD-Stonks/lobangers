@@ -4,8 +4,14 @@ import type {
   CatalogueVenueDetail,
 } from '@broke-oclock/contracts/admin-catalogue'
 import AppSelect from '@web/components/AppSelect.vue'
+import AdminStatusBadge from '@web/components/admin/AdminStatusBadge.vue'
 import type { SelectOption } from '@web/components/select-options'
 import { reactive, ref } from 'vue'
+
+const PRECISION_OPTIONS: readonly SelectOption[] = [
+  { value: 'PROPERTY', label: 'Property' },
+  { value: 'OUTLET', label: 'Outlet' },
+]
 
 const props = defineProps<{
   venue?: CatalogueVenueDetail
@@ -17,10 +23,6 @@ const emit = defineEmits<{
   save: [body: Record<string, unknown>]
   archive: [body: Record<string, unknown>]
 }>()
-const PRECISION_OPTIONS: readonly SelectOption[] = [
-  { value: 'PROPERTY', label: 'Property' },
-  { value: 'OUTLET', label: 'Outlet' },
-]
 const fields = reactive({
   name: props.venue?.name ?? '',
   address: props.venue?.address ?? '',
@@ -53,11 +55,10 @@ const save = () => {
 </script>
 <template>
   <section class="catalogue-editor">
-    <h2>{{ venue?.name ?? 'Create outlet' }}</h2>
+    <h3>Outlet information</h3>
     <p>Merchant: {{ venue?.merchantName ?? parent?.name }} · immutable association</p>
-    <p v-if="venue" class="text-secondary"><span translate="no">{{ venue.id }}</span> · version {{ venue.version }} · {{ venue.archived ? 'Archived' : 'Active' }}</p>
-    <p class="alert alert-warning">Tuple corrections withdraw both geography and occupancy authority. Old receipts remain historical, never recertified. Archiving preserves all relationships and history; it does not revoke or reactivate grants.</p>
-    <p v-if="venue">Dependencies: {{ venue.dealCount }} deal links · {{ venue.grantCount }} retained grants · {{ venue.requestCount }} retained requests.</p>
+    <AdminStatusBadge v-if="venue" :status="venue.archived ? 'ARCHIVED' : 'ACTIVE'" />
+    <details v-if="venue" class="catalogue-record-details"><summary>Record details</summary><p><span translate="no">{{ venue.id }}</span> · version {{ venue.version }}</p><p>Dependencies: {{ venue.dealCount }} deal links · {{ venue.grantCount }} retained grants · {{ venue.requestCount }} retained requests.</p></details>
     <form @submit.prevent="save">
       <fieldset :disabled="disabled">
         <div class="row g-3">
@@ -68,10 +69,15 @@ const save = () => {
           <div class="col-12"><label for="venue-precision" class="form-label">Resolved point precision</label><AppSelect id="venue-precision" v-model="fields.geographyPrecision" name="geographyPrecision" :options="PRECISION_OPTIONS" class="form-select" /></div>
         </div>
         <p class="form-text">No coordinate lookup, image fetching or upload is performed. Supply a genuinely resolved point, not 0,0.</p>
+        <div class="catalogue-decision">
+        <h4>Review your change</h4>
+        <p class="catalogue-consequence">Changes to this outlet's verified identity or location withdraw current geography and occupancy verification. Existing receipts remain historical. Archiving preserves all relationships and history; it does not revoke or reactivate grants.</p>
         <label for="venue-note" class="form-label">Reason for this operation</label><textarea id="venue-note" v-model="note" name="note" class="form-control" maxlength="500" required />
         <label class="form-check mt-3"><input v-model="confirmed" type="checkbox" name="confirmed" class="form-check-input" required /><span class="form-check-label">I confirm the exact target {{ venue?.name ?? fields.name }} and its dependency / proof consequences.</span></label>
         <div class="d-flex flex-wrap gap-2 mt-3"><button class="btn btn-primary" type="submit">{{ pending ? 'Saving…' : venue ? 'Save outlet correction' : 'Create unverified outlet' }}</button><button v-if="venue" class="btn btn-outline-danger" type="button" :disabled="!confirmed || !note.trim()" @click="emit('archive', { note, confirmed })">{{ pending ? 'Working…' : 'Archive outlet' }}</button></div>
+        </div>
       </fieldset>
     </form>
   </section>
 </template>
+<style scoped src="@web/modules/admin-catalogue/catalogue-editor.css"></style>

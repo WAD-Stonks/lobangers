@@ -4,12 +4,15 @@ import { BButton } from '@broke-oclock/ui'
 import { api } from '@web/lib/api-client'
 import { useConfirm } from '@web/lib/use-confirm'
 import { errorCode } from '@web/modules/ingestion-admin/errors'
-import { onUnmounted, ref } from 'vue'
+import { onUnmounted, ref, watch } from 'vue'
 
-const emit = defineEmits<{ denied: [code: string]; changed: [] }>()
+const props = withDefaults(defineProps<{ importRunning?: boolean }>(), { importRunning: false })
+const emit = defineEmits<{ denied: [code: string]; changed: []; busy: [value: boolean] }>()
 const { ask } = useConfirm()
 const items = ref<IngestionSource[] | null>(null)
 const pending = ref(false)
+const mutationPending = ref(false)
+watch(mutationPending, value => emit('busy', value), { immediate: true, flush: 'sync' })
 const nextCursor = ref<string | null>(null)
 const error = ref('')
 const notice = ref('')
@@ -17,8 +20,9 @@ const name = ref('')
 const previewUrl = ref('')
 const invalidFields = ref<string[]>([])
 const confirmedIds = ref<string[]>([])
+let refreshAfterRead = false
 let active = true
-onUnmounted(() => { active = false })
+onUnmounted(() => { active = false; emit('busy', false) })
 const fail = (failure: unknown) => {
   const code = errorCode(failure)
   if (code === 'UNAUTHORIZED' || code === 'FORBIDDEN') {
@@ -33,7 +37,7 @@ const fail = (failure: unknown) => {
   return code
 }
 const add = async () => {
-  if (pending.value) return
+  if (pending.value || props.importRunning) return
   error.value = ''
   notice.value = ''
   const input = ingestionAddSourceRequestSchema.safeParse({ name: name.value, previewUrl: previewUrl.value })
@@ -43,6 +47,7 @@ const add = async () => {
     return
   }
   pending.value = true
+  mutationPending.value = true
   try {
     const source = await api.ingestion.addSource(input.data)
     if (!active) return
@@ -55,7 +60,7 @@ const add = async () => {
     if (!active) return
     const code = fail(failure)
     error.value = code === 'CONFLICT' ? 'This Telegram channel is already registered. Refresh sources to review it.' : 'Unable to add source. Refresh sources before trying again.'
-  } finally { if (active) pending.value = false }
+  } finally { if (active) { pending.value = false; mutationPending.value = false } }
 }
 const refreshConflict = async (sourceId: string) => {
   items.value = null
@@ -78,7 +83,7 @@ const refreshConflict = async (sourceId: string) => {
   confirmedIds.value = []
 }
 const toggle = async (source: IngestionSource) => {
-  if (pending.value || source.provider !== 'TELEGRAM' || (!source.enabled && !confirmedIds.value.includes(source.id))) return
+  if (pending.value || props.importRunning || source.provider !== 'TELEGRAM' || (!source.enabled && !confirmedIds.value.includes(source.id))) return
   // Disabling stops imports straight away, so it asks first; enabling has its own checkbox.
   if (source.enabled && !(await ask({
     title: `Disable ${source.name}?`,
@@ -86,6 +91,7 @@ const toggle = async (source: IngestionSource) => {
     confirmLabel: 'Disable source',
   }))) return
   pending.value = true
+  mutationPending.value = true
   error.value = ''
   notice.value = ''
   const reuseConfirmed = !source.enabled && confirmedIds.value.includes(source.id)
@@ -118,7 +124,7 @@ const toggle = async (source: IngestionSource) => {
       nextCursor.value = null
       error.value = 'Unable to confirm source change. Reload sources before trying again.'
     }
-  } finally { if (active) pending.value = false }
+  } finally { if (active) { pending.value = false; mutationPending.value = false } }
 }
 const load = async (cursor?: string) => {
   if (pending.value) return
@@ -138,25 +144,44 @@ const load = async (cursor?: string) => {
     nextCursor.value = null
     fail(failure)
     error.value = 'Unable to load sources. Please retry.'
-  } finally { if (active) pending.value = false }
+  } finally {
+    if (active) {
+      pending.value = false
+      if (refreshAfterRead) {
+        refreshAfterRead = false
+        void load()
+      }
+    }
+  }
 }
+watch(() => props.importRunning, (running, wasRunning) => {
+  if (running) confirmedIds.value = []
+  if (wasRunning && !running && (items.value !== null || pending.value)) {
+    confirmedIds.value = []
+    items.value = null
+    nextCursor.value = null
+    if (pending.value) refreshAfterRead = true
+    else void load()
+  }
+}, { flush: 'sync' })
 </script>
 
 <template>
   <section aria-labelledby="sources-title" class="card p-3 p-sm-4 mb-4 text-break" :aria-busy="pending">
     <h2 id="sources-title" class="h4">Telegram sources</h2>
     <p class="text-secondary">Register public preview URLs here, not in server environment settings. New sources are disabled. Enabling requires your confirmation that reuse is permitted; a public URL alone does not grant permission.</p>
+    <p v-if="importRunning" role="status">An import is running. Source changes will be available when it finishes. You can still refresh sources.</p>
     <form class="row g-3 mb-3" @submit.prevent="add">
       <div class="col-12 col-md-4">
         <label for="source-name" class="form-label">Source name</label>
-        <input id="source-name" v-model="name" name="source-name" autocomplete="off" class="form-control" maxlength="120" required :disabled="pending" :aria-invalid="invalidFields.includes('name')" aria-describedby="source-error">
+        <input id="source-name" v-model="name" name="source-name" autocomplete="off" class="form-control" maxlength="120" required :disabled="pending || importRunning" :aria-invalid="invalidFields.includes('name')" aria-describedby="source-error">
       </div>
       <div class="col-12 col-md-8">
         <label for="source-preview-url" class="form-label">Telegram preview URL</label>
-        <input id="source-preview-url" v-model="previewUrl" name="source-preview-url" autocomplete="off" spellcheck="false" autocapitalize="none" class="form-control" type="url" maxlength="128" required placeholder="https://t.me/s/ThisCounted…" aria-describedby="source-url-help source-error" :aria-invalid="invalidFields.includes('previewUrl')" :disabled="pending">
+        <input id="source-preview-url" v-model="previewUrl" name="source-preview-url" autocomplete="off" spellcheck="false" autocapitalize="none" class="form-control" type="url" maxlength="128" required placeholder="https://t.me/s/ThisCounted…" aria-describedby="source-url-help source-error" :aria-invalid="invalidFields.includes('previewUrl')" :disabled="pending || importRunning">
         <p id="source-url-help" class="form-text mb-0">Use https://t.me/s/&lt;publicusername&gt;. Public channels only; no invite links, ports or URL parameters.</p>
       </div>
-      <div class="col-12"><BButton type="submit" data-testid="add-source" variant="primary" :disabled="pending">Add disabled source</BButton></div>
+      <div class="col-12"><BButton type="submit" data-testid="add-source" variant="primary" :disabled="pending || importRunning">Add disabled source</BButton></div>
     </form>
     <BButton data-testid="load-sources" :disabled="pending" @click="load()">{{ pending ? 'Please wait…' : items ? 'Refresh sources' : 'View sources' }}</BButton>
     <p v-if="error" id="source-error" role="alert" class="text-danger mt-3">{{ error }}</p>
@@ -169,10 +194,10 @@ const load = async (cursor?: string) => {
         <a :href="source.url" target="_blank" rel="noopener noreferrer" translate="no">{{ source.url }}</a>
         <div v-if="source.provider === 'TELEGRAM'" class="mt-3">
           <div v-if="!source.enabled" class="form-check mb-2">
-            <input :id="`source-reuse-${source.id}`" v-model="confirmedIds" :value="source.id" type="checkbox" class="form-check-input" :disabled="pending">
+            <input :id="`source-reuse-${source.id}`" v-model="confirmedIds" :value="source.id" type="checkbox" class="form-check-input" :disabled="pending || importRunning">
             <label :for="`source-reuse-${source.id}`" class="form-check-label">I have confirmed this source is permitted for use</label>
           </div>
-          <BButton data-testid="toggle-source" :disabled="pending || (!source.enabled && !confirmedIds.includes(source.id))" @click="toggle(source)">{{ source.enabled ? 'Disable source' : 'Enable source' }}<span class="visually-hidden">: {{ source.name }}</span></BButton>
+          <BButton data-testid="toggle-source" :disabled="pending || importRunning || (!source.enabled && !confirmedIds.includes(source.id))" @click="toggle(source)">{{ source.enabled ? 'Disable source' : 'Enable source' }}<span class="visually-hidden">: {{ source.name }}</span></BButton>
         </div>
         <p v-if="source.provider === 'WORDPRESS'" class="small mt-2 mb-0">Fixed WordPress source (read-only here).</p>
       </li>

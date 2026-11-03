@@ -30,11 +30,11 @@ onUnmounted(() => { state.dispose(); window.removeEventListener('focus', focus) 
       </div>
       <button v-if="session || loading || pending || uncertain" data-testid="admin-sign-out" type="button" class="btn btn-link" :disabled="pending" @click="state.signOut">{{ pending ? 'Signing out…' : uncertain ? 'Retry sign-out' : 'Sign out' }}</button>
     </AdminSessionDisclosure>
-    <div v-if="notice || loading || uncertain || !session || accessRequired" class="admin-session-recovery">
-      <p v-if="loading" role="status">Checking current session…</p>
+    <div v-if="notice || loading || uncertain || !session || accessRequired" v-show="!loading || Boolean(notice) || uncertain" class="admin-session-recovery">
+      <p v-if="loading" role="status" class="visually-hidden">Checking current session…</p>
       <p v-if="notice" :role="uncertain ? 'alert' : 'status'">{{ notice }}</p>
       <div class="admin-session-actions">
-        <button v-if="uncertain || !session" type="button" class="btn btn-link" :disabled="pending || loading" @click="state.refresh">Recheck session</button>
+        <button v-if="uncertain || !session" v-show="!loading" type="button" class="btn btn-link" :disabled="pending || loading" @click="state.refresh">Recheck session</button>
         <button v-if="(uncertain || accessRequired) && session" data-testid="admin-access-reload" type="button" class="btn btn-outline-primary" :disabled="pending || loading" @click="state.requestAccessReload">Reload access</button>
       </div>
     </div>

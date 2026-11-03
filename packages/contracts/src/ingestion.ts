@@ -230,3 +230,21 @@ export type IngestionAccountsQuery = z.infer<typeof ingestionAccountsQuerySchema
 export type IngestionAccountsResponse = z.infer<typeof ingestionAccountsResponseSchema>
 export type IngestionLocationsQuery = z.infer<typeof ingestionLocationsQuerySchema>
 export type IngestionLocationsResponse = z.infer<typeof ingestionLocationsResponseSchema>
+
+export const INGESTION_PROGRESS_CHANNEL = 'private-admin-ingestion'
+export const INGESTION_PROGRESS_EVENT = 'progress-changed'
+export const ingestionRealtimeAuthSchema = z
+  .object({
+    socketId: z
+      .string()
+      .regex(/^\d+\.\d+$/)
+      .max(100),
+    channel: z.literal(INGESTION_PROGRESS_CHANNEL),
+  })
+  .strict()
+export const ingestionRealtimeConfigSchema = z
+  .object({
+    pusher: z.object({ key: z.string(), cluster: z.string() }).strict().nullable(),
+  })
+  .strict()
+export const ingestionRealtimeAuthResponseSchema = z.object({ auth: z.string() }).strict()

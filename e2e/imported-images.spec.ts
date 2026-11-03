@@ -337,15 +337,12 @@ for (const width of [320, 768, 1024, 1440]) {
     await page.goto('/admin/ingestion')
     await expect(page.getByRole('heading', { name: 'Ingestion admin', exact: true })).toBeVisible()
     const queue = page.locator('section[aria-labelledby="queue-title"]')
-    const view = queue.getByRole('button', { name: `View details: ${draft.title}`, exact: true })
-    await view.focus()
-    await page.keyboard.press('Enter')
-    const citations = page.getByRole('region', { name: 'Immutable source evidence', exact: true })
-    await expect(citations.getByText('No citations on this page.', { exact: true })).toBeVisible()
-    await expect(citations.getByRole('alert')).toHaveCount(0)
-    await expect(page.getByRole('region', { name: 'Failed post investigation' })).toContainText(
-      'No posts on this page. A bounded page can exclude unsupported sources.',
+    const handoff = queue.getByRole('link', { name: /Open in Deals/ })
+    await expect(handoff).toHaveAttribute(
+      'href',
+      new RegExp(`/admin/deals\\?dealId=${draft.id}&tab=content`),
     )
+    await queue.locator('details.imported-deal-images > summary').click()
     const evidence = page.getByRole('region', { name: 'Imported image evidence' })
     await painted(evidence.getByRole('img', { name: deal.imageAltText ?? '', exact: true }))
     await painted(evidence.getByRole('img', { name: 'Synthetic archive GIF', exact: true }))
@@ -359,7 +356,8 @@ for (const width of [320, 768, 1024, 1440]) {
       'href',
       image.sourceUrl,
     )
-    await expect(queue.getByTestId('approve-draft')).toBeDisabled()
+    await expect(queue.getByTestId('approve-draft')).toHaveCount(0)
+    await expect(queue.locator('form')).toHaveCount(0)
     await evidence.screenshot({
       path: test.info().outputPath(`synthetic-admin-${width}.png`),
       style: '[data-synthetic-fixture-note] { visibility: hidden !important; }',

@@ -1,10 +1,19 @@
 import type { IngestionDashboardResponse, IngestionDraft } from '@broke-oclock/contracts/ingestion'
-import { flushPromises, mount } from '@vue/test-utils'
+import { enableAutoUnmount, flushPromises, mount } from '@vue/test-utils'
+import AdminShell from '@web/components/admin/AdminShell.vue'
 import { ApiClientError } from '@web/lib/api-client'
+import AccountsPanel from '@web/modules/ingestion-admin/AccountsPanel.vue'
+import { backgroundImport } from '@web/modules/ingestion-admin/background-import'
 import DraftQueue from '@web/modules/ingestion-admin/DraftQueue.vue'
+import ImportedDealQueue from '@web/modules/ingestion-admin/ImportedDealQueue.vue'
+import LocationSearch from '@web/modules/ingestion-admin/LocationSearch.vue'
+import SourcesPanel from '@web/modules/ingestion-admin/SourcesPanel.vue'
 import IngestionAdminPage from '@web/pages/IngestionAdminPage.vue'
 import { chooseOption, selectedValue } from '@web-tests/support/select'
-import { beforeEach, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, expect, it, vi } from 'vitest'
+
+enableAutoUnmount(afterEach)
+afterEach(() => backgroundImport.reset())
 
 // Synthetic REST boundary only: these component tests preserve UI races but do not prove backend policy.
 const rest = vi.hoisted(() => ({
@@ -20,6 +29,9 @@ const rest = vi.hoisted(() => ({
   category: vi.fn(),
   locations: vi.fn(),
   accounts: vi.fn(),
+  sources: vi.fn(),
+  posts: vi.fn(),
+  evidence: vi.fn(),
 }))
 vi.mock('@web/lib/api-client', () => ({
   ApiClientError: class ApiClientError extends Error {
@@ -42,7 +54,9 @@ vi.mock('@web/lib/api-client', () => ({
       setDraftCategory: rest.category,
       searchLocations: rest.locations,
       accounts: rest.accounts,
+      sources: rest.sources,
     },
+    ingestionInvestigation: { posts: rest.posts, evidence: rest.evidence },
   },
 }))
 
@@ -66,6 +80,7 @@ const dashboard = {
   counts: { pending: 3, approved: 4, rejected: 2, failed: 1 },
 } satisfies IngestionDashboardResponse
 beforeEach(() => {
+  backgroundImport.reset()
   vi.resetAllMocks()
   rest.session.mockResolvedValue({
     data: {
@@ -91,6 +106,39 @@ beforeEach(() => {
   rest.queue.mockResolvedValue({ items: [], nextCursor: null })
   rest.accounts.mockResolvedValue({ items: [], nextCursor: null })
   rest.locations.mockResolvedValue({ items: [] })
+  rest.sources.mockResolvedValue({ items: [], nextCursor: null })
+  rest.posts.mockResolvedValue({ items: [], nextCursor: null })
+  rest.evidence.mockResolvedValue({ items: [], nextCursor: null })
+})
+
+const showImportWorkspace = async (wrapper: ReturnType<typeof mount>) => {
+  await wrapper.get('#ingestion-workspace-tab-settings').trigger('click')
+  await flushPromises()
+}
+
+it('shows an imported deal count only after a successful read, including retry after failure', async () => {
+  let rejectRead!: (reason: Error) => void
+  rest.queue.mockReturnValueOnce(
+    new Promise((_resolve, reject) => {
+      rejectRead = reject
+    }),
+  )
+  const wrapper = mount(ImportedDealQueue, { props: { revision: 0 } })
+  await flushPromises()
+  expect(wrapper.text()).toContain('Loading imported deals')
+  expect(wrapper.text()).not.toContain('0 imported deals loaded')
+  rejectRead(new Error('Synthetic unavailable queue'))
+  await flushPromises()
+  expect(wrapper.text()).toContain('Unable to load imported deals')
+  expect(wrapper.text()).not.toContain('0 imported deals loaded')
+  await wrapper
+    .findAll('button')
+    .find((button) => button.text() === 'Retry imported deals')
+    ?.trigger('click')
+  await flushPromises()
+  expect(wrapper.text()).toContain('0 imported deals loaded')
+  expect(wrapper.text()).toContain('No imported deals match this status')
+  wrapper.unmount()
 })
 
 it('shows a sign-in form when the server denies anonymous access', async () => {
@@ -110,6 +158,7 @@ it('renders server counts and explains both disabled-source gates', async () => 
   expect(wrapper.text()).toContain('Synthetic fixture source')
   expect(wrapper.text()).toContain('Ingestion is disabled')
   expect(wrapper.text()).toContain('Operator reuse attestation is not recorded')
+  await showImportWorkspace(wrapper)
   expect(wrapper.get('[data-testid="run-ingestion"]').attributes('disabled')).toBeDefined()
 })
 
@@ -181,6 +230,7 @@ it('runs once while pending and refreshes actual dashboard and run reads', async
   await flushPromises()
   expect(wrapper.text()).toContain('SOURCE_UNAVAILABLE')
   expect(rest.runs).toHaveBeenCalledWith({ limit: 20 })
+  await showImportWorkspace(wrapper)
   await wrapper.get('[data-testid="run-ingestion"]').trigger('click')
   await wrapper.get('[data-testid="run-ingestion"]').trigger('click')
   expect(rest.run).toHaveBeenCalledTimes(1)
@@ -195,11 +245,12 @@ it('runs once while pending and refreshes actual dashboard and run reads', async
   })
   await flushPromises()
   expect(rest.dashboard).toHaveBeenCalledTimes(2)
-  expect(rest.runs).toHaveBeenCalledTimes(2)
-  expect(wrapper.text()).toContain('Run run-2: COMPLETED')
+  expect(rest.runs.mock.calls.length).toBeGreaterThanOrEqual(3)
+  expect(wrapper.get('[data-testid="import-progress"]').text()).toContain('Import finished')
+  expect(wrapper.get('[data-testid="import-progress"]').text()).toContain('Created 2')
 })
 
-it('restores the run button after an API error without inventing success', async () => {
+it('keeps a lost-response run guarded while allowing navigation and checking real source activity', async () => {
   rest.dashboard.mockResolvedValue({
     ...dashboard,
     source: { ...dashboard.source, enabled: true, reuseApproved: true },
@@ -207,11 +258,52 @@ it('restores the run button after an API error without inventing success', async
   rest.run.mockRejectedValue(new Error('private provider response'))
   const wrapper = mount(IngestionAdminPage)
   await flushPromises()
+  await showImportWorkspace(wrapper)
   await wrapper.get('[data-testid="run-ingestion"]').trigger('click')
   await flushPromises()
-  expect(wrapper.text()).toContain('Unable to run ingestion')
+  expect(wrapper.text()).toContain('The connection was interrupted')
   expect(wrapper.text()).not.toContain('private provider response')
-  expect(wrapper.get('[data-testid="run-ingestion"]').attributes('disabled')).toBeUndefined()
+  expect(wrapper.get('[data-testid="run-ingestion"]').attributes('disabled')).toBeDefined()
+  expect(wrapper.get('#ingestion-workspace-tab-runs').attributes('disabled')).toBeUndefined()
+  await wrapper.get('#ingestion-workspace-tab-runs').trigger('click')
+  expect(wrapper.get('#ingestion-workspace-panel-runs').attributes('hidden')).toBeUndefined()
+  expect(rest.run).toHaveBeenCalledTimes(1)
+})
+
+it('keeps progress and the pending request when the ingestion page unmounts', async () => {
+  rest.dashboard.mockResolvedValue({
+    ...dashboard,
+    source: { ...dashboard.source, enabled: true, reuseApproved: true },
+  })
+  let release!: (value: unknown) => void
+  rest.run.mockImplementationOnce(
+    () =>
+      new Promise((resolve) => {
+        release = resolve
+      }),
+  )
+  const page = mount(IngestionAdminPage)
+  await flushPromises()
+  await showImportWorkspace(page)
+  await page.get('[data-testid="run-ingestion"]').trigger('click')
+  await flushPromises()
+  page.unmount()
+  const nextPage = mount(AdminShell, { props: { title: 'Another admin page' } })
+  await flushPromises()
+  expect(nextPage.get('[data-testid="import-progress"]').text()).toContain('Import in progress')
+  expect(rest.run).toHaveBeenCalledTimes(1)
+  release({
+    runId: 'background-run',
+    status: 'SUCCEEDED',
+    fetchedCount: 20,
+    createdCount: 2,
+    updatedCount: 1,
+    failedCount: 0,
+  })
+  await flushPromises()
+  expect(nextPage.get('[data-testid="import-progress"]').text()).toContain('Import finished')
+  expect(nextPage.get('[data-testid="import-progress"]').text()).toContain('Created 2')
+  expect(rest.dashboard).toHaveBeenCalledTimes(1)
 })
 
 const draft: IngestionDraft = {
@@ -243,7 +335,7 @@ it('saves a corrected category at the current version and locks the stale draft 
     reviewStatus: 'PENDING',
     category: 'DRINKS',
   })
-  const wrapper = mount(IngestionAdminPage)
+  const wrapper = mount(DraftQueue, { props: { revision: 0 } })
   await flushPromises()
   await wrapper.get('[data-testid="view-draft-1"]').trigger('click')
   expect(selectedValue(wrapper, '#draft-category')).toBe('FOOD')
@@ -265,7 +357,7 @@ it('saves a corrected category at the current version and locks the stale draft 
 it('reports a failed category update without leaving the draft reviewable', async () => {
   rest.queue.mockResolvedValue({ items: [draft], nextCursor: null })
   rest.category.mockRejectedValue(new ApiClientError('CONFLICT', 409, 'Draft changed'))
-  const wrapper = mount(IngestionAdminPage)
+  const wrapper = mount(DraftQueue, { props: { revision: 0 } })
   await flushPromises()
   await wrapper.get('[data-testid="view-draft-1"]').trigger('click')
   await chooseOption(wrapper, '#draft-category', 'BAKERY')
@@ -278,7 +370,7 @@ it('reports a failed category update without leaving the draft reviewable', asyn
 it('renders escaped attributed draft details and rejects with a required note and current version', async () => {
   rest.queue.mockResolvedValueOnce({ items: [draft], nextCursor: null })
   rest.review.mockResolvedValue({ id: draft.id, reviewStatus: 'REJECTED' })
-  const wrapper = mount(IngestionAdminPage)
+  const wrapper = mount(DraftQueue, { props: { revision: 0 } })
   await flushPromises()
   expect(rest.queue).toHaveBeenCalledWith({ limit: 20, status: 'PENDING' })
   await wrapper.get('[data-testid="view-draft-1"]').trigger('click')
@@ -298,8 +390,10 @@ it('renders escaped attributed draft details and rejects with a required note an
     decision: 'REJECT',
     note: 'Not enough confirmed validity information',
   })
+  expect(wrapper.emitted('changed')).toEqual([[]])
+  await wrapper.setProps({ revision: 1 })
+  await flushPromises()
   expect(rest.queue).toHaveBeenCalledTimes(2)
-  expect(rest.dashboard).toHaveBeenCalledTimes(2)
   expect(wrapper.text()).toContain('Draft rejected')
   expect(wrapper.text()).toContain('No drafts match this status')
 })
@@ -309,7 +403,7 @@ it('disables approval for unknown or expired validity, and never links unsafe UR
     items: [{ ...draft, sourceUrl: 'javascript:alert(1)' }],
     nextCursor: null,
   })
-  const wrapper = mount(IngestionAdminPage)
+  const wrapper = mount(DraftQueue, { props: { revision: 0 } })
   await flushPromises()
   await wrapper.get('[data-testid="view-draft-1"]').trigger('click')
   await wrapper.get('#review-note').setValue('Checked the source')
@@ -323,7 +417,7 @@ it('disables approval for unknown or expired validity, and never links unsafe UR
 it('filters the queue using server status and preserves review notes on failure', async () => {
   rest.queue.mockResolvedValue({ items: [draft], nextCursor: null })
   rest.review.mockRejectedValue(new Error('private DB error'))
-  const wrapper = mount(IngestionAdminPage)
+  const wrapper = mount(DraftQueue, { props: { revision: 0 } })
   await flushPromises()
   await chooseOption(wrapper, '#queue-status', 'REJECTED')
   await flushPromises()
@@ -348,7 +442,7 @@ it.each([
   ['2099-01-01T00:00:00Z', '2099-01-01T00:00:00Z', 'Validity dates are invalid'],
 ])('blocks unsafe validity %s → %s', async (validFrom, validUntil, reason) => {
   rest.queue.mockResolvedValue({ items: [{ ...draft, validFrom, validUntil }], nextCursor: null })
-  const wrapper = mount(IngestionAdminPage)
+  const wrapper = mount(DraftQueue, { props: { revision: 0 } })
   await flushPromises()
   await wrapper.get('[data-testid="view-draft-1"]').trigger('click')
   await wrapper.get('#review-note').setValue('Checked source')
@@ -364,7 +458,7 @@ it('approves known validity once and displays a stale-content conflict with a re
   rest.review
     .mockRejectedValueOnce(new ApiClientError('CONFLICT', 409, 'Conflict'))
     .mockResolvedValue({ id: draft.id, reviewStatus: 'APPROVED' })
-  const wrapper = mount(IngestionAdminPage)
+  const wrapper = mount(DraftQueue, { props: { revision: 0 } })
   await flushPromises()
   await wrapper.get('[data-testid="view-draft-1"]').trigger('click')
   await wrapper.get('#review-note').setValue('Verified dated source')
@@ -683,7 +777,7 @@ it('paginates drafts with the server cursor, deduplicates IDs, and resets pagina
       items: [draft, { ...draft, id: 'draft-2', title: 'Second synthetic draft' }],
       nextCursor: null,
     })
-  const wrapper = mount(IngestionAdminPage)
+  const wrapper = mount(DraftQueue, { props: { revision: 0 } })
   await flushPromises()
   await wrapper.get('[data-testid="more-drafts"]').trigger('click')
   await flushPromises()
@@ -701,7 +795,7 @@ it('paginates drafts with the server cursor, deduplicates IDs, and resets pagina
 })
 
 it('acknowledges OneMap as the data source with the documented Singapore Open Data Licence', async () => {
-  const wrapper = mount(IngestionAdminPage)
+  const wrapper = mount(LocationSearch, { props: { configured: true } })
   await flushPromises()
   const panel = wrapper.get('[aria-labelledby="locations-title"]')
   expect(panel.text()).toContain('Data source: OneMap')
@@ -726,7 +820,7 @@ it('shows OneMap address/coordinate candidates without claiming merchant verific
       },
     ],
   })
-  const wrapper = mount(IngestionAdminPage)
+  const wrapper = mount(LocationSearch, { props: { configured: true } })
   await flushPromises()
   await wrapper.get('#location-query').setValue('  fixture plaza  ')
   await wrapper.get('[data-testid="location-search"]').trigger('submit')
@@ -739,7 +833,7 @@ it('shows OneMap address/coordinate candidates without claiming merchant verific
 })
 
 it('disables unconfigured OneMap and recovers search errors without stale candidates', async () => {
-  const disabled = mount(IngestionAdminPage)
+  const disabled = mount(LocationSearch, { props: { configured: false } })
   await flushPromises()
   expect(disabled.get('[data-testid="search-locations"]').attributes('disabled')).toBeDefined()
   disabled.unmount()
@@ -748,7 +842,7 @@ it('disables unconfigured OneMap and recovers search errors without stale candid
     source: { ...dashboard.source, onemapConfigured: true },
   })
   rest.locations.mockRejectedValueOnce(new Error('private OneMap token'))
-  const wrapper = mount(IngestionAdminPage)
+  const wrapper = mount(LocationSearch, { props: { configured: true } })
   await flushPromises()
   await wrapper.get('#location-query').setValue('fixture plaza')
   await wrapper.get('[data-testid="location-search"]').trigger('submit')
@@ -773,7 +867,7 @@ it('reads accounts only on request and provides no deletion or role-edit control
     ],
     nextCursor: null,
   })
-  const wrapper = mount(IngestionAdminPage)
+  const wrapper = mount(AccountsPanel)
   await flushPromises()
   expect(rest.accounts).not.toHaveBeenCalled()
   await wrapper.get('[data-testid="load-accounts"]').trigger('click')
@@ -784,18 +878,20 @@ it('reads accounts only on request and provides no deletion or role-edit control
   expect(panel.text()).toContain('ADMIN')
   expect(panel.text()).toContain('Read-only')
   expect(panel.find('input').exists()).toBe(false)
-  expect(panel.find('.app-select').exists()).toBe(false)
+  expect(panel.find('select, [role="combobox"]').exists()).toBe(false)
   expect(panel.text()).not.toMatch(/Delete account|Change role/)
 })
 
-it('reports the account server gate without hiding the review dashboard', async () => {
+it('reports the account server gate without offering protected account mutations', async () => {
   rest.accounts.mockRejectedValue(new ApiClientError('FORBIDDEN', 403, 'Forbidden'))
-  const wrapper = mount(IngestionAdminPage)
+  const wrapper = mount(AccountsPanel)
   await flushPromises()
   await wrapper.get('[data-testid="load-accounts"]').trigger('click')
   await flushPromises()
   expect(wrapper.text()).toContain('Accounts are restricted to administrators')
-  expect(wrapper.text()).toContain('Draft review queue')
+  expect(wrapper.find('input').exists()).toBe(false)
+  expect(wrapper.find('select, [role="combobox"]').exists()).toBe(false)
+  expect(wrapper.emitted('denied')).toBeUndefined()
 })
 
 it('paginates read-only accounts without duplicates and recovers failed account reads', async () => {
@@ -813,7 +909,7 @@ it('paginates read-only accounts without duplicates and recovers failed account 
       items: [account, { ...account, id: 'fixture-user-2', name: 'Second synthetic user' }],
       nextCursor: null,
     })
-  const wrapper = mount(IngestionAdminPage)
+  const wrapper = mount(AccountsPanel)
   await flushPromises()
   await wrapper.get('[data-testid="load-accounts"]').trigger('click')
   await flushPromises()
@@ -827,13 +923,9 @@ it('paginates read-only accounts without duplicates and recovers failed account 
   expect(wrapper.text()).toContain('Second synthetic user')
 })
 
-it('bounds review notes and OneMap queries to their request limits', async () => {
-  rest.dashboard.mockResolvedValue({
-    ...dashboard,
-    source: { ...dashboard.source, onemapConfigured: true },
-  })
+it('bounds legacy review notes to the request limit', async () => {
   rest.queue.mockResolvedValue({ items: [draft], nextCursor: null })
-  const wrapper = mount(IngestionAdminPage)
+  const wrapper = mount(DraftQueue, { props: { revision: 0 } })
   await flushPromises()
   await wrapper.get('[data-testid="view-draft-1"]').trigger('click')
   expect(wrapper.get('#review-note').attributes('maxlength')).toBe('1000')
@@ -841,10 +933,16 @@ it('bounds review notes and OneMap queries to their request limits', async () =>
   await wrapper.get('#reject-confirmation').setValue(true)
   await wrapper.get('[data-testid="reject-draft"]').trigger('click')
   expect(rest.review).not.toHaveBeenCalled()
+  wrapper.unmount()
+})
+
+it('bounds standalone OneMap queries to their request limit', async () => {
+  const wrapper = mount(LocationSearch, { props: { configured: true } })
   expect(wrapper.get('#location-query').attributes('maxlength')).toBe('120')
   await wrapper.get('#location-query').setValue('x'.repeat(121))
   await wrapper.get('[data-testid="location-search"]').trigger('submit')
   expect(rest.locations).not.toHaveBeenCalled()
+  wrapper.unmount()
 })
 
 it('honors an explicit server review-readiness veto in addition to frontend date checks', async () => {
@@ -859,7 +957,7 @@ it('honors an explicit server review-readiness veto in addition to frontend date
     ],
     nextCursor: null,
   })
-  const wrapper = mount(IngestionAdminPage)
+  const wrapper = mount(DraftQueue, { props: { revision: 0 } })
   await flushPromises()
   await wrapper.get('[data-testid="view-draft-1"]').trigger('click')
   await wrapper.get('#review-note').setValue('Checked dates')
@@ -900,6 +998,7 @@ it.each([
     })
     const wrapper = mount(IngestionAdminPage)
     await flushPromises()
+    await showImportWorkspace(wrapper)
     await wrapper.get('[data-testid="run-ingestion"]').trigger('click')
     expect(wrapper.get('[data-testid="run-ingestion"]').attributes('disabled')).toBeDefined()
     expect(rest.run).not.toHaveBeenCalled()
@@ -913,14 +1012,14 @@ it('recovers separate run and queue read errors without inventing records', asyn
   expect(wrapper.text()).toContain('Loading ingestion')
   await flushPromises()
   expect(wrapper.text()).toContain('Unable to load runs')
-  expect(wrapper.text()).toContain('Unable to load drafts')
+  expect(wrapper.text()).toContain('Unable to load imported deals')
   expect(wrapper.text()).not.toContain('private')
   const buttons = wrapper.findAll('button')
   await buttons.find((button) => button.text() === 'Retry runs')?.trigger('click')
-  await buttons.find((button) => button.text() === 'Retry drafts')?.trigger('click')
+  await buttons.find((button) => button.text() === 'Retry imported deals')?.trigger('click')
   await flushPromises()
   expect(wrapper.text()).toContain('No ingestion runs yet')
-  expect(wrapper.text()).toContain('No drafts match this status')
+  expect(wrapper.text()).toContain('No imported deals match this status')
 })
 
 it('blocks duplicate sign-ins and clears the password after rejected authentication', async () => {
@@ -979,6 +1078,7 @@ it('does not refresh or publish an old run result after logout', async () => {
   )
   const w = mount(IngestionAdminPage)
   await flushPromises()
+  await showImportWorkspace(w)
   await w.get('[data-testid="run-ingestion"]').trigger('click')
   await w.get('[data-testid="admin-sign-out"]').trigger('click')
   await flushPromises()
@@ -1036,14 +1136,130 @@ it('does not restore ingestion after a newer child permission denial closes a pe
         release = resolve
       }),
   )
-  // Exercise the D3 public changed/denied protocol without editing its owned component.
-  w.getComponent(DraftQueue).vm.$emit('changed')
+  // Exercise the source panel changed/denied protocol on the real page.
+  w.getComponent(SourcesPanel).vm.$emit('changed')
   await flushPromises()
-  w.getComponent(DraftQueue).vm.$emit('denied', 'FORBIDDEN')
+  w.getComponent(SourcesPanel).vm.$emit('denied', 'FORBIDDEN')
   await flushPromises()
   release(dashboard)
   await flushPromises()
   expect(w.text()).toContain('You do not have permission')
   expect(w.find('[aria-label="Ingestion counts"]').exists()).toBe(false)
   w.unmount()
+})
+
+it('keeps imported deals as a read-only handoff while switching task panels', async () => {
+  const importedId = '0123456789abcdef01234567'
+  rest.queue.mockResolvedValue({ items: [{ ...draft, id: importedId }], nextCursor: null })
+  const wrapper = mount(IngestionAdminPage)
+  await flushPromises()
+  expect(wrapper.get('#ingestion-workspace-tab-drafts').text()).toBe('Imported deals')
+  expect(wrapper.get('#ingestion-workspace-tab-drafts').attributes('aria-selected')).toBe('true')
+  const queue = wrapper.get('#ingestion-workspace-panel-drafts')
+  expect(queue.get(`#queue-title`).text()).toBe('Imported deals')
+  expect(queue.get(`[data-testid="open-imported-${importedId}"]`).attributes('href')).toContain(
+    '/admin/deals?dealId=',
+  )
+  expect(queue.find('#review-note').exists()).toBe(false)
+  expect(queue.find('#draft-category').exists()).toBe(false)
+  expect(queue.find('[data-testid="approve-draft"]').exists()).toBe(false)
+  expect(queue.find('[data-testid="reject-draft"]').exists()).toBe(false)
+  expect(wrapper.find('[aria-labelledby="accounts-title"]').exists()).toBe(false)
+  await wrapper.get('#ingestion-workspace-tab-failed').trigger('click')
+  expect(queue.attributes('hidden')).toBeDefined()
+  expect(queue.attributes('inert')).toBeDefined()
+  expect(wrapper.get('#ingestion-workspace-panel-failed').attributes('hidden')).toBeUndefined()
+  await wrapper.get('#ingestion-workspace-tab-drafts').trigger('click')
+  expect(queue.attributes('hidden')).toBeUndefined()
+  expect(queue.find(`[data-testid="open-imported-${importedId}"]`).exists()).toBe(true)
+  expect(rest.queue).toHaveBeenCalledTimes(1)
+  expect(rest.review).not.toHaveBeenCalled()
+  expect(rest.category).not.toHaveBeenCalled()
+  wrapper.unmount()
+})
+
+it('runs imports in the background while keeping workspaces and return navigation available', async () => {
+  const { createMemoryHistory, createRouter } = await import('vue-router')
+  const router = createRouter({
+    history: createMemoryHistory(),
+    routes: [{ path: '/admin/ingestion', component: IngestionAdminPage }],
+  })
+  await router.push('/admin/ingestion?returnTo=%2Fadmin%2Fdeals%3Ftab%3Devidence#sources-title')
+  rest.dashboard.mockResolvedValue({
+    ...dashboard,
+    source: { ...dashboard.source, enabled: true, reuseApproved: true },
+  })
+  let release!: (value: unknown) => void
+  rest.run.mockImplementationOnce(
+    () =>
+      new Promise((resolve) => {
+        release = resolve
+      }),
+  )
+  const wrapper = mount(IngestionAdminPage, { global: { plugins: [router] } })
+  await flushPromises()
+  expect(wrapper.get('#ingestion-workspace-tab-settings').text()).toBe('Sources & import')
+  expect(wrapper.get('#ingestion-workspace-tab-settings').attributes('aria-selected')).toBe('true')
+  expect(
+    wrapper.get('#ingestion-workspace-panel-runs').find('[data-testid="run-ingestion"]').exists(),
+  ).toBe(false)
+  const back = wrapper.findAll('a').find((link) => link.text() === '← Back to deal evidence')
+  expect(back).toBeDefined()
+  await wrapper.get('[data-testid="run-ingestion"]').trigger('click')
+  await flushPromises()
+  expect(wrapper.get('#ingestion-workspace-tab-failed').attributes('disabled')).toBeUndefined()
+  expect(back?.attributes('href')).toBe('/admin/deals?tab=evidence')
+  expect(wrapper.get('[data-testid="import-progress"]').text()).toContain('background')
+  await wrapper.get('#ingestion-workspace-tab-failed').trigger('click')
+  expect(wrapper.get('#ingestion-workspace-tab-failed').attributes('aria-selected')).toBe('true')
+  await router.push('/admin/ingestion?returnTo=%2Fadmin%2Fdeals%3Ftab%3Devidence#failed-posts')
+  await flushPromises()
+  expect(wrapper.get('#ingestion-workspace-tab-failed').attributes('aria-selected')).toBe('true')
+  expect(rest.run).toHaveBeenCalledTimes(1)
+  release({
+    runId: 'synthetic-run',
+    status: 'COMPLETED',
+    fetchedCount: 1,
+    createdCount: 1,
+    updatedCount: 0,
+    failedCount: 0,
+  })
+  await flushPromises()
+  expect(wrapper.get('#ingestion-workspace-tab-failed').attributes('disabled')).toBeUndefined()
+  expect(wrapper.get('#ingestion-workspace-tab-failed').attributes('aria-selected')).toBe('true')
+  expect(back?.attributes('href')).toBe('/admin/deals?tab=evidence')
+  await wrapper.get('#ingestion-workspace-tab-runs').trigger('click')
+  await flushPromises()
+  expect(wrapper.get('#ingestion-workspace-panel-runs').attributes('hidden')).toBeUndefined()
+  expect(wrapper.get('#ingestion-workspace-panel-runs').text()).toContain('Recent runs')
+  expect(
+    wrapper
+      .get('#ingestion-workspace-panel-runs')
+      .find('button[data-testid="run-ingestion"]')
+      .exists(),
+  ).toBe(false)
+  expect(rest.run).toHaveBeenCalledTimes(1)
+  wrapper.unmount()
+})
+
+it('opens overview deep links in the matching task and preserves the requested review status', async () => {
+  const { createMemoryHistory, createRouter } = await import('vue-router')
+  const router = createRouter({
+    history: createMemoryHistory(),
+    routes: [{ path: '/admin/ingestion', component: IngestionAdminPage }],
+  })
+  await router.push('/admin/ingestion?status=APPROVED#failed-posts')
+  const wrapper = mount(IngestionAdminPage, { global: { plugins: [router] } })
+  await flushPromises()
+  expect(wrapper.get('#ingestion-workspace-tab-failed').attributes('aria-selected')).toBe('true')
+  expect(rest.queue).toHaveBeenLastCalledWith({ limit: 20, status: 'APPROVED' })
+  await wrapper.get('#ingestion-workspace-tab-runs').trigger('click')
+  await flushPromises()
+  expect(router.currentRoute.value.hash).toBe('#runs-title')
+  expect(wrapper.get('#ingestion-workspace-panel-runs').attributes('hidden')).toBeUndefined()
+  await router.push('/admin/ingestion?status=REJECTED#queue-title')
+  await flushPromises()
+  expect(wrapper.get('#ingestion-workspace-tab-drafts').attributes('aria-selected')).toBe('true')
+  expect(rest.queue).toHaveBeenLastCalledWith({ limit: 20, status: 'REJECTED' })
+  wrapper.unmount()
 })

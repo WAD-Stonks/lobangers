@@ -110,6 +110,55 @@ it('uses only enabled Google with trusted callback destinations and removes untr
   })
   expect(wrapper.emitted('signedIn')).toBeUndefined()
 })
+it.each([
+  '/admin/deals?dealId=0123456789abcdef01234567&tab=review&returnTo=%2Fadmin%2Fmoderation',
+  '/admin/catalogue?kind=venues&merchantId=0123456789abcdef01234567',
+  '/admin/ingestion?postId=0123456789abcdef01234567#failed-posts',
+  '/admin/audit?userId=0123456789abcdef01234567',
+])('preserves the validated admin task through Google sign-in: %s', async (destination) => {
+  sdk.methods.mockResolvedValue({
+    password: true,
+    google: true,
+    emailOtp: false,
+    passwordRecovery: false,
+  })
+  sdk.social.mockResolvedValue({ error: null })
+  window.history.replaceState(null, '', destination)
+  const wrapper = mount(SharedSignIn, { props: { destination: destination.split(/[?#]/u)[0] } })
+  wrappers.push(wrapper)
+  await flushPromises()
+  await wrapper.get('[data-testid="google-sign-in"]').trigger('click')
+  await flushPromises()
+  const callback = new URL(destination, window.location.origin).href
+  expect(sdk.social).toHaveBeenCalledWith({
+    provider: 'google',
+    callbackURL: callback,
+    newUserCallbackURL: callback,
+    errorCallbackURL: callback,
+  })
+  window.history.replaceState(null, '', '/')
+})
+it.each([
+  '//evil.test/admin',
+  '/\\evil.test/admin',
+  '/login?redirect=//evil.test',
+  'javascript:alert(1)',
+])('refuses non-admin task callbacks: %s', async (destination) => {
+  sdk.methods.mockResolvedValue({
+    password: true,
+    google: true,
+    emailOtp: false,
+    passwordRecovery: false,
+  })
+  sdk.social.mockResolvedValue({ error: null })
+  window.history.replaceState(null, '', '/')
+  const wrapper = mount(SharedSignIn, { props: { destination } })
+  wrappers.push(wrapper)
+  await flushPromises()
+  await wrapper.get('[data-testid="google-sign-in"]').trigger('click')
+  await flushPromises()
+  expect(sdk.social.mock.calls[0]?.[0].callbackURL).toBe(new URL('/', window.location.origin).href)
+})
 it('binds a six digit sign-in code to email and prevents duplicate send and redemption', async () => {
   vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] })
   sdk.methods.mockResolvedValue({

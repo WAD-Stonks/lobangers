@@ -4,7 +4,13 @@ import { chooseOption } from '@web-tests/support/select'
 import { beforeEach, expect, it, vi } from 'vitest'
 import { defineComponent } from 'vue'
 
-beforeEach(() => confirmAdminIdentity(null))
+const directory = vi.hoisted(() => ({ merchant: vi.fn(), merchants: vi.fn(), venues: vi.fn() }))
+beforeEach(() => {
+  confirmAdminIdentity(null)
+  directory.merchant.mockReset()
+  directory.merchants.mockReset()
+  directory.venues.mockReset()
+})
 
 const id = '0123456789abcdef01234567'
 const detail = (extra = {}) => ({
@@ -85,7 +91,7 @@ it('records submission evidence and reviews using explicit captured operation pa
   await flushPromises()
   await wrapper.get('[data-testid="select-deal"]').trigger('click')
   await flushPromises()
-  await chooseOption(wrapper, '.action-picker .app-select', 'evidence')
+  await wrapper.get('#deal-editor-tab-evidence').trigger('click')
   await wrapper.get('[name="reference"]').setValue('https://merchant.example/campaign')
   await wrapper
     .get('[name="statement"]')
@@ -105,6 +111,7 @@ it('records submission evidence and reviews using explicit captured operation pa
     staffConfirmed: true,
   })
   expect(wrapper.text()).toContain('UNPUBLISHED')
+  await wrapper.get('#deal-editor-tab-review').trigger('click')
   await chooseOption(wrapper, '.action-picker .app-select', 'APPROVE')
   await wrapper.get('[name="note"]').setValue('Independent review')
   await wrapper.get('[name="confirm"]').setValue(true)
@@ -129,7 +136,7 @@ const methods = () => ({
   scopeEvidence: vi.fn(),
 })
 vi.mock('@web/lib/api-client', async () => ({
-  api: { adminDeals: {} },
+  api: { adminDeals: {}, adminCatalogue: directory },
   ApiClientError: (await import('@broke-oclock/api-client')).ApiClientError,
 }))
 it('mounts an operational directory and edits the captured identity/version with reason and confirmation', async () => {
@@ -186,5 +193,139 @@ it('locks a conflicted identity through list reloads and same-version refresh un
   await wrapper.get('[data-testid="refresh-deal"]').trigger('click')
   await flushPromises()
   expect((wrapper.get('[name="note"]').element as HTMLTextAreaElement).value).toBe('')
+  wrapper.unmount()
+})
+
+it('saves decimal prices and Singapore dates in API units without changing untouched timestamp precision', async () => {
+  const { default: Panel } = await import('@web/modules/admin-deals/DealsPanel.vue')
+  const client = methods()
+  client.detail.mockResolvedValue(
+    detail({
+      validFrom: '2026-11-03T02:30:45.123Z',
+      validUntil: '2026-11-04T03:00:00Z',
+    }),
+  )
+  const wrapper = mount(Panel, { attachTo: document.body, props: { client } })
+  await flushPromises()
+  await wrapper.get('[data-testid="select-deal"]').trigger('click')
+  await flushPromises()
+  expect(wrapper.get<HTMLInputElement>('[name="edit-priceMinor"]').element.value).toBe('12.90')
+  expect(wrapper.get<HTMLInputElement>('[name="edit-validFrom"]').element.value).toBe(
+    '2026-11-03T10:30:45.123',
+  )
+  await wrapper.get('[name="edit-priceMinor"]').setValue('0.29')
+  await wrapper.get('[name="edit-validUntil"]').setValue('2026-11-05T11:00:30.456')
+  await wrapper.get('[name="note"]').setValue('Corrected offer and end time')
+  await wrapper.get('[name="confirm"]').setValue(true)
+  await wrapper.get('[data-testid="save-content"]').trigger('click')
+  await flushPromises()
+  expect(client.content).toHaveBeenCalledWith(id, {
+    expectedContentVersion: 1,
+    expectedOperationVersion: 0,
+    note: 'Corrected offer and end time',
+    changes: { priceMinor: 29, validUntil: '2026-11-05T03:00:30.456Z' },
+  })
+  wrapper.unmount()
+})
+
+it('rejects fractional cents before dispatch and preserves the selected record while a write is pending', async () => {
+  const { default: Panel } = await import('@web/modules/admin-deals/DealsPanel.vue')
+  const client = methods()
+  const wrapper = mount(Panel, { attachTo: document.body, props: { client } })
+  await flushPromises()
+  await wrapper.get('[data-testid="select-deal"]').trigger('click')
+  await flushPromises()
+  await wrapper.get('[name="edit-priceMinor"]').setValue('1.001')
+  await wrapper.get('[name="note"]').setValue('Correct price')
+  await wrapper.get('[name="confirm"]').setValue(true)
+  await wrapper.get('[data-testid="save-content"]').trigger('click')
+  expect(wrapper.get('[role="alert"]').text()).toContain('two decimal places')
+  expect(client.content).not.toHaveBeenCalled()
+
+  let finish!: (row: ReturnType<typeof detail>) => void
+  client.content.mockReturnValueOnce(
+    new Promise((resolve) => {
+      finish = resolve
+    }),
+  )
+  await wrapper.get('[name="edit-priceMinor"]').setValue('1.00')
+  await wrapper.get('[data-testid="save-content"]').trigger('click')
+  await flushPromises()
+  expect(wrapper.get('.admin-workspace-back').attributes('disabled')).toBeDefined()
+  expect(wrapper.get('#deal-editor-tab-evidence').attributes('disabled')).toBeDefined()
+  expect(wrapper.get('[data-testid="select-deal"]').attributes('disabled')).toBeDefined()
+  await wrapper.get('.admin-workspace-back').trigger('click')
+  expect(wrapper.get('.admin-record-workspace').classes()).toContain('has-selection')
+  finish(detail({ priceMinor: 100, contentVersion: 2, operationVersion: 1 }))
+  await flushPromises()
+  expect(wrapper.get('.admin-workspace-back').attributes('disabled')).toBeUndefined()
+  wrapper.unmount()
+})
+
+it('keeps the complete outlet selection when directory search only returns a partial page', async () => {
+  const { default: Panel } = await import('@web/modules/admin-deals/DealsPanel.vue')
+  const client = methods()
+  const existingIds = Array.from({ length: 15 }, (_, index) => index.toString(16).padStart(24, '0'))
+  const addedId = 'aaaaaaaaaaaaaaaaaaaaaaaa'
+  directory.merchant.mockResolvedValue({ id, name: 'Selected merchant' })
+  directory.venues.mockResolvedValue({
+    items: [{ id: addedId, name: 'New outlet', address: 'Test address', selectable: true }],
+    nextCursor: null,
+  })
+  client.detail.mockResolvedValue(
+    detail({
+      merchantId: id,
+      applicability: 'SELECTED_OUTLETS',
+      selectedVenueIds: existingIds,
+      outletCount: 15,
+    }),
+  )
+  client.scope.mockResolvedValue(
+    detail({
+      merchantId: id,
+      applicability: 'SELECTED_OUTLETS',
+      selectedVenueIds: [...existingIds, addedId],
+      outletCount: 16,
+      operationVersion: 1,
+    }),
+  )
+  const wrapper = mount(Panel, { attachTo: document.body, props: { client } })
+  await flushPromises()
+  await wrapper.get('[data-testid="select-deal"]').trigger('click')
+  await flushPromises()
+  await wrapper.get('#deal-editor-tab-scope').trigger('click')
+  await flushPromises()
+  await wrapper.get('[data-testid="deal-scope-find-outlets"]').trigger('click')
+  await flushPromises()
+  await wrapper.get(`[data-testid="deal-scope-outlet-${addedId}"]`).setValue(true)
+  await wrapper.get('[name="note"]').setValue('Reviewed the complete outlet selection')
+  await wrapper.get('[name="confirm"]').setValue(true)
+  await wrapper.get('[data-testid="save-operation"]').trigger('click')
+  await flushPromises()
+  expect(client.scope).toHaveBeenCalledWith(id, {
+    expectedContentVersion: 1,
+    expectedOperationVersion: 0,
+    note: 'Reviewed the complete outlet selection',
+    applicability: 'SELECTED_OUTLETS',
+    merchantId: id,
+    venueIds: [...existingIds, addedId],
+  })
+  wrapper.unmount()
+})
+
+it('clears protected deal evidence when a merchant lookup loses permission', async () => {
+  const { default: Panel } = await import('@web/modules/admin-deals/DealsPanel.vue')
+  const { ApiClientError } = await import('@broke-oclock/api-client')
+  const client = methods()
+  client.detail.mockResolvedValue(detail({ merchantId: id }))
+  directory.merchant.mockRejectedValueOnce(new ApiClientError('FORBIDDEN', 403, 'Denied'))
+  const wrapper = mount(Panel, { attachTo: document.body, props: { client } })
+  await flushPromises()
+  await wrapper.get('[data-testid="select-deal"]').trigger('click')
+  await flushPromises()
+  await wrapper.get('#deal-editor-tab-scope').trigger('click')
+  await flushPromises()
+  expect(wrapper.text()).not.toContain('Synthetic meal')
+  expect(wrapper.emitted('denied')).toEqual([['FORBIDDEN']])
   wrapper.unmount()
 })

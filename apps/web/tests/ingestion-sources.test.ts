@@ -1,6 +1,7 @@
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
 import { api } from '@web/lib/api-client'
 import { useConfirm } from '@web/lib/use-confirm'
+import SourcesPanel from '@web/modules/ingestion-admin/SourcesPanel.vue'
 import IngestionAdminPage from '@web/pages/IngestionAdminPage.vue'
 import { AxiosError, type InternalAxiosRequestConfig } from 'axios'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
@@ -304,4 +305,140 @@ it('discards source rows after an uncertain write and requires an explicit fresh
   expect(panel().text()).toContain('Reload sources before trying again')
   expect(panel().find('[data-testid="toggle-source"]').exists()).toBe(false)
   expect(calls.filter((c) => c.method === 'patch')).toHaveLength(1)
+})
+
+it('allows source reads during an import while guarding source changes until it finishes', async () => {
+  wrapper = mount(SourcesPanel)
+  await panel().get('#source-name').setValue('Synthetic source')
+  await panel().get('#source-preview-url').setValue('https://t.me/s/SyntheticChannel')
+  await panel().get('[data-testid="load-sources"]').trigger('click')
+  await flushPromises()
+  await panel().get('input[type="checkbox"]').setValue(true)
+  await wrapper.setProps({ importRunning: true })
+
+  expect(panel().text()).toContain('Source changes will be available when it finishes')
+  for (const selector of [
+    '#source-name',
+    '#source-preview-url',
+    'input[type="checkbox"]',
+    '[data-testid="add-source"]',
+    '[data-testid="toggle-source"]',
+  ]) {
+    expect(panel().get(selector).attributes('disabled')).toBeDefined()
+  }
+  expect(panel().get('[data-testid="load-sources"]').attributes('disabled')).toBeUndefined()
+  await panel().get('form').trigger('submit')
+  await panel().get('[data-testid="toggle-source"]').trigger('click')
+  await panel().get('[data-testid="load-sources"]').trigger('click')
+  await flushPromises()
+  expect(
+    calls.filter((call) => call.method === 'get' && call.url === '/ingestion/sources'),
+  ).toHaveLength(2)
+  expect(calls.filter((call) => call.method === 'post' || call.method === 'patch')).toHaveLength(0)
+
+  await wrapper.setProps({ importRunning: false })
+  await flushPromises()
+  expect(panel().get('[data-testid="add-source"]').attributes('disabled')).toBeUndefined()
+  expect(panel().get('input[type="checkbox"]').attributes('disabled')).toBeUndefined()
+  expect(panel().get('[data-testid="toggle-source"]').attributes('disabled')).toBeDefined()
+  expect(panel().text()).not.toContain('Source changes will be available when it finishes')
+})
+
+it('keeps workspace navigation available while a source read is pending', async () => {
+  const page = await open()
+  await page.get('#ingestion-workspace-tab-settings').trigger('click')
+  let release!: (value: { status: number; data: unknown }) => void
+  const previous = handler
+  handler = (config) =>
+    config.url === '/ingestion/sources'
+      ? new Promise((resolve) => {
+          release = resolve
+        })
+      : previous(config)
+
+  await panel().get('[data-testid="load-sources"]').trigger('click')
+  expect(panel().attributes('aria-busy')).toBe('true')
+  expect(page.get('#ingestion-workspace-tab-drafts').attributes('disabled')).toBeUndefined()
+  await page.get('#ingestion-workspace-tab-drafts').trigger('click')
+  expect(page.get('#ingestion-workspace-tab-drafts').attributes('aria-selected')).toBe('true')
+
+  release(response({ items: [source], nextCursor: null }))
+  await flushPromises()
+  await page.get('#ingestion-workspace-tab-settings').trigger('click')
+  expect(panel().text()).toContain(source.name)
+})
+
+it('retains the mutation navigation lock through a conflicted source refresh without replaying', async () => {
+  const page = await open()
+  await page.get('#ingestion-workspace-tab-settings').trigger('click')
+  await panel().get('[data-testid="load-sources"]').trigger('click')
+  await flushPromises()
+  await panel().get('input[type="checkbox"]').setValue(true)
+  let release!: (value: { status: number; data: unknown }) => void
+  const previous = handler
+  handler = (config) =>
+    config.method === 'patch'
+      ? Promise.resolve(response({ error: { code: 'CONFLICT', message: 'Changed' } }, 409))
+      : config.url === '/ingestion/sources'
+        ? new Promise((resolve) => {
+            release = resolve
+          })
+        : previous(config)
+
+  await panel().get('[data-testid="toggle-source"]').trigger('click')
+  await flushPromises()
+  expect(page.get('#ingestion-workspace-tab-drafts').attributes('disabled')).toBeDefined()
+  expect(panel().get('[data-testid="load-sources"]').attributes('disabled')).toBeDefined()
+  expect(calls.filter((call) => call.method === 'patch')).toHaveLength(1)
+
+  release(
+    response({ items: [{ ...source, updatedAt: '2026-10-20T00:05:00.000Z' }], nextCursor: null }),
+  )
+  await flushPromises()
+  expect(page.get('#ingestion-workspace-tab-drafts').attributes('disabled')).toBeUndefined()
+  expect(panel().get('input[type="checkbox"]').element).toHaveProperty('checked', false)
+  expect(panel().get('[data-testid="toggle-source"]').attributes('disabled')).toBeDefined()
+  expect(calls.filter((call) => call.method === 'patch')).toHaveLength(1)
+})
+
+it('refreshes source versions before allowing mutations after an import', async () => {
+  wrapper = mount(SourcesPanel)
+  await panel().get('[data-testid="load-sources"]').trigger('click')
+  await flushPromises()
+  await panel().get('input[type="checkbox"]').setValue(true)
+  await wrapper.setProps({ importRunning: true })
+  let release!: (value: { status: number; data: unknown }) => void
+  handler = () =>
+    new Promise((resolve) => {
+      release = resolve
+    })
+  await wrapper.setProps({ importRunning: false })
+  expect(panel().get('[data-testid="add-source"]').attributes('disabled')).toBeDefined()
+  expect(panel().find('[data-testid="toggle-source"]').exists()).toBe(false)
+  release(
+    response({ items: [{ ...source, updatedAt: '2026-11-03T08:00:00.000Z' }], nextCursor: null }),
+  )
+  await flushPromises()
+  expect(panel().get('input[type="checkbox"]').element).toHaveProperty('checked', false)
+  expect(panel().get('[data-testid="toggle-source"]').attributes('disabled')).toBeDefined()
+})
+
+it('rechecks an initial source read that spans import completion', async () => {
+  wrapper = mount(SourcesPanel, { props: { importRunning: true } })
+  let release!: (value: { status: number; data: unknown }) => void
+  handler = () =>
+    new Promise((resolve) => {
+      release = resolve
+    })
+  await panel().get('[data-testid="load-sources"]').trigger('click')
+  await wrapper.setProps({ importRunning: false })
+  release(response({ items: [source], nextCursor: null }))
+  await flushPromises()
+  expect(calls.filter((call) => call.url === '/ingestion/sources')).toHaveLength(2)
+  expect(panel().get('[data-testid="add-source"]').attributes('disabled')).toBeDefined()
+  release(
+    response({ items: [{ ...source, updatedAt: '2026-11-03T08:00:00.000Z' }], nextCursor: null }),
+  )
+  await flushPromises()
+  expect(panel().get('[data-testid="add-source"]').attributes('disabled')).toBeUndefined()
 })

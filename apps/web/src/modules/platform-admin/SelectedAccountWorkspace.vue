@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import AdminTaskLink from '@web/components/admin/AdminTaskLink.vue'
 import TicketLoading from '@web/components/TicketLoading.vue'
 import { formatDateTime } from '@web/lib/format'
 import AccountAccessPanel from '@web/modules/platform-admin/AccountAccessPanel.vue'
@@ -7,8 +8,8 @@ import WorkspaceTabs from '@web/modules/platform-admin/WorkspaceTabs.vue'
 import AccountSecurityPanel from '@web/modules/platform-security/AccountSecurityPanel.vue'
 import { ref, watch } from 'vue'
 
-const props = defineProps<{ s: ReturnType<typeof usePlatformAdmin>; active: boolean }>()
-const emit = defineEmits<{ activity: []; close: [] }>()
+const props = defineProps<{ s: ReturnType<typeof usePlatformAdmin>; active: boolean; auditHref?: string }>()
+const emit = defineEmits<{ close: [] }>()
 const heading = ref<HTMLElement | null>(null)
 defineExpose({ focusHeading: () => heading.value?.focus() })
 const detailTab = ref('access')
@@ -35,7 +36,7 @@ watch([detailTab, () => props.active], (_value, previous) => {
       <dl class="account-metadata"><div><dt>Account ID:</dt><dd translate="no">{{ s.detail.data.id }}</dd></div><div><dt>Version</dt><dd>{{ s.detail.data.version }}</dd></div><div><dt>Created</dt><dd><time :datetime="s.detail.data.createdAt">{{ formatDateTime(s.detail.data.createdAt) }}</time></dd></div></dl>
       <div class="detail-tools">
         <button type="button" data-testid="reload-account" class="btn btn-outline-secondary" :disabled="s.busy || s.detail.loading" @click="s.selectAccount(s.selectedId)">Reload account</button>
-        <button type="button" data-testid="account-audit" class="btn btn-outline-secondary" :disabled="s.busy" @click="emit('activity')">View this account's audit</button>
+        <AdminTaskLink v-if="auditHref" data-testid="account-audit" class="btn btn-outline-secondary" :to="auditHref" :disabled="s.busy">View account audit history</AdminTaskLink>
       </div>
       <p v-if="s.accountError" role="alert">{{ s.accountError }}</p>
       <WorkspaceTabs v-model="detailTab" :tabs="detailTabs" id-prefix="account-detail" label="Account detail views" :disabled="s.busy" />

@@ -2,7 +2,6 @@ import type {
   MerchantRequest,
   PlatformAccountResponse,
   PlatformAccountSummary,
-  PlatformAuditEntry,
   PlatformVenue,
 } from '@broke-oclock/contracts/platform-admin'
 import { flushPromises, mount } from '@vue/test-utils'
@@ -164,7 +163,7 @@ it('composes a semantic account directory with exclusive keyboard-operated works
     expect(w.get('#accounts-workspace-panel-accounts').isVisible()).toBe(true)
     expect(w.get('#accounts-workspace-panel-accounts').attributes('inert')).toBeUndefined()
     expect(w.get('#accounts-workspace-panel-requests').attributes('hidden')).toBeDefined()
-    expect(w.get('#accounts-workspace-panel-activity').attributes('inert')).toBeDefined()
+    expect(w.find('#accounts-workspace-panel-activity').exists()).toBe(false)
     await w.get('#accounts-workspace-tab-accounts').trigger('keydown', { key: 'ArrowRight' })
     expect(w.get('#accounts-workspace-tab-requests').attributes('aria-selected')).toBe('true')
     expect(document.activeElement).toBe(w.get('#accounts-workspace-tab-requests').element)
@@ -172,12 +171,12 @@ it('composes a semantic account directory with exclusive keyboard-operated works
     expect(w.get('#accounts-workspace-panel-accounts').isVisible()).toBe(false)
     expect(w.get('#accounts-workspace-panel-requests').isVisible()).toBe(true)
     await w.get('#accounts-workspace-tab-requests').trigger('keydown', { key: 'End' })
-    expect(w.get('#accounts-workspace-panel-activity').isVisible()).toBe(true)
-    await w.get('#accounts-workspace-tab-activity').trigger('keydown', { key: 'Home' })
+    expect(w.get('#accounts-workspace-panel-requests').isVisible()).toBe(true)
+    await w.get('#accounts-workspace-tab-requests').trigger('keydown', { key: 'Home' })
     expect(w.get('#accounts-workspace-panel-accounts').isVisible()).toBe(true)
     expect(rest.accounts).toHaveBeenCalledTimes(1)
     expect(rest.requests).toHaveBeenCalledTimes(1)
-    expect(rest.audit).toHaveBeenCalledTimes(1)
+    expect(rest.audit).not.toHaveBeenCalled()
   } finally {
     w.unmount()
   }
@@ -358,7 +357,7 @@ it('coordinates account-security mutations with the existing account forms and r
   release?.({ id: account.id, version: 8, affectedSessionCount: 1 })
   await flushPromises()
   expect(rest.account).toHaveBeenCalledTimes(2)
-  expect(rest.audit).toHaveBeenCalledTimes(2)
+  expect(rest.audit).not.toHaveBeenCalled()
   expect(w.get('[aria-label="Account security"]').text()).toContain('SUSPENDED')
   expect((w.get('#account-confirm').element as HTMLInputElement).checked).toBe(false)
   w.unmount()
@@ -411,15 +410,13 @@ it('disables child security controls during an existing role mutation', async ()
 it('routes platform administration separately and uses server denial, not a client role', async () => {
   rest.accounts.mockRejectedValueOnce(new ApiClientError('UNAUTHORIZED', 401, 'Sign in required'))
   const wrapper = await open()
-  expect(wrapper.get('h1').text()).toBe('Accounts')
+  expect(wrapper.get('h1').text()).toBe('Sign in to manage accounts')
   expect(wrapper.text()).toContain('Sign in to manage accounts')
   expect(wrapper.find('input[type="password"]').exists()).toBe(true)
   expect(wrapper.find('[data-testid="nav-toggle"]').exists()).toBe(false)
   expect(wrapper.find('[data-testid="nav-menu"] a[href="/admin/accounts"]').exists()).toBe(false)
   expect(wrapper.find('[data-testid="nav-menu"] a[href="/admin/ingestion"]').exists()).toBe(false)
-  expect(wrapper.get('nav[aria-label="Administration"] a[href="/admin/accounts"]').text()).toBe(
-    'Accounts',
-  )
+  expect(wrapper.find('nav[aria-label="Administration"]').exists()).toBe(false)
   expect(rest.requests).not.toHaveBeenCalled()
 })
 
@@ -458,7 +455,7 @@ it('changes the selected account role only with a note and confirmation, then re
   expect(rest.account).toHaveBeenCalledTimes(2)
   expect(rest.accounts).toHaveBeenCalledTimes(2)
   expect(rest.requests).toHaveBeenCalledTimes(2)
-  expect(rest.audit).toHaveBeenCalledTimes(2)
+  expect(rest.audit).not.toHaveBeenCalled()
   expect((w.get('#account-note').element as HTMLTextAreaElement).value).toBe('')
   expect((w.get('#account-confirm').element as HTMLInputElement).checked).toBe(false)
   expect(w.text()).toContain(
@@ -643,27 +640,10 @@ it.each([true, false])(
   },
 )
 
-it('searches and paginates accounts and filters immutable audit transitions from server data', async () => {
+it('searches and paginates accounts without reading global audit history', async () => {
   rest.accounts
     .mockResolvedValueOnce({ items: [account], nextCursor: 'page-a' })
     .mockResolvedValue({ items: [{ ...account, id: 'user-b', name: 'Bob' }], nextCursor: null })
-  rest.audit.mockResolvedValue({
-    items: [
-      {
-        id: 'event-a',
-        actorId: 'admin-a',
-        actorName: 'Reviewer',
-        action: 'ROLE_CHANGED',
-        targetUserId: 'user-a',
-        venueId: null,
-        roleBefore: 'USER',
-        roleAfter: 'MERCHANT',
-        note: '<img src=x> Reviewed',
-        createdAt: account.createdAt,
-      },
-    ],
-    nextCursor: 'event-a',
-  })
   const w = await open()
   await w.get('[data-testid="more-accounts"]').trigger('click')
   await flushPromises()
@@ -676,16 +656,7 @@ it('searches and paginates accounts and filters immutable audit transitions from
   await flushPromises()
   expect(rest.accounts).toHaveBeenLastCalledWith({ search: 'Bob', role: 'MERCHANT', limit: 20 })
   expect(w.find('[data-testid="account-user-a"]').exists()).toBe(false)
-  await w.get('#accounts-workspace-tab-activity').trigger('click')
-  await w.get('#audit-user').setValue('user-a')
-  await w.get('#audit-filter-form').trigger('submit')
-  await flushPromises()
-  expect(rest.audit).toHaveBeenLastCalledWith({ userId: 'user-a', limit: 20 })
-  expect(w.get('section[aria-label="Audit history"]').text()).toContain('USER → MERCHANT')
-  expect(w.find('[aria-label="Audit history"] img').exists()).toBe(false)
-  await w.get('[data-testid="more-audit"]').trigger('click')
-  await flushPromises()
-  expect(rest.audit).toHaveBeenLastCalledWith({ userId: 'user-a', cursor: 'event-a', limit: 20 })
+  expect(rest.audit).not.toHaveBeenCalled()
 })
 
 it('keeps request conflict guards by identity across pagination and selection until fresh evidence', async () => {
@@ -885,9 +856,8 @@ it('ignores a late account-detail denial after another identity is selected', as
   expect(w.get('section[aria-label="Account details"]').text()).toContain('Bob')
   expect(w.get('section[aria-label="Account details"]').text()).toContain('Version 12')
 })
-it('ignores stale request-filter and audit-filter responses', async () => {
+it('ignores stale request-filter responses', async () => {
   const oldRequests = deferred<Page<MerchantRequest>>()
-  const oldAudit = deferred<Page<PlatformAuditEntry>>()
   const w = await open()
   rest.requests.mockReturnValueOnce(oldRequests.promise).mockResolvedValueOnce({
     items: [{ ...requestA, status: 'REJECTED', venueName: 'Current rejected' }],
@@ -898,22 +868,11 @@ it('ignores stale request-filter and audit-filter responses', async () => {
   await w.get('#accounts-workspace-tab-requests').trigger('click')
   await chooseOption(w, '#request-status', 'REJECTED')
   await flushPromises()
-  rest.audit
-    .mockReturnValueOnce(oldAudit.promise)
-    .mockResolvedValueOnce({ items: [], nextCursor: null })
-  await w.get('#accounts-workspace-tab-activity').trigger('click')
-  await w.get('#audit-user').setValue('old')
-  await w.get('#audit-filter-form').trigger('submit')
-  await w.get('#accounts-workspace-tab-activity').trigger('click')
-  await w.get('#audit-user').setValue('current')
-  await w.get('#audit-filter-form').trigger('submit')
-  await flushPromises()
   oldRequests.resolve({ items: [{ ...requestA, venueName: 'Old approved' }], nextCursor: null })
-  oldAudit.reject(new ApiClientError('FORBIDDEN', 403, 'Forbidden'))
   await flushPromises()
   expect(w.text()).toContain('Current rejected')
   expect(w.text()).not.toContain('Old approved')
-  expect(w.text()).toContain('No audit events match this filter.')
+  expect(rest.audit).not.toHaveBeenCalled()
 })
 it('ignores a stale venue search denial after a new search resolves', async () => {
   const old = deferred<Page<PlatformVenue>>()
@@ -1001,7 +960,7 @@ it.each(['account', 'request'] as const)(
     await flushPromises()
     expect(w.find('section[aria-label="Accounts"]').exists()).toBe(true)
     expect(w.find('section[aria-label="Merchant requests"]').exists()).toBe(true)
-    expect(w.find('section[aria-label="Audit history"]').exists()).toBe(true)
+    expect(w.find('section[aria-label="Audit history"]').exists()).toBe(false)
     expect(w.find('section[aria-label="Account details"]').exists()).toBe(false)
     expect(w.find('article[aria-label="Request details"]').exists()).toBe(false)
     expect(w.text()).toContain(
@@ -1037,7 +996,7 @@ it.each(['account', 'request'] as const)(
         w.find(`section[aria-label="${panel}"], article[aria-label="${panel}"]`).exists(),
       ).toBe(false)
     expect(rest.requests).toHaveBeenCalledTimes(1)
-    expect(rest.audit).toHaveBeenCalledTimes(1)
+    expect(rest.audit).not.toHaveBeenCalled()
     const retry = deferred<Page<PlatformAccountSummary>>()
     rest.accounts.mockReturnValueOnce(retry.promise)
     await w.get('[data-testid="retry-platform-admin"]').trigger('click')
@@ -1081,7 +1040,7 @@ for (const code of ['FORBIDDEN', 'UNAUTHORIZED'] as const) {
           w.find(`section[aria-label="${panel}"], article[aria-label="${panel}"]`).exists(),
         ).toBe(false)
       expect(rest.requests).toHaveBeenCalledTimes(1)
-      expect(rest.audit).toHaveBeenCalledTimes(1)
+      expect(rest.audit).not.toHaveBeenCalled()
       expect(mutation).toHaveBeenCalledTimes(1)
     },
   )
@@ -1142,20 +1101,151 @@ it('reports a completed write separately from a failed follow-up read without cl
   expect(w.find('#account-action-form').exists()).toBe(false)
 })
 
-it('exposes the selected account identity and filters its audit without manual ID transcription', async () => {
-  rest.accounts.mockResolvedValue({ items: [account], nextCursor: null })
-  rest.account.mockResolvedValue(account)
+it('links selected account history to Audit and restores the authoritative account on return', async () => {
+  const selected = { ...account, id: 'a'.repeat(24) }
+  rest.accounts.mockResolvedValue({ items: [selected], nextCursor: null })
+  rest.account.mockResolvedValue(selected)
   const w = await open('/admin/accounts', true)
-  await w.get('[data-testid="account-user-a"]').trigger('click')
-  await flushPromises()
-  expect(w.get('section[aria-label="Account details"]').text()).toContain('Account ID: user-a')
-  await w.get('[data-testid="account-audit"]').trigger('click')
-  await flushPromises()
-  expect(rest.audit).toHaveBeenLastCalledWith({ userId: account.id, limit: 20 })
-  expect((w.get('#audit-user').element as HTMLInputElement).value).toBe(account.id)
-  expect(w.get('#accounts-workspace-tab-activity').attributes('aria-selected')).toBe('true')
-  expect(document.activeElement).toBe(w.get('#accounts-workspace-tab-activity').element)
-  w.unmount()
+  try {
+    await w.get(`[data-testid="account-${selected.id}"]`).trigger('click')
+    await flushPromises()
+    expect(w.get('section[aria-label="Account details"]').text()).toContain(
+      `Account ID: ${selected.id}`,
+    )
+    const href = w.get('[data-testid="account-audit"]').attributes('href')
+    expect(href).toBeDefined()
+    const auditUrl = new URL(href ?? '', 'https://example.test')
+    expect(auditUrl.pathname).toBe('/admin/audit')
+    expect(auditUrl.searchParams.get('userId')).toBe(selected.id)
+    expect(auditUrl.searchParams.get('returnTo')).toBe(`/admin/accounts?accountId=${selected.id}`)
+    expect(rest.audit).not.toHaveBeenCalled()
+    await w.get('[data-testid="account-audit"]').trigger('click')
+    await flushPromises()
+    await vi.waitFor(() => {
+      expect(w.get('h1').text()).toBe('Audit investigation')
+      expect(rest.audit).toHaveBeenCalledTimes(1)
+    })
+    expect(rest.audit).toHaveBeenLastCalledWith({ limit: 25, userId: selected.id })
+    await w.get('a[href^="/admin/accounts?accountId="]').trigger('click')
+    await flushPromises()
+    await vi.waitFor(() => {
+      expect(w.get('section[aria-label="Account details"]').text()).toContain(
+        `Account ID: ${selected.id}`,
+      )
+    })
+    expect(rest.account).toHaveBeenLastCalledWith(selected.id)
+    expect(w.find('#accounts-workspace-tab-activity').exists()).toBe(false)
+  } finally {
+    w.unmount()
+  }
+})
+
+it('opens exact account links independently of directory search results and rejects malformed IDs', async () => {
+  const selected = { ...account, id: 'b'.repeat(24) }
+  rest.account.mockResolvedValue(selected)
+  const w = await open(`/admin/accounts?accountId=${selected.id}`)
+  try {
+    expect(rest.account).toHaveBeenCalledTimes(1)
+    expect(rest.account).toHaveBeenCalledWith(selected.id)
+    expect(w.get('section[aria-label="Account details"]').text()).toContain(selected.email)
+    expect(w.get('#accounts-workspace-tab-accounts').attributes('aria-selected')).toBe('true')
+  } finally {
+    w.unmount()
+  }
+  rest.account.mockClear()
+  const invalid = await open('/admin/accounts?accountId=not-an-account')
+  try {
+    expect(rest.account).not.toHaveBeenCalled()
+    expect(invalid.text()).toContain('This account link is invalid')
+  } finally {
+    invalid.unmount()
+  }
+})
+
+it('does not duplicate an in-flight account read when selection updates the route', async () => {
+  const selected = { ...account, id: 'd'.repeat(24) }
+  const pending = deferred<PlatformAccountResponse>()
+  rest.accounts.mockResolvedValue({ items: [selected], nextCursor: null })
+  rest.account.mockReturnValueOnce(pending.promise)
+  const w = await open()
+  try {
+    await w.get(`[data-testid="account-${selected.id}"]`).trigger('click')
+    await flushPromises()
+    expect(rest.account).toHaveBeenCalledExactlyOnceWith(selected.id)
+    expect(w.vm.$route.query.accountId).toBe(selected.id)
+    pending.resolve(selected)
+    await flushPromises()
+    expect(w.get('section[aria-label="Account details"]').text()).toContain(selected.id)
+  } finally {
+    w.unmount()
+  }
+})
+
+it('defers route-selected accounts and request filters until a pending account write settles', async () => {
+  const selected = { ...account, id: 'd'.repeat(24) }
+  const other = { ...account, id: 'e'.repeat(24), name: 'Other account' }
+  const pending = deferred<{ id: string; version: number }>()
+  rest.account.mockImplementation(async (id: string) => (id === other.id ? other : selected))
+  rest.changeRole.mockReturnValueOnce(pending.promise)
+  const w = await open(`/admin/accounts?accountId=${selected.id}`)
+  try {
+    await chooseOption(w, '#new-role', 'MERCHANT')
+    await w.get('#account-note').setValue('Review this exact account')
+    await w.get('#account-confirm').setValue(true)
+    await w.get('#account-action-form').trigger('submit')
+    expect(w.get('[data-testid="account-audit"]').attributes('href')).toBeUndefined()
+    await w.vm.$router.push(`/admin/accounts?accountId=${other.id}`)
+    await flushPromises()
+    expect(rest.account).not.toHaveBeenCalledWith(other.id)
+    expect(w.get('section[aria-label="Account details"]').text()).toContain(selected.id)
+    await w.vm.$router.push('/admin/accounts?requestStatus=REJECTED#merchant-requests')
+    await flushPromises()
+    expect(rest.requests).not.toHaveBeenCalledWith({ status: 'REJECTED', limit: 20 })
+    pending.resolve({ id: selected.id, version: 8 })
+    await flushPromises()
+    expect(rest.changeRole).toHaveBeenCalledExactlyOnceWith(selected.id, {
+      expectedVersion: 7,
+      role: 'MERCHANT',
+      note: 'Review this exact account',
+      confirmed: true,
+    })
+    expect(w.get('#accounts-workspace-tab-requests').attributes('aria-selected')).toBe('true')
+    expect(rest.requests).toHaveBeenLastCalledWith({ status: 'REJECTED', limit: 20 })
+    expect((w.get('#account-confirm').element as HTMLInputElement).checked).toBe(false)
+    expect(rest.account).not.toHaveBeenCalledWith(other.id)
+  } finally {
+    w.unmount()
+  }
+})
+
+it('opens the applicant account with a safe return to the originating request queue', async () => {
+  const selected = { ...account, id: 'c'.repeat(24) }
+  const request = { ...requestA, userId: selected.id, status: 'APPROVED' as const }
+  rest.requests.mockResolvedValue({ items: [request], nextCursor: null })
+  rest.account.mockResolvedValue(selected)
+  const w = await open('/admin/accounts?requestStatus=APPROVED#merchant-requests')
+  try {
+    await w.get(`[data-testid="request-${request.id}"]`).trigger('click')
+    const url = new URL(
+      w.get('[data-testid="request-account"]').attributes('href') ?? '',
+      'https://example.test',
+    )
+    expect(url.searchParams.get('accountId')).toBe(selected.id)
+    expect(url.searchParams.get('returnTo')).toBe(
+      '/admin/accounts?requestStatus=APPROVED#merchant-requests',
+    )
+    await w.get('[data-testid="request-account"]').trigger('click')
+    await flushPromises()
+    expect(w.get('section[aria-label="Account details"]').text()).toContain(selected.email)
+    await w.get('a[href*="requestStatus=APPROVED"]').trigger('click')
+    await flushPromises()
+    expect(w.get('#accounts-workspace-tab-requests').attributes('aria-selected')).toBe('true')
+    expect(selectedValue(w, '#request-status')).toBe('APPROVED')
+    expect(rest.reviewRequest).not.toHaveBeenCalled()
+    expect(rest.changeRole).not.toHaveBeenCalled()
+  } finally {
+    w.unmount()
+  }
 })
 
 it('discards confirmation entered while selected venue evidence is being refreshed', async () => {

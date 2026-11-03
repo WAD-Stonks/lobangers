@@ -1,0 +1,89 @@
+.catalogue-editor {
+  min-width: 0;
+}
+.catalogue-editor h3 {
+  margin: 0 0 12px;
+  font-size: 17px;
+}
+.catalogue-editor h4 {
+  margin: 0 0 16px;
+  font-size: 15px;
+}
+.catalogue-editor fieldset {
+  min-width: 0;
+}
+.catalogue-editor-intro {
+  margin: 12px 0 16px;
+  color: var(--admin-muted);
+  font-size: 13px;
+}
+.catalogue-record-details {
+  margin: 16px 0 20px;
+  padding: 12px 0;
+  border-block: 1px solid var(--admin-border);
+  color: var(--admin-muted);
+  font-size: 13px;
+}
+.catalogue-record-details summary {
+  cursor: pointer;
+}
+.catalogue-record-details p {
+  margin: 12px 0 0;
+  overflow-wrap: anywhere;
+}
+.catalogue-decision {
+  margin-top: 24px;
+  padding: 20px;
+  border: 1px solid var(--admin-accent-border);
+  border-radius: 16px;
+  background: var(--admin-accent-wash);
+}
+.catalogue-consequence {
+  margin: 16px 0 0;
+  color: var(--admin-secondary-text);
+  font-size: 13px;
+}
+.catalogue-decision .catalogue-consequence:first-of-type {
+  margin: 0 0 16px;
+}
+.catalogue-verification {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin: 16px 0;
+}
+.catalogue-verification > div {
+  padding: 12px;
+  border-radius: 12px;
+  background: var(--admin-subtle-bg);
+}
+.catalogue-verification dt {
+  margin-bottom: 8px;
+  color: var(--admin-muted);
+  font-size: 12px;
+}
+.catalogue-verification dd {
+  margin: 0;
+}
+.catalogue-receipts .list-group {
+  margin-top: 16px;
+}
+.catalogue-receipts .list-group-item {
+  color: var(--admin-text);
+  background: var(--admin-surface);
+  border-color: var(--admin-border);
+}
+.catalogue-hash {
+  display: block;
+  margin-block: 8px;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 575.98px) {
+  .catalogue-decision {
+    padding: 16px;
+  }
+  .catalogue-verification {
+    grid-template-columns: 1fr;
+  }
+}

@@ -3,13 +3,17 @@ import AdminShell from '@web/components/admin/AdminShell.vue'
 import SharedSignIn from '@web/components/auth/SharedSignIn.vue'
 import { confirmAdminIdentity } from '@web/lib/admin-recovery'
 import { createAdminReadFence } from '@web/lib/admin-session'
+import { adminReturnTo } from '@web/lib/admin-workflow-links'
 import { authClient } from '@web/lib/auth-client'
 import DealsPanel from '@web/modules/admin-deals/DealsPanel.vue'
-import { onMounted, onUnmounted, ref } from 'vue'
+import { computed, inject, onMounted, onUnmounted, ref } from 'vue'
+import { routeLocationKey } from 'vue-router'
 
 const access = ref<'loading' | 'allowed' | 'closed' | 'error' | 'UNAUTHORIZED' | 'FORBIDDEN'>(
   'loading',
 )
+const route = inject(routeLocationKey, null)
+const destination = computed(() => adminReturnTo(route?.fullPath) ?? '/admin/deals')
 const refreshKey = ref(0),
   fence = createAdminReadFence()
 const close = () => {
@@ -45,9 +49,9 @@ onMounted(reload)
 onUnmounted(fence.dispose)
 </script>
 <template>
- <AdminShell title="Deals operations" :refresh-key="refreshKey" @closing="close" @signed-out="denied('UNAUTHORIZED')" @access-reload="reload">
+ <AdminShell :access="access" title="Deals operations" :refresh-key="refreshKey" @closing="close" @signed-out="denied('UNAUTHORIZED')" @access-reload="reload">
   <p v-if="access === 'loading'" role="status">Checking session…</p>
-  <SharedSignIn v-else-if="access === 'UNAUTHORIZED'" title="Sign in to administer deals" destination="/admin/deals" @signed-in="signedIn" />
+  <SharedSignIn heading-level="h1" v-else-if="access === 'UNAUTHORIZED'" title="Sign in to administer deals" :destination="destination" @signed-in="signedIn" />
   <div v-else-if="access === 'FORBIDDEN'" role="alert"><p>Current administrator access is required.</p><button type="button" class="btn btn-outline-primary" @click="reload">Recheck access</button></div>
   <div v-else-if="access === 'error'" role="alert"><p>Unable to confirm session. Protected deal evidence remains closed.</p><button type="button" class="btn btn-outline-primary" @click="reload">Retry session check</button></div>
   <p v-else-if="access === 'closed'" role="status">Deal operations are closed. Use session controls to recheck access.</p>
