@@ -43,6 +43,8 @@ const mockRoom = async (page: Page, options: { spectator?: boolean } = {}) => {
     dealIndex: 0,
     round: 0,
     left: false,
+    closed: false,
+    removed: false,
     stances: { [ME]: null, [ASHLEY]: null, [DAMIEN]: null } as Record<string, Stance>,
     choices: {} as Record<string, string>,
     yays: {} as Record<string, number>,
@@ -82,9 +84,9 @@ const mockRoom = async (page: Page, options: { spectator?: boolean } = {}) => {
   })
   const state = () => ({
     code: CODE,
-    status: 'LIVE',
+    status: room.closed ? 'CLOSED' : 'LIVE',
     phase: room.phase,
-    closeReason: null,
+    closeReason: room.closed ? 'HOST_CLOSED' : null,
     capacity: 4,
     dealIndex: room.dealIndex,
     round: room.round,
@@ -95,7 +97,7 @@ const mockRoom = async (page: Page, options: { spectator?: boolean } = {}) => {
       member(ME, 'Allison', 'kopi', !options.spectator),
       member(ASHLEY, 'Ashley', 'bao', !!options.spectator),
       member(DAMIEN, 'Damien', 'kaya', false),
-    ].filter((item) => !(item.id === ME && room.left)),
+    ].filter((item) => !(item.id === ME && room.left) && !(item.id === DAMIEN && room.removed)),
     me: {
       memberId: ME,
       isHost: !options.spectator && !room.left,
@@ -135,6 +137,8 @@ const mockRoom = async (page: Page, options: { spectator?: boolean } = {}) => {
     }
     if (action === 'choices') room.choices[ME] = body.choice
     if (action === 'leave') room.left = true
+    if (action === 'close') room.closed = true
+    if (action === 'remove') room.removed = true
     if (action === 'join') room.left = false
     return route.fulfill({ json: state() })
   })
@@ -169,6 +173,36 @@ test('every tap plays, others show up as effects, and more than half is a match'
   room.others('YAY', null)
   await expect(page.getByTestId('squad-match')).toBeVisible({ timeout: 5000 })
   await expect(page.getByTestId('squad-match')).toContainText("It's a match!")
+})
+
+test('after a match anyone can vote to keep looking, and the host can close the room', async ({
+  page,
+}) => {
+  await mockPublicApi(page)
+  await mockSignedIn(page)
+  const room = await mockRoom(page)
+  await openRoom(page)
+  await page.getByTestId('squad-yay').click()
+  room.others('YAY', null)
+  await expect(page.getByTestId('squad-match')).toBeVisible({ timeout: 5000 })
+  await page.getByTestId('squad-keep-looking').click()
+  await expect(page.getByTestId('squad-keep-looking')).toHaveAttribute('aria-pressed', 'true')
+  await expect(page.locator('.squad-fx__whoosh')).toContainText('You wants to keep looking')
+  await page.getByTestId('squad-options').click()
+  await page.getByTestId('squad-close-room').click()
+  await page.getByTestId('squad-confirm').click()
+  await expect(page.getByText(/closed/i).first()).toBeVisible({ timeout: 5000 })
+})
+
+test('the host removes someone by tapping their face', async ({ page }) => {
+  await mockPublicApi(page)
+  await mockSignedIn(page)
+  await mockRoom(page)
+  await openRoom(page)
+  await page.getByRole('button', { name: 'Remove Damien' }).click()
+  await expect(page.getByRole('dialog', { name: 'Remove Damien?' })).toBeVisible()
+  await page.getByTestId('squad-confirm').click()
+  await expect(page.getByRole('button', { name: 'Remove Damien' })).toHaveCount(0)
 })
 
 test('a short vote asks everyone to vote again or move on', async ({ page }) => {
@@ -243,8 +277,14 @@ test('leaving asks first, and the room can be rejoined while open', async ({ pag
 
 test('live room screens for review', async ({ page }, info) => {
   test.setTimeout(120_000)
-  for (const width of [390, 834, 1280]) {
-    await page.setViewportSize({ width, height: 844 })
+  // 393×660 is an iPhone 14 Pro in Safari once its bars take their share.
+  for (const [width, height] of [
+    [390, 844],
+    [393, 660],
+    [834, 844],
+    [1280, 844],
+  ] as const) {
+    await page.setViewportSize({ width, height })
     await page.unrouteAll()
     await mockPublicApi(page)
     await mockSignedIn(page)
@@ -252,10 +292,10 @@ test('live room screens for review', async ({ page }, info) => {
     await openRoom(page)
     for (const _ of [1, 2]) await page.getByTestId('squad-yay').click()
     await page.waitForTimeout(700)
-    await page.screenshot({ path: info.outputPath(`squad-voting-${width}.png`) })
+    await page.screenshot({ path: info.outputPath(`squad-voting-${width}x${height}.png`) })
     room.others('YAY', null)
     await expect(page.getByTestId('squad-match')).toBeVisible({ timeout: 5000 })
     await page.waitForTimeout(600)
-    await page.screenshot({ path: info.outputPath(`squad-match-${width}.png`) })
+    await page.screenshot({ path: info.outputPath(`squad-match-${width}x${height}.png`) })
   }
 })

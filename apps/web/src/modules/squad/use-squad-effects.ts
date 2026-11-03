@@ -2,8 +2,8 @@ import type { SquadAvatar } from '@broke-oclock/contracts/squad'
 import { shallowRef } from 'vue'
 
 // The room's effects: a yay flies the voter's face from their seat and sticks it onto the deal
-// photo with a "YAY!!" burst; a nah spills thumbs-down from the top; choosing to vote again or
-// move on whooshes a chip across. Stickers only land on the photo, so text stays readable, and
+// photo with a "YAY!!" burst; a nah spills thumbs-down from the top; choosing to vote again,
+// move on or keep looking after a match whooshes a chip across. Stickers only land on the photo, so text stays readable, and
 // every list is capped so spamming never piles up work.
 
 const MAX_STICKERS = 14
@@ -31,7 +31,14 @@ export type Drop = {
   readonly delay: number
   readonly rotate: number
 }
-export type Whoosh = { readonly id: number; readonly text: string; readonly kind: 'again' | 'next' }
+export type WhooshKind = 'again' | 'next' | 'look'
+export type Whoosh = { readonly id: number; readonly text: string; readonly kind: WhooshKind }
+
+const WHOOSH_TEXT: Record<WhooshKind, (name: string) => string> = {
+  again: (name) => `${name} wants to vote again`,
+  next: (name) => `${name} wants the next deal`,
+  look: (name) => `${name} wants to keep looking`,
+}
 
 type Box = { left: number; top: number; width: number; height: number }
 
@@ -83,9 +90,9 @@ export const useSquadEffects = (random: () => number = Math.random) => {
     })
   }
 
-  const whoosh = (kind: 'again' | 'next', name: string) => {
+  const whoosh = (kind: WhooshKind, name: string) => {
     const id = nextId++
-    const text = kind === 'again' ? `${name} wants to vote again` : `${name} wants the next deal`
+    const text = WHOOSH_TEXT[kind](name)
     whooshes.value = [...whooshes.value, { id, text, kind }].slice(-4)
     later(WHOOSH_MS, () => {
       whooshes.value = whooshes.value.filter((item) => item.id !== id)

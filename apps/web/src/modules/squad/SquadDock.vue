@@ -5,14 +5,16 @@ import { computed } from 'vue'
 import type { RouteLocationRaw } from 'vue-router'
 
 // What the room does next, at the bottom where thumbs reach: Yay and Nah while voting (tap as
-// often as you like), Vote again or Next deal once a vote falls short, the match, or the end
-// of the list. People who joined late watch; the buttons tell them why they can't vote.
+// often as you like), Vote again or Next deal once a vote falls short, the match (with a Keep
+// looking vote in case the squad changes its mind), or the end of the list. People who joined
+// late watch; the buttons tell them why they can't vote. `feed` is the latest thing someone did.
 // `dealLink` builds the deal page link, so "Open the deal" is a real link.
 const props = defineProps<{
   state: SquadState
   deal: SquadDeal | null
   busy: boolean
   dealLink: (dealId: string) => RouteLocationRaw
+  feed?: string
 }>()
 const emit = defineEmits<{
   tap: [stance: 'YAY' | 'NAH']
@@ -46,6 +48,7 @@ const percent = computed(() =>
         <span><strong>{{ tally.yesPeople }} of {{ tally.voters }}</strong> say yay · {{ tally.voted }} voted</span>
         <span class="squad-tally__bar" aria-hidden="true"><i :style="{ transform: `scaleX(${percent / 100})` }" /></span>
         <span class="squad-tally__rule">More than half needed</span>
+        <span class="squad-tally__feed" aria-hidden="true">{{ feed }}</span>
       </div>
       <p v-if="spectator" class="squad-dock__note">You joined after the room started, so you're watching this one.</p>
       <div class="squad-dock__votes">
@@ -90,9 +93,21 @@ const percent = computed(() =>
     </template>
 
     <template v-else-if="state.phase === 'MATCHED' && matched">
-      <div class="squad-dock__actions">
-        <a v-if="directions(matched)" class="lb-btn lb-btn--primary" :href="directions(matched) ?? undefined" target="_blank" rel="noopener noreferrer">Get directions</a>
-        <RouterLink class="lb-btn squad-btn-dark" :to="dealLink(matched.id)">Open the deal</RouterLink>
+      <p class="squad-dock__note">Changed your mind? Keep looking moves on once 80% pick it. {{ tally.next }} of {{ tally.voters }} so far.</p>
+      <div class="squad-dock__match">
+        <button
+          type="button"
+          class="squad-vote squad-vote--next"
+          :class="{ 'is-chosen': myChoice === 'NEXT' }"
+          data-testid="squad-keep-looking"
+          :disabled="spectator || busy"
+          :aria-pressed="myChoice === 'NEXT'"
+          @click="emit('choose', 'NEXT')"
+        >
+          Keep looking <span class="squad-vote__count">{{ tally.next }} of {{ tally.voters }}</span>
+        </button>
+        <a v-if="directions(matched)" class="lb-btn lb-btn--primary squad-dock__go" :href="directions(matched) ?? undefined" target="_blank" rel="noopener noreferrer">Get directions</a>
+        <RouterLink v-else class="lb-btn lb-btn--primary squad-dock__go" :to="dealLink(matched.id)">Open the deal</RouterLink>
       </div>
     </template>
 
