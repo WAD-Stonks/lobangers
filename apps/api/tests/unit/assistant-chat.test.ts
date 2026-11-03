@@ -13,6 +13,7 @@ import {
   NO_FILTERS,
   NO_MATCH_REPLY,
 } from '@api/modules/assistant/chat'
+import { findPlace } from '@api/modules/assistant/places'
 import { buildSystemPrompt } from '@api/modules/assistant/prompt'
 import { createRateLimiter } from '@api/modules/assistant/runtime'
 import { assistantChatResponseSchema } from '@broke-oclock/contracts/assistant'
@@ -140,6 +141,61 @@ describe('Lobbie catalogue', () => {
   })
 })
 
+describe('Lobbie places', () => {
+  it('finds the station a question names, longest name first', () => {
+    expect(findPlace(['any lobangs near phoenix mrt station?'])?.name).toBe('Phoenix LRT station')
+    expect(findPlace(['Cheap eats at Tampines East'])?.name).toBe('Tampines East MRT station')
+    expect(findPlace(['bubble tea around one-north'])?.name).toBe('one-north MRT station')
+    expect(findPlace(['Orchard MRT kopi'])?.name).toBe('Orchard MRT station')
+  })
+
+  it('ignores station names said in passing and lets "near me" take over', () => {
+    expect(findPlace(['cheap eats near me'])).toBeNull()
+    expect(findPlace(['is the expo deal still pending?'])).toBeNull()
+    expect(findPlace(['deals near bugis', 'what about drinks?'])?.name).toBe('Bugis MRT station')
+    expect(findPlace(['deals near bugis', 'actually, anything near me?'])).toBeNull()
+  })
+
+  it('measures walks from the named station instead of the person', async () => {
+    const phoenixOutlet = {
+      id: 'f'.repeat(24),
+      name: 'Synthetic Phoenix Cafe',
+      lat: 1.379,
+      lng: 103.7585,
+    }
+    const phoenix = deal({
+      id: '1'.repeat(24),
+      title: 'Synthetic toast set',
+      venues: [phoenixOutlet],
+    })
+    const model = fakeModel({
+      reply: 'Found some near Phoenix!',
+      dealIds: [phoenix.id, KOPI.id],
+      filters: {
+        maxPriceDollars: 0,
+        endingToday: false,
+        maxWalkMinutes: 15,
+        categories: [],
+        cuisines: [],
+      },
+    })
+    const answer = await answerChat({
+      deals: [KOPI, phoenix],
+      messages: [{ role: 'user', text: 'any lobangs near phoenix mrt station?' }],
+      position: HERE,
+      filters: NO_FILTERS,
+      now: NOW,
+      generate: model.generate,
+    })
+    expect(answer.deals.map((item) => item.id)).toEqual([phoenix.id])
+    const system = model.calls[0]?.system ?? ''
+    expect(answer.place?.name).toBe('Phoenix LRT station')
+    expect(system).toContain('walks are measured from Phoenix LRT station')
+    expect(system).not.toContain('103.758')
+    expect(system.indexOf(phoenix.id)).toBeLessThan(system.indexOf(KOPI.id))
+  })
+})
+
 describe('Lobbie answers', () => {
   it('returns the picked deals in order with the filters it understood', async () => {
     const model = fakeModel({
@@ -241,6 +297,7 @@ describe('Lobbie answers', () => {
       reply: NO_MATCH_REPLY,
       deals: [],
       filters: NO_FILTERS,
+      place: null,
     })
   })
 

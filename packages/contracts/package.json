@@ -28,6 +28,7 @@
     "./community-policy": "./src/community-policy.ts",
     "./flash-drops": "./src/flash-drops.ts",
     "./presence": "./src/presence.ts",
+    "./rail-stations": "./src/rail-stations.ts",
     "./squad": "./src/squad.ts"
   },
   "scripts": {

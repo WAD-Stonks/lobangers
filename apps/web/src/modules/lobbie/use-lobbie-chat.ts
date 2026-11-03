@@ -33,6 +33,7 @@ export type LobbieEntry =
       readonly role: 'assistant'
       readonly text: string
       readonly deals: readonly DealPin[]
+      readonly place: Coordinates | null
       readonly failed: boolean
       readonly sprite: LobbieSprite
     }
@@ -48,6 +49,7 @@ const GREETING: LobbieEntry = {
   role: 'assistant',
   text: LOBBIE_GREETING,
   deals: [],
+  place: null,
   failed: false,
   sprite: 'hello',
 }
@@ -89,6 +91,7 @@ export const createLobbieChat = ({ position, send = (body) => api.assistant.chat
         role: 'assistant',
         text: answer.reply,
         deals: answer.deals,
+        place: answer.place,
         failed: false,
         sprite: replySprite(answer.deals),
       })
@@ -99,6 +102,7 @@ export const createLobbieChat = ({ position, send = (body) => api.assistant.chat
         role: 'assistant',
         text: busy ? BUSY_REPLY : FAILED_REPLY,
         deals: [],
+        place: null,
         failed: true,
         sprite: 'thinking',
       })
@@ -120,16 +124,19 @@ export const createLobbieChat = ({ position, send = (body) => api.assistant.chat
     push({ id: nextId++, role: 'notice', text: 'Cleared all filters' })
   }
 
-  const rowsFor = (deals: readonly DealPin[]): readonly DealRow[] =>
-    deals.flatMap((deal) => toDealRows(toVenuePins([deal]), position.value))
+  const rowsFor = (
+    deals: readonly DealPin[],
+    place: Coordinates | null = null,
+  ): readonly DealRow[] =>
+    deals.flatMap((deal) => toDealRows(toVenuePins([deal]), place ?? position.value))
 
-  const latestDeals = computed(() => {
+  const latestAnswer = computed(() => {
     const latest = [...entries.value].reverse().find((entry) => entry.role === 'assistant')
-    return latest?.role === 'assistant' ? latest.deals : []
+    return latest?.role === 'assistant' ? latest : null
   })
   const resultPins = computed<readonly VenuePin[]>(() => {
     const pins = new Map<string, VenuePin>()
-    for (const row of rowsFor(latestDeals.value)) {
+    for (const row of rowsFor(latestAnswer.value?.deals ?? [], latestAnswer.value?.place)) {
       const existing = pins.get(row.venue.id)
       pins.set(
         row.venue.id,

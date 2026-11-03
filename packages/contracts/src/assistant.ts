@@ -59,6 +59,14 @@ export const assistantChatResponseSchema = z.strictObject({
   reply: z.string().min(1).max(ASSISTANT_REPLY_MAX_CHARS),
   deals: z.array(dealPinSchema).max(ASSISTANT_RESULT_MAX),
   filters: assistantFiltersSchema,
+  place: z
+    .strictObject({
+      name: z.string().min(1).max(80),
+      lat: z.number().min(-90).max(90),
+      lng: z.number().min(-180).max(180),
+    })
+    .nullable()
+    .default(null),
 })
 
 export type AssistantMessage = z.infer<typeof assistantMessageSchema>

@@ -31,12 +31,17 @@ watch(visible, async (prompt) => {
     heading.value?.focus({ preventScroll: true })
   } else returnFocus?.focus()
 }, { immediate: true })
-const cancel = () => { if (authPrompt.value) authPrompt.value.resolve(null); else void router.push('/browse') }
+const cancel = () => {
+  if (authPrompt.value) authPrompt.value.resolve(null)
+  else if (router.options.history.state.back) router.back()
+  else void router.push('/browse')
+}
 </script>
 
 <template>
   <section v-if="visible" class="auth-prompt" aria-labelledby="auth-prompt-title" @keydown.esc="cancel">
     <div class="auth-prompt__content auth-prompt__content--saved">
+      <button class="auth-prompt__back" type="button" @click="cancel"><ShellIcon name="back" :size="16" />Back</button>
       <svg class="saved-prompt__illustration" viewBox="0 0 540 330" aria-hidden="true" focusable="false">
         <defs>
           <linearGradient id="saved-yellow" x2="1" y2="1"><stop stop-color="#ffe976" /><stop offset="1" stop-color="#f8cc35" /></linearGradient>
@@ -92,13 +97,15 @@ const cancel = () => { if (authPrompt.value) authPrompt.value.resolve(null); els
 <style scoped>
 /* Light values are the original literals; dark mode swaps the pale washes for warm charcoal so the
    illustration and benefit rows do not glare on the dark card. */
-.auth-prompt { --saved-blob: #fff8e6; --saved-benefit-bg: #fbfaf7; --saved-icon-bg: #fff0b4; height: 100%; overflow-y: auto; color: var(--ink); background: var(--paper-white); }
+.auth-prompt { --saved-blob: #fff8e6; --saved-benefit-bg: var(--paper-white); --saved-icon-bg: #fff0b4; height: 100%; overflow-y: auto; color: var(--ink); background: var(--page-background, var(--paper-white)); }
 .app-palette[data-theme='dark'] .auth-prompt { --saved-blob: var(--sunny-wash); --saved-benefit-bg: var(--paper-hover); --saved-icon-bg: var(--sunny-soft); }
 .auth-prompt__content { position: relative; display: grid; gap: 12px; padding: 40px 28px 24px; }
 .auth-prompt__more { margin-top: 16px; padding-top: 8px; border-top: 1px solid var(--hairline); text-align: left; }
 h2 { outline: none; margin: 0; font-size: 1.5rem; }
 p { margin: 0 0 12px; color: var(--ink-muted); line-height: 1.5; }
 button { min-height: 44px; border-radius: 12px; font-weight: 650; }
+.auth-prompt__back { display: inline-flex; align-items: center; justify-self: start; gap: 6px; min-height: var(--hit); margin: -12px 0 0; padding: 0; border: 0; background: transparent; font: 700 0.8125rem/1 var(--font-sans); color: var(--ink-muted); cursor: pointer; }
+.auth-prompt__back:hover { color: var(--ink); }
 .auth-prompt__primary { border: 1px solid var(--sunny); background: var(--sunny); color: var(--on-accent); }
 .auth-prompt__secondary { border: 1px solid var(--hairline); background: var(--paper-white); color: var(--ink); }
 .auth-prompt__primary, .auth-prompt__secondary { cursor: pointer; touch-action: manipulation; transition: background-color 150ms ease, border-color 150ms ease; }

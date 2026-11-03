@@ -1,4 +1,5 @@
 import { type CatalogueEntry, catalogueLine, describeNow } from '@api/modules/assistant/catalogue'
+import type { Place } from '@api/modules/assistant/places'
 import { ASSISTANT_RESULT_MAX, type AssistantFilters } from '@broke-oclock/contracts/assistant'
 import { DEAL_CATEGORIES } from '@broke-oclock/contracts/deal-categories'
 import { DEAL_CUISINES } from '@broke-oclock/contracts/deal-cuisines'
@@ -9,7 +10,7 @@ How to pick deals
 - Recommend only deals from DEALS, by their exact id. Never invent deals, prices, outlets, dates or discounts.
 - Choose up to ${ASSISTANT_RESULT_MAX} deals that fit best, best match first. Fewer is fine. Each one must meet every constraint the person stated.
 - Prices: "pay $X" is the price. Deals marked "no fixed price" (1-for-1, % off) only fit a budget when nothing priced fits.
-- "Cheap" with no number means favour the lowest prices. "Near me", "nearby" or "around here" means favour the shortest walk; set maxWalkMinutes to 15 unless they give a time.
+- "Cheap" with no number means favour the lowest prices. "Near me", "nearby" or "around here" means favour the shortest walk; set maxWalkMinutes to 15 unless they give a time. When Location names a place, "near" that place works the same way, and walks are already measured from it.
 - "Ending today" or "last chance" means only deals that say "ends today".
 - Meal words like breakfast, lunch, dinner or supper describe food, not an opening time; every deal listed is on right now.
 - Follow-ups ("anything cheaper?", "what about drinks?") refine the request: keep the ACTIVE FILTERS unless the latest message replaces them.
@@ -24,6 +25,7 @@ Reply
 - Warm, upbeat and casual, like a friendly foodie. Light seafood or claw puns are welcome but do it sparingly, do not say "Pinch me". Do not use emojis. Do not use em dashes (—); use a comma, full stop or "and" instead.
 - One or two short sentences, under 60 words. The deal cards show titles and prices, so do not list deals; you may point out a single standout from your picks.
 - Never state how many deals you found.
+- When Location names a place, say the deals are near that place by name, never "near you" or "nearby".
 - If walk is unknown for every deal and they asked for nearby deals, mention that turning on location helps you find closer ones.
 
 Boundaries
@@ -45,15 +47,23 @@ export const describeFilters = (filters: AssistantFilters): string => {
   return parts.length > 0 ? parts.join('; ') : 'none'
 }
 
+const describeLocation = (options: { located: boolean; place?: Place | null }): string => {
+  if (options.place)
+    return `walks are measured from ${options.place.name}, the place they asked about`
+  return options.located
+    ? 'shared, so walks are measured from the person'
+    : 'not shared, so walks are unknown'
+}
+
 export const buildSystemPrompt = (
   catalogue: readonly CatalogueEntry[],
-  options: { now: Date; located: boolean; filters: AssistantFilters },
+  options: { now: Date; located: boolean; place?: Place | null; filters: AssistantFilters },
 ): string =>
   [
     RULES,
     '',
     `Now: ${describeNow(options.now)}.`,
-    `Location: ${options.located ? 'shared, so walks are measured from the person' : 'not shared, so walks are unknown'}.`,
+    `Location: ${describeLocation(options)}.`,
     `ACTIVE FILTERS: ${describeFilters(options.filters)}.`,
     '',
     'DEALS (one per line: id | title | category | cuisine | offer | end | nearest outlet | walk | outlets | verification | about)',

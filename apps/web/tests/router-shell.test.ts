@@ -228,9 +228,19 @@ describe('map shell routes', () => {
 
   it('uses standalone login when saving from All Deals and supports switching to sign-up', async () => {
     const { wrapper, router } = await mountAt('/deals')
+    const list = router.currentRoute.value.fullPath
     await wrapper.get('[data-testid="item-save"]').trigger('click')
     await flushPromises()
     expect(router.currentRoute.value.name).toBe('auth-required')
+    const state = vi.spyOn(router.options.history, 'state', 'get').mockReturnValue({ back: list })
+    await defined(
+      wrapper.findAll('.auth-prompt button').find((button) => button.text() === 'Back'),
+    ).trigger('click')
+    await flushPromises()
+    state.mockRestore()
+    expect(router.currentRoute.value.fullPath).toBe(list)
+    await wrapper.get('[data-testid="item-save"]').trigger('click')
+    await flushPromises()
     await defined(
       wrapper.findAll('.auth-prompt button').find((button) => button.text() === 'Log in'),
     ).trigger('click')

@@ -4,6 +4,7 @@ import {
   type Coordinates,
   walkMinutesFor,
 } from '@api/modules/assistant/catalogue'
+import { findPlace } from '@api/modules/assistant/places'
 import { buildSystemPrompt, RESPONSE_SCHEMA } from '@api/modules/assistant/prompt'
 import {
   ASSISTANT_REPLY_MAX_CHARS,
@@ -125,8 +126,9 @@ export const answerChat = async (input: {
     .filter((message) => message.role === 'user')
     .slice(-RECENT_USER_TURNS)
     .map((message) => message.text)
+  const place = findPlace(recentUserTexts)
   const catalogue = buildCatalogue(input.deals, {
-    position: input.position,
+    position: place ?? input.position,
     now: input.now,
     recentUserTexts,
   })
@@ -135,6 +137,7 @@ export const answerChat = async (input: {
     system: buildSystemPrompt(catalogue, {
       now: input.now,
       located: input.position !== null,
+      place,
       filters: input.filters,
     }),
     turns: input.messages.map((message) => ({
@@ -157,5 +160,10 @@ export const answerChat = async (input: {
       ? NO_MATCH_REPLY
       : cleanReply(output.reply) || (kept.length > 0 ? FALLBACK_REPLY : NO_MATCH_REPLY)
 
-  return { reply, deals: kept.map((entry) => entry.deal), filters }
+  return {
+    reply,
+    deals: kept.map((entry) => entry.deal),
+    filters,
+    place: place && { name: place.name, lat: place.lat, lng: place.lng },
+  }
 }

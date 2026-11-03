@@ -31,6 +31,9 @@ vi.mock('leaflet.markercluster', () => ({}))
 vi.mock('@web/modules/map-ambient/ambient-layer', () => ({
   mountAmbient: () => ({ dispose: vi.fn() }),
 }))
+vi.mock('@web/modules/browse-map/station-layer', () => ({
+  mountStations: () => ({ dispose: vi.fn() }),
+}))
 
 // Model Leaflet's synchronous moveend and cancellable animated camera. Projection is
 // deliberately simple: these tests exercise camera ownership, not Leaflet geography.
