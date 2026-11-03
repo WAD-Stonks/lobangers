@@ -774,9 +774,7 @@ test('connected aged admin UI renews native session without replacing identity o
     resolve(artifacts, 'aged-session-renewal.json'),
     JSON.stringify({ before, after, native }, null, 2),
   )
-  expect(
-    native.some((entry) => ['GET', 'POST'].includes(entry.method) && entry.status === 200),
-  ).toBe(true)
+  expect(native.some((entry) => entry.method === 'POST' && entry.status === 200)).toBe(true)
   expect(after.expiresAt).toBeGreaterThan(before.expiresAt)
   expect(after).toEqual({ ...before, expiresAt: after.expiresAt, recordStatus: 'PENDING' })
   expect(await identity(page)).toEqual({ id: user.id, role: 'ADMIN', verified: true })

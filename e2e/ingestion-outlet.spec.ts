@@ -143,8 +143,6 @@ async function boundary(page: Page) {
       return reply({ items: [], nextCursor: null })
     if (path === '/api/ingestion/runs') return reply({ items: [] })
     if (path === '/api/ingestion/accounts') return reply({ items: [], nextCursor: null })
-    if (path === '/api/account/bookmarks' && method === 'GET')
-      return reply({ items: [], nextCursor: null })
     if (path === '/api/ingestion/drafts' && method === 'GET') {
       state.reads++
       events.push({ event: 'draft-read-start', version: state.current.contentVersion })

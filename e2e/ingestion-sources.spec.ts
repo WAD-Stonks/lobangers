@@ -124,8 +124,6 @@ const installBoundary = async (page: Page) => {
       source.enabled = body.enabled === true
       source.updatedAt = source.enabled ? '2026-10-20T00:00:01.000Z' : '2026-10-20T00:00:02.000Z'
       data = source
-    } else if (path === '/api/account/bookmarks' && request.method() === 'GET')
-      data = { items: [], nextCursor: null }
     } else throw new Error(`Unexpected synthetic request ${request.method()} ${path}`)
     await route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(data) })
   })
