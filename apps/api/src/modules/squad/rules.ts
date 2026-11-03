@@ -54,13 +54,19 @@ export const votingOutcome = (
   return voterIds.every((id) => cast.get(id)?.stance) ? 'DECIDE' : null
 }
 
-// Everyone must choose; voting again needs more than half, so the room stays together.
+// Once this share of voters picks the next deal, the room moves on without waiting for the rest.
+export const SKIP_DEAL_PERCENT = 80
+
+// Otherwise everyone must choose, and voting again needs more than half, so the room stays
+// together.
 export const choiceOutcome = (
   voterIds: readonly string[],
   ballots: readonly Ballot[],
 ): 'AGAIN' | 'NEXT' | null => {
   if (voterIds.length === 0) return null
   const cast = byMember(ballots)
+  const next = voterIds.filter((id) => cast.get(id)?.choice === 'NEXT').length
+  if (next * 100 >= voterIds.length * SKIP_DEAL_PERCENT) return 'NEXT'
   if (!voterIds.every((id) => cast.get(id)?.choice)) return null
   const again = voterIds.filter((id) => cast.get(id)?.choice === 'AGAIN').length
   return again * 2 > voterIds.length ? 'AGAIN' : 'NEXT'

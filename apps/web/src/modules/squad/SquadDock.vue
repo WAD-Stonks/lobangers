@@ -62,7 +62,7 @@ const percent = computed(() =>
       <p class="squad-dock__lead">
         Only {{ tally.yesPeople }} of {{ tally.voters }} said yay. Everyone picks: vote again, or move on?
       </p>
-      <p class="squad-dock__note">More than half must pick Vote again to reopen it. {{ tally.again + tally.next }} of {{ tally.voters }} have picked.</p>
+      <p class="squad-dock__note">Next deal moves on once 80% pick it. Vote again needs more than half. {{ tally.again + tally.next }} of {{ tally.voters }} have picked.</p>
       <div class="squad-dock__votes">
         <button
           type="button"

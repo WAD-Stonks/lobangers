@@ -12,6 +12,7 @@ import { needsSettling, settle } from '@api/modules/squad/settle'
 import { buildState } from '@api/modules/squad/state'
 import {
   appendEvents,
+  emitEvents,
   type RoomRow,
   requireRoom,
   roomTransaction,
@@ -62,8 +63,67 @@ const markSeen = async (
   return withSeen(seats, seatId, now)
 }
 
-// The transaction only records the ballot and moves the room along; the full room view is read
-// after it commits, which keeps the window for clashing taps short.
+// Adds a burst of taps to the member's ballot in one atomic upsert, with no transaction: spamming
+// Yay and Nah sends overlapping requests from the same member, and transactions writing the same
+// ballot abort each other. The tally is capped in the same update.
+const addTaps = async (
+  database: Database,
+  room: RoomRow,
+  memberId: string,
+  input: SquadVoteInput,
+  now: Date,
+) => {
+  const counted = (field: 'yays' | 'nahs', add: number) =>
+    add > 0
+      ? { $min: [SQUAD_MAX_TAPS, { $add: [{ $ifNull: [`$${field}`, 0] }, add] }] }
+      : { $ifNull: [`$${field}`, 0] }
+  const yay = input.stance === 'YAY'
+  const result = await database.$runCommandRaw({
+    update: 'SquadVote',
+    updates: [
+      {
+        q: {
+          roomId: { $oid: room.id },
+          memberId: { $oid: memberId },
+          dealIndex: room.dealIndex,
+          round: room.round,
+        },
+        u: [
+          {
+            $set: {
+              stance: { $literal: input.stance },
+              yays: counted('yays', yay ? input.taps : 0),
+              nahs: counted('nahs', yay ? 0 : input.taps),
+              choice: { $ifNull: ['$choice', null] },
+              updatedAt: { $date: now.toISOString() },
+            },
+          },
+        ],
+        upsert: true,
+      },
+    ],
+  })
+  if (result.ok !== 1 || result.writeErrors)
+    throw new Error(`Squad tap write failed: ${JSON.stringify(result.writeErrors ?? result)}`)
+}
+
+// Moves the room along when it is due, in a transaction only then. Returns the room and seats to
+// build the reply from, counting the member who just acted as here.
+const settleIfDue = async (
+  database: Database,
+  room: RoomRow,
+  seats: readonly SeatRow[],
+  seatId: string,
+  now: Date,
+) => {
+  if (!(await needsSettling(database, room, seats, now))) return { room, seats: [...seats] }
+  const settled = await roomTransaction(database, async (tx) => {
+    const current = await requireRoom(tx, room.code)
+    return settle(tx, current, withSeen(await seatsOf(tx, current.id), seatId, now), now)
+  })
+  return { room: settled, seats: withSeen(await seatsOf(database, settled.id), seatId, now) }
+}
+
 export const vote = async (
   database: Database,
   actor: AuthenticatedActor,
@@ -71,48 +131,24 @@ export const vote = async (
   input: SquadVoteInput,
   now: Date,
 ): Promise<SquadState> => {
-  const { room, seatId } = await roomTransaction(database, async (tx) => {
-    const room = await requireRoom(tx, code)
-    const seats = await seatsOf(tx, room.id)
-    const seat = requireVoter(requireMember(seats, actor.userId))
-    if (room.status !== 'LIVE' || room.phase !== 'VOTING')
-      throw new DomainError('PRECONDITION_FAILED', 'Voting on this deal has finished')
-    const yay = input.stance === 'YAY'
-    const key = ballotKey(room.id, seat.id, room.dealIndex, room.round)
-    const current = await tx.squadVote.findUnique({
-      where: key,
-      select: { yays: true, nahs: true },
-    })
-    const count = (field: number | undefined) => Math.min(SQUAD_MAX_TAPS, (field ?? 0) + input.taps)
-    await tx.squadVote.upsert({
-      where: key,
-      create: {
-        roomId: room.id,
-        memberId: seat.id,
-        dealIndex: room.dealIndex,
-        round: room.round,
-        stance: input.stance,
-        yays: yay ? count(0) : 0,
-        nahs: yay ? 0 : count(0),
-      },
-      update: {
-        stance: input.stance,
-        ...(yay ? { yays: count(current?.yays) } : { nahs: count(current?.nahs) }),
-      },
-    })
-    const effects = Math.min(input.taps, MAX_EFFECTS_PER_SEND)
-    await appendEvents(
-      tx,
-      room,
-      Array.from({ length: effects }, () => ({
-        kind: input.stance,
-        memberId: seat.id,
-        dealIndex: room.dealIndex,
-      })),
-    )
-    return { room: await settle(tx, room, withSeen(seats, seat.id, now), now), seatId: seat.id }
-  })
-  return stateAfter(database, room, seatId, actor.userId, now)
+  const room = await requireRoom(database, code)
+  const before = await seatsOf(database, room.id)
+  const seat = requireVoter(requireMember(before, actor.userId))
+  if (room.status !== 'LIVE' || room.phase !== 'VOTING')
+    throw new DomainError('PRECONDITION_FAILED', 'Voting on this deal has finished')
+  await addTaps(database, room, seat.id, input, now)
+  await emitEvents(
+    database,
+    room,
+    Array.from({ length: Math.min(input.taps, MAX_EFFECTS_PER_SEND) }, () => ({
+      kind: input.stance,
+      memberId: seat.id,
+      dealIndex: room.dealIndex,
+    })),
+  )
+  const seen = await markSeen(database, before, seat.id, now)
+  const settled = await settleIfDue(database, room, seen, seat.id, now)
+  return buildState(database, settled.room, settled.seats, actor.userId, now)
 }
 
 export const choose = async (
@@ -174,20 +210,12 @@ export const sync = async (
   const seat = before.find((candidate) => candidate.userId === actor.userId)
   if (!seat) throw new DomainError('FORBIDDEN', 'You are not in this room')
   const seen = await markSeen(database, before, seat.id, now)
-  const room = (await needsSettling(database, found, seen, now))
-    ? await roomTransaction(database, async (tx) => {
-        const current = await requireRoom(tx, code)
-        return settle(tx, current, withSeen(await seatsOf(tx, current.id), seat.id, now), now)
-      })
-    : found
-  const [fresh, seats] = await Promise.all([
-    database.squadEvent.findMany({
-      where: { roomId: room.id, seq: { gt: after } },
-      orderBy: { seq: 'desc' },
-      take: MAX_REPLAY_EVENTS,
-    }),
-    room === found ? Promise.resolve(seen) : seatsOf(database, room.id),
-  ])
+  const { room, seats } = await settleIfDue(database, found, seen, seat.id, now)
+  const fresh = await database.squadEvent.findMany({
+    where: { roomId: room.id, seq: { gt: after } },
+    orderBy: { seq: 'desc' },
+    take: MAX_REPLAY_EVENTS,
+  })
   return {
     state: await buildState(database, room, seats, actor.userId, now),
     events: [...fresh].reverse().map((event) => ({

@@ -45,15 +45,7 @@ export const roomTransaction = async <T>(
       await new Promise((resolve) => setTimeout(resolve, 15 * attempt + Math.random() * 25))
       continue
     }
-    // The write has committed: a failure from here on must not turn it into an error reply.
-    const written = await recordEvents(database, queued).catch((error: unknown) => {
-      console.error('Squad event log write failed', {
-        events: queued.length,
-        error: error instanceof Error ? error.message : String(error),
-      })
-      return []
-    })
-    await publishEvents(written)
+    await emitQueued(database, queued)
     return result
   }
 }
@@ -116,6 +108,30 @@ export const requireOpen = (room: RoomRow) => {
 }
 
 export type NewEvent = { kind: SquadEventKind; memberId?: string | null; dealIndex?: number | null }
+
+// Records and pushes events for a write that has already committed. A failure from here on must
+// not turn that write into an error reply, so it is logged instead.
+const emitQueued = async (database: Database, queued: readonly Queued[]) => {
+  const written = await recordEvents(database, queued).catch((error: unknown) => {
+    console.error('Squad event log write failed', {
+      events: queued.length,
+      error: error instanceof Error ? error.message : String(error),
+    })
+    return []
+  })
+  await publishEvents(written)
+}
+
+// For writes made outside a transaction, such as taps.
+export const emitEvents = (
+  database: Database,
+  room: { id: string; code: string },
+  events: readonly NewEvent[],
+) =>
+  emitQueued(
+    database,
+    events.map((event) => ({ roomId: room.id, code: room.code, event })),
+  )
 
 // Queues events, in order, to be recorded once the transaction commits.
 export const appendEvents = async (

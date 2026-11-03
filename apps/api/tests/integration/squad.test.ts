@@ -410,6 +410,25 @@ describe('live channel and load', () => {
     expect(roomBallots.reduce((sum, ballot) => sum + ballot.nahs, 0)).toBe(10)
   })
 
+  it('lands a spammer whose taps overlap, switching between yay and nah', async () => {
+    const code = await liveRoom([await publishedDeal('Spam')])
+    const stances = Array.from({ length: 30 }, (_, index) => (index % 3 === 2 ? 'YAY' : 'NAH'))
+    const results = await Promise.all([
+      ...stances.map((stance) => voteAs(host, code, stance as 'YAY' | 'NAH', 2)),
+      ...stances.slice(0, 10).map(() => voteAs(ashley, code, 'NAH')),
+      ...[host, ashley, damien].map((account) =>
+        call(account, 'POST', room(code, '/sync'), { after: 0 }),
+      ),
+    ])
+    expect(results.map((result) => result.status)).toEqual(results.map(() => 200))
+    const host_ = await call(host, 'POST', room(code, '/sync'), { after: 0 })
+    const me = host_.body.state.members.find(
+      (member: { name: string }) => member.name === 'Allison',
+    )
+    const ballot = await db.squadVote.findFirstOrThrow({ where: { memberId: me.id } })
+    expect(ballot.yays + ballot.nahs).toBe(60)
+  })
+
   it('keeps the heartbeat read-only while a member was seen recently', async () => {
     const code = await liveRoom([await publishedDeal('Quiet heartbeat')])
     const recent = new Date(Date.now() - 2_000)

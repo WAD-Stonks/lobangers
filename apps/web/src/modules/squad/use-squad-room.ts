@@ -26,6 +26,9 @@ const LOST_AFTER_FAILURES = 3
 const STORAGE_KEY = 'lobangers.squad.room'
 
 export type Connection = 'ok' | 'lost'
+type TapBatch = { stance: 'YAY' | 'NAH'; taps: number }
+// The most taps one vote request may carry.
+const MAX_TAPS_PER_SEND = 20
 export type EffectListener = (event: SquadEvent, state: SquadState) => void
 
 const readStoredCode = (): string | null => {
@@ -63,7 +66,9 @@ export const createSquadRoom = (openChannel: ChannelOpener = openRoomChannel) =>
   let after = 0
   let failures = 0
   let timer: ReturnType<typeof setTimeout> | null = null
-  let pendingTaps: { stance: 'YAY' | 'NAH'; taps: number } | null = null
+  // Unsent tap batches, oldest first; one is in flight at a time.
+  let tapQueue: readonly TapBatch[] = []
+  let sendingTaps = false
   let tapTimer: ReturnType<typeof setTimeout> | null = null
   let generation = 0
   let channel: RoomChannel | null = null
@@ -234,26 +239,41 @@ export const createSquadRoom = (openChannel: ChannelOpener = openRoomChannel) =>
     return code.value
   }
 
+  // Sends queued batches one after another, so a fast tapper never has two votes racing.
   const flushTaps = async () => {
-    const batch = pendingTaps
-    pendingTaps = null
     tapTimer = null
-    if (!batch || !code.value) return
+    if (sendingTaps) return
+    sendingTaps = true
     try {
-      apply(await api.squad.vote(code.value, batch))
-    } catch (reason) {
-      error.value = messageFor(reason, 'That vote did not go through. Try again.')
+      while (tapQueue.length > 0 && code.value) {
+        const [batch, ...rest] = tapQueue
+        tapQueue = rest
+        if (!batch) break
+        try {
+          apply(await api.squad.vote(code.value, batch))
+        } catch (reason) {
+          // Voting closed mid-spam (a match, or everyone voted); the room view catches up.
+          if (reason instanceof ApiClientError && reason.status === 412) {
+            tapQueue = []
+            break
+          }
+          error.value = messageFor(reason, 'That vote did not go through. Try again.')
+        }
+      }
+    } finally {
+      sendingTaps = false
     }
   }
 
   // Every tap counts and plays at once; taps in quick succession travel together.
+  // Switching from Yay to Nah queues a new batch after the Yays, so the latest stance wins.
   const tap = (stance: 'YAY' | 'NAH') => {
-    // Switching from Yay to Nah sends the Yays first, so the latest stance wins.
-    if (pendingTaps && pendingTaps.stance !== stance) void flushTaps()
-    pendingTaps = pendingTaps
-      ? { stance, taps: Math.min(20, pendingTaps.taps + 1) }
-      : { stance, taps: 1 }
-    if (!tapTimer) tapTimer = setTimeout(() => void flushTaps(), TAP_BATCH_MS)
+    const last = tapQueue.at(-1)
+    tapQueue =
+      last && last.stance === stance && last.taps < MAX_TAPS_PER_SEND
+        ? [...tapQueue.slice(0, -1), { stance, taps: last.taps + 1 }]
+        : [...tapQueue, { stance, taps: 1 }]
+    if (!tapTimer && !sendingTaps) tapTimer = setTimeout(() => void flushTaps(), TAP_BATCH_MS)
   }
 
   const onVisible = () => {

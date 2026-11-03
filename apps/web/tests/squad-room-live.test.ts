@@ -6,12 +6,27 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 // of pushes becomes one state read, and the heartbeat slows down only while the channel is live.
 
 const sync = vi.fn()
+const vote = vi.fn()
 vi.mock('@web/lib/api-client', () => ({
-  ApiClientError: class ApiClientError extends Error {},
-  api: { squad: { sync: (...args: unknown[]) => sync(...args) } },
+  ApiClientError: class ApiClientError extends Error {
+    constructor(
+      readonly code: string,
+      readonly status: number,
+      message: string,
+    ) {
+      super(message)
+    }
+  },
+  api: {
+    squad: {
+      sync: (...args: unknown[]) => sync(...args),
+      vote: (...args: unknown[]) => vote(...args),
+    },
+  },
 }))
 vi.mock('@web/modules/squad/room-channel', () => ({ openRoomChannel: vi.fn() }))
 
+const { ApiClientError } = await import('@web/lib/api-client')
 const { createSquadRoom, HEARTBEAT_MS, POLL_MS, REFRESH_AFTER_PUSH_MS } = await import(
   '@web/modules/squad/use-squad-room'
 )
@@ -46,6 +61,7 @@ const openWithChannel = async () => {
 beforeEach(() => {
   vi.useFakeTimers()
   sync.mockReset()
+  vote.mockReset()
   sessionStorage.clear()
 })
 afterEach(() => vi.useRealTimers())
@@ -89,6 +105,53 @@ describe('live squad room', () => {
     expect(calls()).toBe(live + 1)
     room.forget()
     expect(close).toHaveBeenCalled()
+    room.dispose()
+  })
+
+  it("sends a spammer's taps one batch at a time, keeping every tap and the order", async () => {
+    sync.mockResolvedValue(reply(1))
+    const { room } = await openWithChannel()
+    let inFlight = 0
+    let most = 0
+    const answers: (() => void)[] = []
+    vote.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          inFlight += 1
+          most = Math.max(most, inFlight)
+          answers.push(() => {
+            inFlight -= 1
+            resolve(state)
+          })
+        }),
+    )
+    for (let index = 0; index < 3; index += 1) room.tap('YAY')
+    await vi.advanceTimersByTimeAsync(300)
+    for (let index = 0; index < 4; index += 1) room.tap('NAH')
+    room.tap('YAY')
+    while (answers.length > 0) {
+      answers.shift()?.()
+      await vi.advanceTimersByTimeAsync(0)
+    }
+    expect(most).toBe(1)
+    expect(vote.mock.calls.map(([, batch]) => batch)).toEqual([
+      { stance: 'YAY', taps: 3 },
+      { stance: 'NAH', taps: 4 },
+      { stance: 'YAY', taps: 1 },
+    ])
+    expect(room.error.value).toBe('')
+    room.dispose()
+  })
+
+  it('drops leftover taps quietly once voting has closed', async () => {
+    sync.mockResolvedValue(reply(1))
+    const { room } = await openWithChannel()
+    vote.mockRejectedValue(
+      new ApiClientError('PRECONDITION_FAILED', 412, 'Voting on this deal has finished'),
+    )
+    room.tap('YAY')
+    await vi.advanceTimersByTimeAsync(300)
+    expect(room.error.value).toBe('')
     room.dispose()
   })
 })
