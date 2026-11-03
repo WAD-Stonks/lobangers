@@ -696,7 +696,7 @@ button.squad-seat__face:active {
 
 .squad-vote--again .squad-vote__count::before,
 .squad-vote--next .squad-vote__count::before {
-  content: '· ';
+  content: "· ";
 }
 
 .squad-dock__actions,

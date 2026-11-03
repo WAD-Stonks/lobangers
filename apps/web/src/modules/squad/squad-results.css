@@ -26,7 +26,7 @@
   position: absolute;
   inset: 0;
   z-index: 1;
-  content: '';
+  content: "";
   pointer-events: none;
   background: rgba(15, 15, 18, 0.5);
   border-radius: inherit;
@@ -165,7 +165,7 @@
   position: absolute;
   inset: 0;
   z-index: -1;
-  content: '';
+  content: "";
   background: var(--sunny);
   transform-origin: left;
   animation: squad-fill 5s linear 200ms both;

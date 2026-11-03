@@ -362,16 +362,6 @@ const toggleSave = async () => {
   order: 4;
 }
 
-/* The poster sits in a quiet neutral frame sized to the photo, instead of floating with blank
-   sides (or, in the popup, above an empty band). */
-.deal-panel.deal-panel--phone :deep(.deal-gallery) {
-  height: auto;
-  max-height: min(240px, 34vh);
-  aspect-ratio: var(--frame-ratio);
-  background: var(--paper-sunk);
-  border-radius: 18px;
-}
-
 .deal-panel:not(.deal-panel--dialog) :deep(.panel-frame__title) {
   color: var(--coral-deep);
   font-size: clamp(1.8rem, 3vw, 2.125rem);
@@ -387,6 +377,16 @@ const toggleSave = async () => {
   width: min(100%, calc(min(64dvh, 620px) * var(--frame-ratio)));
 }
 .deal-panel :deep(.deal-photo__img) { object-fit: contain; object-position: center top; }
+
+/* The poster sits in a quiet neutral frame sized to the photo, instead of floating with blank
+   sides (or, in the popup, above an empty band). */
+.deal-panel.deal-panel--phone :deep(.deal-gallery) {
+  height: auto;
+  max-height: min(240px, 34vh);
+  aspect-ratio: var(--frame-ratio);
+  background: var(--paper-sunk);
+  border-radius: 18px;
+}
 
 /* biome-ignore lint/style/noDescendingSpecificity: the earlier, more specific rule is a modifier override for a different state of the same element */
 .deal-panel__status {
