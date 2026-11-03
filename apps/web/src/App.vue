@@ -34,6 +34,7 @@ watch([mapVisible, splashEligible], ([visible, eligible], previous) => {
   if (!eligible) showMapSplash.value = false
   else if (visible && (previous[0] === false || (previous[0] === undefined && splitView.value))) showMapSplash.value = true
 }, { immediate: true })
+const routed = computed(() => route.matched.length > 0)
 // Only matched admin destinations own an AdminShell; unknown URLs use the public fallback.
 const administration = computed(() =>
   route.matched.some((record) => adminNavigation.some(({ href }) => record.path === href)),
@@ -58,7 +59,9 @@ const administration = computed(() =>
     <div v-else-if="administration" class="admin-layout">
       <RouterView />
     </div>
-    <div v-else class="min-vh-100 bg-light-subtle text-body" :class="{ 'page-layout--bottom-nav': pageBottomNav }">
+    <!-- Nothing matches until the first navigation resolves (lazy pages, session check), so the
+         public header does not flash, or load bookmarks, ahead of an admin page. -->
+    <div v-else-if="routed" class="min-vh-100 bg-light-subtle text-body" :class="{ 'page-layout--bottom-nav': pageBottomNav }">
       <PageHeader />
       <AppShell>
         <RouterView />
