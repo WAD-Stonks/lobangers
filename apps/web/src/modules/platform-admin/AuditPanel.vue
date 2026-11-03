@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { adminAuditActionSchema, adminSubjectTypeSchema } from '@broke-oclock/contracts/admin-common'
+import AppSelect from '@web/components/AppSelect.vue'
+import { type SelectOption, withLeading } from '@web/components/select-options'
 import TicketLoading from '@web/components/TicketLoading.vue'
 import { api } from '@web/lib/api-client'
 import { type AuditDenial, type AuditList, useAudit } from '@web/modules/platform-admin/use-audit'
@@ -10,6 +12,10 @@ const emit = defineEmits<{ denied: [code: AuditDenial] }>()
 const audit = useAudit((query) => (props.list ?? api.platformAdmin.audit)(query), (code) => emit('denied', code))
 const { filters, items, nextCursor, status, loading, validation } = audit
 const prefix = useId()
+const spaced = (values: readonly string[]): readonly SelectOption[] =>
+  values.map((value) => ({ value, label: value.replaceAll('_', ' ') }))
+const ACTION_OPTIONS = withLeading({ value: '', label: 'All actions' }, spaced(adminAuditActionSchema.options))
+const SUBJECT_OPTIONS = withLeading({ value: '', label: 'All subjects' }, spaced(adminSubjectTypeSchema.options))
 const singaporeTime = (value: string) => new Intl.DateTimeFormat('en-SG', {
   timeZone: 'Asia/Singapore', dateStyle: 'medium', timeStyle: 'long',
 }).format(new Date(value))
@@ -38,10 +44,7 @@ onUnmounted(audit.dispose)
         </div>
         <div class="col-12 col-md-6 col-xl-4">
           <label :for="`${prefix}-action`" class="form-label">Action</label>
-          <select :id="`${prefix}-action`" v-model="filters.action" name="action" class="form-select">
-            <option value="">All actions</option>
-            <option v-for="action in adminAuditActionSchema.options" :key="action" :value="action">{{ action.replaceAll('_', ' ') }}</option>
-          </select>
+          <AppSelect :id="`${prefix}-action`" v-model="filters.action" name="action" :options="ACTION_OPTIONS" class="form-select" />
         </div>
         <div class="col-12 col-md-6 col-xl-4">
           <label :for="`${prefix}-user`" class="form-label">Target account ID (legacy compatible)</label>
@@ -49,10 +52,7 @@ onUnmounted(audit.dispose)
         </div>
         <div class="col-12 col-md-6">
           <label :for="`${prefix}-type`" class="form-label">Subject type</label>
-          <select :id="`${prefix}-type`" v-model="filters.subjectType" name="subjectType" class="form-select">
-            <option value="">All subjects</option>
-            <option v-for="type in adminSubjectTypeSchema.options" :key="type" :value="type">{{ type.replaceAll('_', ' ') }}</option>
-          </select>
+          <AppSelect :id="`${prefix}-type`" v-model="filters.subjectType" name="subjectType" :options="SUBJECT_OPTIONS" class="form-select" />
         </div>
         <div class="col-12 col-md-6">
           <label :for="`${prefix}-subject`" class="form-label">Subject ID</label>

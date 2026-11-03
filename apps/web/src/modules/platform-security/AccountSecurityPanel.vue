@@ -1,9 +1,12 @@
 <script setup lang="ts">
+import AppSelect from '@web/components/AppSelect.vue'
+import type { SelectOption } from '@web/components/select-options'
 import TicketLoading from '@web/components/TicketLoading.vue'
 import { formatDateTime } from '@web/lib/format'
 import AccountSessionsPanel from '@web/modules/platform-security/AccountSessionsPanel.vue'
 import FreshLoginNotice from '@web/modules/platform-security/FreshLoginNotice.vue'
 import { type SecurityProps, useAccountSecurity } from '@web/modules/platform-security/use-account-security'
+import { computed } from 'vue'
 
 const props = defineProps<SecurityProps>()
 const emit = defineEmits<{
@@ -17,6 +20,11 @@ const {
   pending, loading, success, error, blocked, currentEvidence, safeVersion, self,
   uncertain, freshness, accountActionLabel, actionLabel, reload, moreSessions, submit,
 } = useAccountSecurity(props, emit)
+const actionOptions = computed<readonly SelectOption[]>(() => [
+  { value: 'account', label: `${accountActionLabel.value} account` },
+  { value: 'session', label: 'Revoke one session' },
+  { value: 'sessions', label: 'Revoke all sessions' },
+])
 </script>
 
 <template>
@@ -73,11 +81,7 @@ const {
         <fieldset :disabled="pending || disabled || self">
           <legend class="h6">Security action</legend>
           <label class="form-label d-block">Action for this account
-            <select v-model="action" data-testid="security-action" class="form-select mt-1">
-              <option value="account">{{ accountActionLabel }} account</option>
-              <option value="session">Revoke one session</option>
-              <option value="sessions">Revoke all sessions</option>
-            </select>
+            <AppSelect v-model="action" data-testid="security-action" :options="actionOptions" class="form-select mt-1" />
           </label>
           <p v-if="action === 'session'" class="small">
             Ends only the selected session for this account. Other sessions remain signed in.
@@ -137,7 +141,7 @@ const {
   margin-left: 0;
   flex-shrink: 0;
 }
-.security-panel :deep(select),
+.security-panel :deep(.app-select),
 .security-panel textarea {
   width: 100%;
   min-width: 0;
@@ -147,7 +151,7 @@ const {
   min-height: 6rem;
 }
 .security-panel :deep(button),
-.security-panel :deep(select) {
+.security-panel :deep(.app-select) {
   min-height: 2.75rem;
   white-space: normal;
 }

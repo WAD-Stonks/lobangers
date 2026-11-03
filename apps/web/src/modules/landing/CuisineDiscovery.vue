@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import type { DealPin } from '@broke-oclock/contracts/deals'
+import AppSelect from '@web/components/AppSelect.vue'
+import { optionsFromValues, type SelectOption } from '@web/components/select-options'
 import { authClient } from '@web/lib/auth-client'
 import FoodDealCard from '@web/modules/browse-map/FoodDealCard.vue'
 import type { DealRow } from '@web/modules/browse-map/types'
@@ -17,6 +19,11 @@ const cuisine = ref('All Cuisines')
 const area = ref('all')
 const props = defineProps<{ live: DealPin[]; liveState: LandingDealsStatus }>()
 const cuisines = computed(() => ['All Cuisines', ...new Set(props.live.map((deal) => deal.cuisine ?? 'Others'))])
+const areaOptions: readonly SelectOption[] = [
+  { value: 'all', label: 'All regions' },
+  ...regions.map((item, index) => ({ value: String(index), label: item.name })),
+]
+const cuisineOptions = computed(() => optionsFromValues(cuisines.value))
 const selectedRegion = computed(() => regions[Number(area.value)]?.name)
 const cardVenue = (deal: DealPin) =>
   area.value === 'all' ? deal.venues[0] : selectedRegion.value ? venuesInRegion(deal, selectedRegion.value)[0] : undefined
@@ -96,14 +103,9 @@ watch(filtered, () => { page.value = 0 }, { flush: 'sync' })
       <RouterLink class="landing-view-all" to="/deals?cat=food"><span>View all food deals</span><span aria-hidden="true">→</span></RouterLink>
       <div>
         <label for="deal-area" class="visually-hidden">Filter deals by region</label>
-        <select id="deal-area" v-model="area" :disabled="liveState !== 'ready'">
-          <option value="all">All regions</option>
-          <option v-for="(item, index) in regions" :key="item.name" :value="String(index)">{{ item.name }}</option>
-        </select>
+        <AppSelect id="deal-area" v-model="area" :options="areaOptions" :disabled="liveState !== 'ready'" />
         <label for="deal-cuisine" class="visually-hidden">Filter deals by cuisine</label>
-        <select id="deal-cuisine" v-model="cuisine" :disabled="liveState !== 'ready'">
-          <option v-for="item in cuisines" :key="item" :value="item">{{ item }}</option>
-        </select>
+        <AppSelect id="deal-cuisine" v-model="cuisine" :options="cuisineOptions" :disabled="liveState !== 'ready'" />
       </div>
     </div>
     <div v-if="liveState === 'loading'" role="status">

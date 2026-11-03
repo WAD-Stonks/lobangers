@@ -9,6 +9,8 @@ import type { PlatformVenue } from '@broke-oclock/contracts/platform-admin'
 import { expect, type Page, type TestInfo, test } from '@playwright/test'
 // biome-ignore lint/style/noRestrictedImports: E2E-only helper; no E2E alias exists.
 import { ADMIN_ACCOUNT_NAME } from './admin-ui'
+// biome-ignore lint/style/noRestrictedImports: E2E-only helper; no E2E alias exists.
+import { chooseOption, expectChosen, listOptions } from './choose-option'
 
 // SYNTHETIC network boundary only: real SPA, Axios and public contract parsing.
 // Not live authentication, provider delivery, database authorization or publication proof.
@@ -218,13 +220,14 @@ async function choose(page: Page) {
   await query.fill('  Synthetic  ')
   await query.press('Enter')
   const choice = page.getByLabel('Existing outlet', { exact: true })
-  await expect(choice.locator('option')).toHaveCount(2)
-  await expect(choice).toHaveValue('')
+  await expect(await listOptions(choice)).toHaveCount(2)
+  await choice.press('Escape')
+  await expectChosen(choice, '')
   await expect(consent(page)).toBeDisabled()
   await choice.focus()
   await expect(choice).toBeFocused()
-  await choice.selectOption(venue.id)
-  await expect(choice).toHaveValue(venue.id)
+  await chooseOption(choice, venue.id)
+  await expectChosen(choice, venue.id)
   await expect(page.getByRole('button', { name: 'Associate outlet', exact: true })).toBeDisabled()
   await consent(page).focus()
   await consent(page).press('Space')
@@ -295,9 +298,10 @@ for (const width of [320, 390, 1280]) {
       await choose(page)
       await page.getByRole('button', { name: 'Load more outlets', exact: true }).click()
       await expect(
-        page.getByLabel('Existing outlet', { exact: true }).locator('option'),
+        await listOptions(page.getByLabel('Existing outlet', { exact: true })),
       ).toHaveCount(3)
-      await expect(page.getByLabel('Existing outlet', { exact: true })).toHaveValue('')
+      await page.getByLabel('Existing outlet', { exact: true }).press('Escape')
+      await expectChosen(page.getByLabel('Existing outlet', { exact: true }), '')
       await expect(consent(page)).not.toBeChecked()
       expect(
         fixture.calls.filter((call) => call.path === '/api/admin/venues').map((call) => call.query),
@@ -306,7 +310,7 @@ for (const width of [320, 390, 1280]) {
         { search: 'Synthetic', limit: '20', cursor: otherId },
       ])
       expect(writes(fixture)).toEqual([])
-      await page.getByLabel('Existing outlet', { exact: true }).selectOption(venue.id)
+      await chooseOption(page.getByLabel('Existing outlet', { exact: true }), venue.id)
       await expect(page.getByTestId('associate-outlet')).toBeDisabled()
       await consent(page).check()
       await snapshot(page, info, `picker-${width}-settled`)
@@ -361,7 +365,7 @@ for (const width of [320, 390, 1280]) {
         draft.sourceUrl,
       )
       await expect(page.getByLabel('Review note (required)')).toHaveValue('')
-      await expect(page.getByLabel('Existing outlet', { exact: true })).toHaveValue('')
+      await expectChosen(page.getByLabel('Existing outlet', { exact: true }), '')
       await expect(consent(page)).not.toBeChecked()
       await expect(page.getByTestId('reject-draft')).toBeDisabled()
       await snapshot(page, info, `fresh-version-${width}-settled`)
@@ -437,7 +441,7 @@ for (const outcome of ['CONFLICT', 'FORBIDDEN', 'LOGOUT'] as const) {
         await expect.poll(() => fixture.state.reads).toBe(2)
         fixture.fresh.resolve()
         await expect(page.getByRole('button', { name: 'Reload draft', exact: true })).toHaveCount(0)
-        await expect(page.getByLabel('Existing outlet', { exact: true })).toHaveValue('')
+        await expectChosen(page.getByLabel('Existing outlet', { exact: true }), '')
         await expect(consent(page)).not.toBeChecked()
         await expect(page.getByLabel('Review note (required)')).toHaveValue('')
         await expect(page.getByTestId('associate-outlet')).toBeDisabled()

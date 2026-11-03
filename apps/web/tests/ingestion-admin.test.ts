@@ -3,6 +3,7 @@ import { flushPromises, mount } from '@vue/test-utils'
 import { ApiClientError } from '@web/lib/api-client'
 import DraftQueue from '@web/modules/ingestion-admin/DraftQueue.vue'
 import IngestionAdminPage from '@web/pages/IngestionAdminPage.vue'
+import { chooseOption, selectedValue } from '@web-tests/support/select'
 import { beforeEach, expect, it, vi } from 'vitest'
 
 // Synthetic REST boundary only: these component tests preserve UI races but do not prove backend policy.
@@ -245,10 +246,9 @@ it('saves a corrected category at the current version and locks the stale draft 
   const wrapper = mount(IngestionAdminPage)
   await flushPromises()
   await wrapper.get('[data-testid="view-draft-1"]').trigger('click')
-  const select = wrapper.get<HTMLSelectElement>('#draft-category')
-  expect(select.element.value).toBe('FOOD')
+  expect(selectedValue(wrapper, '#draft-category')).toBe('FOOD')
   expect(wrapper.get('[data-testid="save-category"]').attributes('disabled')).toBeDefined()
-  await select.setValue('DRINKS')
+  await chooseOption(wrapper, '#draft-category', 'DRINKS')
   expect(wrapper.get('[data-testid="save-category"]').attributes('disabled')).toBeUndefined()
   await wrapper.get('[data-testid="category-form"]').trigger('submit')
   await flushPromises()
@@ -268,7 +268,7 @@ it('reports a failed category update without leaving the draft reviewable', asyn
   const wrapper = mount(IngestionAdminPage)
   await flushPromises()
   await wrapper.get('[data-testid="view-draft-1"]').trigger('click')
-  await wrapper.get('#draft-category').setValue('BAKERY')
+  await chooseOption(wrapper, '#draft-category', 'BAKERY')
   await wrapper.get('[data-testid="category-form"]').trigger('submit')
   await flushPromises()
   expect(wrapper.text()).toContain('Unable to update the category')
@@ -325,10 +325,10 @@ it('filters the queue using server status and preserves review notes on failure'
   rest.review.mockRejectedValue(new Error('private DB error'))
   const wrapper = mount(IngestionAdminPage)
   await flushPromises()
-  await wrapper.get('#queue-status').setValue('REJECTED')
+  await chooseOption(wrapper, '#queue-status', 'REJECTED')
   await flushPromises()
   expect(rest.queue).toHaveBeenLastCalledWith({ limit: 20, status: 'REJECTED' })
-  await wrapper.get('#queue-status').setValue('PENDING')
+  await chooseOption(wrapper, '#queue-status', 'PENDING')
   await flushPromises()
   await wrapper.get('[data-testid="view-draft-1"]').trigger('click')
   await wrapper.get('#review-note').setValue('Keep this review note')
@@ -582,7 +582,7 @@ it.each(['draft-1', 'replacement-draft'])(
       decision: 'APPROVE',
       note: 'Review of current source revision',
     })
-    await wrapper.get('#queue-status').setValue('REJECTED')
+    await chooseOption(wrapper, '#queue-status', 'REJECTED')
     await flushPromises()
     expect(wrapper.find('article').exists()).toBe(false)
     await wrapper.get('[data-testid="view-draft-1"]').trigger('click')
@@ -629,14 +629,14 @@ it('requires deliberate selection of a different-ID source replacement returned 
   await flushPromises()
   expect(wrapper.find('[data-testid="view-draft-1"]').exists()).toBe(false)
   expect(wrapper.find('article').exists()).toBe(false)
-  await wrapper.get('#queue-status').setValue('REJECTED')
+  await chooseOption(wrapper, '#queue-status', 'REJECTED')
   await flushPromises()
   expect(wrapper.find('article').exists()).toBe(false)
   await wrapper.get('[data-testid="view-draft-1"]').trigger('click')
   expect(wrapper.text()).toContain('Superseded by source revision')
   expect(wrapper.get('#review-note').element).toHaveProperty('value', '')
   expect(wrapper.get('[data-testid="reject-draft"]').attributes('disabled')).toBeDefined()
-  await wrapper.get('#queue-status').setValue('PENDING')
+  await chooseOption(wrapper, '#queue-status', 'PENDING')
   await flushPromises()
   expect(wrapper.find('article').exists()).toBe(false)
   await wrapper.get('[data-testid="view-replacement-draft"]').trigger('click')
@@ -695,7 +695,7 @@ it('paginates drafts with the server cursor, deduplicates IDs, and resets pagina
   expect(wrapper.findAll('[data-testid="view-draft-1"]')).toHaveLength(1)
   expect(wrapper.text()).toContain('Second synthetic draft')
   expect(wrapper.find('[data-testid="more-drafts"]').exists()).toBe(false)
-  await wrapper.get('#queue-status').setValue('APPROVED')
+  await chooseOption(wrapper, '#queue-status', 'APPROVED')
   await flushPromises()
   expect(rest.queue).toHaveBeenLastCalledWith({ limit: 20, status: 'APPROVED' })
 })
@@ -784,7 +784,7 @@ it('reads accounts only on request and provides no deletion or role-edit control
   expect(panel.text()).toContain('ADMIN')
   expect(panel.text()).toContain('Read-only')
   expect(panel.find('input').exists()).toBe(false)
-  expect(panel.find('select').exists()).toBe(false)
+  expect(panel.find('.app-select').exists()).toBe(false)
   expect(panel.text()).not.toMatch(/Delete account|Change role/)
 })
 

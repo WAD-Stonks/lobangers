@@ -2,6 +2,7 @@ import type { IngestionDraft } from '@broke-oclock/contracts/ingestion'
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
 import { api } from '@web/lib/api-client'
 import IngestionAdminPage from '@web/pages/IngestionAdminPage.vue'
+import { chooseOption } from '@web-tests/support/select'
 import type { InternalAxiosRequestConfig } from 'axios'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 
@@ -142,7 +143,7 @@ const select = async (page: VueWrapper, id: string) =>
   page.get(`[data-testid="view-${id}"]`).trigger('click')
 const startCategory = async (page: VueWrapper, id: string) => {
   await select(page, id)
-  await page.get('#draft-category').setValue('DRINKS')
+  await chooseOption(page, '#draft-category', 'DRINKS')
   await page.get('[data-testid="category-form"]').trigger('submit')
   await flushPromises()
   expect(requests(`/ingestion/drafts/${id}/category`)).toHaveLength(1)
@@ -252,7 +253,7 @@ it('sign-out while category is pending clears private images and selection and f
   await select(page, idA)
   await page.get('#review-note').setValue('Private pending review note')
   expect(page.findAll('img')).toHaveLength(1)
-  await page.get('#draft-category').setValue('DRINKS')
+  await chooseOption(page, '#draft-category', 'DRINKS')
   await page.get('[data-testid="category-form"]').trigger('submit')
   await flushPromises()
   expect(requests(`/ingestion/drafts/${idA}/category`)).toHaveLength(1)

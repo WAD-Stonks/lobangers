@@ -586,14 +586,14 @@ test('connected password admin reaches counts and deep links then loses permissi
   await page
     .locator('.overview-summary a[href="/admin/accounts?requestStatus=PENDING#merchant-requests"]')
     .click()
-  await expect(page.locator('#request-status')).toHaveValue('PENDING')
+  await expect(page.locator('#request-status')).toHaveAttribute('data-value', 'PENDING')
   await expect(page.locator('#merchant-requests')).toBeVisible()
   await page.goto(`${webURL}/admin`)
   await overview(page)
   await page
     .locator('.overview-summary a[href="/admin/ingestion?status=PENDING#queue-title"]')
     .click()
-  await expect(page.locator('#queue-status')).toHaveValue('PENDING')
+  await expect(page.locator('#queue-status')).toHaveAttribute('data-value', 'PENDING')
   await expect(page.locator('#queue-title')).toBeVisible()
   await page.goto(`${webURL}/admin`)
   await overview(page)

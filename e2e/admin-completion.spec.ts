@@ -176,7 +176,7 @@ for (const width of [320, 390, 1280]) {
     await requestLink.focus()
     await requestLink.press('Enter')
     await expect(page).toHaveURL('/admin/accounts?requestStatus=PENDING#merchant-requests')
-    await expect(page.locator('#request-status')).toHaveValue('PENDING')
+    await expect(page.locator('#request-status')).toHaveAttribute('data-value', 'PENDING')
     await expect(page.locator('#merchant-requests')).toBeVisible()
     expect(
       await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
@@ -190,7 +190,7 @@ for (const width of [320, 390, 1280]) {
     await page
       .locator('.overview-summary a[href="/admin/ingestion?status=PENDING#queue-title"]')
       .click()
-    await expect(page.locator('#queue-status')).toHaveValue('PENDING')
+    await expect(page.locator('#queue-status')).toHaveAttribute('data-value', 'PENDING')
     await expect(page.locator('#queue-title')).toBeVisible()
     await page.goto('/admin')
     await page

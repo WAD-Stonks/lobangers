@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import type { PostsPage } from '@broke-oclock/contracts/ingestion-recovery'
 import { BButton } from '@broke-oclock/ui'
+import AppSelect from '@web/components/AppSelect.vue'
+import { optionsFromValues } from '@web/components/select-options'
 import TicketLoading from '@web/components/TicketLoading.vue'
 import { api } from '@web/lib/api-client'
 import { errorCode } from '@web/modules/ingestion-admin/errors'
@@ -11,6 +13,7 @@ import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 const workspace = useRecoveryWorkspace()
 const emit = defineEmits<{ denied: [code: string] }>()
 const status = ref<'FAILED'|'NEW'|'PARSED'|'NEEDS_REVIEW'|'IGNORED'>('FAILED'), sourceId = ref(''), code = ref(''), items = ref<PostsPage['items']>([]), next = ref<string | null>(null), selected = ref<string | null>(null), pending = ref(false), error = ref('')
+const STATUS_OPTIONS = optionsFromValues(['FAILED', 'NEW', 'PARSED', 'NEEDS_REVIEW', 'IGNORED'])
 let generation = 0, closed = false
 const denied = (value: string) => { clearRecoveryWorkspace(workspace); closed = true; generation++; items.value = []; selected.value = null; emit('denied', value) }
 const load = async (cursor?: string) => {
@@ -25,7 +28,7 @@ onMounted(() => load()); onBeforeUnmount(() => { closed = true; generation++ })
 <template>
  <section id="failed-posts" aria-label="Failed post investigation" class="card p-3 p-sm-4 mb-4">
   <h2 class="h4">Failed posts and source investigation</h2>
-  <form @submit.prevent="load()"><label>Status<select v-model="status" name="post-status"><option v-for="value in ['FAILED','NEW','PARSED','NEEDS_REVIEW','IGNORED']" :key="value">{{ value }}</option></select></label><label>Source ID<input v-model="sourceId" name="source-id" maxlength="24" spellcheck="false" autocomplete="off" autocapitalize="none"></label><label>Error code<input v-model="code" name="error-code" maxlength="80" spellcheck="false" autocomplete="off" autocapitalize="none"></label><BButton type="submit" :disabled="pending">Load matching posts</BButton></form>
+  <form @submit.prevent="load()"><label>Status<AppSelect v-model="status" name="post-status" class="form-select" :options="STATUS_OPTIONS" /></label><label>Source ID<input v-model="sourceId" name="source-id" maxlength="24" spellcheck="false" autocomplete="off" autocapitalize="none"></label><label>Error code<input v-model="code" name="error-code" maxlength="80" spellcheck="false" autocomplete="off" autocapitalize="none"></label><BButton type="submit" :disabled="pending">Load matching posts</BButton></form>
   <TicketLoading v-if="pending" label="Loading posts…" /><p v-if="error" role="alert">{{ error }}</p><p v-if="!pending && !error && !items.length">No posts on this page. A bounded page can exclude unsupported sources.</p>
   <ul><li v-for="post in items" :key="post.id" class="text-break">{{ post.source.name }} · {{ post.externalId }} · {{ post.status }} · {{ post.errorCode ?? 'No error' }} · {{ post.failureStage ?? 'Stage unknown' }}<BButton class="ms-2" @click="selected = post.id">Investigate <span translate="no">{{ post.externalId }}</span></BButton></li></ul>
   <BButton v-if="next" :disabled="pending" @click="load(next)">More posts</BButton>

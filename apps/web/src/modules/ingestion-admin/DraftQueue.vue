@@ -3,6 +3,8 @@ import { DEAL_CATEGORIES, type DealCategory, dealCategorySchema } from '@broke-o
 import type { IngestionDraft, IngestionDraftsQuery, IngestionReviewRequest } from '@broke-oclock/contracts/ingestion'
 import type { PlatformVenue } from '@broke-oclock/contracts/platform-admin'
 import { BButton } from '@broke-oclock/ui'
+import AppSelect from '@web/components/AppSelect.vue'
+import { optionsFromValues, type SelectOption } from '@web/components/select-options'
 import TicketLoading from '@web/components/TicketLoading.vue'
 import { api } from '@web/lib/api-client'
 import { formatDate, formatMoneyMinor } from '@web/lib/format'
@@ -90,6 +92,20 @@ const canReview = computed(() => !closed && selected.value?.reviewStatus === 'PE
 const categoryAllowed = computed(() => selected.value?.reviewStatus === 'PENDING')
 const canSetCategory = computed(() => !closed && categoryAllowed.value && dealCategorySchema.safeParse(category.value).success && category.value !== selected.value?.category && !busy.value && !pending.value && !venuePending.value && !error.value && !conflict.value)
 const associationAllowed = computed(() => selected.value?.reviewStatus === 'PENDING' && (selected.value.outletCount ?? selected.value.outlets?.length ?? 0) <= 1 && ['NO_FIXED_LOCATION', 'SELECTED_OUTLETS'].includes(selected.value.applicability))
+const STATUS_OPTIONS: readonly SelectOption[] = [
+  { value: 'PENDING', label: 'Pending' },
+  { value: 'APPROVED', label: 'Approved' },
+  { value: 'REJECTED', label: 'Rejected' },
+]
+const CATEGORY_OPTIONS = optionsFromValues(DEAL_CATEGORIES)
+const outletOptions = computed<readonly SelectOption[]>(() => [
+  { value: '', label: 'Choose an outlet explicitly' },
+  ...(venues.value ?? []).map(venue => ({
+    value: venue.id,
+    label: `${venue.name} · ${venue.address} · ${venue.merchantName}`,
+    disabled: venue.id === selected.value?.outlet?.id,
+  })),
+])
 const chosenVenue = computed(() => venues.value?.find(item => item.id === venueId.value))
 const canAssociate = computed(() => !closed && associationAllowed.value && chosenVenue.value && chosenVenue.value.id !== selected.value?.outlet?.id && confirmed.value && !busy.value && !pending.value && !venuePending.value && !error.value && !conflict.value)
 const load = async (cursor?: string) => {
@@ -277,9 +293,7 @@ watch([() => props.revision, status], (_value, previous) => {
   <section aria-labelledby="queue-title" class="card p-3 p-sm-4 mb-4" :aria-busy="pending">
     <h2 id="queue-title" class="h4">Draft review queue</h2>
     <label for="queue-status" class="form-label">Review status</label>
-    <select id="queue-status" v-model="status" class="form-select mb-3" :disabled="busy || venuePending">
-      <option value="PENDING">Pending</option><option value="APPROVED">Approved</option><option value="REJECTED">Rejected</option>
-    </select>
+    <AppSelect id="queue-status" v-model="status" :options="STATUS_OPTIONS" class="form-select mb-3" :disabled="busy || venuePending" />
     <TicketLoading v-if="pending" label="Loading drafts…" />
     <div v-if="error" role="alert"><p>{{ error }}</p><BButton :disabled="pending || busy" @click="load()">Retry drafts</BButton></div>
     <p v-if="success" role="status">{{ success }}</p>
@@ -347,9 +361,7 @@ watch([() => props.revision, status], (_value, previous) => {
         <p id="category-help">The importer guesses the category from the post text. Fix it here when the guess is wrong. This does not approve or publish the draft.</p>
         <form data-testid="category-form" @submit.prevent="setCategory" :aria-busy="categoryPending">
           <label for="draft-category" class="form-label">Category</label>
-          <select id="draft-category" v-model="category" class="form-select mb-2" :disabled="busy || pending || venuePending || conflict" aria-describedby="category-help">
-            <option v-for="option in DEAL_CATEGORIES" :key="option" :value="option">{{ option }}</option>
-          </select>
+          <AppSelect id="draft-category" v-model="category" :options="CATEGORY_OPTIONS" class="form-select mb-2" :disabled="busy || pending || venuePending || conflict" aria-describedby="category-help" />
           <p v-if="categoryError" role="alert">{{ categoryError }}</p>
           <BButton data-testid="save-category" type="submit" :disabled="!canSetCategory">{{ categoryPending ? 'Saving…' : 'Save category' }}</BButton>
         </form>
@@ -368,10 +380,7 @@ watch([() => props.revision, status], (_value, previous) => {
         <BButton v-if="venueCursor" data-testid="more-outlets" :disabled="busy || venuePending || pending || conflict" @click="searchOutlets(venueCursor)">Load more outlets</BButton>
         <form data-testid="outlet-association" @submit.prevent="associate" :aria-busy="associationPending">
           <label for="outlet-choice" class="form-label">Existing outlet</label>
-          <select id="outlet-choice" v-model="venueId" class="form-select mb-2" :disabled="busy || pending || venuePending || conflict">
-            <option value="">Choose an outlet explicitly</option>
-            <option v-for="venue in venues ?? []" :key="venue.id" :value="venue.id" :disabled="venue.id === selected.outlet?.id">{{ venue.name }} · {{ venue.address }} · {{ venue.merchantName }}</option>
-          </select>
+          <AppSelect id="outlet-choice" v-model="venueId" :options="outletOptions" class="form-select mb-2" :disabled="busy || pending || venuePending || conflict" />
           <div class="form-check mb-2">
             <input id="outlet-confirmation" v-model="confirmed" type="checkbox" class="form-check-input" :disabled="!chosenVenue || busy || pending || venuePending || conflict" />
             <label for="outlet-confirmation" class="form-check-label">I checked the original source and it supports this exact outlet for this draft version.</label>

@@ -5,6 +5,8 @@ import type {
   IngestionRunsResponse,
 } from '@broke-oclock/contracts/ingestion'
 import { expect, type Page, test } from '@playwright/test'
+// biome-ignore lint/style/noRestrictedImports: E2E-only helper; no E2E alias exists.
+import { chooseOption } from './choose-option'
 
 // Explicitly synthetic browser-boundary responses. These exercise the real SPA/Axios REST client,
 // not live ingestion, provider delivery, database policies, or real account authentication.
@@ -341,7 +343,7 @@ for (const width of [320, 390, 1280]) {
         },
       },
     ])
-    await page.getByLabel('Review status', { exact: true }).selectOption('REJECTED')
+    await chooseOption(page.getByLabel('Review status', { exact: true }), 'REJECTED')
     await expect(page.getByRole('button', { name: /View details:/ })).toBeVisible()
     expect(errors).toEqual([])
   })

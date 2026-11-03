@@ -4,6 +4,8 @@ import { resolve } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { expect, test } from '@playwright/test'
 import { allocateTestPort } from '@scripts/test-listener'
+// biome-ignore lint/style/noRestrictedImports: E2E-only helper; no E2E alias exists.
+import { chooseOption } from './choose-option'
 
 // Synthetic external HTTP responses, real Vue components + typed Axios factory.
 // Not native identity or persistence evidence (covered by the disposable HTTP suite).
@@ -126,9 +128,10 @@ for (const width of [320, 1280])
     await expect(panel.locator('img')).toHaveCount(0)
     const button = panel.getByTestId('recover-post')
     await expect(button).toBeDisabled()
-    await panel
-      .getByLabel('Bounded recovery mode', { exact: true })
-      .selectOption('REFRESH_SOURCE_WINDOW')
+    await chooseOption(
+      panel.getByLabel('Bounded recovery mode', { exact: true }),
+      'REFRESH_SOURCE_WINDOW',
+    )
     await panel.getByLabel('Reason (required)').fill('Synthetic browser reason')
     await panel
       .getByLabel('I reviewed this exact post hash/time and the bounded recovery mode.')

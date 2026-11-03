@@ -1,5 +1,6 @@
 import type { CommunitySummary } from '@broke-oclock/contracts/community'
 import { flushPromises, mount } from '@vue/test-utils'
+import { useConfirm } from '@web/lib/use-confirm'
 import DealCommunity from '@web/modules/community/DealCommunity.vue'
 import { defined } from '@web-tests/support/defined'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -240,6 +241,35 @@ describe('community deal panel (synthetic API fixtures)', () => {
     await wrapper.get('.comment-card__form').trigger('submit')
     await flushPromises()
     expect(mocks.editComment).toHaveBeenCalledWith(comment.id, 'Updated observation')
+  })
+
+  it('asks in the app dialog, not the browser, before discarding a reply draft', async () => {
+    session.value = { data: { user: { id: 'synthetic-user' } } }
+    mocks.comments.mockResolvedValue({
+      items: [{ ...comment, liked: false, likeCount: 0 }],
+      nextCursor: null,
+    })
+    const nativeConfirm = vi.spyOn(window, 'confirm')
+    const wrapper = await render()
+    const button = (text: string) =>
+      defined(wrapper.findAll('button').find((b) => b.text() === text))
+    await button('Reply').trigger('click')
+    await wrapper.get(`[id="reply-${comment.id}"]`).setValue('Half-written reply')
+
+    await button('Cancel').trigger('click')
+    await flushPromises()
+    expect(useConfirm().current.value?.title).toBe('Discard draft?')
+    useConfirm().cancel()
+    await flushPromises()
+    expect(wrapper.find(`[id="reply-${comment.id}"]`).exists()).toBe(true)
+
+    await button('Cancel').trigger('click')
+    await flushPromises()
+    useConfirm().confirm()
+    await flushPromises()
+    expect(wrapper.find(`[id="reply-${comment.id}"]`).exists()).toBe(false)
+    expect(nativeConfirm).not.toHaveBeenCalled()
+    nativeConfirm.mockRestore()
   })
 
   it('renders comments as plain text, confirms own deletion and reports other comments', async () => {

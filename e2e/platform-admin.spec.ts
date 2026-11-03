@@ -24,6 +24,8 @@ import {
 import { expect, type Page, test } from '@playwright/test'
 // biome-ignore lint/style/noRestrictedImports: E2E-only helper; no E2E alias exists and config is outside this UI adoption scope.
 import { chooseAccountDetail, chooseAccountsWorkspace } from './admin-ui'
+// biome-ignore lint/style/noRestrictedImports: E2E-only helper; no E2E alias exists.
+import { chooseOption, expectChosen, listOptions } from './choose-option'
 
 type RestPage<T> = { items: T[]; nextCursor: string | null }
 const date = '2026-01-01T00:00:00Z'
@@ -645,10 +647,10 @@ for (const width of [320, 390, 1280, 1440]) {
       ),
     ).toBeVisible()
     await chooseAccountDetail(page, 'Access')
-    await page.getByLabel('Account action', { exact: true }).selectOption('grant')
+    await chooseOption(page.getByLabel('Account action', { exact: true }), 'grant')
     await page.getByLabel('Search existing stalls').fill('Fixture merchant')
     await page.getByRole('button', { name: 'Search stalls', exact: true }).click()
-    await page.getByLabel('Stall to grant').selectOption(stallB)
+    await chooseOption(page.getByLabel('Stall to grant'), stallB)
     await accountNote(page, 'Verified second outlet only')
     expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)).toBe(false)
     await page.screenshot({ path: info.outputPath(`platform-admin-${width}.png`), fullPage: true })
@@ -669,8 +671,8 @@ for (const width of [320, 390, 1280, 1440]) {
         },
       },
     ])
-    await page.getByLabel('Account action', { exact: true }).selectOption('revoke')
-    await page.getByLabel('Active grant to revoke').selectOption(grantB)
+    await chooseOption(page.getByLabel('Account action', { exact: true }), 'revoke')
+    await chooseOption(page.getByLabel('Active grant to revoke'), grantB)
     await accountNote(page, 'Remove second outlet access')
     await page.getByRole('button', { name: 'Revoke stall access', exact: true }).click()
     await expect(
@@ -689,8 +691,8 @@ for (const width of [320, 390, 1280, 1440]) {
         },
       },
     ])
-    await page.getByLabel('Account action', { exact: true }).selectOption('role')
-    await page.getByLabel('New role').selectOption('USER')
+    await chooseOption(page.getByLabel('Account action', { exact: true }), 'role')
+    await chooseOption(page.getByLabel('New role'), 'USER')
     await accountNote(page, 'End merchant responsibility')
     const reads = Object.fromEntries(
       ['accounts', 'account', 'requests', 'audit'].map((name) => [name, calls(state, name).length]),
@@ -735,12 +737,12 @@ test('synthetic-boundary request review uses exact request identities and escape
   const details = page.getByRole('article', { name: 'Request details' })
   await expect(details).toContainText('<script>synthetic claim</script>')
   await expect(details.locator('script')).toHaveCount(0)
-  await page.getByLabel('Request decision').selectOption('REJECT')
+  await chooseOption(page.getByLabel('Request decision'), 'REJECT')
   await requestNote(page, 'No ownership evidence for Stall A')
   await page.getByRole('button', { name: 'Reject request', exact: true }).click()
   await expect(page.getByTestId(`request-${requestA}`)).toHaveCount(0)
   await page.getByTestId(`request-${requestB}`).click()
-  await page.getByLabel('Request decision').selectOption('APPROVE')
+  await chooseOption(page.getByLabel('Request decision'), 'APPROVE')
   await requestNote(page, 'Verified the named second stall')
   await page.getByRole('button', { name: 'Approve request', exact: true }).click()
   await expect(page.getByText('No requests match this status.')).toBeVisible()
@@ -760,7 +762,7 @@ test('synthetic-boundary request review uses exact request identities and escape
       confirmed: true,
     },
   ])
-  await page.getByLabel('Request status', { exact: true }).selectOption('APPROVED')
+  await chooseOption(page.getByLabel('Request status', { exact: true }), 'APPROVED')
   await expect(page.getByTestId(`request-${requestB}`)).toBeVisible()
 })
 
@@ -785,7 +787,7 @@ test('synthetic-boundary account conflict survives pagination and forces refresh
   state.failures.set('platformAdmin.changeRole', 'CONFLICT')
   await page.goto('/admin/accounts')
   await page.getByTestId(`account-${userA}`).click()
-  await page.getByLabel('New role').selectOption('USER')
+  await chooseOption(page.getByLabel('New role'), 'USER')
   await accountNote(page, 'Old version')
   await page.getByRole('button', { name: 'Change role', exact: true }).click()
   await expect(page.getByRole('alert')).toContainText('Reload the account')
@@ -803,7 +805,7 @@ test('synthetic-boundary account conflict survives pagination and forces refresh
   ).toHaveText('8')
   await expect(page.getByLabel('Account action note (required)')).toHaveValue('')
   await expect(page.locator('#account-confirm')).not.toBeChecked()
-  await page.getByLabel('New role').selectOption('USER')
+  await chooseOption(page.getByLabel('New role'), 'USER')
   await accountNote(page, 'Fresh version')
   await page.getByRole('button', { name: 'Change role', exact: true }).click()
   await expect(
@@ -877,7 +879,7 @@ test('synthetic-boundary pending writes prevent duplicate submits and target swi
   )
   await page.goto('/admin/accounts')
   await page.getByTestId(`account-${userA}`).click()
-  await page.getByLabel('New role').selectOption('USER')
+  await chooseOption(page.getByLabel('New role'), 'USER')
   await accountNote(page, 'Review first identity')
   await page.getByRole('button', { name: 'Change role', exact: true }).click()
   await expect(page.getByTestId(`account-${userB}`)).toBeDisabled()
@@ -930,7 +932,7 @@ test('synthetic-boundary live permission loss removes every administrative panel
   const state = await syntheticBoundary(page)
   await page.goto('/admin/accounts')
   await page.getByTestId(`account-${userA}`).click()
-  await page.getByLabel('New role').selectOption('USER')
+  await chooseOption(page.getByLabel('New role'), 'USER')
   await accountNote(page, 'Recheck server permission')
   // Actual revocation denies both the mutation and the fresh ADMIN-only read.
   state.access = 'FORBIDDEN'
@@ -1006,7 +1008,7 @@ test('synthetic-boundary empty stall scan keeps continuation honest before a ver
   })
   await page.goto('/admin/accounts')
   await page.getByTestId(`account-${userA}`).click()
-  await page.getByLabel('Account action', { exact: true }).selectOption('grant')
+  await chooseOption(page.getByLabel('Account action', { exact: true }), 'grant')
   await page.getByLabel('Search existing stalls', { exact: true }).fill('Fixture')
   await page.getByRole('button', { name: 'Search stalls', exact: true }).click()
   await expect(
@@ -1020,15 +1022,16 @@ test('synthetic-boundary empty stall scan keeps continuation honest before a ver
   await page.screenshot({ path: test.info().outputPath('continued-empty.png') })
   await page.getByTestId('more-venues').click()
   await expect(
-    page.getByLabel('Stall to grant').locator('option').filter({ hasText: 'Stall B' }),
+    (await listOptions(page.getByLabel('Stall to grant'))).filter({ hasText: 'Stall B' }),
   ).toHaveCount(1)
+  await page.getByLabel('Stall to grant').press('Escape')
   await expect(page.getByTestId('more-venues')).toHaveCount(0)
   await expect(page.getByText('No verified stalls on this page.', { exact: false })).toHaveCount(0)
   await expect(
     page.getByText('No existing stalls match this search.', { exact: true }),
   ).toHaveCount(0)
-  await page.getByLabel('Stall to grant').selectOption(stallB)
-  await expect(page.getByLabel('Stall to grant')).toHaveValue(stallB)
+  await chooseOption(page.getByLabel('Stall to grant'), stallB)
+  await expectChosen(page.getByLabel('Stall to grant'), stallB)
   expect(cursors).toEqual([null, stallA])
   expect(calls(state, 'grantStall')).toHaveLength(0)
   expect(errors).toEqual([])
@@ -1103,7 +1106,7 @@ for (const width of [320, 390, 1440]) {
     await expect(directory).toHaveAttribute('aria-selected', 'true')
     await page.getByTestId(`account-${userA}`).click()
     await expect(page.getByTestId('selected-account-heading')).toBeFocused()
-    await page.getByLabel('New role', { exact: true }).selectOption('USER')
+    await chooseOption(page.getByLabel('New role', { exact: true }), 'USER')
     await accountNote(page, 'Unsubmitted access consent')
     await chooseAccountDetail(page, 'Security')
     const access = page.locator('#account-detail-panel-access')

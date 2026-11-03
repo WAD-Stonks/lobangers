@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import type { CatalogueVenueDetail } from '@broke-oclock/contracts/admin-catalogue'
+import AppSelect from '@web/components/AppSelect.vue'
+import type { SelectOption } from '@web/components/select-options'
 import { formatDateTime } from '@web/lib/format'
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 
 defineProps<{ venue: CatalogueVenueDetail; disabled: boolean }>()
 const emit = defineEmits<{
@@ -10,6 +12,16 @@ const emit = defineEmits<{
 }>()
 const kind = ref<'GEOGRAPHY' | 'OCCUPANCY'>('GEOGRAPHY')
 const sourceType = ref('ADMIN_VERIFIED')
+const KIND_OPTIONS: readonly SelectOption[] = [
+  { value: 'GEOGRAPHY', label: 'Geography' },
+  { value: 'OCCUPANCY', label: 'Occupancy' },
+]
+const sourceOptions = computed<readonly SelectOption[]>(() => [
+  { value: 'ADMIN_VERIFIED', label: 'Explicit administrator source verification' },
+  { value: 'OFFICIAL_MERCHANT', label: 'Official merchant' },
+  { value: 'OFFICIAL_PROPERTY', label: 'Official property' },
+  ...(kind.value === 'GEOGRAPHY' ? [{ value: 'ONEMAP', label: 'OneMap — geography only' }] : []),
+])
 const reference = ref('')
 const sourceUrl = ref('')
 const observedAt = ref('')
@@ -37,8 +49,8 @@ const record = () =>
     <p>Manual verification is an administrator attestation of a reviewed real supporting source, not an automated provider lookup. OneMap establishes geography only, never merchant occupancy. Occupancy needs an official merchant/property source or explicit administrator source verification. A picker selection is not proof.</p>
     <form @submit.prevent="record">
       <fieldset :disabled="disabled">
-        <label for="proof-kind" class="form-label">Evidence kind</label><select id="proof-kind" v-model="kind" class="form-select"><option value="GEOGRAPHY">Geography</option><option value="OCCUPANCY">Occupancy</option></select>
-        <label for="proof-source" class="form-label mt-3">Reviewed source type</label><select id="proof-source" v-model="sourceType" class="form-select"><option value="ADMIN_VERIFIED">Explicit administrator source verification</option><option value="OFFICIAL_MERCHANT">Official merchant</option><option value="OFFICIAL_PROPERTY">Official property</option><option v-if="kind === 'GEOGRAPHY'" value="ONEMAP">OneMap — geography only</option></select>
+        <label for="proof-kind" class="form-label">Evidence kind</label><AppSelect id="proof-kind" v-model="kind" :options="KIND_OPTIONS" class="form-select" />
+        <label for="proof-source" class="form-label mt-3">Reviewed source type</label><AppSelect id="proof-source" v-model="sourceType" :options="sourceOptions" class="form-select" />
         <label for="proof-reference" class="form-label mt-3">Supporting-source reference</label><input id="proof-reference" v-model="reference" class="form-control" maxlength="2048" required />
         <label for="proof-url" class="form-label mt-3">Source URL (optional, required for OneMap)</label><input id="proof-url" v-model="sourceUrl" type="url" class="form-control" maxlength="2048" />
         <label for="proof-observed" class="form-label mt-3">Observed at (optional, local time)</label><input id="proof-observed" v-model="observedAt" name="observed-at" type="datetime-local" class="form-control" />

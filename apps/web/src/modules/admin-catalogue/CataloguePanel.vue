@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import AppSelect from '@web/components/AppSelect.vue'
+import type { SelectOption } from '@web/components/select-options'
 import TicketLoading from '@web/components/TicketLoading.vue'
 import { api } from '@web/lib/api-client'
 import EvidenceEditor from '@web/modules/admin-catalogue/EvidenceEditor.vue'
@@ -25,6 +27,15 @@ const {
   message,
   listError,
 } = state
+const KIND_OPTIONS: readonly SelectOption[] = [
+  { value: 'merchants', label: 'Merchants' },
+  { value: 'venues', label: 'Outlets' },
+]
+const STATUS_OPTIONS: readonly SelectOption[] = [
+  { value: 'active', label: 'Active' },
+  { value: 'archived', label: 'Archived' },
+  { value: 'all', label: 'All' },
+]
 onMounted(() => state.load())
 onUnmounted(state.dispose)
 </script>
@@ -33,9 +44,9 @@ onUnmounted(state.dispose)
     <p class="admin-eyebrow">Canonical catalogue</p>
     <p>Maintain merchant identities and resolved outlets. Unverified rows are visible here only; maintenance does not grant selection authority.</p>
     <form class="row g-3 align-items-end" @submit.prevent="state.load()">
-      <div class="col-12 col-md-3"><label for="catalogue-kind" class="form-label">Directory</label><select id="catalogue-kind" v-model="kind" :disabled="pending" class="form-select" @change="state.load()"><option value="merchants">Merchants</option><option value="venues">Outlets</option></select></div>
+      <div class="col-12 col-md-3"><label for="catalogue-kind" class="form-label">Directory</label><AppSelect id="catalogue-kind" v-model="kind" :options="KIND_OPTIONS" :disabled="pending" class="form-select" @change="state.load()" /></div>
       <div class="col-12 col-md-4"><label for="catalogue-search" class="form-label">Search name / outlet address</label><input id="catalogue-search" v-model="search" :disabled="pending" type="search" class="form-control" maxlength="100" /></div>
-      <div class="col-12 col-md-3"><label for="catalogue-status" class="form-label">Status</label><select id="catalogue-status" v-model="status" :disabled="pending" class="form-select"><option value="active">Active</option><option value="archived">Archived</option><option value="all">All</option></select></div>
+      <div class="col-12 col-md-3"><label for="catalogue-status" class="form-label">Status</label><AppSelect id="catalogue-status" v-model="status" :options="STATUS_OPTIONS" :disabled="pending" class="form-select" /></div>
       <div class="col-12 col-md-2"><button class="btn btn-outline-primary w-100" :disabled="loading || pending" type="submit">Apply filters</button></div>
       <div v-if="kind === 'venues'" class="col-12 col-md-6"><label for="catalogue-merchant" class="form-label">Filter merchant ID (optional)</label><input id="catalogue-merchant" v-model="merchantId" :disabled="pending" class="form-control" pattern="[a-f0-9]{24}" /></div>
     </form>

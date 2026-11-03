@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import AppSelect from '@web/components/AppSelect.vue'
+import { optionsFromValues, type SelectOption, withLeading } from '@web/components/select-options'
 import TicketLoading from '@web/components/TicketLoading.vue'
 import { formatDateTime } from '@web/lib/format'
 import { useModeration } from '@web/modules/admin-moderation/use-moderation'
@@ -32,19 +34,37 @@ const {
   submit,
   resetConsent,
 } = useModeration((code) => emit('denied', code))
+const QUEUE_OPTIONS: readonly SelectOption[] = [
+  { value: 'REPORTS', label: 'Reports' },
+  { value: 'COMMENTS', label: 'Comments' },
+]
+const TARGET_OPTIONS: readonly SelectOption[] = [
+  { value: 'COMMENT', label: 'Comment reports' },
+  { value: 'DEAL', label: 'Deal reports' },
+]
+const STATUS_OPTIONS = optionsFromValues(['OPEN', 'RESOLVED', 'DISMISSED'])
+const REASON_OPTIONS = withLeading(
+  { value: '', label: 'All reasons' },
+  optionsFromValues(['SPAM', 'MISLEADING', 'INAPPROPRIATE', 'OTHER']),
+)
+const STATE_OPTIONS = optionsFromValues(['VISIBLE', 'HIDDEN', 'AUTHOR_DELETED'])
+const DECISION_OPTIONS: readonly SelectOption[] = [
+  { value: 'RESOLVED', label: 'Resolve report only' },
+  { value: 'DISMISSED', label: 'Dismiss report only' },
+]
 </script>
 <template>
 <section class="moderation-panel" aria-label="Reports and comment moderation">
  <p class="scope-note">Reports currently concern a whole deal or an individual comment, not a verified outlet. Report decisions do not hide content or resolve other reports.</p>
  <p><a href="/admin/deals">Open global deal publication controls</a>. Unpublishing a deal affects the whole promotion across its chain/outlets; investigate scope explicitly. Never infer an outlet from a report.</p>
  <form class="row g-3 mb-4" @submit.prevent="load(false)">
-  <div class="col-sm-4"><label for="mod-queue" class="form-label">Queue</label><select id="mod-queue" v-model="mode" class="form-select" :disabled="pending" @change="load(false)"><option value="REPORTS">Reports</option><option value="COMMENTS">Comments</option></select></div>
+  <div class="col-sm-4"><label for="mod-queue" class="form-label">Queue</label><AppSelect id="mod-queue" v-model="mode" :options="QUEUE_OPTIONS" class="form-select" :disabled="pending" @change="load(false)" /></div>
   <template v-if="mode==='REPORTS'">
-   <div class="col-sm-4"><label for="mod-type" class="form-label">Report collection</label><select id="mod-type" v-model="targetType" class="form-select" :disabled="pending" @change="load(false)"><option value="COMMENT">Comment reports</option><option value="DEAL">Deal reports</option></select></div>
-   <div class="col-sm-4"><label for="mod-status" class="form-label">Report status</label><select id="mod-status" v-model="status" class="form-select" :disabled="pending" @change="load(false)"><option>OPEN</option><option>RESOLVED</option><option>DISMISSED</option></select></div>
-   <div class="col-sm-4"><label for="mod-reason" class="form-label">Reason</label><select id="mod-reason" v-model="reason" class="form-select" :disabled="pending"><option value="">All reasons</option><option>SPAM</option><option>MISLEADING</option><option>INAPPROPRIATE</option><option>OTHER</option></select></div>
+   <div class="col-sm-4"><label for="mod-type" class="form-label">Report collection</label><AppSelect id="mod-type" v-model="targetType" :options="TARGET_OPTIONS" class="form-select" :disabled="pending" @change="load(false)" /></div>
+   <div class="col-sm-4"><label for="mod-status" class="form-label">Report status</label><AppSelect id="mod-status" v-model="status" :options="STATUS_OPTIONS" class="form-select" :disabled="pending" @change="load(false)" /></div>
+   <div class="col-sm-4"><label for="mod-reason" class="form-label">Reason</label><AppSelect id="mod-reason" v-model="reason" :options="REASON_OPTIONS" class="form-select" :disabled="pending" /></div>
   </template>
-  <div v-else class="col-sm-4"><label for="mod-state" class="form-label">Comment state</label><select id="mod-state" v-model="state" class="form-select" :disabled="pending" @change="load(false)"><option>VISIBLE</option><option>HIDDEN</option><option>AUTHOR_DELETED</option></select></div>
+  <div v-else class="col-sm-4"><label for="mod-state" class="form-label">Comment state</label><AppSelect id="mod-state" v-model="state" :options="STATE_OPTIONS" class="form-select" :disabled="pending" @change="load(false)" /></div>
   <div class="col-sm-6"><label for="mod-deal" class="form-label">Deal ID (optional)</label><input id="mod-deal" v-model="dealId" name="dealId" class="form-control" pattern="[a-f0-9]{24}" spellcheck="false" autocomplete="off" autocapitalize="none" translate="no" :disabled="pending" /></div>
   <div class="col-sm-2 align-self-end"><button type="submit" class="btn btn-outline-primary" :disabled="pending||loading">Apply filters</button></div>
  </form>
@@ -72,7 +92,7 @@ const {
  <form data-testid="decision-form" @submit.prevent="submit">
  <fieldset :disabled="pending||!!(report&&report.status!=='OPEN')||!!comment?.deletedAt">
  <legend class="h5">{{report?'Report decision':comment?.hiddenAt?'Restore comment':'Hide comment'}}</legend>
- <div v-if="report" class="mb-3"><label for="mod-decision" class="form-label">Decision</label><select id="mod-decision" v-model="decision" class="form-select" @change="resetConsent"><option value="RESOLVED">Resolve report only</option><option value="DISMISSED">Dismiss report only</option></select></div>
+ <div v-if="report" class="mb-3"><label for="mod-decision" class="form-label">Decision</label><AppSelect id="mod-decision" v-model="decision" :options="DECISION_OPTIONS" class="form-select" @change="resetConsent" /></div>
  <label for="mod-note" class="form-label">{{report?'Resolution':'Moderation note'}} (required)</label><textarea id="mod-note" v-model="note" name="note" class="form-control mb-3" rows="3" maxlength="500" required />
  <div class="form-check mb-3"><input id="mod-confirm" v-model="confirmed" name="confirmed" class="form-check-input" type="checkbox" /><label for="mod-confirm" class="form-check-label">I reviewed this exact target and version, and confirm this action.</label></div>
  <button type="submit" class="btn btn-primary" :disabled="blocked">{{pending?'Saving…':report?'Record report decision':comment?.hiddenAt?'Restore comment':'Hide comment'}}</button>

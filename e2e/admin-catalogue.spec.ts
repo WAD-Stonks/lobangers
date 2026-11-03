@@ -5,6 +5,8 @@ import { resolve } from 'node:path'
 import { expect, test } from '@playwright/test'
 // biome-ignore lint/style/noRestrictedImports: E2E-only helper; no E2E alias exists and config is outside this UI adoption scope.
 import { openAdminAccount } from './admin-ui'
+// biome-ignore lint/style/noRestrictedImports: E2E-only helper; no E2E alias exists.
+import { chooseOption } from './choose-option'
 
 const artifacts = resolve(tmpdir(), 'lobangers-catalogue', 'browser')
 let child: ChildProcess
@@ -90,8 +92,8 @@ test('connected native sign-in, merchant/outlet correction, manual receipts, inv
   await expect(page.getByText('Unselectable — maintenance only', { exact: true })).toBeVisible()
   await page.locator('#proof-reference').fill('Synthetic reviewed merchant source')
   await page.locator('#proof-url').fill('https://example.test/official-outlets')
-  await page.locator('#proof-kind').selectOption('OCCUPANCY')
-  await page.locator('#proof-source').selectOption('OFFICIAL_MERCHANT')
+  await chooseOption(page.locator('#proof-kind'), 'OCCUPANCY')
+  await chooseOption(page.locator('#proof-source'), 'OFFICIAL_MERCHANT')
   await page
     .locator('#proof-statement')
     .fill('Synthetic manual source explicitly confirms this merchant occupies the exact outlet')

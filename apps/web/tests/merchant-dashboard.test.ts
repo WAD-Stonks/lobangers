@@ -1,7 +1,9 @@
 import type { MerchantFlashDrop } from '@broke-oclock/contracts/flash-drops'
 import { enableAutoUnmount, flushPromises, mount } from '@vue/test-utils'
+import ConfirmDialog from '@web/components/ConfirmDialog.vue'
 import type { DealInput, MerchantDeal, MerchantOutlet } from '@web/modules/merchant/merchant-api'
 import MerchantDashboardPage from '@web/pages/MerchantDashboardPage.vue'
+import { chooseOption } from '@web-tests/support/select'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const merchantApi = vi.hoisted(() => ({
@@ -167,9 +169,9 @@ async function fillNewDeal(wrapper: PageWrapper) {
   await button(wrapper, '+ New deal').trigger('click')
   await wrapper.get('#deal-title').setValue('Synthetic 1-for-1')
   await wrapper.get('#deal-description').setValue('Two plates for one.')
-  await wrapper.get('#deal-category').setValue('FOOD')
-  await wrapper.get('#deal-cuisine').setValue('CHINESE')
-  await wrapper.get('#deal-offer').setValue('BUY_ONE_GET_ONE')
+  await chooseOption(wrapper, '#deal-category', 'FOOD')
+  await chooseOption(wrapper, '#deal-cuisine', 'CHINESE')
+  await chooseOption(wrapper, '#deal-offer', 'BUY_ONE_GET_ONE')
 }
 
 const save = async (wrapper: PageWrapper) => {
@@ -194,6 +196,8 @@ describe('merchant dashboard', () => {
 
   it('ends a live deal, and deletes scheduled and ended ones after a themed confirm', async () => {
     const confirmSpy = vi.spyOn(window, 'confirm')
+    // App.vue mounts the one ConfirmDialog for every page.
+    mount(ConfirmDialog, { attachTo: document.body })
     merchantApi.deleteDeal.mockResolvedValue(undefined)
     merchantApi.endDeal.mockImplementation(async (id: string) =>
       deal({ id, title: 'Synthetic live', endedAt: '2026-11-03T00:00:00.000Z' }),
@@ -395,7 +399,7 @@ describe('merchant dashboard', () => {
     expect(flashSaved).not.toHaveBeenCalled()
     // The form's own offer is the flash offer, with the same choices as a deal.
     expect(wrapper.get('label[for="deal-offer"]').text()).toBe('Flash offer')
-    await wrapper.get('#deal-offer').setValue('FIXED_PRICE')
+    await chooseOption(wrapper, '#deal-offer', 'FIXED_PRICE')
     expect(wrapper.get('label[for="deal-price"]').text()).toBe('Flash price ($)')
     await wrapper.get('#deal-price').setValue('1.5')
 

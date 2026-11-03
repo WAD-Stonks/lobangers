@@ -6,6 +6,8 @@ import { evidencePageSchema } from '@broke-oclock/contracts/ingestion-evidence'
 import { postsPageSchema } from '@broke-oclock/contracts/ingestion-recovery'
 import type { VenueDealSummary } from '@broke-oclock/contracts/venues'
 import { expect, type Locator, type Page, test } from '@playwright/test'
+// biome-ignore lint/style/noRestrictedImports: E2E-only helper; no E2E alias exists.
+import { chooseOption } from './choose-option'
 
 // Evidence only: observe actual Chromium output without replacing SPA or browser behavior.
 const browserObservations = new WeakMap<
@@ -369,7 +371,7 @@ for (const width of [320, 768, 1024, 1440]) {
     expect(layout).toEqual({ width, scroll: width })
     // Original denial cleanup must remove already selected image evidence.
     state.denyDrafts = true
-    await queue.getByLabel('Review status').selectOption('APPROVED')
+    await chooseOption(queue.getByLabel('Review status'), 'APPROVED')
     await expect(page.getByText('You do not have permission to review ingestion.')).toBeVisible()
     await expect(evidence).toHaveCount(0)
     state.admin = false

@@ -186,9 +186,14 @@ const fillDeal = async (page: Page, title: string) => {
   await page.getByRole('button', { name: '+ New deal' }).click()
   await page.getByLabel('Title').fill(title)
   await page.getByLabel('Description').fill('Fake deal for tests.')
-  await page.getByLabel('Category').selectOption('FOOD')
-  await page.getByLabel('Cuisine').selectOption('CHINESE')
-  await page.getByLabel('Offer type').selectOption('FIXED_PRICE')
+  for (const [label, value] of [
+    ['Category', 'FOOD'],
+    ['Cuisine', 'CHINESE'],
+    ['Offer type', 'FIXED_PRICE'],
+  ] as const) {
+    await page.getByLabel(label).click()
+    await page.locator(`[role="option"][data-value="${value}"]`).click()
+  }
   await page.getByLabel('Deal price ($)').fill('4')
   await page.getByRole('checkbox', { name: 'Ah Seng Chicken Rice (Maxwell)' }).check()
 }
@@ -205,7 +210,7 @@ test('save a flash deal as a draft, send it live and end it early', async ({ pag
   await expect(page.getByLabel('Start date (optional)')).toHaveCount(0)
 
   // The form's offer is now the flash offer; a usual price is optional but must be higher.
-  await expect(page.getByLabel('Flash offer')).toHaveValue('FIXED_PRICE')
+  await expect(page.getByLabel('Flash offer')).toHaveAttribute('data-value', 'FIXED_PRICE')
   await page.getByLabel('Flash price ($)').fill('1.20')
   await page.getByLabel('Usual price ($, optional)').fill('1')
   await page.getByRole('button', { name: 'Save as flash deal' }).click()

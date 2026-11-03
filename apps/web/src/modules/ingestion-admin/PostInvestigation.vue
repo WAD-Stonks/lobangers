@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { BButton } from '@broke-oclock/ui'
+import AppSelect from '@web/components/AppSelect.vue'
+import type { SelectOption } from '@web/components/select-options'
 import TicketLoading from '@web/components/TicketLoading.vue'
 import { formatDateTime } from '@web/lib/format'
 import { usePostInvestigation } from '@web/modules/ingestion-admin/use-post-investigation'
@@ -8,6 +10,10 @@ import { toRef } from 'vue'
 const props = defineProps<{ postId: string }>()
 const emit = defineEmits<{ denied: [code: string] }>()
 const { detail, pending, busy, error, note, confirmed, mode, result, unknown, canRecover, load, recover, recoveryId, reconcile } = usePostInvestigation(toRef(props, 'postId'), code => emit('denied', code))
+const MODE_OPTIONS: readonly SelectOption[] = [
+  { value: 'REPROCESS_STORED', label: 'Reprocess exact stored envelope (one target)' },
+  { value: 'REFRESH_SOURCE_WINDOW', label: 'Refresh this source window (at most 2 pages × 20; target may not appear)' },
+]
 </script>
 
 <template>
@@ -24,7 +30,7 @@ const { detail, pending, busy, error, note, confirmed, mode, result, unknown, ca
    <BButton v-if="detail.nextCitationCursor" :disabled="pending || busy" @click="load(detail.nextCitationCursor)">More linked citations</BButton>
    <form @submit.prevent="recover">
     <label :for="`recovery-mode-${postId}`">Bounded recovery mode</label>
-    <select :id="`recovery-mode-${postId}`" v-model="mode" :disabled="busy || pending || unknown"><option value="REPROCESS_STORED">Reprocess exact stored envelope (one target)</option><option value="REFRESH_SOURCE_WINDOW">Refresh this source window (at most 2 pages × 20; target may not appear)</option></select>
+    <AppSelect :id="`recovery-mode-${postId}`" v-model="mode" class="form-select" :options="MODE_OPTIONS" :disabled="busy || pending || unknown" />
     <p>No source enabling, reset, purge, cursor rewind or global run. Protected canonical content and immutable citations remain protected.</p>
     <ul><li v-for="cap in detail.capabilities" :key="cap.mode">{{ cap.mode }}: {{ cap.allowed ? 'Available at read time; rechecked on submit' : 'Blocked' }}<ul><li v-for="blocker in cap.blockers" :key="blocker">{{ blocker }}</li></ul></li></ul>
     <label :for="`recovery-note-${postId}`">Reason (required)</label><textarea :id="`recovery-note-${postId}`" v-model="note" name="recovery-note" maxlength="500" :disabled="pending || busy || unknown" />

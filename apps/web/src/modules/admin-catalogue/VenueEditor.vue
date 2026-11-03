@@ -3,6 +3,8 @@ import type {
   CatalogueMerchant,
   CatalogueVenueDetail,
 } from '@broke-oclock/contracts/admin-catalogue'
+import AppSelect from '@web/components/AppSelect.vue'
+import type { SelectOption } from '@web/components/select-options'
 import { reactive, ref } from 'vue'
 
 const props = defineProps<{
@@ -15,6 +17,10 @@ const emit = defineEmits<{
   save: [body: Record<string, unknown>]
   archive: [body: Record<string, unknown>]
 }>()
+const PRECISION_OPTIONS: readonly SelectOption[] = [
+  { value: 'PROPERTY', label: 'Property' },
+  { value: 'OUTLET', label: 'Outlet' },
+]
 const fields = reactive({
   name: props.venue?.name ?? '',
   address: props.venue?.address ?? '',
@@ -59,7 +65,7 @@ const save = () => {
             <label :for="`venue-${field[0]}`" class="form-label">{{ field[1] }}</label>
             <input :id="`venue-${field[0]}`" v-model="fields[field[0]]" :name="field[0]" autocomplete="off" :spellcheck="['name', 'address', 'area'].includes(field[0])" :inputmode="['latitude', 'longitude'].includes(field[0]) ? 'decimal' : field[0] === 'postalCode' ? 'numeric' : undefined" class="form-control" :required="field[0] !== 'imageUrl'" :maxlength="field[0] === 'imageUrl' ? 2048 : 500" />
           </div>
-          <div class="col-12"><label for="venue-precision" class="form-label">Resolved point precision</label><select id="venue-precision" v-model="fields.geographyPrecision" name="geographyPrecision" class="form-select"><option value="PROPERTY">Property</option><option value="OUTLET">Outlet</option></select></div>
+          <div class="col-12"><label for="venue-precision" class="form-label">Resolved point precision</label><AppSelect id="venue-precision" v-model="fields.geographyPrecision" name="geographyPrecision" :options="PRECISION_OPTIONS" class="form-select" /></div>
         </div>
         <p class="form-text">No coordinate lookup, image fetching or upload is performed. Supply a genuinely resolved point, not 0,0.</p>
         <label for="venue-note" class="form-label">Reason for this operation</label><textarea id="venue-note" v-model="note" name="note" class="form-control" maxlength="500" required />

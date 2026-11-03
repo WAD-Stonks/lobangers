@@ -1,5 +1,6 @@
 import { flushPromises, mount } from '@vue/test-utils'
 import { confirmAdminIdentity } from '@web/lib/admin-recovery'
+import { chooseOption } from '@web-tests/support/select'
 import { beforeEach, expect, it, vi } from 'vitest'
 import { defineComponent } from 'vue'
 
@@ -84,7 +85,7 @@ it('records submission evidence and reviews using explicit captured operation pa
   await flushPromises()
   await wrapper.get('[data-testid="select-deal"]').trigger('click')
   await flushPromises()
-  await wrapper.get('.action-picker select').setValue('evidence')
+  await chooseOption(wrapper, '.action-picker .app-select', 'evidence')
   await wrapper.get('[name="reference"]').setValue('https://merchant.example/campaign')
   await wrapper
     .get('[name="statement"]')
@@ -104,7 +105,7 @@ it('records submission evidence and reviews using explicit captured operation pa
     staffConfirmed: true,
   })
   expect(wrapper.text()).toContain('UNPUBLISHED')
-  await wrapper.get('.action-picker select').setValue('APPROVE')
+  await chooseOption(wrapper, '.action-picker .app-select', 'APPROVE')
   await wrapper.get('[name="note"]').setValue('Independent review')
   await wrapper.get('[name="confirm"]').setValue(true)
   await wrapper.get('[data-testid="save-operation"]').trigger('click')

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import AppSelect from '@web/components/AppSelect.vue'
 import AllDealsHero from '@web/modules/browse-map/AllDealsHero.vue'
 import type { SortKey } from '@web/modules/browse-map/apply-filters'
 import DealRowList from '@web/modules/browse-map/DealRowList.vue'
@@ -56,7 +57,7 @@ const scrollKey = computed(() =>
 )
 
 const toDeal = (row: DealRow) => dealLocation({ ...route.query, ...(shell.savedOnly.value ? { collection: 'saved' } : {}) }, row.deal.id, row.venue.id)
-const onSort = (event: Event) => shell.setSort((event.target as HTMLSelectElement).value as SortKey)
+const onSort = (value: string) => shell.setSort(value as SortKey)
 const clearAll = () => {
   void shell.applyFilters({ ...createDefaultFilters() })
 }
@@ -71,9 +72,7 @@ const clearAll = () => {
         <label class="browse-list__sort">
           <ShellIcon name="sort" :size="18" />
           <span class="visually-hidden">Sort deals</span>
-          <select class="browse-list__select" :value="shell.sort.value" data-testid="sort" @change="onSort">
-            <option v-for="option in SORT_OPTIONS" :key="option.value" :value="option.value">{{ option.label }}</option>
-          </select>
+          <AppSelect class="browse-list__select" :model-value="shell.sort.value" :options="SORT_OPTIONS" :chevron="false" data-testid="sort" @update:model-value="onSort" />
           <ShellIcon class="browse-list__chevron" name="chevronDown" :size="16" :stroke-width="2.4" />
         </label>
         <button v-if="fullPage && shell.savedOnly.value" type="button" class="lb-btn browse-list__map-button" data-testid="show-map" @click="shell.setView('map')">
@@ -95,9 +94,7 @@ const clearAll = () => {
       <label v-if="!fullPage" class="browse-list__sort">
         <ShellIcon name="sort" :size="18" />
         <span class="visually-hidden">Sort deals</span>
-        <select class="browse-list__select" :value="shell.sort.value" data-testid="sort" @change="onSort">
-          <option v-for="option in SORT_OPTIONS" :key="option.value" :value="option.value">{{ option.label }}</option>
-        </select>
+        <AppSelect class="browse-list__select" :model-value="shell.sort.value" :options="SORT_OPTIONS" :chevron="false" data-testid="sort" @update:model-value="onSort" />
         <ShellIcon class="browse-list__chevron" name="chevronDown" :size="16" :stroke-width="2.4" />
       </label>
     </div>
@@ -350,12 +347,6 @@ const clearAll = () => {
   outline: none;
   appearance: none;
   cursor: pointer;
-}
-
-/* Explicit colours so the native option list stays readable in Windows dark mode. */
-.browse-list__select option {
-  color: var(--ink);
-  background-color: var(--paper-white);
 }
 
 .browse-list__chevron {

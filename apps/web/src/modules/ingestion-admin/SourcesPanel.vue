@@ -2,10 +2,12 @@
 import { type IngestionSource, ingestionAddSourceRequestSchema } from '@broke-oclock/contracts/ingestion-sources'
 import { BButton } from '@broke-oclock/ui'
 import { api } from '@web/lib/api-client'
+import { useConfirm } from '@web/lib/use-confirm'
 import { errorCode } from '@web/modules/ingestion-admin/errors'
 import { onUnmounted, ref } from 'vue'
 
 const emit = defineEmits<{ denied: [code: string]; changed: [] }>()
+const { ask } = useConfirm()
 const items = ref<IngestionSource[] | null>(null)
 const pending = ref(false)
 const nextCursor = ref<string | null>(null)
@@ -78,7 +80,11 @@ const refreshConflict = async (sourceId: string) => {
 const toggle = async (source: IngestionSource) => {
   if (pending.value || source.provider !== 'TELEGRAM' || (!source.enabled && !confirmedIds.value.includes(source.id))) return
   // Disabling stops imports straight away, so it asks first; enabling has its own checkbox.
-  if (source.enabled && !window.confirm(`Disable ${source.name}? New posts from it will stop being imported.`)) return
+  if (source.enabled && !(await ask({
+    title: `Disable ${source.name}?`,
+    body: 'New posts from it will stop being imported.',
+    confirmLabel: 'Disable source',
+  }))) return
   pending.value = true
   error.value = ''
   notice.value = ''
