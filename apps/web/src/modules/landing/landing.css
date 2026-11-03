@@ -138,6 +138,29 @@
 .landing-account > .nav-link:nth-child(-n + 3):not(:nth-last-child(-n + 2)) {
   display: none;
 }
+.landing-theme {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  margin-right: -6px;
+  background: none;
+  border: 0;
+  border-radius: 50%;
+  transition: background-color 0.15s;
+}
+.landing-theme svg {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.landing-theme:hover {
+  background: #20231e0f;
+}
 .landing-menu-toggle {
   display: none;
   background: none;
@@ -1186,9 +1209,13 @@
   .landing-account {
     display: none;
   }
+  /* The account links fold into the menu, so the switch moves over beside its button. */
+  .landing-theme {
+    margin-left: auto;
+    margin-right: 0;
+  }
   .landing-menu-toggle {
     display: block;
-    margin-left: auto;
     font-size: 12px;
     min-width: 70px;
     min-height: 44px;

@@ -82,6 +82,7 @@
   display: inline-flex;
   flex: none;
   align-items: center;
+  justify-content: center;
   gap: 6px;
   min-height: var(--hit);
   padding: 0 14px;
@@ -119,20 +120,30 @@
   border-color: var(--ink-strong);
 }
 
+/* While hidden, the check cancels its own flex gap so the label stays centred. */
 .lb-chip__check {
   display: inline-flex;
   width: 0;
+  margin-inline-end: -6px;
   overflow: hidden;
-  transition: width var(--dur-small) var(--ease-out);
+  transition:
+    width var(--dur-small) var(--ease-out),
+    margin var(--dur-small) var(--ease-out);
 }
 
 .lb-chip[aria-pressed="true"] .lb-chip__check {
   width: 14px;
+  margin-inline-end: 0;
 }
 
 .lb-chip__count {
   font-weight: 500;
   opacity: 0.65;
+}
+
+/* No count to show (the option is already on): no empty slot either. */
+.lb-chip__count:empty {
+  display: none;
 }
 
 @media (hover: hover) and (pointer: fine) {

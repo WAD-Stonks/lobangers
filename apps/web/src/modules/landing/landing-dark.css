@@ -1,0 +1,487 @@
+/* biome-ignore-all lint/style/noDescendingSpecificity: Dark overrides follow the light rules they replace, section by section. */
+/* Dark landing page: the same warm "paper at night" as the app. assets/dark-theme.css puts the
+   shared tokens on .lobangers-landing, so the deal cards and account menus follow on their own;
+   this file covers the landing page's own colours. The paintings keep their colours (the map
+   swaps to a copy with its paper cut out, see IllustratedMap.vue); everything around them goes
+   dark. Sunny yellow stays the call to action, always with dark text. Every rule mirrors the
+   light selector it replaces, so the theme prefix always wins without !important. */
+:root[data-theme="dark"] .lobangers-landing {
+  --landing-paper: #141412;
+  --landing-ink: #f3f1ec;
+  --landing-muted: #a8a59d;
+  --landing-coral: #e8714f;
+  --landing-coral-ink: #f08b6d;
+  --dark-card: #2a2926;
+  --dark-chip: #33322e;
+  --dark-edge: #403e38;
+  --dark-edge-strong: #6b6860;
+  --dark-soft-ink: #cfccc3;
+  --dark-on-sunny: #1b1b1f;
+
+  :is(button, a, select):focus-visible {
+    outline-color: var(--focus-ring);
+  }
+
+  /* Navigation */
+  .landing-skip,
+  .landing-mobile-menu {
+    background: var(--dark-card);
+  }
+  .landing-nav {
+    background: var(--dark-card);
+    border-color: var(--dark-edge);
+    box-shadow: var(--shadow-pill);
+  }
+  img[src*="lobangers-logo"] {
+    filter: invert(1);
+  }
+  .landing-account > .nav-link:last-child {
+    color: var(--dark-on-sunny);
+  }
+  .landing-theme:hover {
+    background: rgb(255 255 255 / 0.08);
+  }
+  .landing-eyebrow {
+    color: var(--landing-coral-ink);
+  }
+
+  /* Buttons */
+  .landing-button.primary,
+  .landing-card-primary,
+  .hero-copy > .landing-button,
+  .hero-deal-action,
+  .hero-live-card .hero-deal-action,
+  .hero-deal-copy > .hero-deal-action,
+  .community-signup,
+  .social-offer {
+    color: var(--dark-on-sunny);
+  }
+  .landing-button.secondary {
+    background: var(--dark-card);
+    border-color: var(--dark-edge-strong);
+  }
+  .landing-button.dark {
+    background: var(--ink);
+    color: var(--dark-on-sunny);
+  }
+  .landing-button.dark:hover {
+    background: var(--ink-strong-hover);
+  }
+  .story-playback-toggle,
+  .cinematic-story .story-top-actions > a {
+    background: var(--dark-card);
+    border-color: var(--dark-edge-strong);
+    color: var(--landing-ink);
+    box-shadow: var(--shadow-pill);
+  }
+  .story-playback-toggle:is(:hover, :focus-visible),
+  .cinematic-story .story-top-actions > a:is(:hover, :focus-visible) {
+    background: var(--dark-chip);
+  }
+
+  /* Hero */
+  .hero-paper-background {
+    background: radial-gradient(ellipse at 17% 56%, rgb(255 218 83 / 0.06), transparent 49%);
+  }
+  .hero-paper-background::before {
+    border-color: rgb(255 255 255 / 0.04);
+    box-shadow: 0 0 0 30px rgb(255 255 255 / 0.02);
+  }
+  .hero-paper-background::after {
+    background: rgb(255 218 83 / 0.04);
+  }
+  .landing-hero {
+    background: radial-gradient(ellipse at 78% 45%, rgb(255 218 83 / 0.05), transparent 65%);
+    background-color: var(--landing-paper);
+  }
+  .landing-hero h1 {
+    color: var(--landing-ink);
+  }
+  .hero-subtitle {
+    color: var(--dark-soft-ink);
+  }
+  /* The cut-out map needs no blending; multiply would darken it into the page. */
+  .hero-map-scene > .illustrated-map,
+  .island-art {
+    mix-blend-mode: normal;
+  }
+  .illustrated-map,
+  .story-camera .illustrated-map {
+    background: transparent;
+  }
+  .pin-label {
+    background: rgb(42 41 38 / 0.93);
+    color: var(--landing-ink);
+    box-shadow: 0 2px 6px rgb(0 0 0 / 0.4);
+  }
+  .landmark-hint {
+    background: var(--dark-card);
+    border-color: var(--dark-edge);
+    color: var(--dark-soft-ink);
+    box-shadow: var(--shadow-pill);
+  }
+  .island-marker:focus-visible .hero-food-pin,
+  .hero-map-scene .island-marker:focus-visible .hero-food-pin {
+    outline-color: var(--focus-ring);
+  }
+
+  /* Hero deal card */
+  .hero-deal,
+  .hero-map-area > .hero-live-card,
+  .hero-map-area > .hero-live-card.hero-card-docked {
+    background: var(--dark-card);
+    border-color: var(--dark-edge);
+    box-shadow: var(--shadow-card);
+  }
+  .hero-map-area > .hero-deal:focus-visible {
+    outline-color: var(--focus-ring);
+  }
+  .hero-live-card .hero-card-topline,
+  .hero-live-card .hero-deal-copy > small,
+  .hero-deal-copy > small,
+  .hero-deal-copy span,
+  .hero-deal-copy del,
+  .hero-live-card .hero-promotion-period,
+  .hero-live-card .hero-outlet-location,
+  .hero-card-photo .hero-food-placeholder {
+    color: var(--landing-muted);
+  }
+  .hero-card-topline .hero-card-region,
+  .hero-live-card .hero-promotion-title {
+    color: var(--landing-ink);
+  }
+  .hero-deal-copy b {
+    color: var(--landing-coral-ink);
+  }
+  .hero-live-card .hero-card-photo {
+    background: var(--dark-chip);
+  }
+  .hero-live-card .hero-card-footer {
+    border-color: var(--dark-edge);
+  }
+  .landing-skeleton,
+  .hero-loading-card .hero-card-region i {
+    background: var(--dark-chip);
+  }
+
+  /* Story intro */
+  .story-intro {
+    background: radial-gradient(ellipse at 50% 70%, rgb(255 218 83 / 0.04), transparent 65%);
+  }
+  .intro-scribble {
+    color: #7d7a70;
+  }
+
+  /* Scroll story. ScrollStory.vue shifts --story-paper from cream to sea blue as the map hands
+     off; a small share of it keeps that shift as a tint on the dark page. */
+  .scroll-story {
+    background: var(--landing-paper);
+  }
+  .story-sticky,
+  .cinematic-story .story-sticky {
+    background: color-mix(in srgb, var(--story-paper, #f6f3e9) 4%, #141412);
+  }
+  .story-scrapbook-background {
+    background: radial-gradient(ellipse at 80% 48%, #22201b, transparent 63%);
+  }
+  .story-scrapbook-background::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: url("/landing/scattered-feed-backdrop.svg") center / cover no-repeat;
+    opacity: 0.12;
+  }
+  .story-scene-background {
+    background: radial-gradient(ellipse at 85% 30%, rgb(138 174 255 / 0.1), transparent 70%);
+  }
+  .story-vignette {
+    background: linear-gradient(90deg, #141412ed 0%, #1414129c 27%, #14141200 57%);
+  }
+  .story-topline,
+  .story-bottom,
+  .story-copy > div > p,
+  .story-scan-label > span,
+  .portal-food-copy > p {
+    color: var(--landing-muted);
+  }
+  .cinematic-story .story-topline a {
+    color: var(--dark-soft-ink);
+    border-bottom-color: var(--dark-edge-strong);
+  }
+  .story-rail > i {
+    background: var(--dark-edge);
+  }
+  .story-handoff-caption {
+    background: rgb(42 41 38 / 0.87);
+    border-color: var(--dark-edge);
+    color: #9fd0c9;
+  }
+  .story-found-ring > span {
+    background: var(--dark-card);
+    color: var(--tag-ok-ink);
+  }
+  .story-scan-label {
+    background: rgb(42 41 38 / 0.96);
+    border-color: var(--dark-edge);
+  }
+  .story-scan-label strong {
+    color: var(--landing-coral-ink);
+  }
+  .story-scan-label > div {
+    background: var(--dark-edge);
+  }
+  .story-food-portal {
+    background:
+      radial-gradient(ellipse at 85% 29%, rgb(255 218 83 / 0.14) 0%, transparent 46%),
+      linear-gradient(140deg, #1f1c13, #2b2214 75%, #362813);
+  }
+  .story-food-portal:after {
+    border-color: rgb(255 255 255 / 0.08);
+  }
+
+  /* Social posts */
+  .social-post {
+    background: var(--dark-card);
+    border-color: var(--dark-edge);
+    box-shadow: var(--shadow-card);
+  }
+  .platform-icon {
+    background: var(--tag-info-bg);
+    color: var(--sky);
+  }
+  .social-1 .platform-icon {
+    background: #0b0b0a;
+    color: #fff;
+    box-shadow: 0 0 0 1px var(--dark-edge);
+  }
+  .social-2 .platform-icon {
+    background: #24323a;
+    color: #a9cbdc;
+  }
+  .social-3 .platform-icon {
+    background: #4a2a40;
+    color: #f3a5c1;
+  }
+  .social-post header small,
+  .social-caption > span,
+  .social-caption > small {
+    color: var(--landing-muted);
+  }
+  .social-caption > b {
+    color: var(--landing-coral-ink);
+  }
+
+  /* The travelling deal card, through the story and onto the stall */
+  .travelling-deal,
+  .cinematic-story .travelling-deal {
+    background: var(--dark-card);
+    border-color: var(--dark-edge);
+    box-shadow: var(--shadow-card);
+  }
+  .sample-label,
+  .community-freshness .sample-label {
+    color: #e3a487;
+  }
+  .travelling-content > p,
+  .travelling-price > del,
+  .community-freshness .travelling-content > p,
+  .community-freshness .travelling-price > del {
+    color: var(--landing-muted);
+  }
+  .travelling-price > b,
+  .community-freshness .travelling-price > b {
+    color: var(--landing-coral-ink);
+  }
+  .travelling-price > span,
+  .community-freshness .travelling-price > span {
+    border-color: var(--dark-edge-strong);
+    color: var(--tag-build-ink);
+  }
+
+  /* Community freshness */
+  .community-freshness {
+    --community-green: #8fd3a5;
+    --community-brown: #e3c08f;
+  }
+  .hawker-environment {
+    background:
+      radial-gradient(ellipse at 68% 44%, rgb(255 218 83 / 0.08), transparent 63%),
+      linear-gradient(130deg, #171613 28%, #1a1c17);
+  }
+  .hawker-environment::before {
+    opacity: 0.25;
+  }
+  .hawker-floor {
+    background:
+      repeating-linear-gradient(0deg, transparent 0 60px, rgb(255 255 255 / 0.03) 61px 62px),
+      repeating-linear-gradient(90deg, transparent 0 60px, rgb(255 255 255 / 0.03) 61px 62px),
+      radial-gradient(ellipse at 55% 30%, #27251f, #1f1d19 75%);
+  }
+  .hawker-sun {
+    border-color: rgb(255 218 83 / 0.07);
+  }
+  .community-intro h2 em,
+  .community-chapter-dots .active {
+    color: var(--landing-coral-ink);
+  }
+  .community-chapter-dots .active {
+    background: var(--landing-coral-ink);
+  }
+  .community-chapter-dots span {
+    background: var(--dark-edge-strong);
+  }
+  .community-intro p,
+  .community-intro small,
+  .community-pulse > p,
+  .community-pulse > small,
+  .members-can-vote,
+  .community-voting-preview p,
+  .join-community > p,
+  .mobile-older-reports {
+    color: var(--landing-muted);
+  }
+  .community-freshness .shared-deal-sign {
+    background: #2e2a1f;
+    box-shadow:
+      var(--shadow-card),
+      inset 0 0 0 3px rgb(255 255 255 / 0.04);
+  }
+  .community-food-display {
+    background: #2e2a1f;
+    border-color: var(--dark-edge);
+  }
+  .tone-on {
+    color: #8fd3a5;
+  }
+  .tone-ended {
+    color: var(--tag-end-ink);
+  }
+  .tone-uncertain {
+    color: var(--tag-build-ink);
+  }
+  .tone-neutral {
+    color: var(--tag-new-ink);
+  }
+  .community-report {
+    background: var(--dark-card);
+    border-color: #3d5a45;
+    box-shadow: var(--shadow-card);
+  }
+  .community-report small {
+    color: var(--landing-muted);
+  }
+  .community-report p {
+    color: var(--landing-ink);
+  }
+  .report-symbol {
+    background: var(--tag-ok-bg);
+    color: var(--tag-ok-ink);
+  }
+  .report-ended,
+  .report-changed {
+    border-color: #6a3a2b;
+  }
+  .report-ended .report-symbol,
+  .report-changed .report-symbol {
+    background: var(--tag-end-bg);
+    color: var(--tag-end-ink);
+  }
+  .report-age-note,
+  .compact-stall-summary {
+    color: #e3c08f;
+  }
+  .status-panel-front,
+  .status-panel-back {
+    background: #2e2a1f;
+    border-color: #5a4c2a;
+    color: #f0d77d;
+  }
+  .status-panel-back {
+    background: var(--tag-ok-bg);
+    color: var(--tag-ok-ink);
+  }
+  .community-explore {
+    background: transparent;
+    border-color: var(--dark-edge-strong);
+    color: var(--landing-ink);
+  }
+  @media (max-width: 1100px) {
+    .pulse-ring,
+    .community-pulse > strong,
+    .community-pulse > small {
+      background: rgb(20 20 18 / 0.93);
+    }
+  }
+  @media (min-width: 1101px) {
+    .community-freshness.has-community:not(.is-static) .travelling-price {
+      border-left-color: var(--dark-edge-strong);
+    }
+    .community-freshness.has-community:not(.is-static) .travelling-price > span {
+      background: var(--tag-build-bg);
+    }
+  }
+
+  /* Deals carousel */
+  .cuisine-discovery {
+    background: radial-gradient(ellipse at 50% 0, rgb(255 255 255 / 0.03), transparent 45%);
+  }
+  .cuisine-discovery::before,
+  .cuisine-discovery::after {
+    background: rgb(255 255 255 / 0.05);
+    box-shadow: none;
+  }
+  .cuisine-intro h2 > .cuisine-heading-question {
+    color: var(--landing-ink);
+  }
+  .cuisine-intro h2 > .cuisine-heading-offer {
+    color: var(--landing-coral-ink);
+  }
+  .cuisine-intro > p,
+  .cuisine-empty p,
+  .deal-grid-toolbar > p > span,
+  .landing-carousel-status {
+    color: var(--landing-muted);
+  }
+  .neighbourhood-controls select,
+  .deal-grid-toolbar select,
+  .cuisine-discovery select {
+    background-color: var(--dark-card);
+    border-color: var(--dark-edge-strong);
+    color: var(--landing-ink);
+  }
+  .landing-carousel-controls button {
+    background: var(--dark-card);
+    border-color: var(--dark-edge-strong);
+    color: var(--landing-ink);
+    box-shadow: none;
+  }
+  .landing-carousel-controls button:hover:not(:disabled) {
+    background: var(--dark-chip);
+  }
+  .cuisine-empty,
+  .sample-disclosure {
+    background: var(--dark-card);
+    border-color: var(--dark-edge);
+    color: var(--landing-muted);
+  }
+  .sample-disclosure strong {
+    color: var(--landing-ink);
+  }
+
+  /* Footer: already dark, so it only needs an edge to part from the page. */
+  .landing-footer {
+    background: #0d0d0c;
+    border-top: 1px solid var(--dark-edge);
+  }
+}
+
+/* The circular theme reveal from the navbar switch (LandingNavbar.vue). The new page is drawn
+   over the old one at full strength; only its growing circle shows. */
+:root.theme-reveal::view-transition-old(root),
+:root.theme-reveal::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+:root.theme-reveal::view-transition-new(root) {
+  z-index: 1;
+}
