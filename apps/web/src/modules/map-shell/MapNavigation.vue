@@ -40,8 +40,8 @@ onBeforeUnmount(() => emit('menuChange', false))
   <aside class="map-navigation" :class="{ 'map-navigation--bottom': bottom }" aria-label="Map navigation" data-testid="map-navigation">
     <BrandMenu v-if="!bottom" rail map-tools @menu-change="onMenuChange" />
     <nav class="map-navigation__links" aria-label="Explore" :inert="drawerOpen ? true : undefined">
-      <RouterLink v-if="bottom" v-slot="{ href, navigate }" :to="navigationTo('/deals')" custom><a :href="href" data-testid="nav-home" :aria-current="isActive(['home']) ? 'page' : undefined" @click="openPanel($event, navigate)"><ShellIcon name="ticket" :size="23" /><span>All deals</span></a></RouterLink>
-      <RouterLink v-slot="{ href, navigate }" :to="mapTo" custom><a :href="href" :aria-current="isActive(['browse', 'deal', 'venue']) ? 'page' : undefined" @click="openPanel($event, navigate)"><ShellIcon :name="bottom ? 'map' : 'ticket'" :size="23" /><span>{{ bottom ? 'Map' : 'Deals' }}</span></a></RouterLink>
+      <RouterLink v-slot="{ href, navigate }" :to="navigationTo('/deals')" custom><a :href="href" data-testid="nav-home" :aria-current="isActive(['home']) ? 'page' : undefined" @click="openPanel($event, navigate)"><ShellIcon name="ticket" :size="23" /><span>All deals</span></a></RouterLink>
+      <RouterLink v-slot="{ href, navigate }" :to="mapTo" custom><a :href="href" :aria-current="isActive(['browse', 'deal', 'venue']) ? 'page' : undefined" @click="openPanel($event, navigate)"><ShellIcon name="map" :size="23" /><span>Map</span></a></RouterLink>
       <RouterLink v-slot="{ href, navigate }" :to="savedTo" custom><a :href="href" :aria-current="isActive(['saved']) ? 'page' : undefined" @click="openPanel($event, navigate)"><ShellIcon name="bookmark" :size="23" /><span>Saved</span></a></RouterLink>
       <RouterLink v-slot="{ href, navigate }" :to="navigationTo('/add')" custom><a :href="href" data-testid="map-share" :aria-current="isActive(['submit-deal']) ? 'page' : undefined" @click="openPanel($event, navigate)"><ShellIcon name="plus" :size="23" /><span>Share</span></a></RouterLink>
     </nav>
