@@ -24,14 +24,14 @@ export const resolveInitialTheme = (
   prefersDark: boolean,
 ): Theme => readStoredTheme(storage) ?? (prefersDark ? 'dark' : 'light')
 
-// Only the attribute is set here. main.css scopes the dark tokens, Bootstrap variables and
-// `color-scheme` to `.app-palette`, so the marketing landing page always stays light.
+// Only the attribute is set here. dark-theme.css scopes the dark tokens, Bootstrap variables and
+// `color-scheme` to `.app-palette`, and the landing page's to `.lobangers-landing`.
 export const applyTheme = (root: HTMLElement, theme: Theme) => {
   root.dataset.theme = theme
 }
 
 // Mobile browsers tint their toolbar with <meta name="theme-color">; copy the page background so
-// it matches whichever theme (and the always-light landing page) is showing.
+// it matches whichever theme is showing.
 export const syncThemeColor = () => {
   if (typeof document === 'undefined') return
   const meta = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]')

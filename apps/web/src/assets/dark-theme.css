@@ -1,11 +1,14 @@
 /* Dark theme: the same "paper" design at night. Warm charcoal instead of blue-black keeps the
    paper warmth, cards lift with a faint light edge instead of a shadow, sunny yellow stays the
    one call-to-action colour (always with dark text), and coral is lifted so prices still read.
-   src/lib/theme.ts sets [data-theme]; scoping to .app-palette keeps the landing page light.
+   src/lib/theme.ts sets [data-theme]. The landing page has its own light palette, so it takes
+   these tokens on .lobangers-landing (for the shared cards and menus it shows) and layers its own
+   dark overrides from modules/landing/landing-dark.css.
    Cards (#2a2926) sit clearly lighter than the page so they read as cards. Contrast on the card
    surface: ink 13:1, muted 5.9:1, coral text 5.9:1, tags 6:1 or more. Loaded last in main.ts. */
 
-:root.app-palette[data-theme="dark"] {
+:root.app-palette[data-theme="dark"],
+:root[data-theme="dark"] .lobangers-landing {
   color-scheme: dark;
 
   --page-background: #141412;
@@ -86,6 +89,16 @@
   --bs-code-color: var(--coral-deep);
   --bs-form-select-bg-img: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23f3f1ec' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m2 5 6 6 6-6'/%3e%3c/svg%3e");
   --bs-btn-close-filter: invert(1) grayscale(100%) brightness(200%);
+}
+
+/* The landing route has no .app-palette, so its page and overscroll get the dark paper here,
+   where it is loaded before first paint rather than with the landing page's own styles. */
+:root[data-theme="dark"]:not(.app-palette) {
+  color-scheme: dark;
+}
+
+:root[data-theme="dark"]:not(.app-palette) body {
+  background: #141412;
 }
 
 /* The checked box keeps a dark tick by switching to the sunny fill. */

@@ -129,7 +129,7 @@ describe('landing hero', () => {
     const card = wrapper.get('.hero-live-card')
     expect(card.get('.hero-restaurant-name').text()).toBe('Woodlands')
     expect(card.get('.hero-promotion-title').text()).toBe('North lunch')
-    expect(card.get('.hero-promotion-period').text()).toContain('End date not provided')
+    expect(card.get('.hero-promotion-period').text()).toContain('No end date given')
     expect(card.get('.hero-outlet-location').text()).toBe('Woodlands')
     expect(card.find('.hero-deal-badge, b').exists()).toBe(false)
     expect(card.get('.hero-deal-action').text()).toContain('View deal')

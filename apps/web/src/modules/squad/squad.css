@@ -1,27 +1,31 @@
-/* Makan Squad rooms: a dark surface so the food, faces and effects pop against the light map.
-   Shared by the room, lobby, join and create screens. Motion is transform and opacity only,
-   ease-out, and every effect calms down under prefers-reduced-motion. */
+/* Makan Squad rooms: a warm paper room in light mode and warm charcoal in dark mode, so the
+   food, faces and effects stand out in both. Shared by the room, lobby, join and create screens.
+   Motion is transform and opacity only, ease-out, and every effect calms down under
+   prefers-reduced-motion. */
 
 /* The create, join, lobby, countdown and ended screens live in their own sheet to keep this
    file to the live room. */
 @import "./squad-screens.css";
 
 .squad-room {
-  --squad-bg: var(--ink-strong);
-  --squad-surface: #2a2a30;
-  --squad-surface-hover: #34343b;
-  --squad-text: var(--on-ink);
-  --squad-muted: #c9c6bf;
-  --squad-dim: #a9a8ae;
-  --squad-placeholder: #8b8a90;
-  --squad-line: rgba(255, 255, 255, 0.12);
-  --squad-edge: #3a3940;
-  --squad-edge-strong: #4a4950;
-  --squad-check-edge: #6f6e73;
-  --squad-chosen: #3a3524;
-  --squad-tag-text: #e6e4df;
-  --squad-accent: #f3a58e;
-  --squad-danger-hover: #c4532f;
+  --squad-bg: var(--paper);
+  --squad-surface: var(--paper-sunk);
+  --squad-surface-hover: #e6e3dc;
+  --squad-text: var(--ink);
+  --squad-muted: #55534d;
+  --squad-dim: var(--ink-muted);
+  --squad-placeholder: #8a877f;
+  --squad-line: var(--hairline);
+  --squad-edge: #e2dfd7;
+  --squad-edge-strong: #d3cfc5;
+  --squad-check-edge: var(--hairline-strong);
+  --squad-chosen: #fff3c4;
+  --squad-tag-text: #3a3832;
+  --squad-accent: var(--coral-deep);
+  --squad-danger-hover: var(--coral-deep);
+  /* Sunny yellow as text: too faint on paper, so a deep gold (5.6:1) in light mode. */
+  --squad-highlight: #7f6200;
+  --squad-highlight-hover: #5f4900;
 
   position: relative;
   display: flex;
@@ -32,21 +36,25 @@
   background: var(--squad-bg);
 }
 
-/* Dark mode: --ink-strong turns light, so the room pins its own warm charcoal steps instead and
-   stays a dark room. The food card keeps the card surface, a step up from the room. */
+/* Dark mode: warm charcoal steps. The food card keeps the card surface, a step up from the room. */
 .app-palette[data-theme="dark"] .squad-room {
   --squad-bg: var(--paper);
   --squad-surface: var(--paper-sunk);
   --squad-surface-hover: #34322d;
   --squad-text: var(--ink);
+  --squad-muted: #c9c6bf;
   --squad-dim: var(--ink-muted);
   --squad-placeholder: #8a877f;
+  --squad-line: rgba(255, 255, 255, 0.12);
   --squad-edge: #3d3b35;
   --squad-edge-strong: #4d4a43;
   --squad-check-edge: var(--hairline-strong);
   --squad-chosen: #3a3318;
+  --squad-tag-text: #e6e4df;
   --squad-accent: var(--coral-deep);
   --squad-danger-hover: var(--coral-deep);
+  --squad-highlight: var(--sunny-deep);
+  --squad-highlight-hover: var(--sunny);
 }
 
 .squad-room__body {
@@ -133,7 +141,7 @@
   box-shadow: 0 0 0 4px rgba(63, 154, 95, 0.22);
 }
 
-/* Buttons on the dark surface. */
+/* Secondary buttons on the room surface. */
 .squad-room .squad-btn-dark {
   color: var(--squad-text);
   background: var(--squad-surface);
@@ -933,12 +941,12 @@
   }
 }
 
-/* The phone sheet and desktop card around any Squad screen take the room's dark colour, so no
-   white strip shows above it. The doubled class outranks ShellPanel's scoped background, which
-   would otherwise win on load order because this file is imported first. */
+/* The phone sheet and desktop card around any Squad screen take the room's colour, so no
+   strip of another colour shows above it. The doubled class outranks ShellPanel's scoped
+   background, which would otherwise win on load order because this file is imported first. */
 .map-shell.map-shell--squad .shell-panel {
-  background: var(--ink-strong);
-  border-color: var(--ink-strong);
+  background: var(--paper);
+  border-color: var(--hairline);
 }
 
 .app-palette[data-theme="dark"] .map-shell--squad .shell-panel {
@@ -947,6 +955,10 @@
 }
 
 .map-shell.map-shell--squad .shell-panel__grip-bar {
+  background: var(--hairline-strong);
+}
+
+.app-palette[data-theme="dark"] .map-shell--squad .shell-panel__grip-bar {
   background: rgba(255, 255, 255, 0.3);
 }
 
