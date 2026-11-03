@@ -34,10 +34,12 @@ export const LIVE_TAP_BATCH_MS = 1000
 // Taps go out over the socket this often, as counts. Pusher bills every delivery, so a spammer
 // costs a couple of messages a second, not one per tap.
 export const SOCKET_TAP_MS = 400
-// Others see a thinned-out echo of a burst: about one effect per this many taps, at least one
-// and at most MAX_REMOTE_EFFECTS of each kind per message, spread across the next tick.
+// Others see a thinned-out echo of a yay burst: about one sticker per this many taps, at least
+// one and at most MAX_REMOTE_EFFECTS per message. Nahs are meant to rain, so each one plays, up to
+// MAX_REMOTE_NAHS per message. Either way they are spread across the next tick.
 const TAPS_PER_REMOTE_EFFECT = 4
 const MAX_REMOTE_EFFECTS = 3
+const MAX_REMOTE_NAHS = 6
 const MAX_SOCKET_TAPS = 50
 // After this many failed polls in a row the room says the connection was lost.
 const LOST_AFTER_FAILURES = 3
@@ -318,7 +320,7 @@ export const createSquadRoom = (openChannel: ChannelOpener = openRoomChannel) =>
     if (!current || incoming.memberId === current.me?.memberId) return
     const kinds = [
       ...Array.from({ length: echoCount(incoming.yays) }, () => 'YAY' as const),
-      ...Array.from({ length: echoCount(incoming.nahs) }, () => 'NAH' as const),
+      ...Array.from({ length: Math.min(MAX_REMOTE_NAHS, incoming.nahs) }, () => 'NAH' as const),
     ]
     const gap = SOCKET_TAP_MS / kinds.length
     kinds.forEach((kind, index) => {

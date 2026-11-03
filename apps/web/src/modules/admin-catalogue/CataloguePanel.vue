@@ -1,7 +1,9 @@
 <script setup lang="ts">
+import AppSelect from '@web/components/AppSelect.vue'
 import AdminStatusBadge from '@web/components/admin/AdminStatusBadge.vue'
 import AdminTaskLink from '@web/components/admin/AdminTaskLink.vue'
 import AdminWorkspace from '@web/components/admin/AdminWorkspace.vue'
+import type { SelectOption } from '@web/components/select-options'
 import TicketLoading from '@web/components/TicketLoading.vue'
 import { api } from '@web/lib/api-client'
 import EvidenceEditor from '@web/modules/admin-catalogue/EvidenceEditor.vue'
@@ -10,6 +12,16 @@ import { useCatalogue } from '@web/modules/admin-catalogue/use-catalogue'
 import { useCatalogueNavigation } from '@web/modules/admin-catalogue/use-catalogue-navigation'
 import VenueEditor from '@web/modules/admin-catalogue/VenueEditor.vue'
 import { computed, nextTick, onUnmounted, ref, watch } from 'vue'
+
+const KIND_OPTIONS: readonly SelectOption[] = [
+  { value: 'merchants', label: 'Merchants' },
+  { value: 'venues', label: 'Outlets' },
+]
+const STATUS_OPTIONS: readonly SelectOption[] = [
+  { value: 'active', label: 'Active' },
+  { value: 'archived', label: 'Archived' },
+  { value: 'all', label: 'All' },
+]
 
 const emit = defineEmits<{ denied: [code: 'UNAUTHORIZED' | 'FORBIDDEN'] }>()
 const state = useCatalogue(api.adminCatalogue, (code) => emit('denied', code))
@@ -47,9 +59,9 @@ onUnmounted(state.dispose)
       <button v-if="kind === 'merchants'" ref="newMerchant" class="btn btn-primary" :disabled="pending" type="button" @click="navigation.startMerchant">New merchant</button>
     </div>
     <form class="row catalogue-filters" @submit.prevent="navigation.applyFilters">
-      <div><label for="catalogue-kind" class="form-label">Directory</label><select id="catalogue-kind" v-model="kind" :disabled="pending" class="form-select" @change="navigation.changeDirectory"><option value="merchants">Merchants</option><option value="venues">Outlets</option></select></div>
+      <div><label for="catalogue-kind" class="form-label">Directory</label><AppSelect id="catalogue-kind" v-model="kind" :options="KIND_OPTIONS" :disabled="pending" class="form-select" @change="navigation.changeDirectory()" /></div>
       <div class="catalogue-search"><label for="catalogue-search" class="form-label">Search name / outlet address</label><input id="catalogue-search" v-model="search" :disabled="pending" type="search" class="form-control" maxlength="100" placeholder="Merchant name or outlet address…" /></div>
-      <div><label for="catalogue-status" class="form-label">Status</label><select id="catalogue-status" v-model="status" :disabled="pending" class="form-select"><option value="active">Active</option><option value="archived">Archived</option><option value="all">All</option></select></div>
+      <div><label for="catalogue-status" class="form-label">Status</label><AppSelect id="catalogue-status" v-model="status" :options="STATUS_OPTIONS" :disabled="pending" class="form-select" /></div>
       <button class="btn btn-outline-primary" :disabled="loading || pending" type="submit">Apply filters</button>
       <details v-if="kind === 'venues'" class="catalogue-advanced"><summary>Advanced filters</summary><label for="catalogue-merchant" class="form-label">Merchant ID (optional)</label><input id="catalogue-merchant" v-model="merchantId" :disabled="pending" class="form-control" pattern="[a-f0-9]{24}" autocomplete="off" spellcheck="false" /></details>
     </form>

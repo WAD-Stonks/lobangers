@@ -1,5 +1,6 @@
 import { flushPromises, mount } from '@vue/test-utils'
 import { confirmAdminIdentity } from '@web/lib/admin-recovery'
+import { chooseOption } from '@web-tests/support/select'
 import { beforeEach, expect, it, vi } from 'vitest'
 import { defineComponent } from 'vue'
 
@@ -111,7 +112,7 @@ it('records submission evidence and reviews using explicit captured operation pa
   })
   expect(wrapper.text()).toContain('UNPUBLISHED')
   await wrapper.get('#deal-editor-tab-review').trigger('click')
-  await wrapper.get('.action-picker select').setValue('APPROVE')
+  await chooseOption(wrapper, '.action-picker .app-select', 'APPROVE')
   await wrapper.get('[name="note"]').setValue('Independent review')
   await wrapper.get('[name="confirm"]').setValue(true)
   await wrapper.get('[data-testid="save-operation"]').trigger('click')

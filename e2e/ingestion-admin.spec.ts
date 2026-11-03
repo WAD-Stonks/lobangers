@@ -8,6 +8,8 @@ import type {
 import { expect, type Page, test } from '@playwright/test'
 // biome-ignore lint/style/noRestrictedImports: E2E-only helper; no E2E alias exists in this repository.
 import { openAdminAccount } from './admin-ui'
+// biome-ignore lint/style/noRestrictedImports: E2E-only helper; no E2E alias exists.
+import { chooseOption } from './choose-option'
 
 // Synthetic native/HTTP boundaries exercise the original SPA, typed REST client and CSS.
 // They do not establish live provider, database or source permission acceptance.
@@ -437,7 +439,7 @@ test('pagination returns from Deals to the original bounded page and focused imp
     cursor: secondId,
   })
   fixture.draftNextCursor = null
-  await page.getByLabel('Review status', { exact: true }).selectOption('REJECTED')
+  await chooseOption(page.getByLabel('Review status', { exact: true }), 'REJECTED')
   await expect(page.getByText('No imported deals match this status.')).toBeVisible()
   expect(new URL(page.url()).searchParams.has('draftCursor')).toBe(false)
   expect(new URL(page.url()).searchParams.has('draftId')).toBe(false)
@@ -458,7 +460,7 @@ test('queue filter ignores an older denial and a current denial clears retained 
     }),
   )
   fixture.failures.set('ingestion.queue', 'FORBIDDEN')
-  await page.getByLabel('Review status', { exact: true }).selectOption('APPROVED')
+  await chooseOption(page.getByLabel('Review status', { exact: true }), 'APPROVED')
   await expect
     .poll(() =>
       requestsFor(fixture, 'ingestion.queue').some(
@@ -466,12 +468,12 @@ test('queue filter ignores an older denial and a current denial clears retained 
       ),
     )
     .toBe(true)
-  await page.getByLabel('Review status', { exact: true }).selectOption('REJECTED')
+  await chooseOption(page.getByLabel('Review status', { exact: true }), 'REJECTED')
   await expect(page.getByText('No imported deals match this status.')).toBeVisible()
   release()
   await expect(page.getByRole('heading', { name: 'Imported deals', exact: true })).toBeVisible()
   fixture.failures.set('ingestion.queue', 'FORBIDDEN')
-  await page.getByLabel('Review status', { exact: true }).selectOption('PENDING')
+  await chooseOption(page.getByLabel('Review status', { exact: true }), 'PENDING')
   await expect(page.getByRole('alert')).toContainText('You do not have permission')
   await expect(page.getByTestId(`open-imported-${firstId}`)).toHaveCount(0)
   await expect(page.locator('[aria-label="Ingestion counts"]')).toHaveCount(0)

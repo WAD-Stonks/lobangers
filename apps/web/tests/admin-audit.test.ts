@@ -1,6 +1,7 @@
 import { flushPromises, mount } from '@vue/test-utils'
 import { ApiClientError } from '@web/lib/api-client'
 import type { usePlatformAdmin } from '@web/modules/platform-admin/use-platform-admin'
+import { chooseOption } from '@web-tests/support/select'
 import { expect, it, vi } from 'vitest'
 
 // Synthetic list boundary only: real component rendering and request races.
@@ -143,7 +144,7 @@ it('validates combined filters, resets cursors and keeps safe error and empty st
   await flushPromises()
   expect(wrapper.text()).toContain('No audit entries match')
   await wrapper.get('[name="actorId"]').setValue(id)
-  await wrapper.get('[name="action"]').setValue('DEAL_UPDATED')
+  await chooseOption(wrapper, '[name="action"]', 'DEAL_UPDATED')
   await wrapper.get('[name="from"]').setValue('2026-01-01T08:00:00')
   await wrapper.get('form').trigger('submit')
   await flushPromises()

@@ -18,7 +18,7 @@
   --dark-soft-ink: #cfccc3;
   --dark-on-sunny: #1b1b1f;
 
-  :is(button, a, select):focus-visible {
+  :is(button, a, .app-select):focus-visible {
     outline-color: var(--focus-ring);
   }
 
@@ -442,9 +442,9 @@
   .landing-carousel-status {
     color: var(--landing-muted);
   }
-  .neighbourhood-controls select,
-  .deal-grid-toolbar select,
-  .cuisine-discovery select {
+  .neighbourhood-controls .app-select,
+  .deal-grid-toolbar .app-select,
+  .cuisine-discovery .app-select {
     background-color: var(--dark-card);
     border-color: var(--dark-edge-strong);
     color: var(--landing-ink);

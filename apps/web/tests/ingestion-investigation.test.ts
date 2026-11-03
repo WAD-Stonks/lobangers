@@ -3,6 +3,7 @@ import { flushPromises, mount } from '@vue/test-utils'
 import { ApiClientError } from '@web/lib/api-client'
 import DraftQueue from '@web/modules/ingestion-admin/DraftQueue.vue'
 import FailedPosts from '@web/modules/ingestion-admin/FailedPosts.vue'
+import { chooseOption } from '@web-tests/support/select'
 import { beforeEach, expect, it, vi } from 'vitest'
 import { defineComponent, ref } from 'vue'
 
@@ -290,7 +291,7 @@ it('does not use an obsolete empty response as results for edited filters', asyn
   )
   const w = mount(FailedPosts)
   try {
-    await w.get('[name="post-status"]').setValue('NEW')
+    await chooseOption(w, '[name="post-status"]', 'NEW')
     release({ items: [], nextCursor: null })
     await flushPromises()
     expect(w.text()).toContain('Load matching posts to see results for these filters')
@@ -437,7 +438,8 @@ it('defers the latest linked post until recovery settles and guards filter and s
         .find((button) => button.text() === 'Investigate 456')
         ?.attributes('disabled'),
     ).toBeDefined()
-    await w.get('[name="post-status"]').setValue('NEW')
+    await w.get('[name="post-status"]').trigger('click')
+    expect(document.querySelector('[role="listbox"]')).toBeNull()
     await w.get('form').trigger('submit')
     await clickText(w, 'Investigate 456')
     await clickText(w, 'More posts')
@@ -495,10 +497,10 @@ it('retains unknown attempt through original FailedPosts filter unmount and reco
     await consent(w)
     await w.get('section[aria-label="Post investigation"] form').trigger('submit')
     await flushPromises()
-    await w.get('select').setValue('NEW')
+    await chooseOption(w, '[name="post-status"]', 'NEW')
     await flushPromises()
     expect(w.find('section[aria-label="Post investigation"]').exists()).toBe(false)
-    await w.get('select').setValue('FAILED')
+    await chooseOption(w, '[name="post-status"]', 'FAILED')
     await w.get('form').trigger('submit')
     await flushPromises()
     await clickText(w, 'Investigate 123')
@@ -649,10 +651,10 @@ it('keeps recovery locks through original DraftQueue selection/filter and keyed 
     await consent(postPanel())
     await postPanel().get('form').trigger('submit')
     await flushPromises()
-    await w.get('#queue-status').setValue('APPROVED')
+    await chooseOption(w, '#queue-status', 'APPROVED')
     await flushPromises()
     expect(w.find('section[aria-label="Post investigation"]').exists()).toBe(false)
-    await w.get('#queue-status').setValue('PENDING')
+    await chooseOption(w, '#queue-status', 'PENDING')
     await flushPromises()
     await investigate()
     expect(w.get('[data-testid="recover-post"]').attributes('disabled')).toBeDefined()
@@ -919,7 +921,7 @@ it('F8 keeps unchanged mixed HTTP JSON locked until a target read started after 
   const w = mount(PostInvestigation, { props: { postId: receipt.initial.post.id } })
   try {
     await flushPromises()
-    await w.get('select').setValue('REFRESH_SOURCE_WINDOW')
+    await chooseOption(w, '[role="combobox"]', 'REFRESH_SOURCE_WINDOW')
     await consent(w)
     await w.get('form').trigger('submit')
     await flushPromises()

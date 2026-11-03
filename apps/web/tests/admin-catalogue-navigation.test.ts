@@ -4,6 +4,7 @@ import type {
 } from '@broke-oclock/contracts/admin-catalogue'
 import { flushPromises, mount } from '@vue/test-utils'
 import CataloguePanel from '@web/modules/admin-catalogue/CataloguePanel.vue'
+import { chooseOption } from '@web-tests/support/select'
 import { beforeEach, expect, it, vi } from 'vitest'
 import { createMemoryHistory, createRouter, RouterView } from 'vue-router'
 
@@ -143,7 +144,7 @@ it('opens an exact outlet outside the first page and preserves a safe return tas
 it('filters the directory when switching from a selected merchant and can explicitly clear that filter', async () => {
   const { router, wrapper } = await routed(`/admin/catalogue?recordId=${merchant.id}`)
   try {
-    await wrapper.get('#catalogue-kind').setValue('venues')
+    await chooseOption(wrapper, '#catalogue-kind', 'venues')
     await flushPromises()
     expect(rest.venues).toHaveBeenLastCalledWith({
       status: 'all',

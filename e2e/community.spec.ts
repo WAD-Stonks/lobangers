@@ -1,4 +1,6 @@
 import { expect, test } from '@playwright/test'
+// biome-ignore lint/style/noRestrictedImports: E2E-only helper; no E2E alias exists.
+import { chooseOption } from './choose-option'
 
 // Synthetic browser fixtures exercise the real SPA/client. Real cookie/Prisma persistence
 // and concurrency are separately covered by integration/community.test.ts.
@@ -209,7 +211,7 @@ for (const width of [320, 390, 1280]) {
       community.getByRole('button', { name: 'Report this deal', exact: true }),
     ).toBeFocused()
     await community.getByRole('button', { name: 'Report this deal', exact: true }).click()
-    await community.getByLabel('Reason', { exact: true }).selectOption('MISLEADING')
+    await chooseOption(community.getByLabel('Reason', { exact: true }), 'MISLEADING')
     await community.getByRole('button', { name: 'Send report', exact: true }).click()
     await expect.poll(() => reports.length).toBe(1)
     await expect(community.getByText('Report received for review.', { exact: false })).toBeVisible()

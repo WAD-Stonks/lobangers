@@ -6,6 +6,8 @@ import { evidencePageSchema } from '@broke-oclock/contracts/ingestion-evidence'
 import { postsPageSchema } from '@broke-oclock/contracts/ingestion-recovery'
 import type { VenueDealSummary } from '@broke-oclock/contracts/venues'
 import { expect, type Locator, type Page, test } from '@playwright/test'
+// biome-ignore lint/style/noRestrictedImports: E2E-only helper; no E2E alias exists.
+import { chooseOption } from './choose-option'
 
 // Evidence only: observe actual Chromium output without replacing SPA or browser behavior.
 const browserObservations = new WeakMap<
@@ -195,7 +197,10 @@ async function installBoundary(page: Page) {
       }
       let data: unknown
       let status = 200
-      if (url.pathname === '/api/auth/get-session')
+      // The map shows lobangers nearby by default; nobody here.
+      if (url.pathname === '/api/presence')
+        data = { serverTime: new Date().toISOString(), items: [], me: null }
+      else if (url.pathname === '/api/auth/get-session')
         data = state.admin
           ? {
               user: {
@@ -317,7 +322,16 @@ async function expandSheet(page: Page, width: number) {
   const handle = page.getByTestId('sheet-handle')
   await handle.press('ArrowUp')
   await expect(handle).toHaveAttribute('aria-label', /Full height$/)
-  await expect(page.getByTestId('shell-panel')).toHaveCSS('transform', 'matrix(1, 0, 0, 1, 0, 0)')
+  // Full stops below the header (Expanded covers it), so wait for the slide to settle there.
+  const panel = page.getByTestId('shell-panel')
+  await expect
+    .poll(() =>
+      panel.evaluate((element) => {
+        const settled = Number.parseFloat(element.style.getPropertyValue('--sheet-offset'))
+        return Math.round(new DOMMatrix(getComputedStyle(element).transform).m42) === settled
+      }),
+    )
+    .toBe(true)
 }
 
 for (const width of [320, 768, 1024, 1440]) {
@@ -367,7 +381,7 @@ for (const width of [320, 768, 1024, 1440]) {
     expect(layout).toEqual({ width, scroll: width })
     // Original denial cleanup must remove already selected image evidence.
     state.denyDrafts = true
-    await queue.getByLabel('Review status').selectOption('APPROVED')
+    await chooseOption(queue.getByLabel('Review status'), 'APPROVED')
     await expect(page.getByText('You do not have permission to review ingestion.')).toBeVisible()
     await expect(evidence).toHaveCount(0)
     state.admin = false

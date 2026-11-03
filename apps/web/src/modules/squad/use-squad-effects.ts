@@ -7,7 +7,7 @@ import { shallowRef } from 'vue'
 // every list is capped so spamming never piles up work.
 
 const MAX_STICKERS = 14
-const MAX_DROPS = 24
+const MAX_DROPS = 40
 const BURST_MS = 700
 const DROP_MS = 1400
 const WHOOSH_MS = 1100
@@ -26,6 +26,8 @@ export type Burst = { readonly id: number; readonly x: number; readonly y: numbe
 export type Drop = {
   readonly id: number
   readonly x: number
+  /** 0–1 down the room: where the thumb shows when motion is reduced and it cannot fall. */
+  readonly y: number
   readonly delay: number
   readonly rotate: number
 }
@@ -70,6 +72,7 @@ export const useSquadEffects = (random: () => number = Math.random) => {
     const fresh = Array.from({ length: DROPS_PER_NAH }, (_, index) => ({
       id: nextId++,
       x: Math.round(random() * Math.max(0, width - 40)),
+      y: Math.round(random() * 100) / 100,
       delay: index * 60 + Math.round(random() * 80),
       rotate: Math.round(random() * 70 - 35),
     }))

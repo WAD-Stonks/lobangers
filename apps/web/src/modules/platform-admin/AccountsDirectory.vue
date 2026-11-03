@@ -1,9 +1,12 @@
 <script setup lang="ts">
+import AppSelect from '@web/components/AppSelect.vue'
+import { optionsFromValues, withLeading } from '@web/components/select-options'
 import TicketLoading from '@web/components/TicketLoading.vue'
 import type { usePlatformAdmin } from '@web/modules/platform-admin/use-platform-admin'
 
 defineProps<{ s: ReturnType<typeof usePlatformAdmin> }>()
 const emit = defineEmits<{ select: [string] }>()
+const ROLE_OPTIONS = withLeading({ value: '', label: 'All roles' }, optionsFromValues(['USER', 'MERCHANT', 'MODERATOR', 'ADMIN']))
 </script>
 <template>
   <section aria-label="Accounts" class="workspace-surface accounts-directory">
@@ -13,7 +16,7 @@ const emit = defineEmits<{ select: [string] }>()
         <div class="directory-search"><label for="account-search" class="form-label">Search accounts</label>
           <input id="account-search" v-model="s.accountSearch" name="account-search" autocomplete="off" spellcheck="false" maxlength="100" class="form-control" type="search" placeholder="Name or email…" /></div>
         <div><label for="account-role-filter" class="form-label">Account role filter</label>
-          <select id="account-role-filter" v-model="s.roleFilter" name="account-role" class="form-select"><option value="">All roles</option><option>USER</option><option>MERCHANT</option><option>MODERATOR</option><option>ADMIN</option></select></div>
+          <AppSelect id="account-role-filter" v-model="s.roleFilter" name="account-role" :options="ROLE_OPTIONS" class="form-select" /></div>
         <button class="btn btn-outline-primary" type="submit">Search accounts</button>
         <button class="btn btn-outline-secondary" type="button" data-testid="clear-account-filters" :disabled="s.accounts.loading" @click="s.clearAccountFilters">Clear filters</button>
       </fieldset>

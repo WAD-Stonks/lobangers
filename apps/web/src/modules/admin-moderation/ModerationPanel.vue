@@ -1,14 +1,46 @@
 <script setup lang="ts">
 import type { ModerationTargetType } from '@broke-oclock/contracts/admin-moderation'
+import AppSelect from '@web/components/AppSelect.vue'
 import AdminStatusBadge from '@web/components/admin/AdminStatusBadge.vue'
 import AdminTaskLink from '@web/components/admin/AdminTaskLink.vue'
 import AdminWorkspace from '@web/components/admin/AdminWorkspace.vue'
+import type { SelectOption } from '@web/components/select-options'
 import TicketLoading from '@web/components/TicketLoading.vue'
 import { adminDealHref, adminRecordId } from '@web/lib/admin-workflow-links'
 import { formatDateTime } from '@web/lib/format'
 import { useModeration } from '@web/modules/admin-moderation/use-moderation'
 import { computed, inject, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { type LocationQueryRaw, routeLocationKey, routerKey } from 'vue-router'
+
+const QUEUE_OPTIONS: readonly SelectOption[] = [
+  { value: 'REPORTS', label: 'Reports' },
+  { value: 'COMMENTS', label: 'Comments' },
+]
+const TARGET_OPTIONS: readonly SelectOption[] = [
+  { value: 'COMMENT', label: 'Comment reports' },
+  { value: 'DEAL', label: 'Deal reports' },
+]
+const STATUS_OPTIONS: readonly SelectOption[] = [
+  { value: 'OPEN', label: 'Open' },
+  { value: 'RESOLVED', label: 'Resolved' },
+  { value: 'DISMISSED', label: 'Dismissed' },
+]
+const REASON_OPTIONS: readonly SelectOption[] = [
+  { value: '', label: 'All reasons' },
+  { value: 'SPAM', label: 'Spam' },
+  { value: 'MISLEADING', label: 'Misleading' },
+  { value: 'INAPPROPRIATE', label: 'Inappropriate' },
+  { value: 'OTHER', label: 'Other' },
+]
+const STATE_OPTIONS: readonly SelectOption[] = [
+  { value: 'VISIBLE', label: 'Visible' },
+  { value: 'HIDDEN', label: 'Hidden' },
+  { value: 'AUTHOR_DELETED', label: 'Deleted by author' },
+]
+const DECISION_OPTIONS: readonly SelectOption[] = [
+  { value: 'RESOLVED', label: 'Resolve report only' },
+  { value: 'DISMISSED', label: 'Dismiss report only' },
+]
 
 type ReportContext = { id: string; targetType: ModerationTargetType }
 type Selection = { kind: 'report'; id: string; targetType: ModerationTargetType } | { kind: 'comment'; id: string }
@@ -144,13 +176,13 @@ onUnmounted(() => { mounted = false; navigation++ })
   <section class="moderation-panel" aria-label="Reports and comment moderation">
     <p class="moderation-introduction">Review reported deals and comments, inspect the evidence, then record a decision.</p>
     <form class="row moderation-filters" @submit.prevent="reloadQueue">
-      <div><label for="mod-queue" class="form-label">Queue</label><select id="mod-queue" v-model="mode" class="form-select" :disabled="pending" @change="reloadQueue"><option value="REPORTS">Reports</option><option value="COMMENTS">Comments</option></select></div>
+      <div><label for="mod-queue" class="form-label">Queue</label><AppSelect id="mod-queue" v-model="mode" :options="QUEUE_OPTIONS" class="form-select" :disabled="pending" @change="reloadQueue()" /></div>
       <template v-if="mode === 'REPORTS'">
-        <div><label for="mod-type" class="form-label">Report collection</label><select id="mod-type" v-model="targetType" class="form-select" :disabled="pending" @change="reloadQueue"><option value="COMMENT">Comment reports</option><option value="DEAL">Deal reports</option></select></div>
-        <div><label for="mod-status" class="form-label">Report status</label><select id="mod-status" v-model="status" class="form-select" :disabled="pending" @change="reloadQueue"><option value="OPEN">Open</option><option value="RESOLVED">Resolved</option><option value="DISMISSED">Dismissed</option></select></div>
-        <div><label for="mod-reason" class="form-label">Reason</label><select id="mod-reason" v-model="reason" class="form-select" :disabled="pending"><option value="">All reasons</option><option value="SPAM">Spam</option><option value="MISLEADING">Misleading</option><option value="INAPPROPRIATE">Inappropriate</option><option value="OTHER">Other</option></select></div>
+        <div><label for="mod-type" class="form-label">Report collection</label><AppSelect id="mod-type" v-model="targetType" :options="TARGET_OPTIONS" class="form-select" :disabled="pending" @change="reloadQueue()" /></div>
+        <div><label for="mod-status" class="form-label">Report status</label><AppSelect id="mod-status" v-model="status" :options="STATUS_OPTIONS" class="form-select" :disabled="pending" @change="reloadQueue()" /></div>
+        <div><label for="mod-reason" class="form-label">Reason</label><AppSelect id="mod-reason" v-model="reason" :options="REASON_OPTIONS" class="form-select" :disabled="pending" /></div>
       </template>
-      <div v-else><label for="mod-state" class="form-label">Comment state</label><select id="mod-state" v-model="state" class="form-select" :disabled="pending" @change="reloadQueue"><option value="VISIBLE">Visible</option><option value="HIDDEN">Hidden</option><option value="AUTHOR_DELETED">Deleted by author</option></select></div>
+      <div v-else><label for="mod-state" class="form-label">Comment state</label><AppSelect id="mod-state" v-model="state" :options="STATE_OPTIONS" class="form-select" :disabled="pending" @change="reloadQueue()" /></div>
       <button type="submit" class="btn btn-outline-primary" :disabled="pending || loading">Apply filters</button>
       <details class="moderation-advanced"><summary>Advanced filters</summary><label for="mod-deal" class="form-label">Deal ID (optional)</label><input id="mod-deal" v-model="dealId" name="dealId" class="form-control" pattern="[a-f0-9]{24}" spellcheck="false" autocomplete="off" autocapitalize="none" translate="no" :disabled="pending" /></details>
     </form>
@@ -203,7 +235,7 @@ onUnmounted(() => { mounted = false; navigation++ })
             <fieldset :disabled="pending || !!(report && report.status !== 'OPEN') || !!comment?.deletedAt">
               <legend>{{ report ? 'Report decision' : comment?.hiddenAt ? 'Restore comment' : 'Hide comment' }}</legend>
               <p class="moderation-consequence">{{ report ? 'This decision updates this report only. It does not hide the deal or comment, or resolve other reports.' : comment?.hiddenAt ? 'Restore the visibility of this comment only. Reports and votes will not change.' : 'Hide this comment only. Reports and votes will not change.' }}</p>
-              <div v-if="report" class="mb-3"><label for="mod-decision" class="form-label">Decision</label><select id="mod-decision" v-model="decision" class="form-select" @change="resetConsent"><option value="RESOLVED">Resolve report only</option><option value="DISMISSED">Dismiss report only</option></select></div>
+              <div v-if="report" class="mb-3"><label for="mod-decision" class="form-label">Decision</label><AppSelect id="mod-decision" v-model="decision" :options="DECISION_OPTIONS" class="form-select" @change="resetConsent()" /></div>
               <label for="mod-note" class="form-label">{{ report ? 'Resolution' : 'Moderation note' }} (required)</label><textarea id="mod-note" v-model="note" name="note" class="form-control mb-3" rows="3" maxlength="500" required />
               <div class="form-check mb-3"><input id="mod-confirm" v-model="confirmed" name="confirmed" class="form-check-input" type="checkbox" /><label for="mod-confirm" class="form-check-label">I reviewed this exact target and version, and confirm this action.</label></div>
               <button type="submit" class="btn" :class="comment && !comment.hiddenAt ? 'btn-outline-danger' : 'btn-primary'" :disabled="blocked">{{ pending ? 'Saving…' : report ? 'Record report decision' : comment?.hiddenAt ? 'Restore comment' : 'Hide comment' }}</button>

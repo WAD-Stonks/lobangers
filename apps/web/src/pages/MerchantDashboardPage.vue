@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { DEAL_CUISINE_LABELS } from '@broke-oclock/contracts/deal-cuisines'
-import ConfirmDialog from '@web/components/ConfirmDialog.vue'
+import AppSelect from '@web/components/AppSelect.vue'
+import { optionsFromLabels, withLeading } from '@web/components/select-options'
 import TicketLoading from '@web/components/TicketLoading.vue'
 import { focusFirstInvalid } from '@web/lib/form-focus'
 import { formatDate, formatMoneyMinor } from '@web/lib/format'
@@ -127,6 +128,10 @@ const cuisineLabels: Record<string, string> = {
   NONE: 'No specific cuisine (e.g. drinks, desserts)',
 }
 
+const categoryOptions = withLeading({ value: '', label: 'Choose a category' }, optionsFromLabels(categoryLabels))
+const cuisineOptions = withLeading({ value: '', label: 'Choose a cuisine' }, optionsFromLabels(cuisineLabels))
+const offerOptions = optionsFromLabels(offerLabels)
+
 // ----- Deal status -----
 // Today's date as 'YYYY-MM-DD' in the merchant's own time zone, so it can be compared with
 // the form's date strings.
@@ -221,8 +226,8 @@ const resetFlash = () => {
   flashProblem.value = null
 }
 
-const openCreateForm = () => {
-  if (!confirmDiscard()) return
+const openCreateForm = async () => {
+  if (!(await confirmDiscard())) return
   clearNewPhoto()
   resetFlash()
   form.value = emptyForm()
@@ -256,8 +261,8 @@ const formFrom = (deal: MerchantDeal) => ({
 // An ended deal can't be edited, but it can run again as a new deal with the same details.
 // The dates start empty (from now, no end), and the photo stays with the old deal, since a
 // photo belongs to one deal only.
-const openRunAgainForm = (deal: MerchantDeal) => {
-  if (!confirmDiscard()) return
+const openRunAgainForm = async (deal: MerchantDeal) => {
+  if (!(await confirmDiscard())) return
   clearNewPhoto()
   resetFlash()
   // Outlets the merchant no longer manages are left out.
@@ -280,8 +285,8 @@ const openRunAgainForm = (deal: MerchantDeal) => {
   nextTick(() => formEl.value?.scrollIntoView?.({ block: 'start' }))
 }
 
-const openEditForm = (deal: MerchantDeal) => {
-  if (!confirmDiscard()) return
+const openEditForm = async (deal: MerchantDeal) => {
+  if (!(await confirmDiscard())) return
   clearNewPhoto()
   resetFlash()
   form.value = formFrom(deal)
@@ -295,8 +300,8 @@ const openEditForm = (deal: MerchantDeal) => {
 }
 
 // Edit on a flash deal draft opens it in this form with its flash fields.
-const openFlashDraftForm = (drop: MerchantFlashDrop) => {
-  if (!confirmDiscard()) return
+const openFlashDraftForm = async (drop: MerchantFlashDrop) => {
+  if (!(await confirmDiscard())) return
   clearNewPhoto()
   const { deal } = drop
   form.value = {
@@ -349,8 +354,8 @@ const closeForm = () => {
 }
 
 // Cancel asks first when the merchant has changed something.
-const cancelForm = () => {
-  if (confirmDiscard()) closeForm()
+const cancelForm = async () => {
+  if (await confirmDiscard()) closeForm()
 }
 
 // Returns a message for every field that has a problem; an empty object means the form is fine.
@@ -553,7 +558,6 @@ onMounted(loadDashboard)
 
 <template>
   <section class="container py-4 merchant-dashboard">
-    <ConfirmDialog />
     <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
       <h1 class="h2 mb-0">Merchant dashboard</h1>
       <div v-if="!loading && outlets.length > 0" class="d-flex flex-wrap gap-2">
@@ -626,36 +630,28 @@ onMounted(loadDashboard)
         <div class="row g-3 mb-3">
           <div class="col-sm-6">
             <label for="deal-category" class="form-label">Category</label>
-            <select
+            <AppSelect
               id="deal-category"
               v-model="form.category"
               name="category"
               class="form-select"
               :class="{ 'is-invalid': fieldErrors.category }"
               v-bind="invalidAttrs('category')"
-            >
-              <option value="">Choose a category</option>
-              <option v-for="(label, value) in categoryLabels" :key="value" :value="value">
-                {{ label }}
-              </option>
-            </select>
+              :options="categoryOptions"
+            />
             <div id="error-category" class="invalid-feedback">{{ fieldErrors.category }}</div>
           </div>
           <div class="col-sm-6">
             <label for="deal-cuisine" class="form-label">Cuisine</label>
-            <select
+            <AppSelect
               id="deal-cuisine"
               v-model="form.cuisine"
               name="cuisine"
               class="form-select"
               :class="{ 'is-invalid': fieldErrors.cuisine }"
               v-bind="invalidAttrs('cuisine')"
-            >
-              <option value="">Choose a cuisine</option>
-              <option v-for="(label, value) in cuisineLabels" :key="value" :value="value">
-                {{ label }}
-              </option>
-            </select>
+              :options="cuisineOptions"
+            />
             <div id="error-cuisine" class="invalid-feedback">{{ fieldErrors.cuisine }}</div>
           </div>
         </div>
@@ -690,11 +686,14 @@ onMounted(loadDashboard)
         <div class="row g-3 mb-3">
           <div class="col-sm-6">
             <label for="deal-offer" class="form-label">{{ flashMode ? 'Flash offer' : 'Offer type' }}</label>
-            <select id="deal-offer" v-model="form.offerType" name="offerType" class="form-select">
-              <option v-for="(label, value) in offerLabels" :key="value" :value="value">
-                {{ label }}
-              </option>
-            </select>
+            <AppSelect
+              id="deal-offer"
+              :model-value="form.offerType"
+              name="offerType"
+              class="form-select"
+              :options="offerOptions"
+              @update:model-value="form.offerType = $event as OfferType"
+            />
           </div>
           <!-- Only show the box the chosen offer type needs -->
           <div v-if="form.offerType === 'PERCENT_OFF'" class="col-sm-6">

@@ -1,17 +1,37 @@
 import { type PresenceAvatar, presenceAvatarSchema } from '@broke-oclock/contracts/presence'
 
 // The viewer's Hungry Nearby choice, remembered on this device only: whether they look at
-// others, whether they also show themselves, and the lobanger they picked. Storage can be
-// missing or blocked (private mode, tests), so every read and write is guarded.
+// others, whether they also show themselves, the lobanger they picked, and whether they have
+// been asked to show themselves yet. Looking is on until they turn it off; showing themselves
+// always waits for their yes. Storage can be missing or blocked (private mode, tests), so every
+// read and write is guarded.
 
 export type NearbyPrefs = {
   readonly looking: boolean
   readonly sharing: boolean
   readonly avatar: PresenceAvatar | null
+  readonly asked: boolean
 }
 
 export const NEARBY_PREFS_KEY = 'lobangers-nearby'
-export const DEFAULT_PREFS: NearbyPrefs = { looking: false, sharing: false, avatar: null }
+export const DEFAULT_PREFS: NearbyPrefs = {
+  looking: true,
+  sharing: false,
+  avatar: null,
+  asked: false,
+}
+
+type AskState = {
+  readonly signedIn: boolean
+  readonly located: boolean
+  readonly looking: boolean
+  readonly sharing: boolean
+  readonly asked: boolean
+}
+
+// Asked once, the first time someone could say yes: signed in, located, looking and not shown.
+export const shouldAskToShare = (state: AskState): boolean =>
+  state.signedIn && state.located && state.looking && !state.sharing && !state.asked
 
 const storage = (): Storage | null => {
   try {
@@ -29,12 +49,13 @@ export const parsePrefs = (raw: string | null): NearbyPrefs => {
     if (typeof value !== 'object' || value === null) return DEFAULT_PREFS
     const record = value as Record<string, unknown>
     const avatar = presenceAvatarSchema.safeParse(record.avatar)
-    const looking = record.looking === true
+    const looking = typeof record.looking === 'boolean' ? record.looking : DEFAULT_PREFS.looking
     return {
       looking,
       // Showing yourself always means looking too.
       sharing: looking && record.sharing === true,
       avatar: avatar.success ? avatar.data : null,
+      asked: record.asked === true,
     }
   } catch {
     return DEFAULT_PREFS

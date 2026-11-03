@@ -1,4 +1,5 @@
 import { flushPromises, mount } from '@vue/test-utils'
+import { chooseOption } from '@web-tests/support/select'
 import { beforeEach, expect, it, vi } from 'vitest'
 import { createMemoryHistory, createRouter } from 'vue-router'
 
@@ -79,7 +80,7 @@ it('distinguishes a failed queue read from a confirmed empty result and offers r
   expect(w.text()).toContain('0 loaded')
   expect(w.text()).not.toContain('Queue unavailable')
   rest.reports.mockRejectedValueOnce(new Error('Synthetic filter read failure'))
-  await w.get('#mod-type').setValue('DEAL')
+  await chooseOption(w, '#mod-type', 'DEAL')
   await flushPromises()
   expect(w.text()).toContain('Queue unavailable')
   expect(w.text()).not.toContain('Queue clear')
@@ -136,9 +137,9 @@ it('locks uncertain result across same-version reads and target switches without
   await w.get('[name="confirmed"]').setValue(true)
   await w.get('form[data-testid="decision-form"]').trigger('submit')
   await flushPromises()
-  await w.get('#mod-type').setValue('DEAL')
+  await chooseOption(w, '#mod-type', 'DEAL')
   await flushPromises()
-  await w.get('#mod-type').setValue('COMMENT')
+  await chooseOption(w, '#mod-type', 'COMMENT')
   await flushPromises()
   await w.get('[data-testid="inspect-report"]').trigger('click')
   await flushPromises()
@@ -180,7 +181,7 @@ it('drops late detail after queue changes and clears protected evidence on permi
   )
   await w.get('[data-testid="inspect-report"]').trigger('click')
   await flushPromises()
-  await w.get('#mod-type').setValue('DEAL')
+  await chooseOption(w, '#mod-type', 'DEAL')
   await flushPromises()
   release(row)
   await flushPromises()
@@ -241,14 +242,14 @@ it('retains mounted CONFLICT lock for exact collection/type/id until newer moder
     await submit()
     expect(rest.resolve, 'same-version conflict must not redispatch').toHaveBeenCalledTimes(1)
     expect(w.text()).toContain('Evidence changed')
-    await w.get('#mod-type').setValue('DEAL')
+    await chooseOption(w, '#mod-type', 'DEAL')
     await flushPromises()
     await inspect()
     expect(w.get<HTMLTextAreaElement>('[name="note"]').element.value).toBe('')
     await submit()
     expect(rest.resolve).toHaveBeenCalledTimes(2)
     expect(rest.resolve.mock.calls[1]?.slice(0, 2)).toEqual(['DEAL', id])
-    await w.get('#mod-type').setValue('COMMENT')
+    await chooseOption(w, '#mod-type', 'COMMENT')
     await flushPromises()
     await inspect()
     await submit()

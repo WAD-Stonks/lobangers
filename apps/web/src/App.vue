@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { AppShell, BApp } from '@broke-oclock/ui'
 import { adminNavigation } from '@web/components/admin/admin-navigation'
+import ConfirmDialog from '@web/components/ConfirmDialog.vue'
 import PageHeader from '@web/components/PageHeader.vue'
 import SplashScreen from '@web/components/SplashScreen.vue'
 import { syncThemeColor, useTheme } from '@web/lib/theme'
@@ -46,6 +47,7 @@ const administration = computed(() =>
 
 <template>
   <BApp>
+    <ConfirmDialog />
     <AuthPrompt v-if="layout !== 'canvas'" />
     <!-- The split map/results loading screen is skipped on phones. -->
     <template v-if="layout === 'canvas'">

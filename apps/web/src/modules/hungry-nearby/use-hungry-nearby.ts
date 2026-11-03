@@ -7,7 +7,12 @@ import {
 import { ApiClientError, api } from '@web/lib/api-client'
 import { isWithinSingapore } from '@web/modules/browse-map/singapore-bounds'
 import type { Coordinates } from '@web/modules/browse-map/types'
-import { type NearbyPrefs, readPrefs, writePrefs } from '@web/modules/hungry-nearby/nearby-prefs'
+import {
+  type NearbyPrefs,
+  readPrefs,
+  shouldAskToShare,
+  writePrefs,
+} from '@web/modules/hungry-nearby/nearby-prefs'
 import { useNearbyMap } from '@web/modules/hungry-nearby/use-nearby-map'
 import type { ToastQueue } from '@web/modules/map-shell/use-toast'
 import type L from 'leaflet'
@@ -23,9 +28,10 @@ import {
   watch,
 } from 'vue'
 
-// Hungry Nearby on the map: who else is around (anyone may look), and, for signed-in people
-// who choose it, their own fuzzed spot kept alive by a heartbeat while the tab is visible.
-// Nothing is shared until the viewer taps "Show me too".
+// Hungry Nearby on the map: who else is around (anyone may look, and it is on by default), and,
+// for signed-in people who choose it, their own fuzzed spot kept alive by a heartbeat while the
+// tab is visible. The first time a signed-in viewer is located they are asked once, with
+// "Show me too" as the main choice; nothing is shared until they tap it.
 const REFRESH_MS = 30_000
 const MOVE_SETTLE_MS = 400
 
@@ -151,7 +157,7 @@ export const createHungryNearby = (options: HungryNearbyOptions) => {
       }
       const response = await api.presence.share(position, avatar ?? undefined)
       me.value = response.me
-      setPrefs({ looking: true, sharing: true, avatar: response.me.avatar })
+      setPrefs({ looking: true, sharing: true, avatar: response.me.avatar, asked: true })
       toast.show('You are on the map as a lobanger. Your spot is blurred by about 150\u00a0m.')
     } catch (error) {
       if (isUnauthorized(error)) stopSharingLocally()
@@ -202,6 +208,24 @@ export const createHungryNearby = (options: HungryNearbyOptions) => {
   }
 
   watch([looking, sharing], syncTimers, { immediate: true })
+  watch(
+    () =>
+      shouldAskToShare({
+        signedIn: signedIn.value,
+        located: options.position.value !== null,
+        looking: looking.value,
+        sharing: sharing.value,
+        asked: prefs.value.asked,
+      }),
+    (ask) => {
+      if (ask) popoverOpen.value = true
+    },
+    { immediate: true },
+  )
+  // However the question closes (Show me too, Just look, tapping away), it is not asked again.
+  watch(popoverOpen, (open, wasOpen) => {
+    if (!open && wasOpen && signedIn.value && !prefs.value.asked) setPrefs({ asked: true })
+  })
   // Sharing resumes once the session and position are known, e.g. after a reload.
   watch(
     () => [sharing.value, options.position.value !== null] as const,

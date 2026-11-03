@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import type { PostsPage } from '@broke-oclock/contracts/ingestion-recovery'
 import { BButton } from '@broke-oclock/ui'
+import AppSelect from '@web/components/AppSelect.vue'
+import { optionsFromValues } from '@web/components/select-options'
 import TicketLoading from '@web/components/TicketLoading.vue'
 import { adminRecordId } from '@web/lib/admin-workflow-links'
 import { api } from '@web/lib/api-client'
@@ -8,6 +10,8 @@ import { errorCode } from '@web/modules/ingestion-admin/errors'
 import PostInvestigation from '@web/modules/ingestion-admin/PostInvestigation.vue'
 import { clearRecoveryWorkspace, useRecoveryWorkspace } from '@web/modules/ingestion-admin/recovery-workspace'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+
+const STATUS_OPTIONS = optionsFromValues(['FAILED', 'NEW', 'PARSED', 'NEEDS_REVIEW', 'IGNORED'])
 
 const props = withDefaults(defineProps<{ initialPostId?: string; active?: boolean }>(), { active: true })
 const workspace = useRecoveryWorkspace()
@@ -44,7 +48,7 @@ onMounted(() => { if (props.active) void load() }); onBeforeUnmount(() => { clos
 <template>
  <section id="failed-posts" aria-label="Failed post investigation" class="card p-3 p-sm-4 mb-4">
   <h2 class="h4">Failed posts and source investigation</h2>
-  <form @submit.prevent="load()"><label>Status<select v-model="statusFilter" name="post-status" class="form-select" :disabled="investigationBusy || closed"><option v-for="value in ['FAILED','NEW','PARSED','NEEDS_REVIEW','IGNORED']" :key="value">{{ value }}</option></select></label><label>Source ID<input v-model="sourceFilter" name="source-id" class="form-control" maxlength="24" spellcheck="false" autocomplete="off" autocapitalize="none" :disabled="investigationBusy || closed"></label><label>Error code<input v-model="codeFilter" name="error-code" class="form-control" maxlength="80" spellcheck="false" autocomplete="off" autocapitalize="none" :disabled="investigationBusy || closed"></label><BButton type="submit" :disabled="pending || investigationBusy || closed">Load matching posts</BButton></form>
+  <form @submit.prevent="load()"><label>Status<AppSelect v-model="statusFilter" name="post-status" :options="STATUS_OPTIONS" class="form-select" :disabled="investigationBusy || closed" /></label><label>Source ID<input v-model="sourceFilter" name="source-id" class="form-control" maxlength="24" spellcheck="false" autocomplete="off" autocapitalize="none" :disabled="investigationBusy || closed"></label><label>Error code<input v-model="codeFilter" name="error-code" class="form-control" maxlength="80" spellcheck="false" autocomplete="off" autocapitalize="none" :disabled="investigationBusy || closed"></label><BButton type="submit" :disabled="pending || investigationBusy || closed">Load matching posts</BButton></form>
   <TicketLoading v-if="pending" label="Loading posts…" /><p v-if="error" role="alert">{{ error }}</p><p v-if="!loaded && !pending && !error && !closed" role="status">Load matching posts to see results for these filters.</p><p v-if="loaded && !pending && !error && !items.length">No posts on this page. A bounded page can exclude unsupported sources.</p>
   <ul><li v-for="post in items" :key="post.id" class="text-break">{{ post.source.name }} · {{ post.externalId }} · {{ post.status }} · {{ post.errorCode ?? 'No error' }} · {{ post.failureStage ?? 'Stage unknown' }}<BButton class="ms-2" :disabled="investigationBusy || closed" @click="selectPost(post.id)">Investigate <span translate="no">{{ post.externalId }}</span></BButton></li></ul>
   <BButton v-if="next" :disabled="pending || investigationBusy || closed" @click="load(next)">More posts</BButton>

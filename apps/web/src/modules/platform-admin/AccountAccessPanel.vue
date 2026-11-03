@@ -1,9 +1,36 @@
 <script setup lang="ts">
+import AppSelect from '@web/components/AppSelect.vue'
+import { optionsFromValues, type SelectOption, withLeading } from '@web/components/select-options'
 import TicketLoading from '@web/components/TicketLoading.vue'
 import { formatDateTime } from '@web/lib/format'
 import type { usePlatformAdmin } from '@web/modules/platform-admin/use-platform-admin'
+import { computed } from 'vue'
 
-defineProps<{ s: ReturnType<typeof usePlatformAdmin> }>()
+const props = defineProps<{ s: ReturnType<typeof usePlatformAdmin> }>()
+const ROLE_OPTIONS = optionsFromValues(['USER', 'MERCHANT', 'MODERATOR', 'ADMIN'])
+const actionOptions = computed<readonly SelectOption[]>(() => [
+  { value: 'role', label: 'Change role' },
+  { value: 'grant', label: 'Grant stall access', disabled: props.s.detail.data?.role !== 'MERCHANT' },
+  { value: 'revoke', label: 'Revoke stall access' },
+])
+const venueOptions = computed(() =>
+  withLeading(
+    { value: '', label: 'Choose a stall' },
+    (props.s.venues.data?.items ?? []).map((venue) => ({
+      value: venue.id,
+      label: `${venue.name} / ${venue.merchantName} / ${venue.address}`,
+    })),
+  ),
+)
+const grantOptions = computed(() =>
+  withLeading(
+    { value: '', label: 'Choose an active grant' },
+    (props.s.detail.data?.grants ?? []).map((grant) => ({
+      value: grant.id,
+      label: `${grant.venueName} / ${grant.merchantName}`,
+    })),
+  ),
+)
 </script>
 <template>
 <div v-if="s.detail.data" class="access-panel">
@@ -11,7 +38,7 @@ defineProps<{ s: ReturnType<typeof usePlatformAdmin> }>()
         <p v-if="!s.detail.data.grants.length">No active stall grants.</p>
         <ul><li v-for="grant in s.detail.data.grants" :key="grant.id">{{ grant.venueName }} / {{ grant.merchantName }} | Version {{ grant.version }} | <time :datetime="grant.createdAt">{{ formatDateTime(grant.createdAt) }}</time></li></ul>
         <label for="account-action" class="form-label">Account action</label>
-        <select id="account-action" v-model="s.action" :disabled="s.busy" class="form-select mb-3"><option value="role">Change role</option><option value="grant" :disabled="s.detail.data.role !== 'MERCHANT'">Grant stall access</option><option value="revoke">Revoke stall access</option></select>
+        <AppSelect id="account-action" v-model="s.action" :options="actionOptions" :disabled="s.busy" class="form-select mb-3" />
         <div v-if="s.action === 'grant'">
           <p>A MERCHANT role alone grants no stall access. Choose one existing stall. You cannot grant yourself access.</p>
           <form id="venue-search-form" @submit.prevent="s.loadVenues()" class="mb-3">
@@ -31,16 +58,16 @@ defineProps<{ s: ReturnType<typeof usePlatformAdmin> }>()
           <fieldset :disabled="s.busy || s.detail.loading">
             <template v-if="s.action === 'role'">
             <label for="new-role" class="form-label">New role</label>
-            <select id="new-role" v-model="s.newRole" class="form-select mb-3"><option>USER</option><option>MERCHANT</option><option>MODERATOR</option><option>ADMIN</option></select>
+            <AppSelect id="new-role" v-model="s.newRole" :options="ROLE_OPTIONS" class="form-select mb-3" />
             <p>Changing away from MERCHANT revokes outstanding stall grants. You cannot change your own role. The server protects the final administrator.</p>
             </template>
             <template v-if="s.action === 'grant'">
               <label for="venue-choice" class="form-label">Stall to grant</label>
-              <select id="venue-choice" v-model="s.venueId" :disabled="s.venues.loading" class="form-select mb-3"><option value="">Choose a stall</option><option v-for="venue in s.venues.data?.items" :key="venue.id" :value="venue.id">{{ venue.name }} / {{ venue.merchantName }} / {{ venue.address }}</option></select>
+              <AppSelect id="venue-choice" v-model="s.venueId" :options="venueOptions" :disabled="s.venues.loading" class="form-select mb-3" />
             </template>
             <template v-if="s.action === 'revoke'">
               <label for="grant-choice" class="form-label">Active grant to revoke</label>
-              <select id="grant-choice" v-model="s.grantId" class="form-select mb-3"><option value="">Choose an active grant</option><option v-for="grant in s.detail.data.grants" :key="grant.id" :value="grant.id">{{ grant.venueName }} / {{ grant.merchantName }}</option></select>
+              <AppSelect id="grant-choice" v-model="s.grantId" :options="grantOptions" class="form-select mb-3" />
             </template>
             <label for="account-note" class="form-label">Account action note (required)</label>
             <textarea id="account-note" v-model="s.note" required maxlength="500" class="form-control mb-3" />

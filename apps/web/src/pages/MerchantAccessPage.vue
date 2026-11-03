@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import type { AccountVenue, MyMerchantRequest } from '@broke-oclock/contracts/account'
+import AppSelect from '@web/components/AppSelect.vue'
+import { withLeading } from '@web/components/select-options'
 import { api } from '@web/lib/api-client'
 import { focusFirstInvalid } from '@web/lib/form-focus'
 import { errorCode } from '@web/modules/ingestion-admin/errors'
@@ -8,6 +10,12 @@ import { computed, nextTick, onMounted, ref } from 'vue'
 const search = ref('')
 const venues = ref<AccountVenue[]>([])
 const venueId = ref('')
+const venueOptions = computed(() =>
+  withLeading(
+    { value: '', label: 'Choose a stall' },
+    venues.value.map((venue) => ({ value: venue.id, label: `${venue.name} (${venue.merchantName})` })),
+  ),
+)
 const message = ref('')
 const myRequests = ref<MyMerchantRequest[]>([])
 const requestsCursor = ref<string | null>(null)
@@ -160,20 +168,16 @@ onMounted(() => {
       </div>
 
       <label for="venue" class="form-label">Stall</label>
-      <select
+      <AppSelect
         id="venue"
         v-model="venueId"
         name="venue"
         class="form-select"
         :class="{ 'is-invalid': venueError, 'mb-3': !venueError }"
+        :options="venueOptions"
         :aria-invalid="venueError ? 'true' : undefined"
         :aria-describedby="venueError ? 'venue-error' : undefined"
-      >
-        <option value="">Choose a stall</option>
-        <option v-for="venue in venues" :key="venue.id" :value="venue.id">
-          {{ venue.name }} ({{ venue.merchantName }})
-        </option>
-      </select>
+      />
       <div v-if="venueError" id="venue-error" class="invalid-feedback d-block mb-3">
         {{ venueError }}
       </div>

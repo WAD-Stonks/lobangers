@@ -19,7 +19,7 @@ const props = withDefaults(
 )
 const emit = defineEmits<{ 'update:snap': [index: number] }>()
 
-const SNAP_NAMES = ['Peek', 'Half', 'Full'] as const
+const SNAP_NAMES = ['Peek', 'Half', 'Full', 'Expanded'] as const
 
 const dragDelta = ref(0)
 const dragging = ref(false)
@@ -35,6 +35,11 @@ const visibleHeight = computed(() => {
   return Math.min(fullHeight.value, Math.max(min * 0.6, snapHeight.value + dragDelta.value))
 })
 const offset = computed(() => Math.round(fullHeight.value - visibleHeight.value))
+// Past full height the sheet slides over the header, so it has to stack above it.
+const expanded = computed(() => {
+  const belowHeader = props.heights[props.heights.length - 2] ?? fullHeight.value
+  return props.mode === 'sheet' && props.heights.length > 3 && visibleHeight.value > belowHeader
+})
 
 const sheetStyle = computed(() =>
   props.mode === 'sheet'
@@ -100,7 +105,7 @@ const handleLabel = computed(
 <template>
   <section
     class="shell-panel lb-card"
-    :class="[`shell-panel--${mode}`, { 'is-wide': wide, 'is-dragging': dragging, 'is-collapsed': collapsed }]"
+    :class="[`shell-panel--${mode}`, { 'is-wide': wide, 'is-dragging': dragging, 'is-collapsed': collapsed, 'is-expanded': expanded }]"
     :style="sheetStyle"
     :aria-label="label"
     data-testid="shell-panel"
@@ -228,6 +233,20 @@ const handleLabel = computed(
   height: 5px;
   background: var(--track);
   border-radius: var(--radius-pill);
+}
+
+/* Expanded: above the header (z-index 30), clear of the notch, with square top corners. */
+.shell-panel--sheet.is-expanded {
+  z-index: 35;
+  border-radius: 0;
+}
+
+.shell-panel--sheet.is-expanded .shell-panel__content {
+  padding-top: calc(24px + env(safe-area-inset-top, 0px));
+}
+
+.shell-panel--sheet.is-expanded .shell-panel__grip {
+  top: env(safe-area-inset-top, 0px);
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { DEAL_CUISINE_LABELS } from '@broke-oclock/contracts/deal-cuisines'
 import { BModal } from '@broke-oclock/ui'
+import AppSelect from '@web/components/AppSelect.vue'
+import { optionsFromLabels, withLeading } from '@web/components/select-options'
 import { focusFirstInvalid } from '@web/lib/form-focus'
 import { useUnsavedChanges } from '@web/lib/use-unsaved-changes'
 import {
@@ -49,6 +51,9 @@ const emptyForm = () => ({
   endDate: '',
   terms: '',
 })
+const categoryOptions = withLeading({ value: '', label: 'Choose a category' }, optionsFromLabels(categoryLabels))
+const cuisineOptions = withLeading({ value: '', label: 'Choose a cuisine' }, optionsFromLabels(cuisineLabels))
+const offerOptions = withLeading({ value: '', label: 'Choose an offer type' }, optionsFromLabels(offerLabels))
 const form = ref(emptyForm())
 const photo = ref<File | null>(null)
 const photoPreview = ref('') // a temporary link to the chosen image, for the <img> preview
@@ -278,36 +283,28 @@ const clearForm = () => {
       <div class="row g-3 mt-0">
         <div class="col-sm-6">
           <label for="deal-category" class="form-label">Category</label>
-          <select
+          <AppSelect
             id="deal-category"
             v-model="form.category"
             name="category"
             class="form-select"
             :class="{ 'is-invalid': errors.category }"
             v-bind="invalidAttrs('category')"
-          >
-            <option value="">Choose a category</option>
-            <option v-for="(label, value) in categoryLabels" :key="value" :value="value">
-              {{ label }}
-            </option>
-          </select>
+            :options="categoryOptions"
+          />
           <div id="error-category" class="invalid-feedback">{{ errors.category }}</div>
         </div>
         <div class="col-sm-6">
           <label for="deal-cuisine" class="form-label">Cuisine</label>
-          <select
+          <AppSelect
             id="deal-cuisine"
             v-model="form.cuisine"
             name="cuisine"
             class="form-select"
             :class="{ 'is-invalid': errors.cuisine }"
             v-bind="invalidAttrs('cuisine')"
-          >
-            <option value="">Choose a cuisine</option>
-            <option v-for="(label, value) in cuisineLabels" :key="value" :value="value">
-              {{ label }}
-            </option>
-          </select>
+            :options="cuisineOptions"
+          />
           <div id="error-cuisine" class="invalid-feedback">{{ errors.cuisine }}</div>
         </div>
       </div>
@@ -317,19 +314,16 @@ const clearForm = () => {
       <div class="row g-3">
         <div class="col-sm-6">
           <label for="deal-offer" class="form-label">Offer type</label>
-          <select
+          <AppSelect
             id="deal-offer"
-            v-model="form.offerType"
+            :model-value="form.offerType"
             name="offerType"
             class="form-select"
             :class="{ 'is-invalid': errors.offerType }"
             v-bind="invalidAttrs('offerType')"
-          >
-            <option value="">Choose an offer type</option>
-            <option v-for="(label, value) in offerLabels" :key="value" :value="value">
-              {{ label }}
-            </option>
-          </select>
+            :options="offerOptions"
+            @update:model-value="form.offerType = $event as OfferType | ''"
+          />
           <div id="error-offerType" class="invalid-feedback">{{ errors.offerType }}</div>
         </div>
         <!-- Only show the box the chosen offer type needs -->

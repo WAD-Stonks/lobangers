@@ -31,7 +31,7 @@ defineProps<{ effects: SquadEffects }>()
       v-for="drop in effects.drops.value"
       :key="`d${drop.id}`"
       class="squad-fx__drop"
-      :style="{ left: `${drop.x}px`, animationDelay: `${drop.delay}ms`, '--fx-rotate': `${drop.rotate}deg` }"
+      :style="{ left: `${drop.x}px`, animationDelay: `${drop.delay}ms`, '--fx-rotate': `${drop.rotate}deg`, '--fx-y': drop.y }"
     >
       <img :src="THUMBS_DOWN_URL" alt="" width="38" height="38" />
     </span>

@@ -64,21 +64,22 @@ const openMap = async (page: Page) => {
   await expect(page.locator('.deal-map-pin__badge').first()).toBeVisible()
 }
 
-test('nobody shows until the toggle is on, then people stand on the map', async ({ page }) => {
+test('people stand on the map from the start, and turning it off clears them', async ({ page }) => {
   await mockPublicApi(page)
   const calls = await mockPresence(page)
   await page.setViewportSize({ width: 1280, height: 844 })
   await openMap(page)
-  await expect(people(page)).toHaveCount(0)
-  expect(calls.gets).toBe(0)
   const toggle = page.getByTestId('nearby-toggle')
-  await expect(toggle).toHaveAttribute('aria-pressed', 'false')
-  await toggle.click()
   await expect(toggle).toHaveAttribute('aria-pressed', 'true')
   await expect(people(page)).toHaveCount(SYNTHETIC_PEOPLE.length)
-  await page.getByTestId('nearby-just-look').click()
-  await expect(page.getByText('Showing lobangers nearby. You stay hidden.')).toBeVisible()
+  // A signed-out visitor is not asked anything unprompted.
+  await expect(page.getByTestId('nearby-popover')).toHaveCount(0)
   await toggle.click()
+  await expect(toggle).toHaveAttribute('aria-pressed', 'false')
+  await expect(people(page)).toHaveCount(0)
+  // The choice to stop looking survives a reload.
+  await openMap(page)
+  await expect(toggle).toHaveAttribute('aria-pressed', 'false')
   await expect(people(page)).toHaveCount(0)
   // Looking alone never writes anything.
   expect(calls.put).toHaveLength(0)
@@ -90,9 +91,6 @@ test('hovering says "Another lobanger" and tapping pokes them', async ({ page })
   await mockPresence(page)
   await page.setViewportSize({ width: 1280, height: 844 })
   await openMap(page)
-  await page.getByTestId('nearby-toggle').click()
-  await page.getByTestId('nearby-just-look').click()
-  await expect(page.getByTestId('nearby-popover')).toBeHidden()
   const first = people(page).first()
   const label = first.locator('.nearby-person__label')
   await expect(label).toHaveText('Another lobanger')
@@ -110,10 +108,30 @@ test('a signed-out visitor is asked to log in to show themselves', async ({ page
   await mockPublicApi(page)
   const calls = await mockPresence(page)
   await openMap(page)
-  await page.getByTestId('nearby-toggle').click()
+  const toggle = page.getByTestId('nearby-toggle')
+  // Already on, so off and on again opens the choice.
+  await toggle.click()
+  await toggle.click()
   const popover = page.getByTestId('nearby-popover')
   await expect(popover.getByRole('link', { name: 'Log in to show yourself' })).toBeVisible()
   await expect(popover.getByTestId('nearby-show-me')).toHaveCount(0)
+  expect(calls.put).toHaveLength(0)
+})
+
+test('a located member is asked once, and Just look is remembered', async ({ page }) => {
+  await mockPublicApi(page)
+  await mockSignedIn(page)
+  const calls = await mockPresence(page)
+  await page.setViewportSize({ width: 1280, height: 844 })
+  await openMap(page)
+  const popover = page.getByTestId('nearby-popover')
+  await expect(popover.getByTestId('nearby-show-me')).toBeVisible()
+  await popover.getByTestId('nearby-just-look').click()
+  await expect(popover).toBeHidden()
+  await openMap(page)
+  await expect(people(page)).toHaveCount(SYNTHETIC_PEOPLE.length)
+  await page.waitForTimeout(500)
+  await expect(popover).toHaveCount(0)
   expect(calls.put).toHaveLength(0)
 })
 
@@ -123,7 +141,7 @@ test('Show me too shares a spot, and Hide me stops at once', async ({ page }) =>
   const calls = await mockPresence(page)
   await page.setViewportSize({ width: 1280, height: 844 })
   await openMap(page)
-  await page.getByTestId('nearby-toggle').click()
+  // Asked unprompted on arrival, with Show me too as the main choice.
   const popover = page.getByTestId('nearby-popover')
   await popover.getByRole('button', { name: 'Teh' }).click()
   await popover.getByTestId('nearby-show-me').click()
@@ -143,7 +161,12 @@ test('Show me too shares a spot, and Hide me stops at once', async ({ page }) =>
   await expect(page.getByText('You are hidden.')).toBeVisible()
   // The choice is remembered without sharing.
   const stored = await page.evaluate(() => window.localStorage.getItem('lobangers-nearby'))
-  expect(JSON.parse(stored ?? '{}')).toMatchObject({ looking: true, sharing: false, avatar: 'teh' })
+  expect(JSON.parse(stored ?? '{}')).toMatchObject({
+    looking: true,
+    sharing: false,
+    avatar: 'teh',
+    asked: true,
+  })
 })
 
 test('hungry nearby screens for review', async ({ page }, info) => {
@@ -156,8 +179,8 @@ test('hungry nearby screens for review', async ({ page }, info) => {
     await page.goto('/browse')
     await page.evaluate(() => window.localStorage.removeItem('lobangers-nearby'))
     await openMap(page)
-    await page.getByTestId('nearby-toggle').click()
     await expect(people(page)).toHaveCount(SYNTHETIC_PEOPLE.length)
+    await expect(page.getByTestId('nearby-show-me')).toBeVisible()
     await page.waitForTimeout(500)
     await page.screenshot({ path: info.outputPath(`nearby-popover-${width}.png`) })
     await page.getByTestId('nearby-show-me').click()

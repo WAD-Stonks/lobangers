@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { type IngestionDraft, type IngestionDraftsQuery, ingestionDraftsQuerySchema } from '@broke-oclock/contracts/ingestion'
+import AppSelect from '@web/components/AppSelect.vue'
 import AdminStatusBadge from '@web/components/admin/AdminStatusBadge.vue'
 import AdminTaskLink from '@web/components/admin/AdminTaskLink.vue'
+import type { SelectOption } from '@web/components/select-options'
 import TicketLoading from '@web/components/TicketLoading.vue'
 import { onAdminIdentityEnd } from '@web/lib/admin-recovery'
 import { createAdminReadFence } from '@web/lib/admin-session'
@@ -12,6 +14,12 @@ import DraftImages from '@web/modules/ingestion-admin/DraftImages.vue'
 import { errorCode } from '@web/modules/ingestion-admin/errors'
 import { computed, inject, nextTick, onBeforeUnmount, ref, watch } from 'vue'
 import { type LocationQueryRaw, routeLocationKey, routerKey } from 'vue-router'
+
+const STATUS_OPTIONS: readonly SelectOption[] = [
+  { value: 'PENDING', label: 'Pending' },
+  { value: 'APPROVED', label: 'Approved' },
+  { value: 'REJECTED', label: 'Rejected' },
+]
 
 type DraftStatus = IngestionDraftsQuery['status']
 type QueueRow = { draft: IngestionDraft; cursor?: string }
@@ -120,9 +128,9 @@ const initialize = (value: DraftStatus, cursor?: string, draftId?: string) => {
 watch(() => [props.revision, props.initialStatus, props.initialCursor, props.initialDraftId], () => {
   initialize(readStatus(props.initialStatus), props.initialCursor, props.initialDraftId)
 }, { immediate: true })
-const filterStatus = (event: Event) => {
+const filterStatus = (next: string) => {
   if (closed.value) return
-  const value = readStatus((event.target as HTMLSelectElement).value)
+  const value = readStatus(next)
   initialize(value)
   if (!router || !route) return
   const query: LocationQueryRaw = { ...route.query, status: value }
@@ -150,7 +158,7 @@ onBeforeUnmount(() => { close(); unsubscribe(); fence.dispose(); emit('busy', fa
   <section ref="queueRoot" aria-labelledby="queue-title" class="card p-3 p-sm-4 mb-4 imported-queue" :aria-busy="pending">
     <header class="imported-queue-header">
       <div><h2 id="queue-title" tabindex="-1">Imported deals</h2><p>Choose an import to correct its content, confirm its scope and complete its review in Deals.</p></div>
-      <div class="imported-status-filter"><label for="queue-status">Review status</label><select id="queue-status" class="form-select" :value="status" :disabled="closed" @change="filterStatus"><option value="PENDING">Pending</option><option value="APPROVED">Approved</option><option value="REJECTED">Rejected</option></select></div>
+      <div class="imported-status-filter"><label for="queue-status">Review status</label><AppSelect id="queue-status" class="form-select" :model-value="status" :options="STATUS_OPTIONS" :disabled="closed" @change="filterStatus" /></div>
     </header>
     <p v-if="closed" role="status">Imported deal access is closed. Recheck your session before reloading.</p>
     <template v-else>

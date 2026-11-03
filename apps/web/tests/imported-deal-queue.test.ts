@@ -3,6 +3,7 @@ import { flushPromises, mount } from '@vue/test-utils'
 import { confirmAdminIdentity } from '@web/lib/admin-recovery'
 import { ApiClientError } from '@web/lib/api-client'
 import ImportedDealQueue from '@web/modules/ingestion-admin/ImportedDealQueue.vue'
+import { chooseOption } from '@web-tests/support/select'
 import { beforeEach, expect, it, vi } from 'vitest'
 import { routeLocationKey, routerKey } from 'vue-router'
 
@@ -61,8 +62,8 @@ it('hands exact imports to the full Deals editor without exposing partial write 
     expect(wrapper.text()).toContain('Validity needs clarification')
     expect(wrapper.text()).toContain('FOOD')
     expect(wrapper.find('img, script, form, textarea, input').exists()).toBe(false)
-    expect(wrapper.findAll('select')).toHaveLength(1)
-    expect(wrapper.findAll('button')).toHaveLength(0)
+    expect(wrapper.findAll('[role="combobox"]')).toHaveLength(1)
+    expect(wrapper.findAll('button:not([role="combobox"])')).toHaveLength(0)
     const url = href(wrapper)
     expect(url.pathname).toBe('/admin/deals')
     expect(url.searchParams.get('dealId')).toBe(draft.id)
@@ -178,7 +179,7 @@ it('updates queue status and route context once, clearing stale row and post sel
   })
   try {
     await flushPromises()
-    await wrapper.get('#queue-status').setValue('REJECTED')
+    await chooseOption(wrapper, '#queue-status', 'REJECTED')
     await flushPromises()
     expect(rest.drafts).toHaveBeenLastCalledWith({ limit: 20, status: 'REJECTED' })
     expect(replace).toHaveBeenCalledWith({ query: { status: 'REJECTED' }, hash: '#queue-title' })
@@ -264,9 +265,10 @@ it('rejects malformed cursors without silently reading the first page', async ()
     expect(wrapper.text()).toContain('This queue link is invalid')
     await wrapper.get('[data-testid="retry-imported-deals"]').trigger('click')
     expect(rest.drafts).not.toHaveBeenCalled()
-    await wrapper.get('#queue-status').setValue('PENDING')
+    // Re-picking the current status changes nothing, so recovery is an explicit status choice.
+    await chooseOption(wrapper, '#queue-status', 'APPROVED')
     await flushPromises()
-    expect(rest.drafts).toHaveBeenCalledExactlyOnceWith({ limit: 20, status: 'PENDING' })
+    expect(rest.drafts).toHaveBeenCalledExactlyOnceWith({ limit: 20, status: 'APPROVED' })
   } finally {
     wrapper.unmount()
   }

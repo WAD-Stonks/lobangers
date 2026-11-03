@@ -9,6 +9,7 @@ import ScrollStory from '@web/modules/landing/ScrollStory.vue'
 import { storyChapter, storyTimeline } from '@web/modules/landing/story-timeline'
 import VotingPreview from '@web/modules/landing/VotingPreview.vue'
 import { clearVenueDetailCache } from '@web/modules/venues-feed/venue-detail-cache'
+import { chooseOption } from '@web-tests/support/select'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ref } from 'vue'
 import { createMemoryHistory, createRouter } from 'vue-router'
@@ -320,7 +321,7 @@ describe('live cuisine discovery', () => {
         global: { plugins: [router()] },
       }),
     )
-    await wrapper.get('#deal-area').setValue('3')
+    await chooseOption(wrapper, '#deal-area', '3')
     await flushPromises()
     expect(wrapper.get('.food-deal-card__link').attributes('href')).toContain(`at=${east.id}`)
     expect(wrapper.get('.food-deal-card__restaurant').text()).toBe(east.name)
@@ -347,9 +348,9 @@ describe('live cuisine discovery', () => {
       }),
     )
     expect(wrapper.findAll('.food-deal-card')).toHaveLength(5)
-    await wrapper.get('#deal-cuisine').setValue('Japanese')
+    await chooseOption(wrapper, '#deal-cuisine', 'Japanese')
     expect(wrapper.findAll('.food-deal-card')).toHaveLength(1)
-    await wrapper.get('#deal-area').setValue('3')
+    await chooseOption(wrapper, '#deal-area', '3')
     expect(wrapper.get('.food-deal-card').text()).toContain('East lunch')
     expect(wrapper.get('.food-deal-card__link').attributes('href')).toBe(
       `/deals/${liveDealAt(3).id}?at=${liveDealAt(3).venues[0]?.id}&view=list&discovery=1`,
@@ -357,7 +358,7 @@ describe('live cuisine discovery', () => {
     expect(wrapper.find('#deal-budget').exists()).toBe(false)
     expect(wrapper.get('.food-deal-card__restaurant').text()).toBe('Tampines')
     expect(wrapper.get('.food-deal-card__description').text()).toBe('East lunch')
-    await wrapper.get('#deal-area').setValue('0')
+    await chooseOption(wrapper, '#deal-area', '0')
     expect(wrapper.findAll('.food-deal-card')).toHaveLength(0)
     expect(wrapper.get('.cuisine-empty').text()).toContain('No deals match')
     await wrapper.get('.cuisine-empty button').trigger('click')
@@ -399,7 +400,7 @@ describe('live cuisine discovery', () => {
     await previous().trigger('click')
     expect(wrapper.findAll('.food-deal-card')).toHaveLength(5)
     await next().trigger('click')
-    await wrapper.get('#deal-cuisine').setValue('Japanese')
+    await chooseOption(wrapper, '#deal-cuisine', 'Japanese')
     expect(wrapper.get('.food-deal-card__description').text()).toBe('East lunch')
     expect(previous().attributes('disabled')).toBeDefined()
     expect(next().attributes('disabled')).toBeDefined()
@@ -446,7 +447,7 @@ describe('live cuisine discovery', () => {
     await track.trigger('touchstart', { touches: [{ clientX: 80, clientY: 100 }] })
     await track.trigger('touchend', { changedTouches: [{ clientX: 280, clientY: 105 }] })
     expect(wrapper.get('.food-deal-card__description').text()).toBe('North lunch')
-    await wrapper.get('#deal-cuisine').setValue('Japanese')
+    await chooseOption(wrapper, '#deal-cuisine', 'Japanese')
     expect(wrapper.get('.food-deal-card__description').text()).toBe('East lunch')
     expect(wrapper.get('.landing-carousel-status').text()).toContain('Showing 1–1')
   })

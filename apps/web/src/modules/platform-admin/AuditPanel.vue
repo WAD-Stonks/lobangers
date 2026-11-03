@@ -1,10 +1,17 @@
 <script setup lang="ts">
 import { adminAuditActionSchema, adminSubjectTypeSchema } from '@broke-oclock/contracts/admin-common'
+import AppSelect from '@web/components/AppSelect.vue'
+import { type SelectOption, withLeading } from '@web/components/select-options'
 import TicketLoading from '@web/components/TicketLoading.vue'
 import { isoToSingaporeInput, singaporeInputToIso } from '@web/lib/admin-date-input'
 import { api } from '@web/lib/api-client'
 import { type AuditDenial, type AuditInitialFilters, type AuditList, useAudit } from '@web/modules/platform-admin/use-audit'
 import { computed, onUnmounted, reactive, useId, watch } from 'vue'
+
+const spaced = (values: readonly string[]): readonly SelectOption[] =>
+  values.map((value) => ({ value, label: value.replaceAll('_', ' ') }))
+const ACTION_OPTIONS = withLeading({ value: '', label: 'All actions' }, spaced(adminAuditActionSchema.options))
+const SUBJECT_OPTIONS = withLeading({ value: '', label: 'All subjects' }, spaced(adminSubjectTypeSchema.options))
 
 const props = withDefaults(defineProps<{ list?: AuditList; enabled?: boolean; accessKey?: number; initialFilters?: AuditInitialFilters }>(), { enabled: true, accessKey: 0 })
 const emit = defineEmits<{ denied: [code: AuditDenial] }>()
@@ -55,17 +62,11 @@ onUnmounted(audit.dispose)
       <form class="row g-3 mb-4" @submit.prevent="applyFilters">
         <div class="col-12 col-md-6 col-xl-4">
           <label :for="`${prefix}-action`" class="form-label">Action</label>
-          <select :id="`${prefix}-action`" v-model="filters.action" name="action" class="form-select">
-            <option value="">All actions</option>
-            <option v-for="action in adminAuditActionSchema.options" :key="action" :value="action">{{ action.replaceAll('_', ' ') }}</option>
-          </select>
+          <AppSelect :id="`${prefix}-action`" v-model="filters.action" name="action" :options="ACTION_OPTIONS" class="form-select" />
         </div>
         <div class="col-12 col-md-6">
           <label :for="`${prefix}-type`" class="form-label">Subject type</label>
-          <select :id="`${prefix}-type`" v-model="filters.subjectType" name="subjectType" class="form-select">
-            <option value="">All subjects</option>
-            <option v-for="type in adminSubjectTypeSchema.options" :key="type" :value="type">{{ type.replaceAll('_', ' ') }}</option>
-          </select>
+          <AppSelect :id="`${prefix}-type`" v-model="filters.subjectType" name="subjectType" :options="SUBJECT_OPTIONS" class="form-select" />
         </div>
         <div class="col-12 col-md-6">
           <label :for="`${prefix}-from`" class="form-label">From (Singapore time)</label>

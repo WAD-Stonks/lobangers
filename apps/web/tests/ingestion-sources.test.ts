@@ -1,5 +1,6 @@
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
 import { api } from '@web/lib/api-client'
+import { useConfirm } from '@web/lib/use-confirm'
 import SourcesPanel from '@web/modules/ingestion-admin/SourcesPanel.vue'
 import IngestionAdminPage from '@web/pages/IngestionAdminPage.vue'
 import { AxiosError, type InternalAxiosRequestConfig } from 'axios'
@@ -153,12 +154,16 @@ it('requires explicit permission confirmation, prevents duplicate toggles and di
   expect(row().text()).toContain('Enabled')
   expect(row().find('input[type="checkbox"]').exists()).toBe(false)
   // Disabling asks for confirmation first.
-  const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true)
+  const confirmSpy = vi.spyOn(window, 'confirm')
   handler = (config) =>
     config.method === 'patch'
       ? Promise.resolve(response({ ...source, updatedAt: '2026-10-20T00:00:02.000Z' }))
       : previous(config)
   await row().get('[data-testid="toggle-source"]').trigger('click')
+  await flushPromises()
+  expect(calls.filter((c) => c.method === 'patch')).toHaveLength(1)
+  expect(useConfirm().current.value?.title).toBe(`Disable ${source.name}?`)
+  useConfirm().confirm()
   await flushPromises()
   expect(JSON.parse(calls.filter((c) => c.method === 'patch')[1]?.data)).toEqual({
     enabled: false,
@@ -166,7 +171,7 @@ it('requires explicit permission confirmation, prevents duplicate toggles and di
     expectedUpdatedAt: updatedAt,
   })
   expect(row().get('input[type="checkbox"]').element).toHaveProperty('checked', false)
-  expect(confirmSpy).toHaveBeenCalledOnce()
+  expect(confirmSpy).not.toHaveBeenCalled()
   confirmSpy.mockRestore()
 })
 

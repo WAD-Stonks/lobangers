@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import type { AdminOverviewResponse } from '@broke-oclock/contracts/platform-admin'
+import AppSelect from '@web/components/AppSelect.vue'
 import AdminIcon from '@web/components/admin/AdminIcon.vue'
 import AdminShell from '@web/components/admin/AdminShell.vue'
 import RecentAdminActivity from '@web/components/admin/RecentAdminActivity.vue'
 import UserRegistrationAnalytics from '@web/components/admin/UserRegistrationAnalytics.vue'
 import SharedSignIn from '@web/components/auth/SharedSignIn.vue'
+import { type SelectOption, withLeading } from '@web/components/select-options'
 import TicketLoading from '@web/components/TicketLoading.vue'
 import { confirmAdminIdentity } from '@web/lib/admin-recovery'
 import { createAdminReadFence } from '@web/lib/admin-session'
@@ -30,6 +32,10 @@ const chartSeries = [
   { key: 'failedCount', label: 'Failed posts', tone: 'failed' },
 ] as const
 const chartMetric = ref<'all' | typeof chartSeries[number]['key']>('all')
+const CHART_OPTIONS: readonly SelectOption[] = withLeading(
+  { value: 'all', label: 'All results' },
+  chartSeries.map((series) => ({ value: series.key, label: series.label })),
+)
 const visibleSeries = computed(() => chartSeries.filter(series => chartMetric.value === 'all' || series.key === chartMetric.value))
 const chartMaximum = computed(() => Math.max(1, ...(overview.value?.recentRuns ?? []).flatMap(run => visibleSeries.value.map(series => run[series.key]))))
 const barWidth = (count: number) => `${Math.max(0, count) / chartMaximum.value * 100}%`
@@ -142,10 +148,7 @@ onUnmounted(() => { fence.dispose(); nativeFence.dispose() })
             <p class="small text-secondary mb-0">Created, updated and failed post counts from up to 10 recent runs, newest first. This is a run comparison, not a daily trend.</p>
           </div>
           <label v-if="overview.recentRuns.length" class="overview-chart-filter">Show results
-            <select v-model="chartMetric" class="form-select" data-testid="import-chart-metric">
-              <option value="all">All results</option>
-              <option v-for="series in chartSeries" :key="series.key" :value="series.key">{{ series.label }}</option>
-            </select>
+            <AppSelect v-model="chartMetric" :options="CHART_OPTIONS" class="form-select" data-testid="import-chart-metric" />
           </label>
         </div>
         <p v-if="!overview.recentRuns.length" class="text-secondary mt-3 mb-0">Import results will appear here after a run is recorded.</p>
