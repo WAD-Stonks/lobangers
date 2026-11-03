@@ -2,6 +2,7 @@
 import type { FlashDropDisplayStatus, MerchantFlashDrop } from '@broke-oclock/contracts/flash-drops'
 import FakeBadge from '@web/modules/merchant/FakeBadge.vue'
 import {
+  flashOfferText,
   moneyText,
   STATUS_LABELS,
   statusSentence,
@@ -10,25 +11,24 @@ import {
 
 defineProps<{
   drops: MerchantFlashDrop[]
-  sample: boolean // sample data: show the demo-only buttons
-  busyId: string | null // the drop with a request in progress
+  busyId: string | null // the flash deal with a request in progress
   now: Date
+  empty: string // what to say when the list is empty
 }>()
 
 const emit = defineEmits<{
+  edit: [drop: MerchantFlashDrop]
+  goLive: [drop: MerchantFlashDrop]
+  remove: [drop: MerchantFlashDrop] // delete a draft, or a past flash deal from the history
   end: [drop: MerchantFlashDrop]
-  resend: [drop: MerchantFlashDrop]
-  approve: [drop: MerchantFlashDrop] // demo only
-  start: [drop: MerchantFlashDrop] // demo only
 }>()
 
 // Badge colours for each status.
 const badgeClass: Record<FlashDropDisplayStatus, string> = {
-  IN_REVIEW: 'badge-review',
+  DRAFT: 'badge-draft',
   SCHEDULED: 'badge-approved',
   LIVE: 'badge-live',
   ENDED: 'text-bg-secondary',
-  SENT_BACK: 'badge-back',
   STOPPED: 'badge-back',
 }
 
@@ -38,7 +38,7 @@ const claimedPercent = (drop: MerchantFlashDrop) =>
 </script>
 
 <template>
-  <p v-if="drops.length === 0" class="text-secondary">No flash drops yet.</p>
+  <p v-if="drops.length === 0" class="text-secondary">{{ empty }}</p>
   <ul v-else class="list-unstyled d-grid gap-3 mb-4">
     <li
       v-for="drop in drops"
@@ -50,13 +50,13 @@ const claimedPercent = (drop: MerchantFlashDrop) =>
       <div class="d-flex justify-content-between align-items-start gap-2">
         <div class="d-flex flex-wrap align-items-center gap-2 title-row">
           <h3 class="h5 mb-0 title">{{ drop.dealTitle }}</h3>
-          <FakeBadge v-if="drop.demo || sample" />
+          <FakeBadge v-if="drop.demo" />
         </div>
         <span class="badge" :class="badgeClass[drop.status]">{{ STATUS_LABELS[drop.status] }}</span>
       </div>
       <p class="mb-1 mt-2">
-        <strong>Flash price {{ moneyText(drop.flashPriceCents) }}</strong>
-        <span v-if="drop.usualPriceCents" class="text-secondary">
+        <strong>Flash offer: {{ flashOfferText(drop) || 'Other (see the title)' }}</strong>
+        <span v-if="drop.offerType === 'FIXED_PRICE' && drop.usualPriceCents" class="text-secondary">
           (usually {{ moneyText(drop.usualPriceCents) }})</span
         >
       </p>
@@ -79,42 +79,37 @@ const claimedPercent = (drop: MerchantFlashDrop) =>
         </p>
       </template>
 
-      <p
-        v-if="(drop.status === 'SENT_BACK' || drop.status === 'STOPPED') && drop.reviewNote"
-        class="alert alert-danger small mb-2"
-      >
+      <p v-if="drop.status === 'STOPPED' && drop.reviewNote" class="alert alert-danger small mb-2">
         LoBangers: “{{ drop.reviewNote }}”
       </p>
 
       <div class="d-flex flex-wrap gap-2 mt-1">
-        <template v-if="drop.status === 'IN_REVIEW'">
+        <template v-if="drop.status === 'DRAFT'">
           <button
-            v-if="sample"
             type="button"
-            class="btn btn-sm btn-outline-secondary demo"
+            class="btn btn-sm btn-primary"
             :disabled="busyId === drop.id"
-            @click="emit('approve', drop)"
+            @click="emit('goLive', drop)"
           >
-            Simulate approval (demo)
+            Go live<span class="visually-hidden">: {{ drop.dealTitle }}</span>
+          </button>
+          <button
+            type="button"
+            class="btn btn-sm btn-outline-primary"
+            :disabled="busyId === drop.id"
+            @click="emit('edit', drop)"
+          >
+            Edit<span class="visually-hidden"> {{ drop.dealTitle }}</span>
           </button>
           <button
             type="button"
             class="btn btn-sm btn-outline-danger"
             :disabled="busyId === drop.id"
-            @click="emit('end', drop)"
+            @click="emit('remove', drop)"
           >
-            Withdraw
+            Delete draft<span class="visually-hidden">: {{ drop.dealTitle }}</span>
           </button>
         </template>
-        <button
-          v-if="sample && drop.status === 'SCHEDULED'"
-          type="button"
-          class="btn btn-sm btn-outline-secondary demo"
-          :disabled="busyId === drop.id"
-          @click="emit('start', drop)"
-        >
-          Skip to start time (demo)
-        </button>
         <button
           v-if="drop.status === 'SCHEDULED' || drop.status === 'LIVE'"
           type="button"
@@ -122,16 +117,16 @@ const claimedPercent = (drop: MerchantFlashDrop) =>
           :disabled="busyId === drop.id"
           @click="emit('end', drop)"
         >
-          End drop early
+          End now<span class="visually-hidden">: {{ drop.dealTitle }}</span>
         </button>
         <button
-          v-if="drop.status === 'SENT_BACK'"
+          v-if="drop.status === 'ENDED' || drop.status === 'STOPPED'"
           type="button"
-          class="btn btn-sm btn-primary"
+          class="btn btn-sm btn-outline-danger"
           :disabled="busyId === drop.id"
-          @click="emit('resend', drop)"
+          @click="emit('remove', drop)"
         >
-          Edit and resend
+          Delete<span class="visually-hidden">: {{ drop.dealTitle }}</span>
         </button>
       </div>
     </li>
@@ -139,7 +134,7 @@ const claimedPercent = (drop: MerchantFlashDrop) =>
 </template>
 
 <style scoped>
-/* A coral edge marks flash drops apart from ordinary deals. */
+/* A coral edge marks flash deals apart from ordinary deals. */
 .drop-card {
   border-left: 4px solid var(--coral);
 }
@@ -151,15 +146,15 @@ const claimedPercent = (drop: MerchantFlashDrop) =>
   overflow-wrap: anywhere;
   text-wrap: balance;
 }
-.badge-review {
-  --review-bg: #e6ddff;
-  --review-ink: #3d2a85;
-  background: var(--review-bg);
-  color: var(--review-ink);
+.badge-draft {
+  --draft-bg: #e6ddff;
+  --draft-ink: #3d2a85;
+  background: var(--draft-bg);
+  color: var(--draft-ink);
 }
-.app-palette[data-theme='dark'] .badge-review {
-  --review-bg: #2e2650;
-  --review-ink: #c9bcff;
+.app-palette[data-theme='dark'] .badge-draft {
+  --draft-bg: #2e2650;
+  --draft-ink: #c9bcff;
 }
 .badge-approved {
   background: var(--ink-strong);
@@ -179,10 +174,6 @@ const claimedPercent = (drop: MerchantFlashDrop) =>
 }
 .claimed {
   background: var(--coral);
-}
-/* Demo-only buttons look like a note, not a real action. */
-.demo {
-  border-style: dashed;
 }
 /* Comfortable touch targets on phones. */
 @media (max-width: 575.98px) {

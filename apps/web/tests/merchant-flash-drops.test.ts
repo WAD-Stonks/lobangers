@@ -1,191 +1,195 @@
 import type { MerchantFlashDrop } from '@broke-oclock/contracts/flash-drops'
 import { enableAutoUnmount, mount } from '@vue/test-utils'
 import { ApiClientError } from '@web/lib/api-client'
-import FlashDropForm from '@web/modules/merchant/FlashDropForm.vue'
+import FlashDealFields from '@web/modules/merchant/FlashDealFields.vue'
 import FlashDropList from '@web/modules/merchant/FlashDropList.vue'
 import { flashDropErrorMessage } from '@web/modules/merchant/flash-drop-api'
 import {
   bannerPreview,
-  blankFlashDropForm,
-  checkFlashDropForm,
-  type FlashDropFormState,
-  formFromDrop,
-  outletAfterDealChange,
+  blankFlashFields,
+  type FlashFieldsState,
+  flashFieldsFromDrop,
+  flashFieldsProblem,
+  STATUS_LABELS,
   statusSentence,
   stepCodes,
   summaryLine,
   toFlashDropBody,
   toLocalInput,
 } from '@web/modules/merchant/flash-drop-rules'
-import type { MerchantDeal, MerchantOutlet } from '@web/modules/merchant/merchant-api'
 import { afterEach, describe, expect, it } from 'vitest'
+import { ref } from 'vue'
 
 enableAutoUnmount(afterEach)
 
-// Labelled synthetic fixtures: none of these are real outlets, deals or drops.
+// Labelled synthetic fixtures: none of these are real outlets, deals or flash deals.
 const NOW = new Date('2026-11-02T10:00:00+08:00')
 const HOUR = 3_600_000
+const USUAL = 350 // the usual price a $1.50 flash price beats
 
-const outlets: MerchantOutlet[] = [
-  { id: 'outlet-a', name: 'Synthetic Stall (Maxwell)', address: '1 Fake St' },
-  { id: 'outlet-b', name: 'Synthetic Stall (Bedok)', address: '2 Fake St' },
-]
-
-const deal = (overrides: Partial<MerchantDeal> = {}): MerchantDeal => ({
-  id: 'deal-priced',
-  title: 'Synthetic chicken rice',
-  description: 'Fake deal for tests.',
-  category: 'FOOD',
-  cuisine: null,
-  outletIds: ['outlet-a'],
-  offerType: 'FIXED_PRICE',
-  discountPercent: null,
-  priceCents: 350,
-  startDate: '',
-  endDate: '',
-  terms: '',
-  endedAt: null,
+const fields = (overrides: Partial<FlashFieldsState> = {}): FlashFieldsState => ({
+  ...blankFlashFields(),
+  usualDollars: 3.5,
   ...overrides,
 })
-const pricedDeal = deal()
-const bogoDeal = deal({
-  id: 'deal-bogo',
-  title: 'Synthetic 1-for-1',
-  offerType: 'BUY_ONE_GET_ONE',
-  priceCents: null,
-  outletIds: ['outlet-a', 'outlet-b'],
-})
-
-const validForm = (overrides: Partial<FlashDropFormState> = {}): FlashDropFormState => ({
-  ...blankFlashDropForm(pricedDeal, outlets),
-  priceDollars: 1.5,
-  ...overrides,
-})
+// The flash offer comes from the deal form's own Offer type.
+const fixed = { offerType: 'FIXED_PRICE' as const, priceCents: 150 }
 
 const drop = (overrides: Partial<MerchantFlashDrop> = {}): MerchantFlashDrop => ({
   id: 'drop-1',
-  dealId: 'deal-priced',
+  dealId: 'deal-1',
   dealTitle: 'Synthetic chicken rice',
   outletId: 'outlet-a',
   outletName: 'Synthetic Stall (Maxwell)',
+  offerType: 'FIXED_PRICE',
+  discountPercent: null,
   flashPriceCents: 150,
-  usualPriceCents: 350,
+  usualPriceCents: USUAL,
   startsAt: new Date(NOW.getTime() + 2 * HOUR).toISOString(),
   endsAt: new Date(NOW.getTime() + 2.5 * HOUR).toISOString(),
   radiusMetres: 500,
   codeLimit: 40,
   claimedCount: 0,
-  status: 'IN_REVIEW',
+  status: 'DRAFT',
   reviewNote: null,
   version: 1,
-  demo: true,
+  demo: false,
+  startsOnGoLive: false,
+  deal: {
+    title: 'Synthetic chicken rice',
+    description: 'Fake deal for tests.',
+    category: 'FOOD',
+    cuisine: null,
+    offerType: 'FIXED_PRICE',
+    discountPercent: null,
+    priceCents: 150,
+    terms: '',
+    photo: null,
+  },
   ...overrides,
 })
 
-describe('checkFlashDropForm', () => {
-  it('accepts a complete form', () => {
-    expect(checkFlashDropForm(validForm(), pricedDeal, NOW)).toBe('')
+describe('flashFieldsProblem', () => {
+  it('accepts complete flash details', () => {
+    expect(flashFieldsProblem(fields(), fixed, NOW)).toBeNull()
   })
 
-  it('asks for a deal and a price', () => {
-    expect(checkFlashDropForm(validForm(), undefined, NOW)).toBe('Choose which deal to drop.')
-    expect(checkFlashDropForm(validForm({ priceDollars: '' }), pricedDeal, NOW)).toMatch(
-      /Enter the flash price/,
-    )
-    expect(checkFlashDropForm(validForm({ priceDollars: 0 }), pricedDeal, NOW)).toMatch(
-      /Enter the flash price/,
-    )
-  })
-
-  it('needs a price lower than the usual price when the deal has one', () => {
-    expect(checkFlashDropForm(validForm({ priceDollars: 3.5 }), pricedDeal, NOW)).toBe(
-      'The flash price has to be lower than the usual $3.50.',
-    )
-    expect(checkFlashDropForm(validForm({ priceDollars: 3.49 }), pricedDeal, NOW)).toBe('')
-    // No set price to compare with.
-    const form = validForm({ dealId: bogoDeal.id, priceDollars: 9 })
-    expect(checkFlashDropForm(form, bogoDeal, NOW)).toBe('')
-  })
-
-  it('checks the codes and outlet', () => {
-    expect(checkFlashDropForm(validForm({ codeLimit: 5 }), pricedDeal, NOW)).toMatch(/between 10/)
-    expect(checkFlashDropForm(validForm({ outletId: '' }), pricedDeal, NOW)).toMatch(/outlet/)
-    expect(checkFlashDropForm(validForm({ outletId: 'outlet-b' }), pricedDeal, NOW)).toBe(
-      'That deal does not run at the chosen outlet.',
-    )
-  })
-
-  it('refuses a start in the past or more than 7 days ahead', () => {
-    const later = (ms: number) =>
-      validForm({ startMode: 'LATER', startLocal: toLocalInput(new Date(NOW.getTime() + ms)) })
-    expect(checkFlashDropForm(validForm({ startMode: 'LATER' }), pricedDeal, NOW)).toMatch(/when/)
-    expect(checkFlashDropForm(later(-HOUR), pricedDeal, NOW)).toMatch(/cannot start in the past/)
-    expect(checkFlashDropForm(later(8 * 24 * HOUR), pricedDeal, NOW)).toMatch(/at most a week/)
-    expect(checkFlashDropForm(later(6 * 24 * HOUR), pricedDeal, NOW)).toBe('')
-  })
-
-  it('needs the deal to run for the whole drop', () => {
-    const today = NOW.toLocaleDateString('en-CA')
-    const late = validForm({
-      startMode: 'LATER',
-      startLocal: toLocalInput(new Date(NOW.getTime() + 2 * 24 * HOUR)),
+  it('lets a fixed flash price add an optional usual price above it', () => {
+    expect(flashFieldsProblem(fields({ usualDollars: '' }), fixed, NOW)).toBeNull()
+    expect(flashFieldsProblem(fields({ usualDollars: 1.5 }), fixed, NOW)).toEqual({
+      field: 'flashUsual',
+      message: 'The usual price has to be higher than the flash price of $1.50.',
     })
-    expect(checkFlashDropForm(late, deal({ endDate: today }), NOW)).toBe(
-      'Choose one of your deals that runs for the whole drop.',
+    expect(flashFieldsProblem(fields({ usualDollars: 0 }), fixed, NOW)?.message).toMatch(
+      /Enter the usual price/,
     )
-    expect(checkFlashDropForm(validForm(), deal({ startDate: '2026-12-01' }), NOW)).toMatch(
-      /only starts on 1 Dec 2026/,
+    // Other offers have no usual price to check.
+    const bogo = { offerType: 'BUY_ONE_GET_ONE' as const, priceCents: null }
+    expect(flashFieldsProblem(fields({ usualDollars: 0 }), bogo, NOW)).toBeNull()
+  })
+
+  it('checks the codes', () => {
+    expect(flashFieldsProblem(fields({ codeLimit: 5 }), fixed, NOW)).toEqual({
+      field: 'flashCodes',
+      message: 'Give out between 10 and 200 codes.',
+    })
+  })
+
+  it('needs a start time ahead, within 7 days, unless it starts at Go live', () => {
+    const later = (ms: number) =>
+      fields({ startMode: 'LATER', startLocal: toLocalInput(new Date(NOW.getTime() + ms)) })
+    expect(flashFieldsProblem(fields({ startMode: 'LATER' }), fixed, NOW)?.message).toMatch(/when/)
+    expect(flashFieldsProblem(later(-HOUR), fixed, NOW)?.message).toMatch(
+      /cannot start in the past/,
     )
+    expect(flashFieldsProblem(later(8 * 24 * HOUR), fixed, NOW)?.message).toMatch(/at most a week/)
+    expect(flashFieldsProblem(later(6 * 24 * HOUR), fixed, NOW)).toBeNull()
+    expect(flashFieldsProblem(fields({ startMode: 'GO_LIVE' }), fixed, NOW)).toBeNull()
   })
 })
 
-describe('flash drop form helpers', () => {
+describe('flash deal helpers', () => {
   it('steps codes by 10 between 10 and 200', () => {
     expect(stepCodes(40, 1)).toBe(50)
     expect(stepCodes(10, -1)).toBe(10)
     expect(stepCodes(200, 1)).toBe(200)
   })
 
-  it('picks the outlet when the deal changes', () => {
-    expect(outletAfterDealChange('', pricedDeal, outlets)).toBe('outlet-a')
-    expect(outletAfterDealChange('outlet-b', bogoDeal, outlets)).toBe('outlet-b')
-    expect(outletAfterDealChange('outlet-b', pricedDeal, outlets)).toBe('outlet-a')
-    expect(outletAfterDealChange('', bogoDeal, outlets)).toBe('')
-  })
-
-  it('builds the request body in cents with "now" as the send time', () => {
-    expect(toFlashDropBody(validForm({ priceDollars: 1.1 }), NOW)).toEqual({
-      dealId: 'deal-priced',
+  it('builds the request body in cents, with no start time for "when I press Go live"', () => {
+    const deal = {
+      title: 'Synthetic chicken rice',
+      description: 'Fake deal.',
+      category: 'FOOD' as const,
+      cuisine: null,
+      offerType: 'FIXED_PRICE' as const,
+      discountPercent: null,
+      priceCents: 110,
+      terms: '',
+      photoKey: null,
+    }
+    expect(toFlashDropBody(deal, 'outlet-a', fields({ usualDollars: 4 }))).toEqual({
+      ...deal,
       outletId: 'outlet-a',
-      flashPriceCents: 110,
-      startsAt: NOW.toISOString(),
+      usualPriceCents: 400,
+      startsAt: null,
       durationMinutes: 30,
       radiusMetres: 500,
       codeLimit: 40,
     })
+    const startLocal = toLocalInput(new Date(NOW.getTime() + HOUR))
+    const timed = toFlashDropBody(deal, 'outlet-a', fields({ startMode: 'LATER', startLocal }))
+    expect(timed.startsAt).toBe(new Date(startLocal).toISOString())
+    // A usual price only goes with a fixed flash price.
+    const bogo = { ...deal, offerType: 'BUY_ONE_GET_ONE' as const, priceCents: null }
+    expect(toFlashDropBody(bogo, 'outlet-a', fields()).usualPriceCents).toBeNull()
   })
 
-  it('fills the form back in from a sent-back drop', () => {
-    const form = formFromDrop(drop({ status: 'SENT_BACK', radiusMetres: 1000 }))
-    expect(form).toMatchObject({ priceDollars: 1.5, durationMinutes: 30, radiusMetres: 1000 })
-    expect(form.startMode).toBe('LATER')
-    expect(new Date(form.startLocal).getTime()).toBe(NOW.getTime() + 2 * HOUR)
+  it('fills the flash fields back in from a draft', () => {
+    const timed = flashFieldsFromDrop(drop({ radiusMetres: 1000 }))
+    expect(timed).toMatchObject({ usualDollars: 3.5, durationMinutes: 30, radiusMetres: 1000 })
+    expect(timed.startMode).toBe('LATER')
+    expect(new Date(timed.startLocal).getTime()).toBe(NOW.getTime() + 2 * HOUR)
+    expect(flashFieldsFromDrop(drop({ startsOnGoLive: true }))).toMatchObject({
+      startMode: 'GO_LIVE',
+      startLocal: '',
+    })
   })
 
-  it('previews the banner text', () => {
-    expect(bannerPreview(validForm(), pricedDeal)).toBe(
-      'FLASH DROP · $1.50 Synthetic chicken rice · 30:00 · within 500\u00a0m',
+  it('previews the banner text for each kind of flash offer', () => {
+    const offer = (offerType: MerchantFlashDrop['offerType'], extra = {}) => ({
+      offerType,
+      discountPercent: null,
+      flashPriceCents: null,
+      ...extra,
+    })
+    expect(
+      bannerPreview(
+        fields(),
+        'Synthetic chicken rice',
+        offer('FIXED_PRICE', { flashPriceCents: 150 }),
+      ),
+    ).toBe('FLASH DROP · $1.50 Synthetic chicken rice · 30:00 · within 500\u00a0m')
+    expect(bannerPreview(fields(), 'Synthetic chicken rice', offer('BUY_ONE_GET_ONE'))).toBe(
+      'FLASH DROP · 1-for-1 Synthetic chicken rice · 30:00 · within 500\u00a0m',
     )
-    expect(bannerPreview(validForm({ priceDollars: '', radiusMetres: 1000 }), undefined)).toBe(
-      'FLASH DROP · $? your deal · 30:00 · within 1\u00a0km',
+    expect(
+      bannerPreview(fields(), 'Synthetic kopi', offer('PERCENT_OFF', { discountPercent: 30 })),
+    ).toBe('FLASH DROP · 30% off Synthetic kopi · 30:00 · within 500\u00a0m')
+    expect(bannerPreview(fields({ radiusMetres: 1000 }), ' ', offer('OTHER'))).toBe(
+      'FLASH DROP · your deal · 30:00 · within 1\u00a0km',
     )
   })
 
-  it('describes each drop', () => {
+  it('describes each flash deal', () => {
     expect(summaryLine(drop(), NOW)).toMatch(
-      /^Synthetic Stall \(Maxwell\) · Today .* · 30 min · 500\u00a0m · 40 codes$/,
+      /^Synthetic Stall \(Maxwell\) · Today .* · 30 min · 500 m · 40 codes$/,
     )
-    expect(statusSentence(drop(), NOW)).toBe('In review. LoBangers is checking it.')
+    expect(summaryLine(drop({ startsOnGoLive: true }), NOW)).toContain('Starts at Go live')
+    expect(statusSentence(drop(), NOW)).toMatch(/^Draft\. Nobody can see it yet\. Press Go live/)
+    expect(statusSentence(drop({ startsOnGoLive: true }), NOW)).toBe(
+      'Draft. Nobody can see it yet. It starts as soon as you press Go live.',
+    )
+    expect(statusSentence(drop({ status: 'SCHEDULED' }), NOW)).toMatch(/^Going live today/)
     expect(statusSentence(drop({ status: 'ENDED', claimedCount: 40 }), NOW)).toBe(
       'All 40 codes claimed.',
     )
@@ -197,25 +201,27 @@ describe('flash drop form helpers', () => {
       endsAt: new Date(NOW.getTime() + 20 * 60_000).toISOString(),
     })
     expect(statusSentence(live, NOW)).toBe('Live now · 20 min left')
+    expect(statusSentence(drop({ status: 'STOPPED' }), NOW)).toBe('Removed by LoBangers.')
+    expect(STATUS_LABELS.STOPPED).toBe('Removed')
   })
 })
 
 describe('flashDropErrorMessage', () => {
-  it('shows the server explanation for refused drops', () => {
+  it('shows the server explanation for refused flash deals', () => {
     const clash = new ApiClientError(
       'CONFLICT',
       409,
-      'Another flash drop at this outlet already covers that time',
+      'Another flash deal at this outlet already covers that time',
     )
     expect(flashDropErrorMessage(clash, 'fallback')).toBe(
-      'Another flash drop at this outlet already covers that time',
+      'Another flash deal at this outlet already covers that time',
     )
-    const price = new ApiClientError(
+    const late = new ApiClientError(
       'BAD_REQUEST',
       400,
-      'The flash price has to be lower than the usual price',
+      'Its start time has passed. Edit the flash deal and choose a new time.',
     )
-    expect(flashDropErrorMessage(price, 'fallback')).toMatch(/lower than the usual/)
+    expect(flashDropErrorMessage(late, 'fallback')).toMatch(/start time has passed/)
   })
 
   it('falls back for generic and unknown errors', () => {
@@ -225,120 +231,135 @@ describe('flashDropErrorMessage', () => {
     expect(
       flashDropErrorMessage(new ApiClientError('UNAUTHORIZED', 401, 'Unauthorized'), 'x'),
     ).toMatch(/session has ended/)
+    expect(flashDropErrorMessage(new ApiClientError('CONFLICT', 409, 'Conflict'), 'x')).toMatch(
+      /changed just now/,
+    )
     expect(flashDropErrorMessage(new Error('boom'), 'x')).toBe('x')
   })
 })
 
-describe('FlashDropForm', () => {
-  const mountForm = (props: Partial<InstanceType<typeof FlashDropForm>['$props']> = {}) =>
-    mount(FlashDropForm, {
+describe('FlashDealFields', () => {
+  type Offer = Pick<MerchantFlashDrop, 'offerType' | 'discountPercent' | 'flashPriceCents'>
+  const fixedOffer: Offer = {
+    offerType: 'FIXED_PRICE',
+    discountPercent: null,
+    flashPriceCents: 150,
+  }
+  const mountFields = (
+    props: { problem?: ReturnType<typeof flashFieldsProblem>; offer?: Offer } = {},
+  ) => {
+    const model = ref(fields({ usualDollars: '' }))
+    const wrapper = mount(FlashDealFields, {
       props: {
-        deals: [pricedDeal, bogoDeal],
-        outlets,
-        initial: blankFlashDropForm(pricedDeal, outlets),
-        editing: false,
-        saving: false,
-        serverError: '',
-        sample: true,
-        ...props,
+        modelValue: model.value,
+        'onUpdate:modelValue': (value: FlashFieldsState) => {
+          model.value = value
+          void wrapper.setProps({ modelValue: value })
+        },
+        title: 'Synthetic chicken rice',
+        offer: props.offer ?? fixedOffer,
+        problem: props.problem ?? null,
       },
     })
+    return { wrapper, model }
+  }
 
-  it('shows a clear error and does not submit when the price is not lower', async () => {
-    const wrapper = mountForm()
-    await wrapper.get('#flash-price').setValue('3.5')
-    await wrapper.get('form').trigger('submit')
-    expect(wrapper.get('[role="alert"]').text()).toBe(
-      'The flash price has to be lower than the usual $3.50.',
-    )
-    expect(wrapper.emitted('submit')).toBeUndefined()
-    const price = wrapper.get('#flash-price')
-    expect(price.attributes('aria-invalid')).toBe('true')
-    expect(price.attributes('aria-describedby')).toContain('flash-priceDollars-error')
-  })
-
-  it('submits a valid drop and updates the preview and stepper', async () => {
-    const wrapper = mountForm()
-    await wrapper.get('#flash-price').setValue('1.5')
+  it('updates the preview, stepper and choices as the merchant fills it in', async () => {
+    const { wrapper, model } = mountFields()
+    await wrapper.get('#flash-usual').setValue('4')
     await wrapper.get('button[aria-label="More codes"]').trigger('click')
     await wrapper.get('#flash-radius-1000').setValue(true)
     expect(wrapper.get('output').text()).toBe('50')
     expect(wrapper.get('[data-testid="flash-preview"]').text()).toBe(
-      'FLASH DROP · $1.50 Synthetic chicken rice · 30:00 · within 1\u00a0km',
+      'FLASH DROP · $1.50 Synthetic chicken rice · 30:00 · within 1 km',
     )
-    await wrapper.get('form').trigger('submit')
-    expect(wrapper.emitted('submit')?.[0]?.[0]).toMatchObject({
-      dealId: 'deal-priced',
-      priceDollars: 1.5,
-      codeLimit: 50,
-      radiusMetres: 1000,
-      outletId: 'outlet-a',
+    expect(model.value).toMatchObject({ usualDollars: 4, codeLimit: 50, radiusMetres: 1000 })
+  })
+
+  it('only asks for a usual price for a fixed flash price', () => {
+    expect(mountFields().wrapper.find('#flash-usual').exists()).toBe(true)
+    const { wrapper } = mountFields({
+      offer: { offerType: 'BUY_ONE_GET_ONE', discountPercent: null, flashPriceCents: null },
     })
+    expect(wrapper.find('#flash-usual').exists()).toBe(false)
+    expect(wrapper.get('[data-testid="flash-preview"]').text()).toContain('1-for-1 Synthetic')
   })
 
-  it('only offers the outlets the chosen deal runs at', async () => {
-    const wrapper = mountForm()
-    expect(wrapper.findAll('input[name="flash-outlet"]')).toHaveLength(1)
-    await wrapper.get('#flash-deal').setValue('deal-bogo')
-    expect(wrapper.findAll('input[name="flash-outlet"]')).toHaveLength(2)
+  it('only asks for a start time when "Pick a time" is chosen', async () => {
+    const { wrapper } = mountFields()
+    expect(wrapper.find('#flash-start-at').exists()).toBe(false)
+    await wrapper.get('#flash-start-LATER').setValue(true)
+    expect(wrapper.find('#flash-start-at').exists()).toBe(true)
   })
 
-  it('blocks a second submit while sending and shows server errors', async () => {
-    const wrapper = mountForm({
-      saving: true,
-      serverError: 'Another flash drop at this outlet already covers that time',
+  it('shows a problem beside its field', () => {
+    const { wrapper } = mountFields({
+      problem: {
+        field: 'flashUsual',
+        message: 'The usual price has to be higher than the flash price of $1.50.',
+      },
     })
-    const button = wrapper.get('button[type="submit"]')
-    expect(button.attributes('disabled')).toBeDefined()
-    expect(button.text()).toBe('Sending…')
-    await wrapper.get('#flash-price').setValue('1.5')
-    await wrapper.get('form').trigger('submit')
-    expect(wrapper.emitted('submit')).toBeUndefined()
-    expect(wrapper.get('[role="alert"]').text()).toMatch(/already covers that time/)
-  })
-
-  it('labels the form as fake only in sample mode', () => {
-    expect(mountForm().text()).toContain('Fake deal')
-    expect(mountForm({ sample: false }).text()).not.toContain('Fake deal')
+    const usual = wrapper.get('#flash-usual')
+    expect(usual.attributes('aria-invalid')).toBe('true')
+    expect(usual.attributes('aria-describedby')).toContain('error-flashUsual')
+    expect(wrapper.get('#error-flashUsual').text()).toMatch(/higher than the flash price/)
   })
 })
 
 describe('FlashDropList', () => {
   const drops = [
-    drop({ id: 'review' }),
-    drop({ id: 'back', status: 'SENT_BACK', reviewNote: 'Synthetic note: use 500 m.' }),
+    drop({ id: 'draft' }),
+    drop({ id: 'scheduled', status: 'SCHEDULED' }),
     drop({ id: 'live', status: 'LIVE', claimedCount: 12, startsAt: NOW.toISOString() }),
     drop({ id: 'ended', status: 'ENDED', claimedCount: 40 }),
+    drop({ id: 'removed', status: 'STOPPED', reviewNote: 'Synthetic note: misleading price.' }),
   ]
-  const mountList = (sample: boolean) =>
-    mount(FlashDropList, { props: { drops, sample, busyId: null, now: NOW } })
+  const mountList = () =>
+    mount(FlashDropList, { props: { drops, busyId: null, now: NOW, empty: 'Nothing.' } })
   const card = (wrapper: ReturnType<typeof mountList>, id: string) =>
     wrapper.get(`[data-testid="flash-drop-${id}"]`)
+  // The visible label only, without the screen-reader text that names the deal.
+  const buttons = (wrapper: ReturnType<typeof mountList>, id: string) =>
+    card(wrapper, id)
+      .findAll('button')
+      .map((button) => button.element.childNodes[0]?.textContent?.trim())
 
   it('shows the right actions, note and progress for each status', async () => {
-    const wrapper = mountList(true)
-    expect(card(wrapper, 'review').text()).toContain('Withdraw')
-    expect(card(wrapper, 'review').text()).toContain('Simulate approval (demo)')
-    expect(card(wrapper, 'back').text()).toContain('LoBangers: “Synthetic note: use 500 m.”')
+    const wrapper = mountList()
+    expect(buttons(wrapper, 'draft')).toEqual(['Go live', 'Edit', 'Delete draft'])
+    expect(buttons(wrapper, 'scheduled')).toEqual(['End now'])
+    expect(buttons(wrapper, 'live')).toEqual(['End now'])
+    // Past flash deals can be deleted from the history.
+    expect(buttons(wrapper, 'ended')).toEqual(['Delete'])
+    expect(buttons(wrapper, 'removed')).toEqual(['Delete'])
     expect(card(wrapper, 'live').text()).toContain('12 of 40 claimed')
-    expect(card(wrapper, 'live').text()).toContain('End drop early')
     expect(card(wrapper, 'ended').text()).toContain('40 of 40 claimed')
-    expect(card(wrapper, 'ended').findAll('button')).toHaveLength(0)
-    expect(wrapper.findAll('.fake-badge')).toHaveLength(4)
+    expect(card(wrapper, 'removed').text()).toContain(
+      'LoBangers: “Synthetic note: misleading price.”',
+    )
+    expect(wrapper.find('.fake-badge').exists()).toBe(false)
 
-    await card(wrapper, 'back').get('button').trigger('click')
-    expect(wrapper.emitted('resend')?.[0]?.[0]).toMatchObject({ id: 'back' })
-    await card(wrapper, 'review').findAll('button')[0]?.trigger('click')
-    expect(wrapper.emitted('approve')?.[0]?.[0]).toMatchObject({ id: 'review' })
+    const draftButtons = card(wrapper, 'draft').findAll('button')
+    await draftButtons[0]?.trigger('click')
+    await draftButtons[1]?.trigger('click')
+    await draftButtons[2]?.trigger('click')
+    await card(wrapper, 'live').get('button').trigger('click')
+    await card(wrapper, 'ended').get('button').trigger('click')
+    expect(wrapper.emitted('goLive')?.[0]?.[0]).toMatchObject({ id: 'draft' })
+    expect(wrapper.emitted('edit')?.[0]?.[0]).toMatchObject({ id: 'draft' })
+    expect(wrapper.emitted('remove')?.[0]?.[0]).toMatchObject({ id: 'draft' })
+    expect(wrapper.emitted('remove')?.[1]?.[0]).toMatchObject({ id: 'ended' })
+    expect(wrapper.emitted('end')?.[0]?.[0]).toMatchObject({ id: 'live' })
   })
 
-  it('hides every demo-only control when sample data is off', () => {
-    const real = drops.map((item) => ({ ...item, demo: false }))
-    const wrapper = mount(FlashDropList, {
-      props: { drops: real, sample: false, busyId: null, now: NOW },
+  it('says so when the list is empty, and labels demo flash deals as fake', () => {
+    const empty = mount(FlashDropList, {
+      props: { drops: [], busyId: null, now: NOW, empty: 'No drafts.' },
     })
-    expect(wrapper.text()).not.toContain('(demo)')
-    expect(wrapper.text()).not.toContain('Fake deal')
-    expect(card(wrapper, 'review').text()).toContain('Withdraw')
+    expect(empty.text()).toBe('No drafts.')
+    const demo = mount(FlashDropList, {
+      props: { drops: [drop({ demo: true })], busyId: null, now: NOW, empty: '' },
+    })
+    expect(demo.find('.fake-badge').exists()).toBe(true)
   })
 })

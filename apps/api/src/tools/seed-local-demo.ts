@@ -296,7 +296,8 @@ export const seedLocalDemo = async (
   const [chicken, , kopi, , prata] = dealIds
   const [chickenStall, kopiStall, , prataStall] = places
   if (merchantUserId && chicken && kopi && prata && chickenStall && kopiStall && prataStall) {
-    // One drop live right now, one waiting for an admin, both clearly fake.
+    // One flash deal live right now, one draft waiting for the merchant to press Go live, both
+    // clearly fake.
     await db.flashDrop.create({
       data: {
         dealId: kopi,
@@ -322,7 +323,7 @@ export const seedLocalDemo = async (
         endsAt: new Date(now.getTime() + 90 * MINUTE_MS),
         radiusMetres: 1000,
         codeLimit: 100,
-        status: 'PENDING',
+        status: 'DRAFT',
         demo: true,
       },
     })

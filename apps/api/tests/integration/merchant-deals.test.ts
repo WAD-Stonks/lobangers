@@ -63,7 +63,9 @@ const call = async (
     },
     body: body === undefined ? undefined : JSON.stringify(body),
   })
-  return { status: response.status, body: await response.json() }
+  // Deleting answers 204 with no body.
+  const text = await response.text()
+  return { status: response.status, body: text ? JSON.parse(text) : null }
 }
 
 const brand = async (name: string, outlets: number) => {
@@ -114,6 +116,8 @@ const photo = async (uploaderId: string) =>
       uploaderId,
     },
   })
+
+const ids = (items: { id: string }[]) => items.map((item) => item.id)
 
 const scopeOf = async (dealId: string) => {
   const deal = await db.deal.findUniqueOrThrow({
@@ -360,6 +364,45 @@ describe('merchant promotions', () => {
     const edit = await call(merchant, 'PATCH', path, dealBody([outlet.id]))
     expect(edit.status).toBe(412)
     expect(edit.body.error.message).toBe('Ended deals cannot be edited')
+  })
+
+  it('deletes a scheduled or ended deal, but a live one has to be ended first', async () => {
+    const [outlet] = await brand('Delete', 1)
+    await seedSyntheticOutletProof(db, outlet.id)
+    await grant(merchant.id, outlet.id)
+    const create = async (overrides: Record<string, unknown> = {}) =>
+      (await call(merchant, 'POST', '/merchant/deals', dealBody([outlet.id], overrides))).body
+    const listed = async () => ids((await call(merchant, 'GET', '/merchant/deals')).body.items)
+    const remove = (id: string, account = merchant) =>
+      call(account, 'DELETE', `/merchant/deals/${id}`)
+
+    const live = await create()
+    const refused = await remove(live.id)
+    expect(refused.status).toBe(412)
+    expect(refused.body.error.message).toBe('End this deal before deleting it')
+
+    const scheduled = await create({ startDate: '2099-01-01' })
+    expect((await remove(scheduled.id, otherMerchant)).status).toBe(404)
+    expect((await remove(scheduled.id, member)).status).toBe(403)
+    expect((await remove(scheduled.id)).status).toBe(204)
+    expect(await listed()).not.toContain(scheduled.id)
+    expect(
+      (await db.deal.findUniqueOrThrow({ where: { id: scheduled.id } })).deletedAt,
+    ).toBeInstanceOf(Date)
+    // A deleted deal is gone for the merchant: no edits, no second delete.
+    expect(
+      (await call(merchant, 'PATCH', `/merchant/deals/${scheduled.id}`, dealBody([outlet.id])))
+        .status,
+    ).toBe(404)
+    expect((await remove(scheduled.id)).status).toBe(404)
+
+    // Ending a live deal keeps it in history; it can be deleted after that.
+    await call(merchant, 'POST', `/merchant/deals/${live.id}/end`)
+    expect(await listed()).toContain(live.id)
+    expect((await remove(live.id)).status).toBe(204)
+    expect(await listed()).not.toContain(live.id)
+    const publicIds = ids((await call(null, 'GET', '/deals')).body.items)
+    expect(publicIds).not.toContain(live.id)
   })
 
   it('hides and locks deals at an outlet whose grant was revoked', async () => {

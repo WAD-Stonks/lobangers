@@ -822,7 +822,11 @@ enum RunStatus {
 // Flash Drop: a merchant's short, limited-code drop of one of their own deals at one outlet.
 // Every drop is reviewed by an admin before it goes live; the window and code count are fixed
 // once approved. `demo` marks fake drops created for demonstrations; they are labelled as such.
+// A merchant saves a flash deal as a DRAFT and makes it APPROVED (live at its start time) by
+// pressing Go live; no admin review. PENDING and SENT_BACK are from the old review flow and
+// read as drafts.
 enum FlashDropStatus {
+  DRAFT
   PENDING
   APPROVED
   SENT_BACK
@@ -835,18 +839,29 @@ model FlashDrop {
   dealId          String          @db.ObjectId
   venueId         String          @db.ObjectId
   merchantUserId  String          @db.ObjectId
-  flashPriceMinor Int
+  // The flash offer, with the same choices as a deal. Older flash deals have no offer type and
+  // are a fixed flash price.
+  offerType       OfferType?
+  discountPercent Int?
+  // Only for a fixed-price flash offer, and the usual price it beats (optional).
+  flashPriceMinor Int?
+  usualPriceMinor Int?
   startsAt        DateTime
   endsAt          DateTime
   radiusMetres    Int
   codeLimit       Int
   claimedCount    Int             @default(0)
   status          FlashDropStatus @default(PENDING)
+  // A draft saved to start "when I press Go live": its window is set again at Go live.
+  startsOnGoLive  Boolean         @default(false)
   reviewNote      String?
   reviewedById    String?         @db.ObjectId
   reviewedAt      DateTime?
   version         Int             @default(1)
   demo            Boolean         @default(false)
+  // A past flash deal the merchant deleted from their history. Kept, since claimed codes point
+  // at it; drafts are deleted outright instead.
+  deletedAt       DateTime?
   createdAt       DateTime        @default(now())
   updatedAt       DateTime        @updatedAt
   claims          FlashDropClaim[]

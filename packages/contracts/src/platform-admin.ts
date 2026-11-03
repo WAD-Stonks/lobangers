@@ -167,7 +167,8 @@ export const adminOverviewResponseSchema = z.strictObject({
     pendingMerchantRequests: z.number().int().nonnegative(),
     pendingImportedDrafts: z.number().int().nonnegative(),
     failedImportedPosts: z.number().int().nonnegative(),
-    // Older snapshots predate Flash Drop; they read as none waiting.
+    // Flash deals that have gone live but not started yet. (Named from the old review step,
+    // which merchants no longer need.) Older snapshots predate Flash Drop and read as none.
     pendingFlashDrops: z.number().int().nonnegative().default(0),
     liveFlashDrops: z.number().int().nonnegative().default(0),
   }),

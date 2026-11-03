@@ -2,7 +2,7 @@
 import type { FlashCode } from '@broke-oclock/contracts/flash-drops'
 import TicketLoading from '@web/components/TicketLoading.vue'
 import { authClient } from '@web/lib/auth-client'
-import { countdown, formatCents } from '@web/modules/flash-drop/flash-format'
+import { countdown, offerTitle } from '@web/modules/flash-drop/flash-format'
 import { useFlashDrops } from '@web/modules/flash-drop/use-flash-drops'
 import PanelFrame from '@web/modules/map-shell/PanelFrame.vue'
 import { dealLocation } from '@web/modules/map-shell/shell-routes'
@@ -64,7 +64,7 @@ onMounted(load)
                 <span class="my-codes__timer"><span class="visually-hidden">Ends in </span>{{ countdown(code.endsAt, now) }}</span>
               </div>
               <RouterLink class="my-codes__deal lb-text-wrap" :to="dealLocation(route.query, code.dealId)">
-                {{ formatCents(code.flashPriceCents) }} {{ code.dealTitle }}
+                {{ offerTitle(code) }}
               </RouterLink>
               <span class="lb-meta">
                 {{ code.venueName }}<span v-if="code.demo" class="flash-fake my-codes__fake">Fake deal</span>
@@ -77,7 +77,7 @@ onMounted(load)
           <ul class="my-codes__list">
             <li v-for="code in past" :key="code.dropId" class="my-codes__card my-codes__card--past">
               <span class="my-codes__value" translate="no"><s>{{ code.code }}</s></span>
-              <span class="lb-text-wrap">{{ formatCents(code.flashPriceCents) }} {{ code.dealTitle }}</span>
+              <span class="lb-text-wrap">{{ offerTitle(code) }}</span>
               <span class="lb-meta">
                 {{ code.venueName }}<span v-if="code.demo" class="flash-fake my-codes__fake">Fake deal</span>
               </span>

@@ -1,4 +1,9 @@
-import { ACCOUNT_NAV_LINKS, SITE_NAV_LINKS, type SiteNavLink } from '@web/components/site-nav-links'
+import {
+  ACCOUNT_NAV_LINKS,
+  SITE_NAV_LINKS,
+  type SiteNavLink,
+  showsFor,
+} from '@web/components/site-nav-links'
 import { authClient } from '@web/lib/auth-client'
 import { useFlashDrops } from '@web/modules/flash-drop/use-flash-drops'
 import type { ShellIconName } from '@web/modules/map-shell/ShellIcon.vue'
@@ -17,6 +22,7 @@ export const MENU_LINK_ICONS: Readonly<Record<string, ShellIconName>> = {
   '/saved': 'bookmark',
   '/me/submissions': 'edit',
   '/me/merchant-access': 'store',
+  '/merchant': 'store',
   '/admin': 'filters',
   '/admin/accounts': 'user',
   '/admin/ingestion': 'list',
@@ -39,15 +45,16 @@ export const useMenuLinks = () => {
 
   // Role-limited rows (administration) only show for that role, as in the site header.
   const visibleSiteLinks = computed(() =>
-    SITE_NAV_LINKS.filter((link) => !link.roles || link.roles.includes(user.value?.role ?? '')),
+    SITE_NAV_LINKS.filter((link) => showsFor(link, user.value?.role)),
+  )
+  const accountLinks = computed(() =>
+    user.value ? ACCOUNT_NAV_LINKS.filter((link) => showsFor(link, user.value?.role)) : [],
   )
   const menuGroups = computed<readonly MenuGroup[]>(() =>
     [
       {
         label: 'Your activity',
-        links: user.value
-          ? ACCOUNT_NAV_LINKS.filter((link) => link.to !== '/me/merchant-access')
-          : [],
+        links: accountLinks.value.filter((link) => link.to !== '/me/merchant-access'),
       },
       {
         label: 'Explore',
@@ -58,11 +65,7 @@ export const useMenuLinks = () => {
       },
       {
         label: 'Contribute',
-        links: [
-          ...(user.value
-            ? ACCOUNT_NAV_LINKS.filter((link) => link.to === '/me/merchant-access')
-            : []),
-        ],
+        links: accountLinks.value.filter((link) => link.to === '/me/merchant-access'),
       },
       { label: 'About', links: [{ label: 'About Lobangers', to: '/about' }] },
       { label: 'Administration', links: visibleSiteLinks.value.filter((link) => link.roles) },

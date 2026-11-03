@@ -10,10 +10,14 @@ vi.mock('@web/lib/auth-client', () => ({
   authClient: { useSession: auth.useSession, signOut: auth.signOut },
 }))
 
-type MenuSession = { data: { user: { name: string } } | null; isPending: boolean }
+type MenuSession = { data: { user: { name: string; role?: string } } | null; isPending: boolean }
 
 const signedOut: MenuSession = { data: null, isPending: false }
-const signedIn: MenuSession = { data: { user: { name: 'Alice' } }, isPending: false }
+const signedIn: MenuSession = { data: { user: { name: 'Alice', role: 'USER' } }, isPending: false }
+const signedInMerchant: MenuSession = {
+  data: { user: { name: 'Mei', role: 'MERCHANT' } },
+  isPending: false,
+}
 const paths = [
   '/',
   '/saved',
@@ -22,6 +26,7 @@ const paths = [
   '/me/submissions',
   '/me/merchant-access',
   '/me/profile',
+  '/merchant',
 ]
 
 const mountMenu = async (session: MenuSession) => {
@@ -71,6 +76,24 @@ describe('AccountMenu', () => {
     ])
     expect(wrapper.find('[data-testid="signed-in-name"]').element.tagName).toBe('A')
     expect(wrapper.find('[data-testid="log-out"]').exists()).toBe(true)
+  })
+
+  it('gives merchants their dashboard instead of merchant access', async () => {
+    const { wrapper } = await mountMenu(signedInMerchant)
+    expect(links(wrapper)).toEqual([
+      ['Saved', '/saved'],
+      ['My submissions', '/me/submissions'],
+      ['Merchant dashboard', '/merchant'],
+      ['Mei', '/me/profile'],
+    ])
+  })
+
+  it('shows neither merchant link to staff', async () => {
+    const { wrapper } = await mountMenu({
+      data: { user: { name: 'Ada', role: 'ADMIN' } },
+      isPending: false,
+    })
+    expect(links(wrapper).map(([text]) => text)).toEqual(['Saved', 'My submissions', 'Ada'])
   })
 
   it('renders a hostile name as text, not markup', async () => {

@@ -1,4 +1,4 @@
-import { request, validateInput } from '@api-client/transport'
+import { request, toApiClientError, validateInput } from '@api-client/transport'
 import {
   type AdminFlashDropDecision,
   activeFlashDropsResponseSchema,
@@ -12,15 +12,16 @@ import {
   flashDropParamsSchema,
   type MerchantFlashDropBody,
   merchantFlashDropBodySchema,
-  merchantFlashDropEndSchema,
   merchantFlashDropSchema,
   merchantFlashDropsResponseSchema,
+  merchantFlashDropVersionSchema,
 } from '@broke-oclock/contracts/flash-drops'
 import type { AxiosInstance } from 'axios'
 
 const id = (dropId: string) => validateInput(flashDropParamsSchema, { dropId }).dropId
 
-// Flash Drop: the live drops on the map, claim codes, the merchant's drops and admin review.
+// Flash deals: the live ones on the map, claim codes, the merchant's own (drafts, Go live, end)
+// and admin removal.
 export const createFlashDropsClient = (http: AxiosInstance) => ({
   active: () => request(http.get('/flash-drops/active'), activeFlashDropsResponseSchema),
   claim: (dropId: string) =>
@@ -33,7 +34,7 @@ export const createFlashDropsClient = (http: AxiosInstance) => ({
         http.post('/merchant/flash-drops', validateInput(merchantFlashDropBodySchema, input)),
         merchantFlashDropSchema,
       ),
-    resubmit: (dropId: string, input: MerchantFlashDropBody) =>
+    update: (dropId: string, input: MerchantFlashDropBody) =>
       request(
         http.put(
           `/merchant/flash-drops/${id(dropId)}`,
@@ -41,14 +42,32 @@ export const createFlashDropsClient = (http: AxiosInstance) => ({
         ),
         merchantFlashDropSchema,
       ),
+    goLive: (dropId: string, version: number) =>
+      request(
+        http.post(
+          `/merchant/flash-drops/${id(dropId)}/go-live`,
+          validateInput(merchantFlashDropVersionSchema, { version }),
+        ),
+        merchantFlashDropSchema,
+      ),
     end: (dropId: string, version: number) =>
       request(
         http.post(
           `/merchant/flash-drops/${id(dropId)}/end`,
-          validateInput(merchantFlashDropEndSchema, { version }),
+          validateInput(merchantFlashDropVersionSchema, { version }),
         ),
         merchantFlashDropSchema,
       ),
+    // Answers 204 with no body, so there is nothing to parse.
+    // Deletes a draft, or removes a past flash deal from the merchant's history.
+    remove: async (dropId: string, version: number): Promise<void> => {
+      const data = validateInput(merchantFlashDropVersionSchema, { version })
+      try {
+        await http.delete(`/merchant/flash-drops/${id(dropId)}`, { data })
+      } catch (error) {
+        throw toApiClientError(error)
+      }
+    },
   },
   admin: {
     list: (view: FlashDropView) =>

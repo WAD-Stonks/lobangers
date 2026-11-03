@@ -1,9 +1,10 @@
+import type { MerchantFlashDrop } from '@broke-oclock/contracts/flash-drops'
 import { expect, type Page, test } from '@playwright/test'
 
-// Merchant Flash Drop journeys on /merchant. Flash drops still run on their in-browser sample
-// data (USE_SAMPLE_DATA in merchant-api.ts), but the merchant's outlets and deals come from the
-// server, so those routes are mocked here along with the signed-in merchant session.
-// Every account, outlet and deal below is a labelled synthetic fixture; nothing touches real data.
+// Merchant flash deal journeys on /merchant: "Save as flash deal" in the deal form makes a
+// draft, Go live sends it out, and End now stops it. The server is a synthetic boundary that
+// keeps flash deals in memory; server rules are proved in the API integration suite. Every
+// account, outlet and deal below is a labelled synthetic fixture; nothing touches real data.
 const now = new Date().toISOString()
 const SYNTHETIC_MERCHANT = {
   id: 'e'.repeat(24),
@@ -22,67 +23,143 @@ const SYNTHETIC_SESSION = {
   updatedAt: now,
 }
 
-// The outlets and deals the sample flash drops were written against (two branches of one
-// franchise; sample-4 has a set price for a flash drop to beat).
+const hex = (n: number) => n.toString(16).padStart(24, '0')
+// Two branches of one synthetic franchise.
 const SYNTHETIC_OUTLETS = [
-  { id: 'outlet-1', name: 'Ah Seng Chicken Rice (Maxwell)', address: '1 Kadayanallur St, #01-10' },
-  { id: 'outlet-2', name: 'Ah Seng Chicken Rice (Tiong Bahru)', address: '30 Seng Poh Rd, #02-05' },
-]
-const syntheticDeal = (id: string, title: string, offer: Record<string, unknown>) => ({
-  id,
-  title,
-  description: 'Fake deal for tests.',
-  category: 'FOOD',
-  cuisine: 'CHINESE',
-  outletIds: ['outlet-1', 'outlet-2'],
-  offerType: 'BUY_ONE_GET_ONE',
-  discountPercent: null,
-  priceCents: null,
-  startDate: '',
-  endDate: '',
-  terms: '',
-  endedAt: null,
-  photo: null,
-  ...offer,
-})
-const SYNTHETIC_DEALS = [
-  syntheticDeal('sample-1', '1-for-1 Roast Chicken Rice', {}),
-  syntheticDeal('sample-4', 'Steamed chicken rice set', {
-    offerType: 'FIXED_PRICE',
-    priceCents: 350,
-  }),
+  { id: hex(1), name: 'Ah Seng Chicken Rice (Maxwell)', address: '1 Kadayanallur St, #01-10' },
+  { id: hex(2), name: 'Ah Seng Chicken Rice (Tiong Bahru)', address: '30 Seng Poh Rd, #02-05' },
 ]
 
-const signInAsMerchant = async (page: Page) => {
+type Body = Record<string, unknown> & {
+  title: string
+  outletId: string
+  offerType: MerchantFlashDrop['offerType']
+  discountPercent: number | null
+  priceCents: number | null
+  usualPriceCents: number | null
+  startsAt: string | null
+  durationMinutes: number
+  radiusMetres: number
+  codeLimit: number
+}
+
+// What the server would answer for a saved draft.
+const toDrop = (id: string, body: Body, version: number): MerchantFlashDrop => {
+  const startsAt = body.startsAt ?? new Date().toISOString()
+  return {
+    id,
+    dealId: hex(500 + Number.parseInt(id, 16)),
+    dealTitle: body.title,
+    outletId: body.outletId,
+    outletName: SYNTHETIC_OUTLETS.find((outlet) => outlet.id === body.outletId)?.name ?? '',
+    // The form's own offer is the flash offer.
+    offerType: body.offerType,
+    discountPercent: body.discountPercent,
+    flashPriceCents: body.priceCents,
+    usualPriceCents: body.usualPriceCents,
+    startsAt,
+    endsAt: new Date(Date.parse(startsAt) + body.durationMinutes * 60_000).toISOString(),
+    radiusMetres: body.radiusMetres,
+    codeLimit: body.codeLimit,
+    claimedCount: 0,
+    status: 'DRAFT',
+    reviewNote: null,
+    version,
+    demo: false,
+    startsOnGoLive: body.startsAt === null,
+    deal: {
+      title: body.title,
+      description: String(body.description),
+      category: String(body.category),
+      cuisine: (body.cuisine as string | null) ?? null,
+      offerType: body.offerType as MerchantFlashDrop['deal']['offerType'],
+      discountPercent: (body.discountPercent as number | null) ?? null,
+      priceCents: body.priceCents,
+      terms: String(body.terms),
+      photo: null,
+    },
+  }
+}
+
+const SAVED_DRAFT = toDrop(
+  hex(90),
+  {
+    title: 'Synthetic steamed chicken rice set',
+    description: 'Fake deal for tests.',
+    category: 'FOOD',
+    cuisine: 'CHINESE',
+    offerType: 'FIXED_PRICE',
+    discountPercent: null,
+    priceCents: 250,
+    usualPriceCents: 350,
+    terms: '',
+    outletId: hex(1),
+    startsAt: null,
+    durationMinutes: 30,
+    radiusMetres: 500,
+    codeLimit: 40,
+  },
+  1,
+)
+
+type Boundary = { requests: { method: string; path: string; body: unknown }[] }
+
+const signInAsMerchant = async (page: Page, drafts: MerchantFlashDrop[] = []) => {
+  let drops = [...drafts]
+  let nextId = 100
+  const state: Boundary = { requests: [] }
   await page.route(/basemaps\.cartocdn\.com|onemap\.gov\.sg/, (route) => route.abort())
   await page.route('**/api/**', (route) => {
-    const path = new URL(route.request().url()).pathname
+    const request = route.request()
+    const path = new URL(request.url()).pathname
+    const method = request.method()
+    const body = request.postData() ? request.postDataJSON() : undefined
+    const json = (data: unknown, status = 200) => route.fulfill({ status, json: data })
     if (path.startsWith('/api/auth/get-session'))
-      return route.fulfill({ json: { user: SYNTHETIC_MERCHANT, session: SYNTHETIC_SESSION } })
+      return json({ user: SYNTHETIC_MERCHANT, session: SYNTHETIC_SESSION })
     if (path === '/api/me')
-      return route.fulfill({
-        json: { user: SYNTHETIC_MERCHANT, session: { expiresAt: SYNTHETIC_SESSION.expiresAt } },
-      })
-    if (path === '/api/merchant/outlets')
-      return route.fulfill({ json: { items: SYNTHETIC_OUTLETS } })
-    if (path === '/api/merchant/deals') return route.fulfill({ json: { items: SYNTHETIC_DEALS } })
-    // Flash drops make no API calls while they use sample data.
-    return route.fulfill({
-      status: 404,
-      json: { error: { code: 'NOT_FOUND', message: 'Not found' } },
-    })
+      return json({ user: SYNTHETIC_MERCHANT, session: { expiresAt: SYNTHETIC_SESSION.expiresAt } })
+    if (path === '/api/merchant/outlets') return json({ items: SYNTHETIC_OUTLETS })
+    if (path === '/api/merchant/deals') return json({ items: [] })
+    if (path.startsWith('/api/merchant/flash-drops')) state.requests.push({ method, path, body })
+    if (path === '/api/merchant/flash-drops' && method === 'GET') return json({ items: drops })
+    if (path === '/api/merchant/flash-drops' && method === 'POST') {
+      const created = toDrop(hex(nextId++), body as Body, 1)
+      drops = [created, ...drops]
+      return json(created, 201)
+    }
+    const one = path.match(/^\/api\/merchant\/flash-drops\/([0-9a-f]{24})(\/go-live|\/end)?$/)
+    const current = one ? drops.find((drop) => drop.id === one[1]) : undefined
+    if (one && current) {
+      const replace = (next: MerchantFlashDrop) => {
+        drops = drops.map((drop) => (drop.id === next.id ? next : drop))
+        return json(next)
+      }
+      if (!one[2] && method === 'PUT')
+        return replace(toDrop(current.id, body as Body, current.version + 1))
+      if (!one[2] && method === 'DELETE') {
+        drops = drops.filter((drop) => drop.id !== current.id)
+        return route.fulfill({ status: 204, body: '' })
+      }
+      if (one[2] === '/go-live')
+        return replace({
+          ...current,
+          status: 'LIVE',
+          startsAt: new Date().toISOString(),
+          endsAt: new Date(Date.now() + 30 * 60_000).toISOString(),
+          version: current.version + 1,
+        })
+      if (one[2] === '/end')
+        return replace({ ...current, status: 'ENDED', version: current.version + 1 })
+    }
+    return json({ error: { code: 'NOT_FOUND', message: 'Not found' } }, 404)
   })
-  // Withdraw / end early ask for confirmation.
+  // Go live, Delete draft and End now ask for confirmation.
   page.on('dialog', (dialog) => dialog.accept())
   await page.goto('/merchant')
   await expect(page.getByRole('heading', { name: 'Merchant dashboard' })).toBeVisible()
+  return state
 }
-
-const dealCard = (page: Page, title: string) =>
-  page
-    .locator('li.card')
-    .filter({ has: page.getByRole('button', { name: 'Flash drop this' }) })
-    .filter({ hasText: title })
 
 const dropCard = (page: Page, text: string) =>
   page.locator('[data-testid^="flash-drop-"]').filter({ hasText: text })
@@ -94,81 +171,116 @@ const expectNoSideScroll = async (page: Page) => {
   expect(overflow).toBeLessThanOrEqual(0)
 }
 
-test('send a flash drop for review, approve it (demo) and end it early', async ({ page }) => {
-  await signInAsMerchant(page)
-  await expect(page.getByText('the flash drops on this page are sample data')).toBeVisible()
+// Fills the ordinary part of the deal form: a $4.00 deal at the Maxwell branch.
+const fillDeal = async (page: Page, title: string) => {
+  await page.getByRole('button', { name: '+ New deal' }).click()
+  await page.getByLabel('Title').fill(title)
+  await page.getByLabel('Description').fill('Fake deal for tests.')
+  await page.getByLabel('Category').selectOption('FOOD')
+  await page.getByLabel('Cuisine').selectOption('CHINESE')
+  await page.getByLabel('Offer type').selectOption('FIXED_PRICE')
+  await page.getByLabel('Deal price ($)').fill('4')
+  await page.getByRole('checkbox', { name: 'Ah Seng Chicken Rice (Maxwell)' }).check()
+}
 
-  await dealCard(page, 'Steamed chicken rice set')
-    .getByRole('button', { name: 'Flash drop this' })
-    .click()
-  await expect(page.getByRole('heading', { name: 'New flash drop' })).toBeVisible()
-  await expect(page.getByLabel('Which deal?')).toHaveValue('sample-4')
+test('save a flash deal as a draft, send it live and end it early', async ({ page }) => {
+  const state = await signInAsMerchant(page)
+  await expect(page.getByText('No drafts.', { exact: false })).toBeVisible()
+  await expect(page.getByText('Fake flash drops')).toHaveCount(0)
+  await expect(page.getByRole('button', { name: /Flash drop this/ })).toHaveCount(0)
 
-  // Not lower than the usual $3.50.
-  await page.getByLabel('Flash price ($)').fill('3.50')
-  await page.getByRole('button', { name: 'Send for review' }).click()
-  await expect(page.getByRole('alert')).toHaveText(
-    'The flash price has to be lower than the usual $3.50.',
-  )
+  await fillDeal(page, 'Synthetic roast chicken rice')
+  await page.getByRole('button', { name: 'Save as flash deal' }).click()
+  await expect(page.getByRole('heading', { name: 'New flash deal' })).toBeVisible()
+  await expect(page.getByLabel('Start date (optional)')).toHaveCount(0)
 
+  // The form's offer is now the flash offer; a usual price is optional but must be higher.
+  await expect(page.getByLabel('Flash offer')).toHaveValue('FIXED_PRICE')
   await page.getByLabel('Flash price ($)').fill('1.20')
-  await page.getByText('Ah Seng Chicken Rice (Maxwell)', { exact: true }).click()
+  await page.getByLabel('Usual price ($, optional)').fill('1')
+  await page.getByRole('button', { name: 'Save as flash deal' }).click()
+  await expect(
+    page.getByText('The usual price has to be higher than the flash price of $1.20.'),
+  ).toBeVisible()
+  await page.getByLabel('Usual price ($, optional)').fill('4')
   await page.getByText('15 min', { exact: true }).click()
   await expect(page.getByTestId('flash-preview')).toHaveText(
-    'FLASH DROP · $1.20 Steamed chicken rice set · 15:00 · within 500 m',
+    'FLASH DROP · $1.20 Synthetic roast chicken rice · 15:00 · within 500 m',
   )
-  await page.getByRole('button', { name: 'Send for review' }).click()
+  await page.getByRole('button', { name: 'Save as flash deal' }).click()
 
-  await expect(page.getByRole('status')).toContainText('was sent for review')
-  const fresh = dropCard(page, 'Flash price $1.20')
-  await expect(fresh).toContainText('In review')
-  await expect(fresh).toContainText('Fake deal')
+  await expect(page.getByRole('status')).toContainText('was saved as a draft')
+  const draft = dropCard(page, 'Synthetic roast chicken rice')
+  await expect(draft.locator('.badge')).toHaveText('Draft')
+  await expect(draft).toContainText('Nobody can see it yet')
+  const saved = state.requests.find((entry) => entry.method === 'POST')
+  expect(saved?.body).toMatchObject({
+    title: 'Synthetic roast chicken rice',
+    outletId: hex(1),
+    offerType: 'FIXED_PRICE',
+    priceCents: 120,
+    usualPriceCents: 400,
+    startsAt: null,
+    durationMinutes: 15,
+  })
 
-  await fresh.getByRole('button', { name: 'Simulate approval (demo)' }).click()
-  await expect(fresh.locator('.badge')).toHaveText('Live')
-  await expect(fresh).toContainText('of 40 claimed')
+  await draft.getByRole('button', { name: /Go live/ }).click()
+  await expect(page.getByRole('status')).toContainText('is live now')
+  await expect(draft.locator('.badge')).toHaveText('Live')
+  await expect(draft).toContainText('0 of 40 claimed')
 
-  await fresh.getByRole('button', { name: 'End drop early' }).click()
-  await expect(fresh.locator('.badge')).toHaveText('Ended')
+  await draft.getByRole('button', { name: /End now/ }).click()
+  await expect(draft.locator('.badge')).toHaveText('Ended')
   await expect(page.getByRole('status')).toContainText('has ended')
+
+  // A past flash deal can be deleted from the history.
+  await draft.getByRole('button', { name: /Delete/ }).click()
+  await expect(page.getByRole('status')).toContainText('was deleted from your past flash deals')
+  await expect(draft).toHaveCount(0)
 })
 
-test('withdraw a drop that is still in review', async ({ page }) => {
-  await signInAsMerchant(page)
-  const inReview = dropCard(page, 'Flash price $2.50')
-  await inReview.getByRole('button', { name: 'Withdraw' }).click()
-  await expect(inReview.locator('.badge')).toHaveText('Ended')
-})
+test('edit a draft in the deal form, then delete it', async ({ page }) => {
+  const state = await signInAsMerchant(page, [SAVED_DRAFT])
+  const draft = dropCard(page, 'Synthetic steamed chicken rice set')
+  await expect(draft.locator('.badge')).toHaveText('Draft')
+  await expect(draft).toContainText('Starts at Go live')
 
-test('edit and resend a drop LoBangers sent back', async ({ page }) => {
-  await signInAsMerchant(page)
-  const sentBack = dropCard(page, '1-for-1 Roast Chicken Rice')
-  await expect(sentBack).toContainText('Sent back')
-  await expect(sentBack).toContainText('LoBangers: “A 1 km circle')
+  await draft.getByRole('button', { name: /^Edit/ }).click()
+  await expect(page.getByRole('heading', { name: 'Edit flash deal draft' })).toBeVisible()
+  await expect(page.getByLabel('Title')).toHaveValue('Synthetic steamed chicken rice set')
+  await expect(page.getByLabel('Flash price ($)')).toHaveValue('2.5')
+  await page.getByLabel('Title').fill('Synthetic duck rice set')
+  await page.getByText('1 km', { exact: true }).click()
+  await page.getByRole('button', { name: 'Save draft' }).click()
 
-  await sentBack.getByRole('button', { name: 'Edit and resend' }).click()
-  await expect(page.getByRole('heading', { name: 'Edit and resend flash drop' })).toBeVisible()
-  await expect(page.getByLabel('Flash price ($)')).toHaveValue('3')
-  await page.getByText('500 m', { exact: true }).click()
-  await page.getByRole('button', { name: 'Send for review' }).click()
+  await expect(page.getByRole('status')).toContainText('was updated')
+  const edited = dropCard(page, 'Synthetic duck rice set')
+  await expect(edited).toContainText('1 km')
+  expect(state.requests.find((entry) => entry.method === 'PUT')?.body).toMatchObject({
+    title: 'Synthetic duck rice set',
+    radiusMetres: 1000,
+    version: 1,
+  })
 
-  await expect(sentBack.locator('.badge')).toHaveText('In review')
-  await expect(sentBack).toContainText('500 m')
-  await expect(sentBack).not.toContainText('LoBangers: “')
+  await edited.getByRole('button', { name: /Delete draft/ }).click()
+  await expect(page.getByRole('status')).toContainText('was deleted')
+  await expect(edited).toHaveCount(0)
 })
 
 for (const width of [390, 834, 1280]) {
-  test(`review screenshots at ${width}px`, async ({ page }, info) => {
+  test(`flash deal screenshots at ${width}px`, async ({ page }, info) => {
     await page.setViewportSize({ width, height: 900 })
-    await signInAsMerchant(page)
+    await signInAsMerchant(page, [SAVED_DRAFT])
 
-    await page.getByRole('heading', { name: 'Flash drops' }).scrollIntoViewIfNeeded()
+    await page.locator('#flash-drops-title').scrollIntoViewIfNeeded()
     await expectNoSideScroll(page)
-    await page.screenshot({ path: info.outputPath(`drops-list-${width}.png`), fullPage: true })
+    await page.screenshot({
+      path: info.outputPath(`flash-deals-list-${width}.png`),
+      fullPage: true,
+    })
 
-    await page.getByRole('button', { name: 'New flash drop' }).click()
-    await page.getByLabel('Which deal?').selectOption('sample-4')
-    await page.getByLabel('Flash price ($)').fill('1.50')
+    await fillDeal(page, 'Synthetic roast chicken rice')
+    await page.getByRole('button', { name: 'Save as flash deal' }).click()
     await page.getByText('Pick a time', { exact: true }).click()
     await expect(page.getByLabel('Start time')).toBeVisible()
     await expectNoSideScroll(page)
@@ -179,7 +291,7 @@ for (const width of [390, 834, 1280]) {
         .evaluateAll((items) => items.map((item) => item.getBoundingClientRect().height))
       expect(Math.min(...heights)).toBeGreaterThanOrEqual(44)
     }
-    await page.getByRole('heading', { name: 'New flash drop' }).scrollIntoViewIfNeeded()
-    await page.screenshot({ path: info.outputPath(`form-open-${width}.png`), fullPage: true })
+    await page.getByRole('heading', { name: 'New flash deal' }).scrollIntoViewIfNeeded()
+    await page.screenshot({ path: info.outputPath(`flash-deal-form-${width}.png`), fullPage: true })
   })
 }

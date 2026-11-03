@@ -164,6 +164,7 @@ const confirmedScope = (
   grantIds: Map<string, string>,
   contentVersion: number,
   now: Date,
+  evidence = MERCHANT_EVIDENCE,
 ) => ({
   basis: 'SOURCE_SELECTED' as const,
   contentVersion,
@@ -174,7 +175,7 @@ const confirmedScope = (
     contentVersion,
     selectedVenueIds: outletIds,
   }),
-  evidenceRef: `${MERCHANT_EVIDENCE}${outletIds
+  evidenceRef: `${evidence}${outletIds
     .map((id) => grantIds.get(id))
     .sort()
     .join(',')}`,
@@ -220,6 +221,21 @@ const claimPhoto = async (
   })
   if (claimed.count !== 1)
     throw new DomainError('BAD_REQUEST', 'The photo was not found. Please upload it again.')
+}
+
+// Leaving photoKey out, or sending the current photo's key, keeps it; a new key replaces it and
+// null removes it. A removed photo is marked deleted, not unlinked, so the deal's history keeps it.
+const changePhoto = async (
+  tx: AccessTransaction,
+  userId: string,
+  dealId: string,
+  current: { id: string; key: string } | undefined,
+  photoKey: string | null | undefined,
+  now: Date,
+) => {
+  if (photoKey === undefined || photoKey === (current?.key ?? null)) return
+  if (current) await tx.uploadedFile.update({ where: { id: current.id }, data: { deletedAt: now } })
+  if (photoKey) await claimPhoto(tx, userId, dealId, photoKey)
 }
 
 // Each change is a new content version that the merchant's grants approve at once.
@@ -296,15 +312,7 @@ export const updateMerchantDeal = async (
       ...input.outletIds,
     ])
     const version = deal.contentVersion + 1
-    // Leaving photoKey out, or sending the current photo's key, keeps it; a new key replaces it
-    // and null removes it. A removed photo is marked deleted, not unlinked, so the deal's
-    // history keeps it.
-    const current = deal.images[0]
-    if (input.photoKey !== undefined && input.photoKey !== (current?.key ?? null)) {
-      if (current)
-        await tx.uploadedFile.update({ where: { id: current.id }, data: { deletedAt: now } })
-      if (input.photoKey) await claimPhoto(tx, userId, dealId, input.photoKey)
-    }
+    await changePhoto(tx, userId, dealId, deal.images[0], input.photoKey, now)
     await tx.dealVenue.deleteMany({ where: { dealId } })
     const updated = await tx.deal.update({
       where: { id: dealId },
@@ -349,3 +357,120 @@ export const endMerchantDeal = async (
     })
     return toMerchantDeal(ended, now)
   })
+
+// Deletes a deal that is scheduled (not started yet) or has ended; a live deal is ended first.
+// It leaves the map and the merchant's dashboard at once, but the record is only marked deleted,
+// so its comments, saves and history stay intact.
+export const deleteMerchantDeal = async (
+  database: Database,
+  actor: AuthenticatedActor,
+  dealId: string,
+  now: Date,
+): Promise<void> =>
+  accessTransaction(database, async (tx) => {
+    const deal = await findOwnDeal(tx, actor.userId, dealId)
+    const scheduled = !!deal.validFrom && deal.validFrom > now
+    if (!scheduled && !hasEnded(deal, now))
+      throw new DomainError('PRECONDITION_FAILED', 'End this deal before deleting it')
+    await authorizeOutlets(
+      tx,
+      actor,
+      deal.venues.map((link) => link.venueId),
+    )
+    await tx.deal.update({ where: { id: dealId }, data: { deletedAt: now } })
+  })
+
+// ----- The deal behind a flash deal -----
+// A flash deal saved from the deal form keeps its deal (the usual offer, title, photo) as an
+// approved but unpublished deal at its one outlet, and its own evidence prefix keeps it out of the
+// merchant's deal list. Go live publishes it for the flash window only (see flash-drops/merchant),
+// so it is never public on its own as an ordinary deal.
+
+const FLASH_EVIDENCE = 'merchant-flash:'
+
+export type FlashDealContent = {
+  title: string
+  description: string
+  category: string
+  cuisine: string | null
+  offerType: MerchantDeal['offerType']
+  discountPercent: number | null
+  priceCents: number | null
+  terms: string
+  photoKey?: string | null
+}
+
+const flashContentOf = (input: FlashDealContent) => ({
+  title: input.title,
+  description: input.description,
+  category: input.category,
+  cuisine: input.cuisine,
+  offerType: input.offerType,
+  discountPercent: input.discountPercent,
+  priceMinor: input.priceCents,
+  terms: input.terms === '' ? null : input.terms,
+  validFrom: null,
+  validUntil: null,
+})
+
+// Creates the hidden deal for a new flash deal and returns its id. Runs inside the flash deal's
+// own transaction, which has already fenced platform access.
+export const createFlashDeal = async (
+  tx: AccessTransaction,
+  actor: AuthenticatedActor,
+  input: FlashDealContent,
+  outletId: string,
+  now: Date,
+): Promise<string> => {
+  const { merchantId, grantIds } = await authorizeOutlets(tx, actor, [outletId])
+  const deal = await tx.deal.create({
+    data: {
+      ...flashContentOf(input),
+      ...approvedAs(actor.userId, 1, now),
+      applicability: 'SELECTED_OUTLETS',
+      origin: 'USER_SUBMITTED',
+      reviewStatus: 'APPROVED',
+      publishedAt: null,
+      merchantId,
+      submittedById: actor.userId,
+      scopeConfirmation: confirmedScope(merchantId, [outletId], grantIds, 1, now, FLASH_EVIDENCE),
+      venues: { create: [{ venueId: outletId }] },
+    },
+    select: { id: true },
+  })
+  if (input.photoKey) await claimPhoto(tx, actor.userId, deal.id, input.photoKey)
+  return deal.id
+}
+
+// Updates the hidden deal of a flash deal draft, possibly moving it to another outlet.
+export const updateFlashDeal = async (
+  tx: AccessTransaction,
+  actor: AuthenticatedActor,
+  dealId: string,
+  input: FlashDealContent,
+  outletId: string,
+  now: Date,
+) => {
+  const deal = await tx.deal.findFirst({
+    where: { id: dealId, submittedById: actor.userId, ...activeRecord },
+    select: merchantDealSelect,
+  })
+  if (!deal) throw new DomainError('NOT_FOUND', 'Flash deal not found')
+  const oldOutletIds = deal.venues.map((link) => link.venueId)
+  const { merchantId, grantIds } = await authorizeOutlets(tx, actor, [...oldOutletIds, outletId])
+  const version = deal.contentVersion + 1
+  await changePhoto(tx, actor.userId, dealId, deal.images[0], input.photoKey, now)
+  await tx.dealVenue.deleteMany({ where: { dealId } })
+  await tx.deal.update({
+    where: { id: dealId },
+    data: {
+      ...flashContentOf(input),
+      ...approvedAs(actor.userId, version, now),
+      merchantId,
+      scopeConfirmation: {
+        set: confirmedScope(merchantId, [outletId], grantIds, version, now, FLASH_EVIDENCE),
+      },
+      venues: { create: [{ venueId: outletId }] },
+    },
+  })
+}

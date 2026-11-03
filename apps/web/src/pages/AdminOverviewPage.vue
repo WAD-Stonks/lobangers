@@ -25,13 +25,13 @@ const attentionItems = computed(() => {
     { count: counts.failedImportedPosts, label: 'Imported posts need investigation', href: '/admin/ingestion#failed-posts', action: 'Investigate posts' },
     { count: counts.pendingMerchantRequests, label: 'Merchant requests await a decision', href: '/admin/accounts?requestStatus=PENDING#merchant-requests', action: 'Review requests' },
     { count: counts.pendingImportedDrafts, label: 'Imported drafts await review', href: '/admin/ingestion?status=PENDING#queue-title', action: 'Review drafts' },
-    { count: counts.pendingFlashDrops, label: 'Flash drops waiting for review', href: '/admin/flash-drops', action: 'Review flash drops' },
-    { count: counts.liveFlashDrops, label: 'Flash drops live now', href: '/admin/flash-drops?view=live', action: 'Watch live drops' },
+    { count: counts.pendingFlashDrops, label: 'Flash deals scheduled to start', href: '/admin/flash-drops?view=scheduled', action: 'See scheduled flash deals' },
+    { count: counts.liveFlashDrops, label: 'Flash deals live now', href: '/admin/flash-drops?view=live', action: 'Watch live flash deals' },
   ].filter(item => item.count > 0)
 })
 const quickActions = [
   { href: '/admin/deals', label: 'Manage deals', description: 'Review and correct deal listings.', icon: 'deals' },
-  { href: '/admin/flash-drops', label: 'Review flash drops', description: 'Check radius, codes and overlaps.', icon: 'flash' },
+  { href: '/admin/flash-drops', label: 'Flash deals', description: 'Watch live flash deals and remove any that break the rules.', icon: 'flash' },
   { href: '/admin/accounts', label: 'Manage accounts', description: 'Review roles and merchant access.', icon: 'accounts' },
   { href: '/admin/moderation', label: 'Review reports', description: 'Investigate deal and comment reports.', icon: 'moderation' },
 ]
@@ -125,7 +125,7 @@ onUnmounted(() => { fence.dispose(); nativeFence.dispose() })
           <li class="card"><a class="overview-summary-link" href="/admin/accounts?requestStatus=PENDING#merchant-requests"><span class="overview-metric-label"><span>Pending merchant requests: </span><span class="overview-metric-icon"><AdminIcon name="accounts" /></span></span><strong>{{ overview.counts.pendingMerchantRequests }}</strong><span class="overview-card-hint">Review merchant access →</span></a></li>
           <li class="card"><a class="overview-summary-link" href="/admin/ingestion?status=PENDING#queue-title"><span class="overview-metric-label"><span>Pending imported drafts: </span><span class="overview-metric-icon"><AdminIcon name="deals" /></span></span><strong>{{ overview.counts.pendingImportedDrafts }}</strong><span class="overview-card-hint">Review imported deals →</span></a></li>
           <li class="card overview-summary-static"><span class="overview-metric-label"><span>Failed imported posts: </span><span class="overview-metric-icon overview-metric-icon--neutral"><AdminIcon name="ingestion" /></span></span><strong>{{ overview.counts.failedImportedPosts }}</strong><span class="overview-card-hint">Stored posts requiring investigation</span></li>
-          <li class="card"><a class="overview-summary-link" href="/admin/flash-drops"><span class="overview-metric-label"><span>Flash drops to review: </span><span class="overview-metric-icon overview-metric-icon--flash"><AdminIcon name="flash" /></span></span><strong>{{ overview.counts.pendingFlashDrops }}</strong><span class="overview-card-hint">Review flash drops →</span></a></li>
+          <li class="card"><a class="overview-summary-link" href="/admin/flash-drops?view=scheduled"><span class="overview-metric-label"><span>Flash deals scheduled: </span><span class="overview-metric-icon overview-metric-icon--flash"><AdminIcon name="flash" /></span></span><strong>{{ overview.counts.pendingFlashDrops }}</strong><span class="overview-card-hint">See scheduled flash deals →</span></a></li>
         </ul>
         <p class="small mb-0">Failures count imported posts, not ingestion runs.</p>
       </section>
