@@ -3,7 +3,7 @@ import { AppShell, BApp } from '@broke-oclock/ui'
 import { adminNavigation } from '@web/components/admin/admin-navigation'
 import PageHeader from '@web/components/PageHeader.vue'
 import SplashScreen from '@web/components/SplashScreen.vue'
-import { syncThemeColor } from '@web/lib/theme'
+import { syncThemeColor, useTheme } from '@web/lib/theme'
 import AuthPrompt from '@web/modules/account/AuthPrompt.vue'
 import { authPrompt } from '@web/modules/account/auth-prompt'
 import { readSplit } from '@web/modules/map-shell/filter-query'
@@ -15,6 +15,9 @@ import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { RouterView, useRoute } from 'vue-router'
 
 onBeforeUnmount(() => authPrompt.value?.resolve(null))
+// Start the theme on every page, not only where a Dark mode switch or the map mounts, so system
+// and other-tab changes apply at once instead of after a reload.
+useTheme()
 const route = useRoute()
 const breakpoint = useBreakpoint()
 const layout = computed(() => routeLayout(route))
@@ -34,6 +37,7 @@ watch([mapVisible, splashEligible], ([visible, eligible], previous) => {
   if (!eligible) showMapSplash.value = false
   else if (visible && (previous[0] === false || (previous[0] === undefined && splitView.value))) showMapSplash.value = true
 }, { immediate: true })
+const routed = computed(() => route.matched.length > 0)
 // Only matched admin destinations own an AdminShell; unknown URLs use the public fallback.
 const administration = computed(() =>
   route.matched.some((record) => adminNavigation.some(({ href }) => record.path === href)),
@@ -58,7 +62,9 @@ const administration = computed(() =>
     <div v-else-if="administration" class="admin-layout">
       <RouterView />
     </div>
-    <div v-else class="min-vh-100 bg-light-subtle text-body" :class="{ 'page-layout--bottom-nav': pageBottomNav }">
+    <!-- Nothing matches until the first navigation resolves (lazy pages, session check), so the
+         public header does not flash, or load bookmarks, ahead of an admin page. -->
+    <div v-else-if="routed" class="min-vh-100 bg-light-subtle text-body" :class="{ 'page-layout--bottom-nav': pageBottomNav }">
       <PageHeader />
       <AppShell>
         <RouterView />

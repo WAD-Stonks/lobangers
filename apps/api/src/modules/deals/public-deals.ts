@@ -1,4 +1,9 @@
 import { imagesFor } from '@api/modules/deals/deal-images'
+import {
+  findDealSources,
+  findRecentVotes,
+  withOutletScopes,
+} from '@api/modules/deals/deal-relations'
 import { excludedPlacesIn, isExcludedVenue } from '@api/modules/deals/excluded-outlets'
 import {
   eligibleVenuesForScope,
@@ -6,7 +11,7 @@ import {
   type OutletScopeDeal,
   possibleVenuesForScope,
 } from '@api/modules/deals/outlet-eligibility'
-import { publicImportedImage, publicImportedImageSelect } from '@api/modules/deals/public-images'
+import { publicImportedImage } from '@api/modules/deals/public-images'
 import {
   type CommunityPolicy,
   communityStatus,
@@ -112,78 +117,102 @@ export const publicOutletScopeSelect = {
   },
 } as const
 
-// Eligible deals narrowed by the visitor's filters, with the outlets needed to draw pins.
-export const findPublicDeals = (
-  database: Database,
-  query: DealsQuery,
-  now: Date,
-  policy: CommunityPolicy = DEFAULT_COMMUNITY_POLICY,
-) =>
+// The visitor's filters on top of eligibility. Imported windows need the source post's date,
+// so this stays a database filter rather than being replayed in memory.
+const publicDealFilterWhere = (query: DealsQuery, now: Date): DealWhere => ({
+  ...eligibleDealWhere,
+  ...(query.category ? { category: query.category } : {}),
+  AND: [
+    // A price cap keeps deals without a fixed price, such as 1-for-1 offers.
+    ...(query.priceMaxMinor === undefined
+      ? []
+      : [{ OR: [{ priceMinor: null }, { priceMinor: { lte: query.priceMaxMinor } }] }]),
+    ...(query.validNow === 'true' ? [publicCurrentWindowWhere(now)] : []),
+  ],
+})
+
+// Imports publish in batches with the same timestamp; the id keeps their order stable.
+const newestFirst = [{ publishedAt: 'desc' as const }, { id: 'desc' as const }]
+
+// Scalars only. On MongoDB each nested relation would be another round trip run after its
+// parent, so the loaders in deal-relations fetch outlets, images and votes side by side.
+const publicDealScalarSelect = {
+  id: true,
+  merchantId: true,
+  contentVersion: true,
+  applicability: true,
+  scopeConfirmation: true,
+  title: true,
+  category: true,
+  cuisine: true,
+  offerType: true,
+  priceMinor: true,
+  discountPercent: true,
+  reviewedVersion: true,
+  reviewedAt: true,
+  publishedAt: true,
+  description: true,
+  terms: true,
+  origin: true,
+  validUntil: true,
+  rawValidityText: true,
+  // Only comments that are neither deleted by their author nor hidden by moderation.
+  _count: { select: { comments: { where: visibleCommentWhere } } },
+} as const
+
+// Ids of the eligible deals that match the visitor's filters, newest first.
+export const findPublicDeals = (database: Database, query: DealsQuery, now: Date) =>
   database.deal.findMany({
-    where: {
-      ...eligibleDealWhere,
-      ...(query.category ? { category: query.category } : {}),
-      AND: [
-        // A price cap keeps deals without a fixed price, such as 1-for-1 offers.
-        ...(query.priceMaxMinor === undefined
-          ? []
-          : [
-              {
-                OR: [{ priceMinor: null }, { priceMinor: { lte: query.priceMaxMinor } }],
-              },
-            ]),
-        ...(query.validNow === 'true' ? [publicCurrentWindowWhere(now)] : []),
-      ],
-    },
-    orderBy: { publishedAt: 'desc' },
-    select: {
-      ...publicOutletScopeSelect,
-      id: true,
-      title: true,
-      category: true,
-      cuisine: true,
-      offerType: true,
-      priceMinor: true,
-      discountPercent: true,
-      contentVersion: true,
-      reviewedVersion: true,
-      reviewedAt: true,
-      publishedAt: true,
-      applicability: true,
-      description: true,
-      terms: true,
-      origin: true,
-      validUntil: true,
-      rawValidityText: true,
-      sources: publicImportedImageSelect,
-      votes: {
-        where: {
-          updatedAt: { gt: new Date(now.getTime() - policy.windowHours * 3600000), lte: now },
-        },
-        select: { value: true, updatedAt: true },
-      },
-      // Only comments that are neither deleted by their author nor hidden by moderation.
-      _count: { select: { comments: { where: visibleCommentWhere } } },
-    },
+    where: publicDealFilterWhere(query, now),
+    orderBy: newestFirst,
+    select: { id: true },
   })
 
-// Category options come from every eligible deal, not just the filtered ones.
-export const findEligibleCategories = async (database: Database): Promise<string[]> => {
-  const rows = await database.deal.findMany({
-    where: eligibleDealWhere,
-    select: { ...publicOutletScopeSelect, reviewedVersion: true, category: true, terms: true },
-  })
-  return [
-    ...new Set(
-      rows
-        .filter(isCurrentApproval)
-        .filter((row) => mapVenuesFor(row).venues.length > 0)
-        .map((row) => row.category),
-    ),
-  ].sort()
+const findDealScalars = (database: Database, where: DealWhere) =>
+  database.deal.findMany({ where, orderBy: newestFirst, select: publicDealScalarSelect })
+
+type DealScalarRow = Awaited<ReturnType<typeof findDealScalars>>[number]
+type ScopedDealRow = Awaited<ReturnType<typeof withOutletScopes<DealScalarRow>>>[number]
+
+// Image sources and current-window votes for the deals that may become pins.
+const findPinRelations = async (
+  database: Database,
+  deals: readonly DealScalarRow[],
+  now: Date,
+  policy: CommunityPolicy,
+) => {
+  const dealIds = deals.map((deal) => deal.id)
+  const [sourcesOf, votes] = await Promise.all([
+    findDealSources(database, dealIds),
+    findRecentVotes(database, dealIds, now, policy.windowHours),
+  ])
+  return new Map(dealIds.map((id) => [id, { sources: sourcesOf(id), votes: votes.get(id) ?? [] }]))
 }
 
-type PublicDealRow = Awaited<ReturnType<typeof findPublicDeals>>[number]
+type PinRelations = Awaited<ReturnType<typeof findPinRelations>>
+
+const toPins = (
+  deals: readonly ScopedDealRow[],
+  relations: PinRelations,
+  policy: CommunityPolicy,
+  now: Date,
+): DealPin[] =>
+  deals
+    .flatMap((deal) => {
+      const related = relations.get(deal.id)
+      return related ? [toDealPin({ ...deal, ...related }, policy, now)] : []
+    })
+    .filter((deal) => deal.venues.length > 0)
+
+// Category options come from every eligible deal that can be drawn, not just the filtered ones.
+const categoriesOf = (deals: readonly ScopedDealRow[]): string[] =>
+  [
+    ...new Set(
+      deals.filter((deal) => mapVenuesFor(deal).venues.length > 0).map((deal) => deal.category),
+    ),
+  ].sort()
+
+type PublicDealRow = ScopedDealRow & NonNullable<ReturnType<PinRelations['get']>>
 
 const formatPrice = (priceMinor: number): string => {
   const dollars = priceMinor / CENTS_PER_DOLLAR
@@ -251,16 +280,48 @@ const currentVotes = (deal: PublicDealRow) => {
   return countVotes(deal.votes.filter((vote) => vote.updatedAt >= publication))
 }
 
+// Pins for the visitor's filters. Outlets, images and votes load together once the deals are known.
 export const findPublicDealPins = async (
   database: Database,
   query: DealsQuery,
   now: Date,
   policy: CommunityPolicy = DEFAULT_COMMUNITY_POLICY,
-): Promise<DealPin[]> =>
-  (await findPublicDeals(database, query, now, policy))
-    .filter(isCurrentApproval)
-    .map((row) => toDealPin(row, policy, now))
-    .filter((deal) => deal.venues.length > 0)
+): Promise<DealPin[]> => {
+  const deals = (await findDealScalars(database, publicDealFilterWhere(query, now))).filter(
+    isCurrentApproval,
+  )
+  const [scoped, relations] = await Promise.all([
+    withOutletScopes(database, deals),
+    findPinRelations(database, deals, now, policy),
+  ])
+  return toPins(scoped, relations, policy, now)
+}
+
+// The browse response. Categories need outlet scopes for every eligible deal, which already
+// cover the filtered ones, so scopes load once and the filter is a cheap id-only read.
+export const findPublicBrowse = async (
+  database: Database,
+  query: DealsQuery,
+  now: Date,
+  policy: CommunityPolicy = DEFAULT_COMMUNITY_POLICY,
+): Promise<{ items: DealPin[]; categories: string[] }> => {
+  const [eligible, matching] = await Promise.all([
+    findDealScalars(database, eligibleDealWhere),
+    findPublicDeals(database, query, now),
+  ])
+  const matchingIds = new Set(matching.map((deal) => deal.id))
+  const approved = eligible.filter(isCurrentApproval)
+  const [scoped, relations] = await Promise.all([
+    withOutletScopes(database, approved),
+    findPinRelations(
+      database,
+      approved.filter((deal) => matchingIds.has(deal.id)),
+      now,
+      policy,
+    ),
+  ])
+  return { items: toPins(scoped, relations, policy, now), categories: categoriesOf(scoped) }
+}
 
 export const toDealPin = (
   deal: PublicDealRow,

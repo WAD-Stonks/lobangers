@@ -131,9 +131,13 @@ for (const width of [390, 1280]) {
       await expect(page).toHaveURL(/\/deals\//)
       await expect(panelHeading(page)).toHaveText('Synthetic kopi set')
 
+      // Opening the deal flies the map to its outlet, and the list follows the map area, so
+      // whether the far-east kaya toast is still listed depends on the flight finishing first.
+      // The price filter must survive either way.
       await page.goBack()
       await expect(page).toHaveURL(/max=5/)
-      await expect(rows(page)).toHaveCount(2)
+      await expect(rows(page).filter({ hasText: 'Synthetic kopi set' })).toHaveCount(1)
+      await expect(rows(page).filter({ hasText: 'Synthetic fishball noodles' })).toHaveCount(0)
     })
 
     test('Lobbie: a suggestion shows typing, then deals in the chat and framed pins on the map', async ({

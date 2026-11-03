@@ -105,13 +105,14 @@ it('titles the panel with the venue and links each ongoing deal to its deal pane
   expect(wrapper.find('.venue-panel__logo').text()).toBe('SK')
   expect(wrapper.text()).toContain('1 Example Street, Singapore 520001')
   expect(wrapper.get('[role="tab"][aria-selected="true"]').text()).toBe('Now')
-  const cards = wrapper.findAll('[data-testid="food-deal-grid"] .food-deal-card')
+  // On the map the venue's deals are rows, like the map's results.
+  const cards = wrapper.findAll('[data-testid="venue-deals"] > li')
   expect(cards).toHaveLength(2)
   expect(cards[0]?.text()).toContain('Kopi set')
   expect(cards[0]?.text()).toContain('Synthetic Kopi Tampines')
   expect(cards[1]?.text()).toContain('Toast discount')
-  expect(cards[1]?.find('.food-deal-card__placeholder').exists()).toBe(true)
-  const link = wrapper.find('[data-testid="food-deal-grid"] a.food-deal-card__link')
+  expect(cards[1]?.find('.deal-rows__media--placeholder').exists()).toBe(true)
+  const link = wrapper.find('[data-testid="venue-deals"] a.deal-rows__row')
   expect(link?.attributes('href')).toBe(`/deals/bbbbbbbbbbbbbbbbbbbbbbbb?cat=food&at=${venueId}`)
 })
 
@@ -172,7 +173,7 @@ it("reuses the map's loaded deal so the card shows its freshness and other outle
   rest.list.mockResolvedValue({ items: [loaded], categories: ['DRINKS'] })
   rest.venue.mockResolvedValue(detail)
   const { wrapper } = await mountAt(`/venues/${venueId}`)
-  const card = wrapper.findAll('[data-testid="food-deal-grid"] .food-deal-card')[0]
+  const card = wrapper.findAll('[data-testid="venue-deals"] > li')[0]
   expect(card?.text()).toContain('Likely still on')
   expect(card?.text()).toContain('+1 more outlet')
 })

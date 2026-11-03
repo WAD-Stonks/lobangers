@@ -7,15 +7,22 @@ import { createRoomHandler } from '@api/rest/routers/squad/handlers/create-room'
 import { joinRoomHandler } from '@api/rest/routers/squad/handlers/join-room'
 import { leaveRoomHandler } from '@api/rest/routers/squad/handlers/leave-room'
 import { peekRoomHandler } from '@api/rest/routers/squad/handlers/peek-room'
+import {
+  realtimeAuthHandler,
+  realtimeConfigHandler,
+} from '@api/rest/routers/squad/handlers/realtime'
 import { removeMemberHandler } from '@api/rest/routers/squad/handlers/remove-member'
 import { startRoomHandler } from '@api/rest/routers/squad/handlers/start-room'
 import { syncHandler } from '@api/rest/routers/squad/handlers/sync'
 import { voteHandler } from '@api/rest/routers/squad/handlers/vote'
 import { Router } from 'express'
 
-// Makan Squad rooms: create, join, the lobby controls, voting, and the sync heartbeat.
+// Makan Squad rooms: create, join, the lobby controls, voting, the sync heartbeat, and the
+// live channel handshake.
 export const createSquadRouter = (dependencies: RestDependencies): Router => {
   const router = Router()
+  router.get('/squad/realtime', realtimeConfigHandler(dependencies))
+  router.post('/squad/realtime/auth', realtimeAuthHandler(dependencies))
   router.post('/squad/rooms', createRoomHandler(dependencies))
   router.get('/squad/rooms/:code', peekRoomHandler(dependencies))
   router.post('/squad/rooms/:code/join', joinRoomHandler(dependencies))
@@ -27,6 +34,8 @@ export const createSquadRouter = (dependencies: RestDependencies): Router => {
   router.post('/squad/rooms/:code/deals', addDealsHandler(dependencies))
   router.post('/squad/rooms/:code/votes', voteHandler(dependencies))
   router.post('/squad/rooms/:code/choices', chooseHandler(dependencies))
+  router.all('/squad/realtime', methodNotAllowed('GET'))
+  router.all('/squad/realtime/auth', methodNotAllowed('POST'))
   router.all('/squad/rooms', methodNotAllowed('POST'))
   router.all('/squad/rooms/:code', methodNotAllowed('GET'))
   router.all('/squad/rooms/:code/join', methodNotAllowed('POST'))

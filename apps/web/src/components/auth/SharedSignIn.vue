@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { AuthMethodsResponse } from '@broke-oclock/contracts/api'
+import AuthLobbie from '@web/components/auth/AuthLobbie.vue'
 import PasswordRecovery from '@web/components/auth/PasswordRecovery.vue'
 import '@web/components/auth/auth.css'
 import { consumeOAuthError, safeAuthDestination } from '@web/lib/admin-session'
@@ -15,6 +16,7 @@ const props = withDefaults(defineProps<{
   context?: 'admin' | 'account'
   headingLevel?: 'h1' | 'h2'
   embedded?: boolean
+  peek?: boolean
 }>(), { title: 'Sign in', destination: '/', context: 'admin', headingLevel: 'h2' })
 const emit = defineEmits<{ signedIn: [] }>()
 const email = ref('')
@@ -142,6 +144,7 @@ const recovered = () => { method.value = 'password'; recovery.value = false; not
 
 <template>
   <section :aria-labelledby="recovery ? 'recovery-title' : embedded ? undefined : 'sign-in-title'" :aria-label="!recovery && embedded ? title : undefined" class="shared-sign-in" :class="{ 'auth-card': !embedded }">
+    <AuthLobbie v-if="peek" :covering="passwordMode && showPassword" />
     <PasswordRecovery v-if="recovery" :heading-level="embedded ? 'h2' : headingLevel" @completed="recovered" @cancel="recovery = false" />
     <div v-else class="auth-flow">
       <header v-if="!embedded" class="auth-header">
@@ -155,18 +158,21 @@ const recovered = () => { method.value = 'password'; recovery.value = false; not
         <form novalidate @submit.prevent="passwordMode ? signIn() : sendCode()" :aria-busy="pending" class="auth-form">
           <div>
             <label :for="emailId" class="form-label">Email</label>
-            <input :id="emailId" ref="emailInput" v-model="email" type="email" autocomplete="username" class="form-control" :disabled="context === 'account' && pending" :aria-invalid="touched && !!emailError" :aria-describedby="touched && emailError ? 'sign-in-email-error' : undefined" required @blur="touched = true" />
+            <input :id="emailId" ref="emailInput" v-model="email" type="email" autocomplete="username" :placeholder="peek ? 'you@example.com' : undefined" class="form-control" :disabled="context === 'account' && pending" :aria-invalid="touched && !!emailError" :aria-describedby="touched && emailError ? 'sign-in-email-error' : undefined" required @blur="touched = true" />
             <p id="sign-in-email-error" class="auth-field-error" aria-live="polite">{{ touched ? emailError : '' }}</p>
           </div>
           <div v-if="passwordMode">
-            <div class="auth-label-row">
-              <label :for="passwordId" class="form-label">Password</label>
+            <label :for="passwordId" class="form-label">Password</label>
+            <div class="auth-password">
+              <input :id="passwordId" ref="passwordInput" v-model="password" :type="showPassword ? 'text' : 'password'" autocomplete="current-password" :placeholder="peek ? 'Enter your password' : undefined" class="form-control" :disabled="pending" required />
+              <button type="button" class="auth-password-toggle" :aria-controls="passwordId" :aria-pressed="showPassword" :aria-label="showPassword ? 'Hide password' : 'Show password'" :data-testid="`${passwordId}-toggle`" @click="showPassword = !showPassword">
+                <svg v-if="showPassword" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M10.7 5.1A10.4 10.4 0 0 1 12 5c6.5 0 10 7 10 7a17.6 17.6 0 0 1-2.3 3.3M6.6 6.6A17.4 17.4 0 0 0 2 12s3.5 7 10 7a9.7 9.7 0 0 0 5.4-1.6M9.9 9.9a3 3 0 0 0 4.2 4.2M2 2l20 20" /></svg>
+                <svg v-else viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z" /><circle cx="12" cy="12" r="3" /></svg>
+              </button>
+            </div>
+            <div class="auth-forgot">
               <button v-if="methods?.passwordRecovery" data-testid="recovery-open" type="button" class="auth-link" :disabled="pending" @click="recovery = true">Forgot password?</button>
               <slot v-else name="forgot" />
-            </div>
-            <div class="input-group">
-              <input :id="passwordId" ref="passwordInput" v-model="password" :type="showPassword ? 'text' : 'password'" autocomplete="current-password" class="form-control" :disabled="pending" required />
-              <button type="button" class="btn btn-outline-secondary" :aria-controls="passwordId" :aria-pressed="showPassword" :aria-label="showPassword ? 'Hide password' : 'Show password'" :data-testid="`${passwordId}-toggle`" @click="showPassword = !showPassword">{{ showPassword ? 'Hide' : 'Show' }}</button>
             </div>
           </div>
           <button v-if="passwordMode" class="btn auth-primary" type="submit" :disabled="pending || !password">{{ pending ? 'Signing in…' : context === 'account' ? 'Log in' : 'Sign in' }}</button>
@@ -177,7 +183,7 @@ const recovered = () => { method.value = 'password'; recovery.value = false; not
         <template v-if="methods?.google">
           <div class="auth-divider"><span>or continue with</span></div>
           <button data-testid="google-sign-in" type="button" class="btn auth-secondary auth-google" :disabled="pending" @click="google">
-            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="currentColor" d="M21.6 12.23c0-.71-.06-1.39-.18-2.05H12v3.88h5.38a4.6 4.6 0 0 1-2 3.02v2.51h3.24c1.9-1.75 2.98-4.33 2.98-7.36ZM12 22c2.7 0 4.96-.9 6.62-2.41l-3.24-2.51c-.9.6-2.04.97-3.38.97-2.6 0-4.81-1.76-5.6-4.12H3.05v2.59A10 10 0 0 0 12 22ZM6.4 13.93a6 6 0 0 1 0-3.86V7.48H3.05a10 10 0 0 0 0 9.04l3.35-2.59ZM12 5.95c1.47 0 2.79.51 3.83 1.51l2.88-2.88A9.6 9.6 0 0 0 12 2a10 10 0 0 0-8.95 5.48l3.35 2.59C7.19 7.71 9.4 5.95 12 5.95Z" /></svg>
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="#4285F4" d="M21.6 12.23c0-.71-.06-1.39-.18-2.05H12v3.88h5.38a4.6 4.6 0 0 1-2 3.02v2.51h3.24c1.9-1.75 2.98-4.33 2.98-7.36Z" /><path fill="#34A853" d="M12 22c2.7 0 4.96-.9 6.62-2.41l-3.24-2.51c-.9.6-2.04.97-3.38.97-2.6 0-4.81-1.76-5.6-4.12H3.05v2.59A10 10 0 0 0 12 22Z" /><path fill="#FBBC05" d="M6.4 13.93a6 6 0 0 1 0-3.86V7.48H3.05a10 10 0 0 0 0 9.04l3.35-2.59Z" /><path fill="#EA4335" d="M12 5.95c1.47 0 2.79.51 3.83 1.51l2.88-2.88A9.6 9.6 0 0 0 12 2a10 10 0 0 0-8.95 5.48l3.35 2.59C7.19 7.71 9.4 5.95 12 5.95Z" /></svg>
             Continue with Google
           </button>
         </template>

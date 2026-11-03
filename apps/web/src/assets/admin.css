@@ -103,8 +103,7 @@
   --admin-sidebar-width: 72px;
 }
 /* Dark theme: warm charcoal like the rest of the app. Tones reuse the main tag pairs; contrast on
-   the card (#1e1d1a): text 14.9:1, muted 6.9:1, status inks 7.8:1+, control borders 3:1+,
-   chart marks 6.3:1+, focus ring 7.7:1. */
+   the card (#2a2926): text 13:1, muted 5.9:1, status inks 6:1+, control borders 3:1+. */
 :root.app-palette[data-theme="dark"] .admin-shell {
   --admin-bg: var(--paper);
   --admin-surface: var(--paper-white);
@@ -112,15 +111,15 @@
   --admin-text: var(--ink);
   --admin-muted: var(--ink-muted);
   --admin-border: var(--hairline);
-  --admin-subtle-bg: #24231f;
-  --admin-neutral-bg: #24231f;
+  --admin-subtle-bg: #32312d;
+  --admin-neutral-bg: #32312d;
   --admin-hover: var(--paper-hover);
   --admin-active: var(--paper-sunk);
-  --admin-pressed: #34322d;
+  --admin-pressed: #42403a;
   --admin-track: var(--paper-sunk);
   --admin-secondary-text: #c2bfb7;
   --admin-icon-ink: var(--ink-muted);
-  --admin-line: #2a2925;
+  --admin-line: #3a3833;
   --admin-card-border: var(--hairline);
   --admin-tile-border: var(--hairline);
   --admin-control-border: var(--hairline-strong);

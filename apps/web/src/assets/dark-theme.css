@@ -2,17 +2,17 @@
    paper warmth, cards lift with a faint light edge instead of a shadow, sunny yellow stays the
    one call-to-action colour (always with dark text), and coral is lifted so prices still read.
    src/lib/theme.ts sets [data-theme]; scoping to .app-palette keeps the landing page light.
-   Contrast on the card surface (#1e1d1a): ink 14.9:1, muted 6.9:1, coral text 6.9:1,
-   tags 7.8:1 or more, control borders 3:1. Loaded last in main.ts. */
+   Cards (#2a2926) sit clearly lighter than the page so they read as cards. Contrast on the card
+   surface: ink 13:1, muted 5.9:1, coral text 5.9:1, tags 6:1 or more. Loaded last in main.ts. */
 
 :root.app-palette[data-theme="dark"] {
   color-scheme: dark;
 
   --page-background: #141412;
   --paper: #141412;
-  --paper-white: #1e1d1a;
-  --paper-hover: #272622;
-  --paper-sunk: #2b2a26;
+  --paper-white: #2a2926;
+  --paper-hover: #33322e;
+  --paper-sunk: #393833;
   --hero-background: #221f14;
   --map-canvas: #1a1a18;
 
@@ -21,7 +21,7 @@
   --ink-strong: #f3f1ec;
   --ink-strong-hover: #dedbd3;
   --on-ink: #1b1b1f;
-  --hairline: #33312c;
+  --hairline: #403e38;
   --hairline-strong: #6b6860;
   --track: #6b6860;
 
@@ -51,7 +51,7 @@
   --tag-ok-ink: #a6dcb6;
   --tag-end-bg: #3f2219;
   --tag-end-ink: #f6ad94;
-  --tag-new-bg: #2b2a26;
+  --tag-new-bg: #403e38;
   --tag-new-ink: #c9c6be;
   --tag-info-bg: #1f2a45;
   --tag-info-ink: #adc3f7;
@@ -63,7 +63,7 @@
   --shadow-pill: 0 0 0 1px rgb(255 255 255 / 0.07), 0 6px 18px rgb(0 0 0 / 0.5);
   --scrim: rgb(0 0 0 / 0.6);
   --scrim-strong: rgb(0 0 0 / 0.88);
-  --glass: rgb(30 29 26 / 0.85);
+  --glass: rgb(42 41 38 / 0.85);
 
   /* Bootstrap's own surfaces, for BootstrapVueNext components the tokens above do not reach. */
   --bs-body-color: var(--ink);

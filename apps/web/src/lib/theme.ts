@@ -78,8 +78,19 @@ export const createTheme = (options: {
   const followSystem = (dark: boolean) => {
     if (!chosen) theme.value = dark ? 'dark' : 'light'
   }
+  // Another tab saved a choice (or cleared it): show the same theme here without a reload.
+  const followStorage = (value: string | null, systemDark: boolean) => {
+    chosen = isTheme(value)
+    theme.value = isTheme(value) ? value : systemDark ? 'dark' : 'light'
+  }
 
-  return { theme, isDark: computed(() => theme.value === 'dark'), toggle, followSystem }
+  return {
+    theme,
+    isDark: computed(() => theme.value === 'dark'),
+    toggle,
+    followSystem,
+    followStorage,
+  }
 }
 
 type ThemeController = ReturnType<typeof createTheme>
@@ -105,5 +116,9 @@ export const useTheme = (): ThemeController => {
   })
   const controller = shared
   media?.addEventListener('change', (event) => controller.followSystem(event.matches))
+  window.addEventListener('storage', (event) => {
+    if (event.key === THEME_STORAGE_KEY || event.key === null)
+      controller.followStorage(event.key === null ? null : event.newValue, media?.matches ?? false)
+  })
   return controller
 }

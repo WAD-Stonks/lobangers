@@ -97,6 +97,15 @@ const liveDealAt = (index: number): DealPin => {
   return deal
 }
 const heroProps = { live: liveDeals, liveState: 'ready' as const }
+// Enough deals for two carousel pages of five: the five regional deals, then three more North ones.
+const pagedDeals: DealPin[] = [
+  ...liveDeals,
+  ...[1, 2, 3].map((n) => ({
+    ...liveDealAt(0),
+    id: String(90 + n).padStart(24, '0'),
+    title: `Extra lunch ${n}`,
+  })),
+]
 
 describe('landing hero', () => {
   it('opens the specific regional deal with its outlet selected', async () => {
@@ -106,7 +115,7 @@ describe('landing hero', () => {
     await flushPromises()
     const card = wrapper.get('.hero-live-card')
     expect(card.get('.hero-deal-action').attributes('href')).toBe(
-      `/deals/${liveDealAt(3).id}?at=${liveDealAt(3).venues[0]?.id}`,
+      `/deals/${liveDealAt(3).id}?at=${liveDealAt(3).venues[0]?.id}&view=list&discovery=1`,
     )
     expect(card.attributes('aria-label')).toContain('East lunch at Tampines')
     expect(card.text()).toContain('View deal')
@@ -253,22 +262,6 @@ describe('landing hero', () => {
     expect(wrapper.get('.hero-promotion-title').text()).toBe(liveDealAt(1).title)
   })
 
-  it('pauses the rotation and ambient loops from one control', async () => {
-    const wrapper = keep(mount(HeroSection, { props: heroProps, global: { plugins: [router()] } }))
-    const toggle = wrapper.get('.hero-motion-toggle')
-    expect(toggle.text()).toBe('Pause motion')
-    await toggle.trigger('click')
-    expect(toggle.text()).toBe('Play motion')
-    expect(wrapper.classes()).toContain('hero-ambient-paused')
-    expect(wrapper.get('.hero-waterfront').classes()).toContain('waterfront-paused')
-    await vi.advanceTimersByTimeAsync(10000)
-    expect(wrapper.get('.hero-promotion-title').text()).toBe(liveDealAt(0).title)
-    await toggle.trigger('click')
-    expect(wrapper.get('.hero-waterfront').classes()).not.toContain('waterfront-paused')
-    await vi.advanceTimersByTimeAsync(5000)
-    expect(wrapper.get('.hero-promotion-title').text()).toBe(liveDealAt(1).title)
-  })
-
   it('stops the rotation and decorative motion when reduced motion is requested', async () => {
     reduced = true
     const wrapper = keep(mount(HeroSection, { props: heroProps, global: { plugins: [router()] } }))
@@ -276,10 +269,6 @@ describe('landing hero', () => {
     expect(wrapper.get('.hero-waterfront').classes()).toContain('waterfront-paused')
     await vi.advanceTimersByTimeAsync(15600)
     expect(wrapper.get('.hero-promotion-title').text()).toBe(liveDealAt(0).title)
-    expect(wrapper.get('.hero-motion-toggle').text()).toBe('Play motion')
-    await wrapper.get('.hero-motion-toggle').trigger('click')
-    await vi.advanceTimersByTimeAsync(5000)
-    expect(wrapper.get('.hero-promotion-title').text()).toBe(liveDealAt(1).title)
     expect(wrapper.get('.hero-waterfront').classes()).toContain('waterfront-paused')
   })
 
@@ -306,20 +295,19 @@ describe('landing hero', () => {
 })
 
 describe('live cuisine discovery', () => {
-  it('links the whole card to the selected outlet and handles a missing photo', async () => {
+  it('links the whole card to the selected outlet', async () => {
     const r = router()
     const wrapper = keep(mount(CuisineDiscovery, { props: heroProps, global: { plugins: [r] } }))
     await flushPromises()
-    const card = wrapper.get('.landing-food-card')
-    expect(card.get('.landing-card-link').attributes('href')).toBe(
-      `/deals/${liveDealAt(0).id}?at=${liveDealAt(0).venues[0]?.id}`,
+    const card = wrapper.get('.food-deal-card')
+    expect(card.get('.food-deal-card__link').attributes('href')).toBe(
+      `/deals/${liveDealAt(0).id}?at=${liveDealAt(0).venues[0]?.id}&view=list&discovery=1`,
     )
-    await card.get('img').trigger('error')
-    expect(card.text()).toContain('Photo unavailable')
-    await card.get('.landing-card-link').trigger('click')
+    await card.get('.food-deal-card__link').trigger('click')
     await flushPromises()
     expect(r.currentRoute.value.path).toBe(`/deals/${liveDealAt(0).id}`)
     expect(r.currentRoute.value.query.at).toBe(liveDealAt(0).venues[0]?.id)
+    expect(r.currentRoute.value.query.view).toBe('list')
     expect(wrapper.get('.landing-view-all').attributes('href')).toBe('/deals?cat=food')
   })
   it('uses the filtered outlet in the deal link for a chain', async () => {
@@ -334,8 +322,8 @@ describe('live cuisine discovery', () => {
     )
     await wrapper.get('#deal-area').setValue('3')
     await flushPromises()
-    expect(wrapper.get('.landing-card-link').attributes('href')).toContain(`at=${east.id}`)
-    expect(wrapper.get('.landing-restaurant-name').text()).toBe(east.name)
+    expect(wrapper.get('.food-deal-card__link').attributes('href')).toContain(`at=${east.id}`)
+    expect(wrapper.get('.food-deal-card__restaurant').text()).toBe(east.name)
   })
   it('shows skeletons while loading and exposes an explicit retry on failure', async () => {
     const wrapper = keep(
@@ -344,7 +332,7 @@ describe('live cuisine discovery', () => {
         global: { plugins: [router()] },
       }),
     )
-    expect(wrapper.findAll('.landing-skeleton-card')).toHaveLength(4)
+    expect(wrapper.findAll('.landing-skeleton-card')).toHaveLength(5)
     await wrapper.setProps({ liveState: 'error' })
     await wrapper.get('.landing-deals-error button').trigger('click')
     expect(wrapper.emitted('retry')).toHaveLength(1)
@@ -358,97 +346,92 @@ describe('live cuisine discovery', () => {
         global: { plugins: [router()] },
       }),
     )
-    expect(wrapper.findAll('.landing-food-card')).toHaveLength(4)
+    expect(wrapper.findAll('.food-deal-card')).toHaveLength(5)
     await wrapper.get('#deal-cuisine').setValue('Japanese')
-    expect(wrapper.findAll('.landing-food-card')).toHaveLength(1)
+    expect(wrapper.findAll('.food-deal-card')).toHaveLength(1)
     await wrapper.get('#deal-area').setValue('3')
-    expect(wrapper.get('.landing-food-card').text()).toContain('East lunch')
-    expect(wrapper.get('.landing-card-link').attributes('href')).toBe(
-      `/deals/${liveDealAt(3).id}?at=${liveDealAt(3).venues[0]?.id}`,
+    expect(wrapper.get('.food-deal-card').text()).toContain('East lunch')
+    expect(wrapper.get('.food-deal-card__link').attributes('href')).toBe(
+      `/deals/${liveDealAt(3).id}?at=${liveDealAt(3).venues[0]?.id}&view=list&discovery=1`,
     )
     expect(wrapper.find('#deal-budget').exists()).toBe(false)
-    expect(wrapper.get('.landing-restaurant-name').text()).toBe('Tampines')
-    expect(wrapper.get('.landing-deal-title').text()).toBe('East lunch')
+    expect(wrapper.get('.food-deal-card__restaurant').text()).toBe('Tampines')
+    expect(wrapper.get('.food-deal-card__description').text()).toBe('East lunch')
     await wrapper.get('#deal-area').setValue('0')
-    expect(wrapper.findAll('.landing-food-card')).toHaveLength(0)
+    expect(wrapper.findAll('.food-deal-card')).toHaveLength(0)
     expect(wrapper.get('.cuisine-empty').text()).toContain('No deals match')
     await wrapper.get('.cuisine-empty button').trigger('click')
-    expect(wrapper.findAll('.landing-food-card')).toHaveLength(4)
+    expect(wrapper.findAll('.food-deal-card')).toHaveLength(5)
     expect(wrapper.find('.live-deal-preview').exists()).toBe(false)
     expect(wrapper.text()).not.toContain('SAMPLE')
   })
-  it('shows supplied promotion periods, Singapore end dates and missing-date fallbacks', () => {
-    const deals = [
-      { ...liveDealAt(0), rawValidityText: '1 Oct – 30 Nov 2026, weekdays only' },
-      { ...liveDealAt(1), validUntil: '2026-11-01T16:00:00.000Z' },
-      {
-        ...liveDealAt(2),
-        rawValidityText: 'Explicit source calendar: start unspecified; end unspecified.',
-      },
-    ]
+  it('shows each deal with the same card as the All Deals page', () => {
     const wrapper = keep(
       mount(CuisineDiscovery, {
-        props: { live: deals, liveState: 'ready' },
+        props: {
+          live: [{ ...liveDealAt(0), validUntil: '2026-12-01T15:59:00.000Z' }],
+          liveState: 'ready',
+        },
         global: { plugins: [router()] },
       }),
     )
-    const dates = wrapper.findAll('.landing-card-meta > span')
-    expect(dates[0]?.text()).toContain('1 Oct – 30 Nov 2026, weekdays only')
-    expect(dates[1]?.text()).toContain('Until 1 Nov 2026')
-    expect(dates[2]?.text()).toContain('End date not provided')
+    const card = wrapper.get('.food-deal-card')
+    expect(card.get('.food-deal-card__description').text()).toBe(liveDealAt(0).title)
+    expect(card.get('.food-deal-card__validity').text()).toMatch(/^Ends /)
+    expect(card.find('[data-testid="item-save"]').exists()).toBe(true)
   })
-  it('pages through sets of four and resets to the first set after filtering', async () => {
+  it('pages through sets of five and resets to the first set after filtering', async () => {
     const wrapper = keep(
       mount(CuisineDiscovery, {
-        props: { live: liveDeals, liveState: 'ready' },
+        props: { live: pagedDeals, liveState: 'ready' },
         global: { plugins: [router()] },
       }),
     )
     const previous = () => wrapper.get('[aria-label="Previous deals"]')
     const next = () => wrapper.get('[aria-label="Next deals"]')
     expect(previous().attributes('disabled')).toBeDefined()
-    expect(wrapper.findAll('.landing-food-card')).toHaveLength(4)
+    expect(wrapper.findAll('.food-deal-card')).toHaveLength(5)
     await next().trigger('click')
-    expect(wrapper.findAll('.landing-food-card')).toHaveLength(1)
-    expect(wrapper.get('.landing-deal-title').text()).toBe('Central lunch')
+    expect(wrapper.findAll('.food-deal-card')).toHaveLength(3)
+    expect(wrapper.get('.food-deal-card__description').text()).toBe('Extra lunch 1')
     expect(next().attributes('disabled')).toBeDefined()
-    expect(wrapper.get('.landing-carousel-status').text()).toContain('Showing 5–5 of 5 deals')
+    expect(wrapper.get('.landing-carousel-status').text()).toContain('Showing 6–8 of 8 deals')
     await previous().trigger('click')
-    expect(wrapper.findAll('.landing-food-card')).toHaveLength(4)
+    expect(wrapper.findAll('.food-deal-card')).toHaveLength(5)
     await next().trigger('click')
     await wrapper.get('#deal-cuisine').setValue('Japanese')
-    expect(wrapper.get('.landing-deal-title').text()).toBe('East lunch')
+    expect(wrapper.get('.food-deal-card__description').text()).toBe('East lunch')
     expect(previous().attributes('disabled')).toBeDefined()
     expect(next().attributes('disabled')).toBeDefined()
     expect(wrapper.get('.landing-carousel-status').text()).toContain('Showing 1–1 of 1 deals')
   })
-  it('pages four cards at every width and leaves the column count to CSS', async () => {
+  it('pages one row of cards, as many columns as the width fits', async () => {
     vi.stubGlobal('innerWidth', 390)
     const wrapper = keep(
       mount(CuisineDiscovery, {
-        props: { live: liveDeals, liveState: 'ready' },
+        props: { live: pagedDeals, liveState: 'ready' },
         global: { plugins: [router()] },
       }),
     )
     await flushPromises()
-    expect(wrapper.findAll('.landing-food-card')).toHaveLength(4)
-    // landing-refinements.css sets four columns, or two at 1100px and below.
-    expect(wrapper.get('#landing-deal-carousel').attributes('style')).toBeUndefined()
-    expect(wrapper.get('.landing-carousel-status').text()).toContain('Showing 1–4')
+    expect(wrapper.findAll('.food-deal-card')).toHaveLength(5)
+    // jsdom has no ResizeObserver, so the carousel keeps its default of five columns.
+    expect(wrapper.get('#landing-deal-carousel').attributes('style')).toContain('--deal-columns: 5')
+    expect(wrapper.get('.landing-carousel-status').text()).toContain('Showing 1–5')
     await wrapper.get('[aria-label="Next deals"]').trigger('click')
-    expect(wrapper.get('.landing-deal-title').text()).toBe('Central lunch')
+    expect(wrapper.get('.food-deal-card__description').text()).toBe('Extra lunch 1')
     await wrapper.get('[aria-label="Previous deals"]').trigger('click')
     vi.stubGlobal('innerWidth', 1440)
     window.dispatchEvent(new Event('resize'))
     await flushPromises()
-    expect(wrapper.findAll('.landing-food-card')).toHaveLength(4)
-    expect(wrapper.get('.landing-carousel-status').text()).toContain('Showing 1–4')
+    expect(wrapper.findAll('.food-deal-card')).toHaveLength(5)
+    expect(wrapper.get('.landing-carousel-status').text()).toContain('Showing 1–5')
   })
   it('supports horizontal swipes while preserving vertical scrolling and filter resets', async () => {
     vi.stubGlobal('innerWidth', 390)
     const wrapper = keep(
       mount(CuisineDiscovery, {
-        props: { live: liveDeals, liveState: 'ready' },
+        props: { live: pagedDeals, liveState: 'ready' },
         global: { plugins: [router()] },
       }),
     )
@@ -456,18 +439,18 @@ describe('live cuisine discovery', () => {
     const track = wrapper.get('#landing-deal-carousel')
     await track.trigger('touchstart', { touches: [{ clientX: 280, clientY: 100 }] })
     await track.trigger('touchend', { changedTouches: [{ clientX: 80, clientY: 105 }] })
-    expect(wrapper.get('.landing-deal-title').text()).toBe('Central lunch')
+    expect(wrapper.get('.food-deal-card__description').text()).toBe('Extra lunch 1')
     await track.trigger('touchstart', { touches: [{ clientX: 280, clientY: 100 }] })
     await track.trigger('touchend', { changedTouches: [{ clientX: 250, clientY: 350 }] })
-    expect(wrapper.get('.landing-deal-title').text()).toBe('Central lunch')
+    expect(wrapper.get('.food-deal-card__description').text()).toBe('Extra lunch 1')
     await track.trigger('touchstart', { touches: [{ clientX: 80, clientY: 100 }] })
     await track.trigger('touchend', { changedTouches: [{ clientX: 280, clientY: 105 }] })
-    expect(wrapper.get('.landing-deal-title').text()).toBe('North lunch')
+    expect(wrapper.get('.food-deal-card__description').text()).toBe('North lunch')
     await wrapper.get('#deal-cuisine').setValue('Japanese')
-    expect(wrapper.get('.landing-deal-title').text()).toBe('East lunch')
+    expect(wrapper.get('.food-deal-card__description').text()).toBe('East lunch')
     expect(wrapper.get('.landing-carousel-status').text()).toContain('Showing 1–1')
   })
-  it('keeps long outlet lists out of cards and opens a searchable outlet picker', async () => {
+  it('keeps long outlet lists out of cards, summarised as a count', () => {
     const chain = { ...liveDealAt(0), venues: liveDeals.flatMap((deal) => deal.venues) }
     const wrapper = keep(
       mount(CuisineDiscovery, {
@@ -475,26 +458,9 @@ describe('live cuisine discovery', () => {
         global: { plugins: [router()] },
       }),
     )
-    // jsdom does not implement the native dialog lifecycle.
-    const dialog = wrapper.get('dialog').element
-    const show = vi.fn(() => dialog.setAttribute('open', ''))
-    const close = vi.fn(() => dialog.removeAttribute('open'))
-    Object.defineProperties(dialog, { showModal: { value: show }, close: { value: close } })
     expect(wrapper.get('#cuisine-heading').text()).toContain("We've got some lobangs for you.")
-    expect(wrapper.get('.landing-food-card').text()).toContain('+4 more outlets')
-    expect(wrapper.get('.landing-food-card').text()).not.toContain('Tampines')
-    await wrapper.get('.landing-outlet-button').trigger('click')
-    expect(show).toHaveBeenCalledOnce()
-    expect(wrapper.findAll('.landing-outlet-list li')).toHaveLength(5)
-    await wrapper.get('#landing-outlet-search').setValue('tampines')
-    expect(wrapper.findAll('.landing-outlet-list li')).toHaveLength(1)
-    expect(wrapper.get('.landing-outlet-list a').attributes('href')).toBe(
-      `/deals/${liveDealAt(0).id}?at=${liveDealAt(3).venues[0]?.id}`,
-    )
-    await wrapper.get('#landing-outlet-search').setValue('no such outlet')
-    expect(wrapper.text()).toContain('No outlets match your search')
-    await wrapper.get('[aria-label="Close outlets"]').trigger('click')
-    expect(close).toHaveBeenCalledOnce()
+    expect(wrapper.get('.food-deal-card').text()).toContain('+4 more outlets')
+    expect(wrapper.get('.food-deal-card').text()).not.toContain('Tampines')
   })
   it('shows loading, error and empty states without sample deals', async () => {
     const wrapper = keep(
@@ -508,7 +474,7 @@ describe('live cuisine discovery', () => {
     expect(wrapper.text()).toContain("Deals couldn't load")
     await wrapper.setProps({ liveState: 'ready' })
     expect(wrapper.text()).toContain('No current food deals yet')
-    expect(wrapper.findAll('.landing-food-card')).toHaveLength(0)
+    expect(wrapper.findAll('.food-deal-card')).toHaveLength(0)
   })
 })
 
@@ -615,8 +581,10 @@ describe('live bookmark integration', () => {
       }),
     )
     await flushPromises()
-    expect(wrapper.get('.landing-card-link').attributes('href')).toBe(`/deals/${liveDeal.id}`)
-    expect(wrapper.find('.landing-deal-grid button').exists()).toBe(false)
+    expect(wrapper.get('.food-deal-card__link').attributes('href')).toBe(
+      `/deals/${liveDeal.id}?view=list&discovery=1`,
+    )
+    expect(wrapper.get('.food-deal-card__restaurant').text()).toBe('Restaurant details unavailable')
   })
 })
 
@@ -814,7 +782,7 @@ describe('guessed outlets on the landing page', () => {
     expect(hero.get('.hero-live-card [data-testid="outlet-unconfirmed"]').text()).toBe(
       OUTLET_NOT_CONFIRMED,
     )
-    expect(cuisine.get('.landing-food-card [data-testid="outlet-unconfirmed"]').text()).toBe(
+    expect(cuisine.get('.food-deal-card [data-testid="outlet-unconfirmed"]').text()).toBe(
       OUTLET_NOT_CONFIRMED,
     )
   })

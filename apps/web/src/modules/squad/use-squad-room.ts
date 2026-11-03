@@ -1,14 +1,25 @@
 import type { SquadAvatar, SquadEvent, SquadJoin, SquadState } from '@broke-oclock/contracts/squad'
 import { ApiClientError, api } from '@web/lib/api-client'
+import {
+  type ChannelOpener,
+  openRoomChannel,
+  type RoomChannel,
+} from '@web/modules/squad/room-channel'
 import { computed, type InjectionKey, inject, onBeforeUnmount, provide, shallowRef } from 'vue'
 
-// The Makan Squad room the visitor is in, shared by the room panel, the map and the menu. It
-// polls the sync heartbeat, replays other members' taps as effects, and sends the visitor's own
-// taps in small batches so spamming Yay is one request, not twenty. The room survives moving
-// between panels (opening a deal's details, minimising the sheet) because the shell owns it.
+// The Makan Squad room the visitor is in, shared by the room panel, the map and the menu. Other
+// members' taps arrive live on the room's channel and play as effects at once; the full room
+// state is then re-read once the burst settles. The sync heartbeat runs slowly while the channel
+// is live and becomes the polling fallback when it is not. The visitor's own taps go in small
+// batches so spamming Yay is one request, not twenty. The room survives moving between panels
+// (opening a deal's details, minimising the sheet) because the shell owns it.
 
 export const POLL_MS = 1500
 const SLOW_POLL_MS = 5000
+// With the channel live the heartbeat only says "still here"; it must beat AWAY_AFTER_MS (40s).
+export const HEARTBEAT_MS = 15_000
+// Pushed effects play at once; the state behind them is re-read once a burst of taps settles.
+export const REFRESH_AFTER_PUSH_MS = 350
 const TAP_BATCH_MS = 220
 // After this many failed polls in a row the room says the connection was lost.
 const LOST_AFTER_FAILURES = 3
@@ -42,7 +53,7 @@ export const messageFor = (error: unknown, fallback: string): string => {
   return fallback
 }
 
-export const createSquadRoom = () => {
+export const createSquadRoom = (openChannel: ChannelOpener = openRoomChannel) => {
   const code = shallowRef<string | null>(readStoredCode())
   const state = shallowRef<SquadState | null>(null)
   const connection = shallowRef<Connection>('ok')
@@ -55,13 +66,21 @@ export const createSquadRoom = () => {
   let pendingTaps: { stance: 'YAY' | 'NAH'; taps: number } | null = null
   let tapTimer: ReturnType<typeof setTimeout> | null = null
   let generation = 0
+  let channel: RoomChannel | null = null
+  let live = false
+  let refreshTimer: ReturnType<typeof setTimeout> | null = null
+  let polling = false
+  let pollAgain = false
 
-  const emit = (events: readonly SquadEvent[], next: SquadState) => {
-    const mine = next.me?.memberId
-    for (const event of events) {
+  // Plays each event once, whether it came pushed or in a sync reply, and in order.
+  const deliver = (events: readonly SquadEvent[], next: SquadState | null) => {
+    const mine = next?.me?.memberId
+    const fresh = events.filter((event) => event.seq > after).sort((a, b) => a.seq - b.seq)
+    for (const event of fresh) {
+      after = event.seq
       // The visitor's own taps already played when they tapped.
       if ((event.kind === 'YAY' || event.kind === 'NAH') && event.memberId === mine) continue
-      for (const listener of listeners) listener(event, next)
+      if (next) for (const listener of listeners) listener(event, next)
     }
   }
 
@@ -74,13 +93,21 @@ export const createSquadRoom = () => {
     const current = code.value
     const started = generation
     if (!current) return
+    // One sync at a time; a push during one asks for a fresh read when it lands.
+    if (polling) {
+      pollAgain = true
+      return
+    }
+    polling = true
     try {
       const response = await api.squad.sync(current, after)
       if (started !== generation) return
       failures = 0
       connection.value = 'ok'
-      emit(after === 0 ? [] : response.events, response.state)
-      after = response.nextSeq
+      // The first sync loads the room without replaying its history.
+      if (after === 0) after = response.nextSeq
+      else deliver(response.events, response.state)
+      after = Math.max(after, response.nextSeq)
       apply(response.state)
     } catch (reason) {
       if (started !== generation) return
@@ -91,21 +118,70 @@ export const createSquadRoom = () => {
         return
       }
       if (failures >= LOST_AFTER_FAILURES) connection.value = 'lost'
+    } finally {
+      if (started === generation) polling = false
+    }
+    if (started !== generation) return
+    if (pollAgain) {
+      pollAgain = false
+      void poll()
+      return
     }
     schedule()
+  }
+
+  // Coalesces a burst of pushes into one state read.
+  const refreshSoon = () => {
+    if (refreshTimer) return
+    refreshTimer = setTimeout(() => {
+      refreshTimer = null
+      void poll()
+    }, REFRESH_AFTER_PUSH_MS)
+  }
+
+  const closeChannel = () => {
+    channel?.close()
+    channel = null
+    live = false
+    if (refreshTimer) clearTimeout(refreshTimer)
+    refreshTimer = null
+  }
+
+  const openChannelFor = (target: string) => {
+    closeChannel()
+    const opened = generation
+    channel = openChannel(target, {
+      onEvents: (events) => {
+        if (opened !== generation) return
+        deliver(events, state.value)
+        refreshSoon()
+      },
+      onLiveChange: (next) => {
+        if (opened !== generation) return
+        live = next
+        // Catch up on anything missed while the channel was down, then pace the heartbeat.
+        void poll()
+      },
+    })
   }
 
   const schedule = () => {
     if (timer) clearTimeout(timer)
     const closed = state.value?.status === 'CLOSED' || state.value?.me?.kicked
-    if (!code.value || closed) return
+    if (!code.value) return
+    if (closed) {
+      closeChannel()
+      return
+    }
     const hidden = typeof document !== 'undefined' && document.visibilityState === 'hidden'
-    timer = setTimeout(() => void poll(), failures > 0 || hidden ? SLOW_POLL_MS : POLL_MS)
+    const delay = live ? HEARTBEAT_MS : failures > 0 || hidden ? SLOW_POLL_MS : POLL_MS
+    timer = setTimeout(() => void poll(), delay)
   }
 
   const stop = () => {
     if (timer) clearTimeout(timer)
     timer = null
+    closeChannel()
   }
 
   // Follows a room by code; the first sync loads it without replaying old effects.
@@ -119,12 +195,17 @@ export const createSquadRoom = () => {
     if (!keepState) state.value = null
     after = 0
     failures = 0
+    polling = false
+    pollAgain = false
     error.value = ''
+    openChannelFor(next)
     void poll()
   }
 
   const forget = () => {
     generation += 1
+    polling = false
+    pollAgain = false
     stop()
     code.value = null
     state.value = null
@@ -187,7 +268,10 @@ export const createSquadRoom = () => {
     if (typeof document !== 'undefined') document.removeEventListener('visibilitychange', onVisible)
   }
 
-  if (code.value) void poll()
+  if (code.value) {
+    openChannelFor(code.value)
+    void poll()
+  }
 
   return {
     code,

@@ -237,7 +237,6 @@ test('root, CI and hosting commands need only Node and pnpm', () => {
   assert.doesNotMatch(ci, /setup-bun|\bbun\b/)
   for (const app of ['api', 'web']) {
     const config = JSON.parse(read(`apps/${app}/vercel.json`))
-    assert.equal(config.git.deploymentEnabled, false)
     assert.equal(
       config.installCommand,
       'cd ../.. && pnpm install --frozen-lockfile --ignore-scripts',

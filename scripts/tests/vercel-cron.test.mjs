@@ -9,12 +9,18 @@ const root = fileURLToPath(new URL('../../', import.meta.url))
 const daily = [{ path: '/api/ingestion/scheduled-runs', schedule: '0 0 * * *' }]
 const json = async (path) => JSON.parse(await readFile(join(root, path), 'utf8'))
 
-test('keeps automatic Git deployments disabled without a web or GitHub scheduler', async () => {
-  const api = await json('apps/api/vercel.json')
+for (const app of ['api', 'web']) {
+  test(`${app} enables automatic Git deployments only for main`, async () => {
+    const config = await json(`apps/${app}/vercel.json`)
+    // Vercel uses minimatch: ** also denies slash-separated branches.
+    // A matching true rule takes precedence, so only the exact main branch is enabled.
+    assert.deepEqual(config.git.deploymentEnabled, { '**': false, main: true })
+  })
+}
+
+test('keeps scheduling out of the web project and GitHub Actions', async () => {
   const web = await json('apps/web/vercel.json')
   assert.equal(web.crons, undefined)
-  assert.equal(api.git.deploymentEnabled, false)
-  assert.equal(web.git.deploymentEnabled, false)
   await assert.rejects(stat(join(root, '.github/workflows/ingestion-hourly.yml')), {
     code: 'ENOENT',
   })
@@ -73,5 +79,7 @@ test('real API build declares exactly one daily cron across source and output', 
     launcherType: 'Nodejs',
     shouldAddHelpers: true,
     maxDuration: 300,
+    // Beside the Singapore MongoDB Atlas cluster; each query is a round trip to it.
+    regions: ['sin1'],
   })
 })

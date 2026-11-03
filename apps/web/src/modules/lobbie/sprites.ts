@@ -1,6 +1,12 @@
 import type { DealPin } from '@broke-oclock/contracts/deals'
 
-export type LobbieSprite = 'hello' | 'thinking' | 'deal-found'
+export type LobbieSprite =
+  | 'hello'
+  | 'thinking'
+  | 'deal-found'
+  | 'idle-peek'
+  | 'password-hidden'
+  | 'password-shown'
 
 export const lobbieSpriteUrl = (sprite: LobbieSprite): string => `/chatbot-sprites/${sprite}.svg`
 
