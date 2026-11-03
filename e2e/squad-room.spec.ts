@@ -278,28 +278,3 @@ test('leaving asks first, and the room can be rejoined while open', async ({ pag
   await page.getByTestId('squad-rejoin').click()
   await expect(page.getByTestId('squad-yay')).toBeVisible()
 })
-
-test('live room screens for review', async ({ page }, info) => {
-  test.setTimeout(120_000)
-  // 393×660 is an iPhone 14 Pro in Safari once its bars take their share.
-  for (const [width, height] of [
-    [390, 844],
-    [393, 660],
-    [834, 844],
-    [1280, 844],
-  ] as const) {
-    await page.setViewportSize({ width, height })
-    await page.unrouteAll()
-    await mockPublicApi(page)
-    await mockSignedIn(page)
-    const room = await mockRoom(page)
-    await openRoom(page)
-    for (const _ of [1, 2]) await page.getByTestId('squad-yay').click()
-    await page.waitForTimeout(700)
-    await page.screenshot({ path: info.outputPath(`squad-voting-${width}x${height}.png`) })
-    room.others('YAY', null)
-    await expect(page.getByTestId('squad-match')).toBeVisible({ timeout: 5000 })
-    await page.waitForTimeout(600)
-    await page.screenshot({ path: info.outputPath(`squad-match-${width}x${height}.png`) })
-  }
-})

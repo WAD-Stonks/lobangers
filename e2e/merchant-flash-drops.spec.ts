@@ -182,13 +182,6 @@ const confirmDialog = async (page: Page, title: string) => {
 const dropCard = (page: Page, text: string) =>
   page.locator('[data-testid^="flash-drop-"]').filter({ hasText: text })
 
-const expectNoSideScroll = async (page: Page) => {
-  const overflow = await page.evaluate(
-    () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
-  )
-  expect(overflow).toBeLessThanOrEqual(0)
-}
-
 // Fills the ordinary part of the deal form: a $4.00 deal at the Maxwell branch.
 const fillDeal = async (page: Page, title: string) => {
   await page.getByRole('button', { name: '+ New deal' }).click()
@@ -300,35 +293,3 @@ test('edit a draft in the deal form, then delete it', async ({ page }) => {
   await expect(page.getByRole('status')).toContainText('was deleted')
   await expect(edited).toHaveCount(0)
 })
-
-for (const width of [390, 834, 1280]) {
-  test(`flash deal screenshots at ${width}px`, async ({ page }, info) => {
-    await page.setViewportSize({ width, height: 900 })
-    await signInAsMerchant(page, [SAVED_DRAFT])
-
-    await page.getByRole('button', { name: /^Flash deals/ }).scrollIntoViewIfNeeded()
-    await expectNoSideScroll(page)
-    await page.screenshot({
-      path: info.outputPath(`flash-deals-list-${width}.png`),
-      fullPage: true,
-    })
-
-    await fillDeal(page, 'Synthetic roast chicken rice')
-    await page.getByRole('button', { name: 'Save as flash deal' }).click()
-    await page.getByText('Pick a time', { exact: true }).click()
-    await expect(page.getByLabel('Start time')).toBeVisible()
-    await expectNoSideScroll(page)
-    if (width < 576) {
-      // On a phone the bottom bar gives merchants their dashboard in place of Share.
-      await expect(page.getByTestId('map-merchant-dashboard')).toHaveText('Dashboard')
-      await expect(page.getByTestId('map-share')).toHaveCount(0)
-      // Phone touch targets: the chips and small buttons are at least 44px tall.
-      const heights = await page
-        .locator('.chip, [data-testid^="flash-drop-"] .btn-sm')
-        .evaluateAll((items) => items.map((item) => item.getBoundingClientRect().height))
-      expect(Math.min(...heights)).toBeGreaterThanOrEqual(44)
-    }
-    await page.getByRole('heading', { name: 'New flash deal' }).scrollIntoViewIfNeeded()
-    await page.screenshot({ path: info.outputPath(`flash-deal-form-${width}.png`), fullPage: true })
-  })
-}

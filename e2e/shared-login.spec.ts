@@ -47,8 +47,8 @@ for (const width of [390, 1280]) {
     await expect(page.getByRole('heading', { level: 1 })).toHaveCount(1)
     await expect(page.locator('.auth-card')).toHaveCount(0)
     await expect(page.getByRole('link', { name: 'Create an account', exact: true })).toHaveCount(1)
-    await expect(page.getByLabel('Password', { exact: true })).toHaveCount(0)
-    await expect(page.getByTestId('otp-send')).toBeEnabled()
+    // Password sign-in comes first; the email code is the alternative.
+    await expect(page.getByLabel('Password', { exact: true })).toBeVisible()
     await page.getByTestId('google-sign-in').click()
     await expect(page.getByTestId('google-sign-in')).toBeEnabled()
     const destination = new URL('/deals', page.url()).href
@@ -59,6 +59,8 @@ for (const width of [390, 1280]) {
       errorCallbackURL: new URL('/login?redirect=%2Fdeals', page.url()).href,
     })
 
+    await page.getByTestId('use-code').click()
+    await expect(page.getByLabel('Password', { exact: true })).toHaveCount(0)
     await page.getByLabel('Email', { exact: true }).fill('person@example.test')
     await page.getByTestId('otp-send').click()
     await expect(page.getByLabel('Sign-in code', { exact: true })).toBeVisible()

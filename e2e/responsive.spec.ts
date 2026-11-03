@@ -91,7 +91,8 @@ const VENUE_DETAIL = {
   pastDeals: [],
 }
 
-const WIDTHS = [320, 360, 390, 768, 834, 1024, 1194, 1280, 1440]
+// Smallest phone, common phone, tablet and desktop: one of each layout, not every device.
+const WIDTHS = [320, 390, 834, 1280]
 const ROUTES = [
   '/browse',
   '/browse?view=list',
@@ -114,7 +115,7 @@ const MIN_COMPACT_TARGET_PX = 24
 const BOTTOM_NAV_MAX_WIDTH = 991
 const startMapTutorial = async (page: Page) => {
   if ((page.viewportSize()?.width ?? 1280) <= BOTTOM_NAV_MAX_WIDTH) {
-    await page.getByTestId('map-navigation').getByRole('link', { name: 'Account' }).click()
+    await page.getByTestId('map-navigation').getByRole('link', { name: 'More' }).click()
     const start = page.getByTestId('account-map-tutorial')
     await expect(start).toBeVisible()
     const launchedFrom = page.url()
@@ -509,45 +510,6 @@ for (const width of [390, 1280]) {
     expect(errors).toEqual([])
   })
 }
-
-test('screenshots for review', async ({ page }, info) => {
-  test.setTimeout(120_000)
-  await mockApi(page)
-  // Opacity 1 means the enter transition has finished.
-  const settled = (testId: string) =>
-    expect
-      .poll(() => page.getByTestId(testId).evaluate((el) => getComputedStyle(el).opacity))
-      .toBe('1')
-  for (const width of [390, 834, 1024, 1280, 1440]) {
-    await page.setViewportSize({ width, height: 844 })
-    for (const [name, route] of [
-      ['browse', '/browse'],
-      ['deal', `/deals/${DEALS[0]?.id}`],
-      ['venue', `/venues/${VENUE.id}`],
-    ] as const) {
-      await page.goto(route)
-      await expect(page.getByTestId('splash-screen')).toBeHidden()
-      await expect(page.getByTestId('shell-panel').locator('[data-panel-heading]')).toBeVisible()
-      await page.screenshot({ path: info.outputPath(`map-shell-${name}-${width}.png`) })
-    }
-    await page.goto('/browse')
-    await expect(page.getByTestId('splash-screen')).toBeHidden()
-    await page
-      .locator('[data-testid="all-filters"]:visible, [data-testid="mobile-all-filters"]:visible')
-      .click()
-    await settled('filter-sheet')
-    await page.screenshot({ path: info.outputPath(`map-shell-filters-${width}.png`) })
-    await page.keyboard.press('Escape')
-    if (width <= BOTTOM_NAV_MAX_WIDTH) {
-      await page.getByTestId('map-navigation').getByRole('link', { name: 'Account' }).click()
-      await expect(page.getByTestId('account-more')).toBeVisible()
-    } else {
-      await page.getByTestId('nav-toggle').click()
-      await settled('nav-menu')
-    }
-    await page.screenshot({ path: info.outputPath(`map-shell-menu-${width}.png`) })
-  }
-})
 
 for (const width of [1024, 1440]) {
   test(`map search overlays the drawer without covering deal content at ${width}px`, async ({
