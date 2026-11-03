@@ -86,20 +86,80 @@ pnpm --dir apps/api run seed:local-demo
 
 ## 2. Testing the application
 
+The tests cover the customer journey (finding, opening, saving and discussing deals, Squad rooms, flash deals, signing in) plus the merchant and admin flash-deal tools. On an Apple M4 laptop the three suites together take about **8 minutes**:
+
+| Suite | Command | Tests | Time (Apple M4) |
+| --- | --- | --- | --- |
+| Unit | `pnpm run test:unit` | ~2,800 | ~1 min |
+| Integration (API + database) | `pnpm run test:integration` | 439 | ~4 min |
+| End-to-end (browser) | `pnpm run test:e2e` | 103 | ~2–3 min |
+
+Run every command from the repository root, after the install and `pnpm run setup` steps in section 1.
+
 ### Unit testing
-Run the following command in repository root.
+
 ```sh
 pnpm run test:unit
 ```
 
+### Integration testing
+
+```sh
+pnpm run test:integration
+```
+
+These tests start their own temporary in-memory MongoDB, so they never touch the real database. The first run downloads a MongoDB binary (about 100 MB), so it needs an internet connection and takes a little longer.
+
 ### End-to-end testing
-Run the following command in repository root to download the chromium browser. You only need to run this command once.
+
+The end-to-end tests drive a real Chromium browser through the app with [Playwright](https://playwright.dev).
+
+**1. Install the browser (once):**
+
 ```sh
 pnpm exec playwright install chromium
 ```
 
+**2. Run the tests:**
 
-Ensure the application is already running. In a separate terminal, run:
 ```sh
 pnpm run test:e2e
 ```
+
+You do **not** need to start the app, the API or the database first. Playwright starts its own copy of the frontend on port 5180 and the tests supply fake API responses, so results don't depend on live data. Port 5180 must be free; the normal dev server (port 5173) can stay running.
+
+**What you should see:** Playwright prints one line per test as it runs, using several browsers in parallel, and ends with a summary like:
+
+```
+  103 passed (2.2m)
+```
+
+A test that fails once and then passes on its automatic retry is listed as **flaky** rather than failed. This can happen when the laptop is under heavy load, because some map animations are timing-sensitive. The run only fails if a test fails twice.
+
+**To see the results in detail:**
+
+```sh
+pnpm exec playwright show-report
+```
+
+This opens an HTML report with every test, its steps and, for any failure, a screenshot and a trace you can step through. Failure artifacts are also saved under `test-results/`.
+
+To run a single file, pass its path, for example `pnpm exec playwright test e2e/squad-room.spec.ts`.
+
+**What the end-to-end tests cover:**
+
+| File | What it checks |
+| --- | --- |
+| `starter.spec.ts` | Landing page into the deal map, the site menu, the not-found page |
+| `landing-usability.spec.ts` | Landing page navigation, deal cards and controls, retrying after a failed load |
+| `map-shell.spec.ts` | Browsing the map: quick filters, pins to deal details, the filters sheet, venues, denied location, keyboard-only use, Ask Lobbie |
+| `responsive.spec.ts` | Every main page fits phone, tablet and desktop widths with no sideways scrolling; sticky bars, filter popup and the map tutorial |
+| `community.spec.ts` | Voting a deal still on or expired, commenting, deleting and reporting |
+| `squad-lobby.spec.ts` | Starting a Squad room, joining with a code, wrong code, full room, joining while signed out |
+| `squad-room.spec.ts` | Voting on deals together, matches, the host's controls, late joiners, leaving and rejoining |
+| `flash-drop.spec.ts` | Flash deal banners on the map, claiming a code, viewing it in My codes, sold-out drops |
+| `hungry-nearby.spec.ts` | "Lobangers nearby": seeing other diners, sharing and hiding your own spot |
+| `shared-login.spec.ts` | Log in with a password, an email code or Google, and password recovery |
+| `photo-upload.spec.ts` | Uploading a deal photo, and the message shown when storage is unavailable |
+| `merchant-flash-drops.spec.ts` | A merchant drafts, launches, edits, ends and deletes a flash deal |
+| `admin-flash-drops.spec.ts` | An admin reviews and removes live flash deals, including edit conflicts |
