@@ -1,5 +1,7 @@
 import {
   clashes,
+  codeIsActive,
+  codesExpireAt,
   displayStatus,
   distanceMetres,
   newClaimCode,
@@ -84,5 +86,53 @@ describe('newClaimCode', () => {
     let seed = 0
     const code = newClaimCode((max) => (seed++ * 7) % max)
     expect(code).toMatch(/^LB-[A-HJ-NP-Z2-9]{6}$/)
+  })
+})
+
+describe('codesExpireAt', () => {
+  // 6:30 pm in Singapore.
+  const closes = new Date('2026-11-01T10:30:00.000Z')
+
+  it('counts from when claiming closes', () => {
+    expect(codesExpireAt(closes, 'TWO_HOURS').toISOString()).toBe('2026-11-01T12:30:00.000Z')
+    expect(codesExpireAt(closes, 'THREE_DAYS').toISOString()).toBe('2026-11-04T10:30:00.000Z')
+    expect(codesExpireAt(closes, 'SEVEN_DAYS').toISOString()).toBe('2026-11-08T10:30:00.000Z')
+  })
+
+  it('ends a same-day code at 11:59 pm Singapore time', () => {
+    expect(codesExpireAt(closes, 'END_OF_DAY').toISOString()).toBe('2026-11-01T15:59:59.999Z')
+    // 1:00 am in Singapore is already the next Singapore day.
+    const lateNight = new Date('2026-11-01T17:00:00.000Z')
+    expect(codesExpireAt(lateNight, 'END_OF_DAY').toISOString()).toBe('2026-11-02T15:59:59.999Z')
+  })
+})
+
+describe('codeIsActive', () => {
+  const claimed = (overrides: Partial<Parameters<typeof codeIsActive>[0]> = {}) => ({
+    status: 'APPROVED' as const,
+    endsAt: at(-5),
+    codesExpireAt: at(60),
+    ...overrides,
+  })
+
+  it('keeps a code good after claiming closes, until it expires', () => {
+    expect(codeIsActive(claimed(), NOW)).toBe(true)
+    expect(codeIsActive(claimed({ codesExpireAt: at(0) }), NOW)).toBe(false)
+  })
+
+  it('keeps codes from a drop the merchant ended early', () => {
+    expect(codeIsActive(claimed({ status: 'ENDED_EARLY' }), NOW)).toBe(true)
+  })
+
+  it('cancels codes when an admin removes the drop', () => {
+    expect(codeIsActive(claimed({ status: 'STOPPED' }), NOW)).toBe(false)
+  })
+
+  it('ends older codes with their window, as before', () => {
+    expect(codeIsActive(claimed({ codesExpireAt: null }), NOW)).toBe(false)
+    expect(codeIsActive(claimed({ codesExpireAt: null, endsAt: at(5) }), NOW)).toBe(true)
+    expect(
+      codeIsActive(claimed({ codesExpireAt: null, endsAt: at(5), status: 'ENDED_EARLY' }), NOW),
+    ).toBe(false)
   })
 })

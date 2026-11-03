@@ -16,6 +16,7 @@ import {
   summaryLine,
   toFlashDropBody,
   toLocalInput,
+  whenText,
 } from '@web/modules/merchant/flash-drop-rules'
 import { afterEach, describe, expect, it } from 'vitest'
 import { ref } from 'vue'
@@ -26,6 +27,9 @@ enableAutoUnmount(afterEach)
 const NOW = new Date('2026-11-02T10:00:00+08:00')
 const HOUR = 3_600_000
 const USUAL = 350 // the usual price a $1.50 flash price beats
+// When the fixture's codes expire, in words, in whatever time zone the tests run in.
+const CODES_UNTIL = () =>
+  whenText(new Date(NOW.getTime() + 10 * HOUR).toISOString(), NOW).toLowerCase()
 
 const fields = (overrides: Partial<FlashFieldsState> = {}): FlashFieldsState => ({
   ...blankFlashFields(),
@@ -47,6 +51,9 @@ const drop = (overrides: Partial<MerchantFlashDrop> = {}): MerchantFlashDrop => 
   usualPriceCents: USUAL,
   startsAt: new Date(NOW.getTime() + 2 * HOUR).toISOString(),
   endsAt: new Date(NOW.getTime() + 2.5 * HOUR).toISOString(),
+  codeValidity: 'END_OF_DAY',
+  // 8:00 pm today: codes claimed in the window still work this evening.
+  codesExpireAt: new Date(NOW.getTime() + 10 * HOUR).toISOString(),
   radiusMetres: 500,
   codeLimit: 40,
   claimedCount: 0,
@@ -133,9 +140,13 @@ describe('flash deal helpers', () => {
       usualPriceCents: 400,
       startsAt: null,
       durationMinutes: 30,
+      codeValidity: 'END_OF_DAY',
       radiusMetres: 500,
       codeLimit: 40,
     })
+    expect(
+      toFlashDropBody(deal, 'outlet-a', fields({ codeValidity: 'THREE_DAYS' })).codeValidity,
+    ).toBe('THREE_DAYS')
     const startLocal = toLocalInput(new Date(NOW.getTime() + HOUR))
     const timed = toFlashDropBody(deal, 'outlet-a', fields({ startMode: 'LATER', startLocal }))
     expect(timed.startsAt).toBe(new Date(startLocal).toISOString())
@@ -153,6 +164,11 @@ describe('flash deal helpers', () => {
       startMode: 'GO_LIVE',
       startLocal: '',
     })
+    expect(flashFieldsFromDrop(drop({ codeValidity: 'SEVEN_DAYS' })).codeValidity).toBe(
+      'SEVEN_DAYS',
+    )
+    // Older flash deals had no choice; a copy gets the default.
+    expect(flashFieldsFromDrop(drop({ codeValidity: null })).codeValidity).toBe('END_OF_DAY')
   })
 
   it('previews the banner text for each kind of flash offer', () => {
@@ -191,16 +207,20 @@ describe('flash deal helpers', () => {
     )
     expect(statusSentence(drop({ status: 'SCHEDULED' }), NOW)).toMatch(/^Going live today/)
     expect(statusSentence(drop({ status: 'ENDED', claimedCount: 40 }), NOW)).toBe(
-      'All 40 codes claimed.',
+      `All 40 codes claimed. Codes still work until ${CODES_UNTIL()}.`,
     )
     expect(statusSentence(drop({ status: 'ENDED', claimedCount: 12 }), NOW)).toBe(
-      'Ended. 12 of 40 codes claimed.',
+      `Ended. 12 of 40 codes claimed. Codes still work until ${CODES_UNTIL()}.`,
     )
+    const expired = drop({ status: 'ENDED', claimedCount: 12, codesExpireAt: NOW.toISOString() })
+    expect(statusSentence(expired, NOW)).toBe('Ended. 12 of 40 codes claimed.')
     const live = drop({
       status: 'LIVE',
       endsAt: new Date(NOW.getTime() + 20 * 60_000).toISOString(),
     })
-    expect(statusSentence(live, NOW)).toBe('Live now · 20 min left')
+    expect(statusSentence(live, NOW)).toBe(
+      `Live now · 20 min left to claim · codes work until ${CODES_UNTIL()}`,
+    )
     expect(statusSentence(drop({ status: 'STOPPED' }), NOW)).toBe('Removed by LoBangers.')
     expect(STATUS_LABELS.STOPPED).toBe('Removed')
   })
@@ -274,6 +294,13 @@ describe('FlashDealFields', () => {
       'FLASH DROP · $1.50 Synthetic chicken rice · 30:00 · within 1 km',
     )
     expect(model.value).toMatchObject({ usualDollars: 4, codeLimit: 50, radiusMetres: 1000 })
+  })
+
+  it('lets the merchant choose how long claimed codes can be used', async () => {
+    const { wrapper, model } = mountFields()
+    expect(wrapper.get('#flash-codes-valid-END_OF_DAY').element).toHaveProperty('checked', true)
+    await wrapper.get('#flash-codes-valid-THREE_DAYS').setValue(true)
+    expect(model.value.codeValidity).toBe('THREE_DAYS')
   })
 
   it('only asks for a usual price for a fixed flash price', () => {

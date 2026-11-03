@@ -162,6 +162,8 @@ export const flashDrop = (overrides: Record<string, unknown> = {}) => ({
   usualPriceCents: 350,
   startsAt: inMinutes(-5),
   endsAt: inMinutes(25),
+  // Codes outlive the claim window.
+  codesExpireAt: inMinutes(300),
   radiusMetres: 500,
   codesLeft: 12,
   codeLimit: 40,
@@ -172,6 +174,10 @@ export const flashDrop = (overrides: Record<string, unknown> = {}) => ({
 // Live drops, claiming (one code per person) and My codes, kept in memory per page.
 export const mockFlashApi = async (page: Page, drops: readonly ReturnType<typeof flashDrop>[]) => {
   const codes: Record<string, unknown>[] = []
+  // No Pusher here, as on a server without it: the map polls.
+  await page.route('**/api/flash-drops/realtime', (route) =>
+    route.fulfill({ json: { pusher: null } }),
+  )
   await page.route('**/api/flash-drops/active', (route) =>
     route.fulfill({ json: { serverTime: new Date().toISOString(), items: drops } }),
   )
@@ -202,6 +208,7 @@ export const mockFlashApi = async (page: Page, drops: readonly ReturnType<typeof
       flashPriceCents: drop.flashPriceCents,
       claimedAt: new Date().toISOString(),
       endsAt: drop.endsAt,
+      expiresAt: drop.codesExpireAt,
       active: true,
       demo: drop.demo,
     }

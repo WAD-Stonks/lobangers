@@ -1,6 +1,11 @@
 import type { AuthenticatedActor } from '@api/modules/account/security-access'
 import { DomainError } from '@api/modules/domain-error'
-import { displayStatus, isDraft, scheduleWindow } from '@api/modules/flash-drops/policy'
+import {
+  codesExpireAt,
+  displayStatus,
+  isDraft,
+  scheduleWindow,
+} from '@api/modules/flash-drops/policy'
 import {
   type DropRow,
   dropSelect,
@@ -15,7 +20,11 @@ import {
   conflict,
   type Database,
 } from '@api/modules/platform-admin/transaction'
-import type { MerchantFlashDrop, MerchantFlashDropBody } from '@broke-oclock/contracts/flash-drops'
+import {
+  DEFAULT_FLASH_CODE_VALIDITY,
+  type MerchantFlashDrop,
+  type MerchantFlashDropBody,
+} from '@broke-oclock/contracts/flash-drops'
 
 // A merchant's flash deals at outlets they hold a grant for. Saving from the deal form makes a
 // draft (with its own hidden deal); only the merchant sees drafts and only they can edit them.
@@ -25,7 +34,7 @@ import type { MerchantFlashDrop, MerchantFlashDropBody } from '@broke-oclock/con
 const MAX_LISTED = 100
 const MINUTE_MS = 60_000
 
-const requireMerchant = async (database: Database | AccessTransaction, userId: string) => {
+export const requireMerchant = async (database: Database | AccessTransaction, userId: string) => {
   const user = await database.user.findUnique({ where: { id: userId }, select: { role: true } })
   if (user?.role !== 'MERCHANT') throw new DomainError('FORBIDDEN')
 }
@@ -70,6 +79,8 @@ const dropContentOf = (input: MerchantFlashDropBody, window: { startsAt: Date; e
   usualPriceMinor: input.usualPriceCents,
   startsAt: window.startsAt,
   endsAt: window.endsAt,
+  codeValidity: input.codeValidity,
+  codesExpireAt: codesExpireAt(window.endsAt, input.codeValidity),
   startsOnGoLive: input.startsAt === null,
   radiusMetres: input.radiusMetres,
   codeLimit: input.codeLimit,
@@ -202,9 +213,16 @@ export const goLiveMerchantFlashDrop = (
       ? { startsAt: now, endsAt: new Date(now.getTime() + minutes * MINUTE_MS) }
       : scheduleWindow(current.startsAt.toISOString(), minutes, now)
     await refuseOverlap(tx, current.venueId, window, dropId)
+    const validity = current.codeValidity ?? DEFAULT_FLASH_CODE_VALIDITY
     const result = await tx.flashDrop.updateMany({
       where: { id: dropId, version: current.version, status: current.status },
-      data: { ...window, status: 'APPROVED', version: current.version + 1 },
+      data: {
+        ...window,
+        codeValidity: validity,
+        codesExpireAt: codesExpireAt(window.endsAt, validity),
+        status: 'APPROVED',
+        version: current.version + 1,
+      },
     })
     if (result.count !== 1) throw conflict()
     await tx.deal.update({
@@ -242,7 +260,8 @@ export const deleteMerchantFlashDrop = (
     await tx.deal.updateMany({ where: { id: current.dealId }, data: { deletedAt: now } })
   })
 
-// Ends a scheduled or live flash deal early. Ending twice is a no-op.
+// Ends a scheduled or live flash deal early: nobody new can claim it, but codes already claimed
+// keep working until they expire. Ending twice is a no-op.
 export const endMerchantFlashDrop = (
   database: Database,
   actor: AuthenticatedActor,

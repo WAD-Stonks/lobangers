@@ -1,6 +1,12 @@
 <script setup lang="ts">
 import TicketLoading from '@web/components/TicketLoading.vue'
+import { authClient } from '@web/lib/auth-client'
 import { useConfirm } from '@web/lib/use-confirm'
+import {
+  type CloseChannel,
+  coalesce,
+  openMerchantFlashChannel,
+} from '@web/modules/flash-drop/flash-channel'
 import FlashDropList from '@web/modules/merchant/FlashDropList.vue'
 import {
   deleteFlashDrop,
@@ -11,7 +17,7 @@ import {
   type MerchantFlashDrop,
 } from '@web/modules/merchant/flash-drop-api'
 import { whenText } from '@web/modules/merchant/flash-drop-rules'
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 
 // The merchant's own flash deals: drafts (saved from the deal form with "Save as flash deal"),
 // the ones that have gone live, and past ones. Drafts are edited in the deal form, so Edit is
@@ -20,9 +26,15 @@ const emit = defineEmits<{ edit: [drop: MerchantFlashDrop] }>()
 
 // How often the "min left" text and the statuses refresh.
 const TICK_MS = 4000
+// Claims and changes are pushed live; without a live connection, a running flash deal's claim
+// count is re-read this often instead.
+const POLL_MS = 30_000
+// At most one re-read a second however many claims arrive at once.
+const PUSH_REFRESH_MS = 1000
 
 // The dashboard mounts the app's confirm dialog; these ask through it.
 const { ask } = useConfirm()
+const session = authClient.useSession()
 
 const drops = ref<MerchantFlashDrop[]>([])
 const loading = ref(true)
@@ -30,6 +42,8 @@ const errorMessage = ref('')
 const successMessage = ref('')
 const now = ref(new Date())
 const busyId = ref<string | null>(null)
+// True while claims arrive over the live connection.
+const live = ref(false)
 
 const drafts = computed(() => drops.value.filter((drop) => drop.status === 'DRAFT'))
 const running = computed(() =>
@@ -50,6 +64,20 @@ const loadDrops = async () => {
     loading.value = false
   }
 }
+
+// Re-reads the list in place, without the loading state, for live updates and polling. A failed
+// re-read keeps what is shown; the next push or poll tries again.
+let latestRead = 0
+const reloadQuietly = async () => {
+  const read = ++latestRead
+  try {
+    const fresh = await getFlashDrops()
+    if (read === latestRead) drops.value = fresh
+  } catch (error) {
+    console.error('Could not refresh flash deals', error)
+  }
+}
+const pushedReload = coalesce(() => void reloadQuietly(), PUSH_REFRESH_MS)
 
 // Swap one flash deal in the list for its updated copy (or add it at the top if it is new).
 const putDrop = (updated: MerchantFlashDrop) => {
@@ -138,7 +166,10 @@ const remove = async (drop: MerchantFlashDrop) => {
 const endNow = async (drop: MerchantFlashDrop) => {
   const confirmed = await ask({
     title: 'End this flash deal?',
-    body: `“${drop.dealTitle}” ends now and people will stop seeing it.`,
+    body:
+      drop.claimedCount > 0
+        ? `“${drop.dealTitle}” ends now: people stop seeing it and nobody new can claim a code. The ${drop.claimedCount} codes already claimed keep working until ${whenText(drop.codesExpireAt, new Date()).toLowerCase()}.`
+        : `“${drop.dealTitle}” ends now and people will stop seeing it.`,
     confirmLabel: 'End now',
   })
   if (!confirmed) return
@@ -153,20 +184,64 @@ const endNow = async (drop: MerchantFlashDrop) => {
 }
 
 let timer: ReturnType<typeof setInterval> | undefined
+let pollTimer: ReturnType<typeof setInterval> | undefined
+let closeChannel: CloseChannel | null = null
+
+// Listens on the merchant's own channel; a reconnect re-reads, since pushes sent while it was
+// down are lost.
+const listen = (userId: string) => {
+  let connectedBefore = false
+  closeChannel = openMerchantFlashChannel(userId, {
+    onChange: pushedReload,
+    onLiveChange: (next) => {
+      live.value = next
+      if (next && connectedBefore) pushedReload()
+      if (next) connectedBefore = true
+    },
+  })
+}
+const stopListening = () => {
+  closeChannel?.()
+  closeChannel = null
+  live.value = false
+}
+
+watch(
+  () => session.value.data?.user.id ?? null,
+  (userId) => {
+    stopListening()
+    if (userId) listen(userId)
+  },
+  { immediate: true },
+)
+
 onMounted(() => {
   loadDrops()
   timer = setInterval(() => {
     now.value = new Date()
   }, TICK_MS)
+  // The fallback when there is no live connection: only while something is running, and only
+  // while the tab is visible.
+  pollTimer = setInterval(() => {
+    if (!live.value && running.value.length > 0 && !document.hidden) void reloadQuietly()
+  }, POLL_MS)
 })
-onBeforeUnmount(() => clearInterval(timer))
+onBeforeUnmount(() => {
+  clearInterval(timer)
+  clearInterval(pollTimer)
+  stopListening()
+  pushedReload.cancel()
+})
 </script>
 
 <template>
   <section class="mb-4" aria-labelledby="flash-drops-title">
     <div class="d-flex flex-wrap justify-content-between align-items-baseline gap-2 mb-3">
       <h2 id="flash-drops-title" class="h4 mb-0">Flash deals</h2>
-      <span class="small text-secondary">Short, limited-code deals that pop up on the map</span>
+      <span class="small text-secondary">
+        Short, limited-code deals that pop up on the map
+        <span v-if="live" class="live-pill ms-2" data-testid="flash-live-updates"><span class="live-dot" aria-hidden="true" />Live updates</span>
+      </span>
     </div>
 
     <p v-if="errorMessage" class="alert alert-danger" role="alert">{{ errorMessage }}</p>
@@ -203,3 +278,27 @@ onBeforeUnmount(() => clearInterval(timer))
     </template>
   </section>
 </template>
+
+<style scoped>
+/* Shows claims are arriving live, not on a timer. */
+.live-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+  color: var(--ink);
+}
+.live-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--coral);
+  animation: live-pulse 1.6s ease-in-out infinite;
+}
+@keyframes live-pulse {
+  50% { opacity: 0.35; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .live-dot { animation: none; }
+}
+</style>

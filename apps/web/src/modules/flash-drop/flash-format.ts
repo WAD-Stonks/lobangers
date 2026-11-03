@@ -7,6 +7,7 @@ import { formatDistance, formatMoneyMinor } from '@web/lib/format'
 // Keeps a number and its unit ("500 m") on one line.
 const NBSP = '\u00a0'
 const KILOMETRE = 1000
+const DAY_MS = 86_400_000
 const withNbsp = (text: string): string => text.replace(/ /g, NBSP)
 
 export const formatCents = (cents: number): string => formatMoneyMinor(cents)
@@ -21,6 +22,29 @@ export const countdown = (endsAt: string, now: number): string => {
   const seconds = left % 60
   return hours > 0 ? `${hours}:${pad(minutes)}:${pad(seconds)}` : `${minutes}:${pad(seconds)}`
 }
+
+// "Today 6:00 pm", "Tomorrow 12:30 pm", "Yesterday 12:00 pm" or "Sat 7 Nov, 6:00 pm".
+export const whenText = (iso: string, now: Date) => {
+  const date = new Date(iso)
+  const time = date
+    .toLocaleTimeString('en-SG', { hour: 'numeric', minute: '2-digit', hour12: true })
+    .toLowerCase()
+  const dayDiff = Math.round(
+    (new Date(date.toDateString()).getTime() - new Date(now.toDateString()).getTime()) / DAY_MS,
+  )
+  if (dayDiff === 0) return `Today ${time}`
+  if (dayDiff === 1) return `Tomorrow ${time}`
+  if (dayDiff === -1) return `Yesterday ${time}`
+  const day = date.toLocaleDateString('en-SG', { weekday: 'short', day: 'numeric', month: 'short' })
+  return `${day}, ${time}`
+}
+
+// When a claimed code stops working: a countdown in its last hour ("Use within 42:10"),
+// otherwise the time ("Use by today 11:59 pm").
+export const useByText = (expiresAt: string, now: number): string =>
+  new Date(expiresAt).getTime() - now <= 3_600_000
+    ? `Use within ${countdown(expiresAt, now)}`
+    : `Use by ${whenText(expiresAt, new Date(now)).toLowerCase()}`
 
 // "−63%" when the drop beats a known usual price by a whole percent, otherwise null.
 export const savingText = (flashCents: number, usualCents: number | null): string | null => {

@@ -9,14 +9,16 @@ import {
   offerText,
   radiusText,
   savingText,
+  useByText,
 } from '@web/modules/flash-drop/flash-format'
 import { useFlashDrops } from '@web/modules/flash-drop/use-flash-drops'
 import { useToast } from '@web/modules/map-shell/use-toast'
 import { computed, ref } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 
-// The Flash Drop running for this deal, inside the deal panel: price, countdown and codes left,
-// and the button that claims one code. A claimed code shows here and in My codes.
+// The Flash Drop running for this deal, inside the deal panel: price, the countdown to claim,
+// codes left, and the button that claims one code. Claiming is short; a claimed code then works
+// at the counter until it expires, and shows here and in My codes.
 const props = defineProps<{ drop: PublicFlashDrop }>()
 
 const flash = useFlashDrops()
@@ -69,7 +71,7 @@ const claim = async () => {
       <span class="flash-claim__live" aria-hidden="true" />
       <h2 id="flash-claim-title" class="flash-claim__title">Flash drop</h2>
       <span v-if="drop.demo" class="flash-fake">Fake deal</span>
-      <span class="flash-claim__timer"><span class="visually-hidden">Ends in </span>{{ countdown(drop.endsAt, now) }}</span>
+      <span class="flash-claim__timer"><span class="visually-hidden">Claiming closes in </span>{{ countdown(drop.endsAt, now) }}</span>
     </header>
     <p class="flash-claim__price">
       <strong>{{ offerText(drop) || 'Flash deal' }}</strong>
@@ -79,11 +81,14 @@ const claim = async () => {
     <p class="flash-claim__meta">
       {{ codesLeftText(drop) }} of {{ drop.codeLimit }} · for people within {{ radiusText(drop.radiusMetres) }}
     </p>
+    <p v-if="!code" class="flash-claim__meta" data-testid="flash-use-by">
+      Claim before the timer runs out. {{ useByText(drop.codesExpireAt, now) }} at the counter.
+    </p>
 
     <div v-if="code" class="flash-claim__code" data-testid="flash-code">
       <span class="flash-claim__code-label">Your code</span>
       <strong class="flash-claim__code-value" translate="no">{{ code.code }}</strong>
-      <span class="flash-claim__code-note">Show this at the counter before {{ countdown(drop.endsAt, now) }} runs out. It's saved in My codes.</span>
+      <span class="flash-claim__code-note">{{ useByText(code.expiresAt, now) }}. Show it at the counter. It's saved in My codes.</span>
     </div>
     <p v-else-if="ended" class="flash-claim__note" role="status">This drop has ended.</p>
     <p v-else-if="soldOut" class="flash-claim__note" role="status">All the codes have been claimed.</p>

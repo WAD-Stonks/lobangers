@@ -10,10 +10,14 @@ import { listActive } from '@api/rest/routers/flash-drops/handlers/list-active'
 import { listAdminDrops } from '@api/rest/routers/flash-drops/handlers/list-admin-drops'
 import { listCodes } from '@api/rest/routers/flash-drops/handlers/list-codes'
 import { listMerchantDrops } from '@api/rest/routers/flash-drops/handlers/list-merchant-drops'
+import {
+  flashRealtimeConfig,
+  merchantFlashRealtimeAuth,
+} from '@api/rest/routers/flash-drops/handlers/realtime'
 import { updateMerchantDrop } from '@api/rest/routers/flash-drops/handlers/update-merchant-drop'
 import { Router } from 'express'
 
-// Flash deals: public map reads and claims, the merchant's own flash deals (drafts, Go live,
+// Flash deals: public map reads and claims, live update sign-in, the merchant's own flash deals (drafts, Go live,
 // end), and admin removal.
 export const createFlashDropsRouter = (dependencies: RestDependencies): Router => {
   const router = Router()
@@ -22,6 +26,8 @@ export const createFlashDropsRouter = (dependencies: RestDependencies): Router =
     next()
   })
   router.get('/flash-drops/active', listActive(dependencies))
+  router.get('/flash-drops/realtime', flashRealtimeConfig(dependencies))
+  router.post('/merchant/flash-drops/realtime/auth', merchantFlashRealtimeAuth(dependencies))
   router.get('/flash-drops/codes', listCodes(dependencies))
   router.post('/flash-drops/:dropId/claims', claimCode(dependencies))
   router.get('/merchant/flash-drops', listMerchantDrops(dependencies))
@@ -33,6 +39,8 @@ export const createFlashDropsRouter = (dependencies: RestDependencies): Router =
   router.get('/admin/flash-drops', listAdminDrops(dependencies))
   router.post('/admin/flash-drops/:dropId/decision', decideAdminDrop(dependencies))
   router.all('/flash-drops/active', methodNotAllowed('GET'))
+  router.all('/flash-drops/realtime', methodNotAllowed('GET'))
+  router.all('/merchant/flash-drops/realtime/auth', methodNotAllowed('POST'))
   router.all('/flash-drops/codes', methodNotAllowed('GET'))
   router.all('/flash-drops/:dropId/claims', methodNotAllowed('POST'))
   router.all('/merchant/flash-drops', methodNotAllowed('GET', 'POST'))

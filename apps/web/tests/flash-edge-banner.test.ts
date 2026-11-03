@@ -11,6 +11,7 @@ const banner = {
     venueName: 'Synthetic Jurong Hawker',
     flashPriceCents: 150,
     endsAt: new Date(NOW + 25 * 60_000).toISOString(),
+    codesExpireAt: new Date(NOW + 3 * 3_600_000).toISOString(),
   },
   point: { x: 488, y: 340, angle: 180 },
   distanceMetres: 20_500,

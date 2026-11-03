@@ -2,7 +2,7 @@
 import type { FlashCode } from '@broke-oclock/contracts/flash-drops'
 import TicketLoading from '@web/components/TicketLoading.vue'
 import { authClient } from '@web/lib/auth-client'
-import { countdown, offerTitle } from '@web/modules/flash-drop/flash-format'
+import { offerTitle, useByText } from '@web/modules/flash-drop/flash-format'
 import { useFlashDrops } from '@web/modules/flash-drop/use-flash-drops'
 import PanelFrame from '@web/modules/map-shell/PanelFrame.vue'
 import { dealLocation } from '@web/modules/map-shell/shell-routes'
@@ -10,14 +10,15 @@ import { computed, onMounted, ref } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 
 // Every Flash Drop code the visitor has claimed: the ones still good first, ready to show at
-// the counter, then the ones whose drop has ended.
+// the counter, then the ones that have expired or were cancelled. A code outlives the short
+// claim window and works until its own expiry.
 const flash = useFlashDrops()
 const session = authClient.useSession()
 const route = useRoute()
 
 const signedIn = computed(() => !!session.value.data)
 const now = computed(() => flash?.now.value ?? Date.now())
-const isActive = (code: FlashCode) => code.active && new Date(code.endsAt).getTime() > now.value
+const isActive = (code: FlashCode) => code.active && new Date(code.expiresAt).getTime() > now.value
 const active = computed(() => (flash?.codes.value ?? []).filter(isActive))
 const past = computed(() => (flash?.codes.value ?? []).filter((code) => !isActive(code)))
 const loginTo = computed(() => ({ name: 'login', query: { redirect: route.fullPath } }))
@@ -61,7 +62,7 @@ onMounted(load)
             <li v-for="code in active" :key="code.dropId" class="my-codes__card" data-testid="my-code">
               <div class="my-codes__top">
                 <span class="my-codes__value" translate="no">{{ code.code }}</span>
-                <span class="my-codes__timer"><span class="visually-hidden">Ends in </span>{{ countdown(code.endsAt, now) }}</span>
+                <span class="my-codes__timer">{{ useByText(code.expiresAt, now) }}</span>
               </div>
               <RouterLink class="my-codes__deal lb-text-wrap" :to="dealLocation(route.query, code.dealId)">
                 {{ offerTitle(code) }}
@@ -73,7 +74,7 @@ onMounted(load)
           </ul>
         </section>
         <section v-if="past.length" aria-labelledby="codes-past">
-          <h2 id="codes-past" class="my-codes__heading">Ended</h2>
+          <h2 id="codes-past" class="my-codes__heading">Expired</h2>
           <ul class="my-codes__list">
             <li v-for="code in past" :key="code.dropId" class="my-codes__card my-codes__card--past">
               <span class="my-codes__value" translate="no"><s>{{ code.code }}</s></span>

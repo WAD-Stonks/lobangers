@@ -39,6 +39,7 @@ type Body = Record<string, unknown> & {
   usualPriceCents: number | null
   startsAt: string | null
   durationMinutes: number
+  codeValidity: MerchantFlashDrop['codeValidity']
   radiusMetres: number
   codeLimit: number
 }
@@ -59,6 +60,10 @@ const toDrop = (id: string, body: Body, version: number): MerchantFlashDrop => {
     usualPriceCents: body.usualPriceCents,
     startsAt,
     endsAt: new Date(Date.parse(startsAt) + body.durationMinutes * 60_000).toISOString(),
+    codeValidity: body.codeValidity,
+    codesExpireAt: new Date(
+      Date.parse(startsAt) + body.durationMinutes * 60_000 + 2 * 3_600_000,
+    ).toISOString(),
     radiusMetres: body.radiusMetres,
     codeLimit: body.codeLimit,
     claimedCount: 0,
@@ -96,6 +101,7 @@ const SAVED_DRAFT = toDrop(
     outletId: hex(1),
     startsAt: null,
     durationMinutes: 30,
+    codeValidity: 'END_OF_DAY',
     radiusMetres: 500,
     codeLimit: 40,
   },
@@ -121,6 +127,8 @@ const signInAsMerchant = async (page: Page, drafts: MerchantFlashDrop[] = []) =>
       return json({ user: SYNTHETIC_MERCHANT, session: { expiresAt: SYNTHETIC_SESSION.expiresAt } })
     if (path === '/api/merchant/outlets') return json({ items: SYNTHETIC_OUTLETS })
     if (path === '/api/merchant/deals') return json({ items: [] })
+    // No Pusher here, as on a server without it: the dashboard polls.
+    if (path === '/api/flash-drops/realtime') return json({ pusher: null })
     if (path.startsWith('/api/merchant/flash-drops')) state.requests.push({ method, path, body })
     if (path === '/api/merchant/flash-drops' && method === 'GET') return json({ items: drops })
     if (path === '/api/merchant/flash-drops' && method === 'POST') {
