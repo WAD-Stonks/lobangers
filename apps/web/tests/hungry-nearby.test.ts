@@ -11,6 +11,7 @@ import {
   NEARBY_PREFS_KEY,
   parsePrefs,
   readPrefs,
+  shouldAskToShare,
   writePrefs,
 } from '@web/modules/hungry-nearby/nearby-prefs'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -40,22 +41,33 @@ describe('nearby prefs', () => {
     vi.restoreAllMocks()
   })
 
+  it('looks by default but never shares until asked', () => {
+    expect(DEFAULT_PREFS).toEqual({ looking: true, sharing: false, avatar: null, asked: false })
+  })
+
   it('reads only well-formed choices and never shares without looking', () => {
     expect(parsePrefs(null)).toEqual(DEFAULT_PREFS)
     expect(parsePrefs('not json')).toEqual(DEFAULT_PREFS)
-    expect(parsePrefs('[1]')).toEqual({ looking: false, sharing: false, avatar: null })
-    expect(parsePrefs('{"looking":true,"sharing":true,"avatar":"teh"}')).toEqual({
+    expect(parsePrefs('[1]')).toEqual(DEFAULT_PREFS)
+    expect(parsePrefs('{"looking":true,"sharing":true,"avatar":"teh","asked":true}')).toEqual({
       looking: true,
       sharing: true,
       avatar: 'teh',
+      asked: true,
     })
-    expect(parsePrefs('{"looking":false,"sharing":true,"avatar":"cat"}')).toEqual(DEFAULT_PREFS)
+    // Someone who turned it off stays off, and is never asked again.
+    expect(parsePrefs('{"looking":false,"sharing":true,"avatar":"cat"}')).toEqual({
+      looking: false,
+      sharing: false,
+      avatar: null,
+      asked: false,
+    })
   })
 
   it('round-trips through storage', () => {
-    writePrefs({ looking: true, sharing: false, avatar: 'ondeh' })
+    writePrefs({ looking: true, sharing: false, avatar: 'ondeh', asked: true })
     expect(window.localStorage.getItem(NEARBY_PREFS_KEY)).toContain('ondeh')
-    expect(readPrefs()).toEqual({ looking: true, sharing: false, avatar: 'ondeh' })
+    expect(readPrefs()).toEqual({ looking: true, sharing: false, avatar: 'ondeh', asked: true })
   })
 
   it('keeps working when storage throws', () => {
@@ -67,7 +79,25 @@ describe('nearby prefs', () => {
     })
     vi.spyOn(console, 'warn').mockImplementation(() => undefined)
     expect(readPrefs()).toEqual(DEFAULT_PREFS)
-    expect(() => writePrefs({ looking: true, sharing: true, avatar: null })).not.toThrow()
+    expect(() =>
+      writePrefs({ looking: true, sharing: true, avatar: null, asked: true }),
+    ).not.toThrow()
+  })
+})
+
+describe('asking to show yourself', () => {
+  const ready = { signedIn: true, located: true, looking: true, sharing: false, asked: false }
+
+  it('asks a signed-in, located looker who has not answered yet', () => {
+    expect(shouldAskToShare(ready)).toBe(true)
+  })
+
+  it('never asks twice, nor anyone signed out, unlocated, hidden by choice or already shown', () => {
+    expect(shouldAskToShare({ ...ready, asked: true })).toBe(false)
+    expect(shouldAskToShare({ ...ready, signedIn: false })).toBe(false)
+    expect(shouldAskToShare({ ...ready, located: false })).toBe(false)
+    expect(shouldAskToShare({ ...ready, looking: false })).toBe(false)
+    expect(shouldAskToShare({ ...ready, sharing: true })).toBe(false)
   })
 })
 
