@@ -8,7 +8,19 @@ import {
 
 // Pure Flash Drop rules, shared by the merchant, admin and public handlers.
 
-export type StoredStatus = 'PENDING' | 'APPROVED' | 'SENT_BACK' | 'STOPPED' | 'ENDED_EARLY'
+export type StoredStatus =
+  | 'DRAFT'
+  | 'PENDING'
+  | 'APPROVED'
+  | 'SENT_BACK'
+  | 'STOPPED'
+  | 'ENDED_EARLY'
+
+// Drafts the merchant can still edit and send live. PENDING and SENT_BACK are left over from the
+// old admin review flow and are treated as drafts.
+export const DRAFT_STATUSES = ['DRAFT', 'PENDING', 'SENT_BACK'] as const
+export const isDraft = (status: StoredStatus) =>
+  (DRAFT_STATUSES as readonly StoredStatus[]).includes(status)
 
 export type DropTiming = {
   status: StoredStatus
@@ -27,25 +39,24 @@ const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
 const CODE_LENGTH = 6
 
 export const displayStatus = (drop: DropTiming, now: Date): FlashDropDisplayStatus => {
-  if (drop.status === 'SENT_BACK') return 'SENT_BACK'
+  // A draft stays a draft until the merchant presses Go live, even once its saved time passes.
+  if (isDraft(drop.status)) return 'DRAFT'
   if (drop.status === 'STOPPED') return 'STOPPED'
   if (drop.status === 'ENDED_EARLY') return 'ENDED'
-  // A drop nobody reviewed before its window closed simply never ran.
   if (drop.endsAt <= now) return 'ENDED'
-  if (drop.status === 'PENDING') return 'IN_REVIEW'
   if (drop.startsAt > now) return 'SCHEDULED'
   return drop.claimedCount >= drop.codeLimit ? 'ENDED' : 'LIVE'
 }
 
-const VIEW_OF: Record<FlashDropDisplayStatus, FlashDropView> = {
-  IN_REVIEW: 'review',
+// Which admin tab a flash deal shows in; drafts are the merchant's own and show in none.
+const VIEW_OF: Record<FlashDropDisplayStatus, FlashDropView | null> = {
+  DRAFT: null,
   SCHEDULED: 'scheduled',
   LIVE: 'live',
   ENDED: 'ended',
-  SENT_BACK: 'ended',
   STOPPED: 'ended',
 }
-export const viewOf = (status: FlashDropDisplayStatus): FlashDropView => VIEW_OF[status]
+export const viewOf = (status: FlashDropDisplayStatus): FlashDropView | null => VIEW_OF[status]
 
 export const isLive = (drop: DropTiming, now: Date) => displayStatus(drop, now) === 'LIVE'
 
@@ -71,13 +82,14 @@ export const clashes = (a: Placed, b: Placed): boolean =>
 
 export const manyCodes = (codeLimit: number) => codeLimit > FLASH_DROP_MANY_CODES
 
-// The window a merchant asked for, or a clear reason it cannot run.
+// The window a merchant asked for, or a clear reason it cannot run. Checked when a draft is
+// saved and again when it goes live, since a saved time can pass while it waits.
 export const scheduleWindow = (startsAtIso: string, durationMinutes: number, now: Date) => {
   const startsAt = new Date(startsAtIso)
   if (startsAt.getTime() < now.getTime() - START_GRACE_MS)
-    throw new DomainError('BAD_REQUEST', 'A flash drop cannot start in the past')
+    throw new DomainError('BAD_REQUEST', 'A flash deal cannot start in the past')
   if (startsAt.getTime() > now.getTime() + FLASH_DROP_MAX_LEAD_DAYS * DAY_MS)
-    throw new DomainError('BAD_REQUEST', 'A flash drop can start at most a week from now')
+    throw new DomainError('BAD_REQUEST', 'A flash deal can start at most a week from now')
   // "Start now" begins at the moment it is sent, never a minute in the past.
   const start = startsAt < now ? now : startsAt
   return { startsAt: start, endsAt: new Date(start.getTime() + durationMinutes * MINUTE_MS) }

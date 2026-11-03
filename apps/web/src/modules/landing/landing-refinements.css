@@ -1093,15 +1093,11 @@
   }
 }
 
-/* Four deals per carousel page: one row on desktop, a 2 × 2 block at 1100px and below (phones
-   included). This replaces the old resize listener and inline column count. */
+/* One row per carousel page: CuisineDiscovery.vue sets --deal-columns to as many cards as fit
+   the width (two to five), so the cards stay close to the All Deals size at every width. */
 .lobangers-landing .cuisine-discovery .landing-deal-grid {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-}
-@media (max-width: 1100px) {
-  .lobangers-landing .cuisine-discovery .landing-deal-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
+  grid-template-columns: repeat(var(--deal-columns, 5), minmax(0, 1fr));
+  gap: 20px;
 }
 
 /* Touch screens: block-level links reach 44px, and the stacked card links get 24px each. */

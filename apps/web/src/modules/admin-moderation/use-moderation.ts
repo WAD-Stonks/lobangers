@@ -6,7 +6,15 @@ import type {
 import { type AdminAttempt, adminRecovery, onAdminIdentityEnd } from '@web/lib/admin-recovery'
 import { api } from '@web/lib/api-client'
 import { computed, onMounted, onUnmounted, ref, shallowRef } from 'vue'
-export const useModeration = (denied: (code: 'UNAUTHORIZED' | 'FORBIDDEN') => void) => {
+
+type ModerationSelection =
+  | { kind: 'report'; targetType: ModerationTargetType; id: string }
+  | { kind: 'comment'; id: string }
+
+export const useModeration = (
+  denied: (code: 'UNAUTHORIZED' | 'FORBIDDEN') => void,
+  options: { autoLoad?: boolean } = {},
+) => {
   const mode = ref<'REPORTS' | 'COMMENTS'>('REPORTS'),
     targetType = ref<ModerationTargetType>('COMMENT'),
     status = ref<'OPEN' | 'RESOLVED' | 'DISMISSED'>('OPEN'),
@@ -19,6 +27,7 @@ export const useModeration = (denied: (code: 'UNAUTHORIZED' | 'FORBIDDEN') => vo
     comment = shallowRef<ModerationComment | null>(null)
   const nextCursor = ref<string | null>(null),
     loading = ref(false),
+    queueFailed = ref(false),
     detailLoading = ref(false),
     pending = ref(false),
     error = ref(''),
@@ -46,6 +55,9 @@ export const useModeration = (denied: (code: 'UNAUTHORIZED' | 'FORBIDDEN') => vo
     detailLoading.value = false
     resetConsent()
   }
+  const clearSelection = () => {
+    if (!pending.value) clear()
+  }
   const close = () => {
     listGeneration++
     clear()
@@ -55,6 +67,7 @@ export const useModeration = (denied: (code: 'UNAUTHORIZED' | 'FORBIDDEN') => vo
     recovery.close()
     pending.value = false
     loading.value = false
+    queueFailed.value = false
     error.value = ''
     notice.value = ''
     versions.clear()
@@ -82,9 +95,10 @@ export const useModeration = (denied: (code: 'UNAUTHORIZED' | 'FORBIDDEN') => vo
     ...(dealId.value.trim() ? { dealId: dealId.value.trim() } : {}),
   })
   const load = async (more = false) => {
-    if (pending.value) return
+    if (!alive || !recovery.current() || pending.value) return
     const ticket = ++listGeneration
     loading.value = true
+    queueFailed.value = false
     error.value = ''
     if (!more) {
       clear()
@@ -121,15 +135,20 @@ export const useModeration = (denied: (code: 'UNAUTHORIZED' | 'FORBIDDEN') => vo
         clear()
         error.value = 'Selected evidence changed. Inspect it again.'
       }
+      return true
     } catch (e) {
-      if (alive && recovery.current() && ticket === listGeneration && !rejectAccess(e))
+      if (alive && recovery.current() && ticket === listGeneration && !rejectAccess(e)) {
+        queueFailed.value = true
         error.value = 'Unable to load queue. Check filters and retry.'
+      }
     } finally {
       if (alive && recovery.current() && ticket === listGeneration) loading.value = false
     }
   }
-  const inspect = async (row: ModerationReport | ModerationComment) => {
-    if (pending.value) return
+  const inspectTarget = async (target: ModerationSelection) => {
+    if (!alive || !recovery.current() || pending.value) return
+    const expectedKey =
+      target.kind === 'report' ? `REPORT:${target.targetType}:${target.id}` : `COMMENT:${target.id}`
     const ticket = ++detailGeneration
     report.value = null
     comment.value = null
@@ -138,16 +157,16 @@ export const useModeration = (denied: (code: 'UNAUTHORIZED' | 'FORBIDDEN') => vo
     resetConsent()
     try {
       const r =
-        'targetType' in row
-          ? await api.adminModeration.report(row.targetType, row.id)
-          : await api.adminModeration.comment(row.id)
+        target.kind === 'report'
+          ? await api.adminModeration.report(target.targetType, target.id)
+          : await api.adminModeration.comment(target.id)
       if (!alive || !recovery.current() || ticket !== detailGeneration) return
+      if (key(r) !== expectedKey) return
       if (!accept(r)) {
         error.value = 'Older evidence ignored. Refresh the queue.'
         return
       }
       const lock = locks.get(key(r))
-      if (key(r) !== key(row)) return
       if (lock && !lock.pending && r.moderationVersion > lock.version) locks.delete(key(r))
       if ('targetType' in r) report.value = r
       else comment.value = r
@@ -159,6 +178,15 @@ export const useModeration = (denied: (code: 'UNAUTHORIZED' | 'FORBIDDEN') => vo
       if (alive && recovery.current() && ticket === detailGeneration) detailLoading.value = false
     }
   }
+  const inspect = (row: ModerationReport | ModerationComment) =>
+    inspectTarget(
+      'targetType' in row
+        ? { kind: 'report', targetType: row.targetType, id: row.id }
+        : { kind: 'comment', id: row.id },
+    )
+  const inspectReport = (targetType: ModerationTargetType, id: string) =>
+    inspectTarget({ kind: 'report', targetType, id })
+  const inspectComment = (id: string) => inspectTarget({ kind: 'comment', id })
   const lockMessage = computed(() => {
     const s = selected.value
     if (!s) return ''
@@ -260,7 +288,9 @@ export const useModeration = (denied: (code: 'UNAUTHORIZED' | 'FORBIDDEN') => vo
       if (alive) pending.value = false
     }
   }
-  onMounted(() => load())
+  onMounted(() => {
+    if (options.autoLoad !== false) void load()
+  })
   onUnmounted(() => {
     alive = false
     unsubscribe()
@@ -279,6 +309,7 @@ export const useModeration = (denied: (code: 'UNAUTHORIZED' | 'FORBIDDEN') => vo
     comment,
     nextCursor,
     loading,
+    queueFailed,
     detailLoading,
     pending,
     error,
@@ -291,7 +322,10 @@ export const useModeration = (denied: (code: 'UNAUTHORIZED' | 'FORBIDDEN') => vo
     lockMessage,
     load,
     inspect,
+    inspectReport,
+    inspectComment,
     submit,
     resetConsent,
+    clearSelection,
   }
 }

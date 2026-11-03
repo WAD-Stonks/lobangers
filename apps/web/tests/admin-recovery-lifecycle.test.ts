@@ -298,6 +298,12 @@ afterEach(async () => {
 })
 
 const mountedCases = ['catalogue', 'create', 'deals', 'moderation'] as const
+const taskPath = (kind: (typeof mountedCases)[number]) =>
+  kind === 'deals'
+    ? '/admin/deals'
+    : kind === 'moderation'
+      ? '/admin/moderation'
+      : '/admin/catalogue'
 const originalPage = async (kind: (typeof mountedCases)[number]) =>
   kind === 'deals'
     ? (await import('@web/pages/AdminDealsPage.vue')).default
@@ -339,14 +345,14 @@ it.each(mountedCases)(
     const router = createRouter({
       history: createMemoryHistory(),
       routes: [
-        { path: '/admin/catalogue', component: Page },
+        { path: taskPath(kind), component: Page },
         {
           path: '/admin/audit',
           component: defineComponent({ template: '<p>Outside protected content</p>' }),
         },
       ],
     })
-    await router.push('/admin/catalogue')
+    await router.push(taskPath(kind))
     await router.isReady()
     const w = mount(RouterView, { global: { plugins: [router] } })
     let release = () => {}
@@ -361,7 +367,7 @@ it.each(mountedCases)(
       await flushPromises()
       await flushPromises()
       expect(w.text()).not.toContain('PRIVATE NEW')
-      await router.push('/admin/catalogue')
+      await router.push(taskPath(kind))
       await flushPromises()
       await act(w, kind)
       expect(writes, 'pending attempt must exist before response').toHaveLength(1)
@@ -385,14 +391,14 @@ it.each(mountedCases)(
     const router = createRouter({
       history: createMemoryHistory(),
       routes: [
-        { path: '/admin/catalogue', component: Page },
+        { path: taskPath(kind), component: Page },
         {
           path: '/admin/audit',
           component: defineComponent({ template: '<p>Outside protected content</p>' }),
         },
       ],
     })
-    await router.push('/admin/catalogue')
+    await router.push(taskPath(kind))
     await router.isReady()
     const w = mount(RouterView, { global: { plugins: [router] } })
     try {
@@ -402,7 +408,7 @@ it.each(mountedCases)(
       await w.get('a[href="/admin/audit"]').trigger('click')
       await flushPromises()
       await flushPromises()
-      await router.push('/admin/catalogue')
+      await router.push(taskPath(kind))
       await flushPromises()
       await act(w, kind)
       expect(writes).toHaveLength(1)

@@ -6,6 +6,7 @@ import {
   codesLeftText,
   countdown,
   formatCents,
+  offerText,
   radiusText,
   savingText,
 } from '@web/modules/flash-drop/flash-format'
@@ -30,7 +31,13 @@ const now = computed(() => flash?.now.value ?? Date.now())
 const code = computed<FlashCode | null>(() => flash?.codeForDrop(props.drop.id) ?? null)
 const ended = computed(() => new Date(props.drop.endsAt).getTime() <= now.value)
 const soldOut = computed(() => props.drop.codesLeft <= 0)
-const saving = computed(() => savingText(props.drop.flashPriceCents, props.drop.usualPriceCents))
+// A saving and a crossed-out usual price only make sense for a fixed flash price.
+const fixedPrice = computed(() =>
+  props.drop.offerType === 'FIXED_PRICE' ? props.drop.flashPriceCents : null,
+)
+const saving = computed(() =>
+  fixedPrice.value === null ? null : savingText(fixedPrice.value, props.drop.usualPriceCents),
+)
 const loginTo = computed(() => ({ name: 'login', query: { redirect: route.fullPath } }))
 
 const messageFor = (reason: unknown) => {
@@ -65,8 +72,8 @@ const claim = async () => {
       <span class="flash-claim__timer"><span class="visually-hidden">Ends in </span>{{ countdown(drop.endsAt, now) }}</span>
     </header>
     <p class="flash-claim__price">
-      <strong>{{ formatCents(drop.flashPriceCents) }}</strong>
-      <s v-if="drop.usualPriceCents"><span class="visually-hidden">Usual price </span>{{ formatCents(drop.usualPriceCents) }}</s>
+      <strong>{{ offerText(drop) || 'Flash deal' }}</strong>
+      <s v-if="fixedPrice !== null && drop.usualPriceCents"><span class="visually-hidden">Usual price </span>{{ formatCents(drop.usualPriceCents) }}</s>
       <span v-if="saving" class="flash-claim__saving">{{ saving }}</span>
     </p>
     <p class="flash-claim__meta">

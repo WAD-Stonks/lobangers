@@ -30,25 +30,24 @@ describe('displayStatus', () => {
     expect(displayStatus(drop({ claimedCount: 40 }), NOW)).toBe('ENDED')
   })
 
-  it('keeps review outcomes, and closes a drop nobody reviewed in time', () => {
-    expect(displayStatus(drop({ status: 'PENDING', startsAt: at(30), endsAt: at(60) }), NOW)).toBe(
-      'IN_REVIEW',
+  it('keeps a draft a draft until Go live, even after its saved time passes', () => {
+    expect(displayStatus(drop({ status: 'DRAFT', startsAt: at(30), endsAt: at(60) }), NOW)).toBe(
+      'DRAFT',
     )
-    expect(displayStatus(drop({ status: 'PENDING', endsAt: at(-1) }), NOW)).toBe('ENDED')
-    expect(displayStatus(drop({ status: 'SENT_BACK' }), NOW)).toBe('SENT_BACK')
+    expect(displayStatus(drop({ status: 'DRAFT', endsAt: at(-1) }), NOW)).toBe('DRAFT')
+    // Left over from the old review flow: both read as drafts.
+    expect(displayStatus(drop({ status: 'PENDING' }), NOW)).toBe('DRAFT')
+    expect(displayStatus(drop({ status: 'SENT_BACK' }), NOW)).toBe('DRAFT')
     expect(displayStatus(drop({ status: 'STOPPED' }), NOW)).toBe('STOPPED')
     expect(displayStatus(drop({ status: 'ENDED_EARLY' }), NOW)).toBe('ENDED')
   })
 
-  it('files each status under one admin tab', () => {
-    expect(viewOf('IN_REVIEW')).toBe('review')
+  it('files each status under one admin tab, and drafts under none', () => {
+    expect(viewOf('DRAFT')).toBeNull()
     expect(viewOf('SCHEDULED')).toBe('scheduled')
     expect(viewOf('LIVE')).toBe('live')
-    expect(['ENDED', 'SENT_BACK', 'STOPPED'].map((s) => viewOf(s as never))).toEqual([
-      'ended',
-      'ended',
-      'ended',
-    ])
+    expect(viewOf('ENDED')).toBe('ended')
+    expect(viewOf('STOPPED')).toBe('ended')
   })
 })
 

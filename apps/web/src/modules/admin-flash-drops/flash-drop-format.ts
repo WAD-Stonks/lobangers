@@ -5,10 +5,11 @@ import type {
 } from '@broke-oclock/contracts/flash-drops'
 import { formatMoneyMinor } from '@web/lib/format'
 
-// Presentation helpers for the admin Flash Drop review. Times are always shown in SGT.
+// Presentation helpers for the admin Flash deals page. Merchants send their own flash deals
+// live; admins watch them and can remove one. Times are always shown in SGT.
 export const SINGAPORE_TIME_ZONE = 'Asia/Singapore'
 
-export type DecisionKind = 'APPROVE' | 'SEND_BACK' | 'STOP'
+export type DecisionKind = 'STOP'
 export type CheckTone = 'ok' | 'warn' | 'bad'
 export type CheckRow = {
   key: string
@@ -18,26 +19,24 @@ export type CheckRow = {
 }
 
 export const FLASH_DROP_VIEWS: readonly { view: FlashDropView; label: string }[] = [
-  { view: 'review', label: 'Needs review' },
-  { view: 'scheduled', label: 'Scheduled' },
   { view: 'live', label: 'Live' },
+  { view: 'scheduled', label: 'Scheduled' },
   { view: 'ended', label: 'Ended' },
 ]
 
+// Admins never see drafts, but the status list includes them.
 const STATUS_LABELS: Record<FlashDropDisplayStatus, string> = {
-  IN_REVIEW: 'Needs review',
+  DRAFT: 'Draft',
   SCHEDULED: 'Scheduled',
   LIVE: 'Live',
   ENDED: 'Ended',
-  SENT_BACK: 'Sent back',
-  STOPPED: 'Stopped',
+  STOPPED: 'Removed',
 }
 const STATUS_TONES: Record<FlashDropDisplayStatus, string> = {
-  IN_REVIEW: 'review',
+  DRAFT: 'review',
   SCHEDULED: 'ok',
   LIVE: 'live',
   ENDED: 'neutral',
-  SENT_BACK: 'bad',
   STOPPED: 'bad',
 }
 export const statusLabel = (status: FlashDropDisplayStatus) => STATUS_LABELS[status]
@@ -54,6 +53,10 @@ export const percentOff = (flashCents: number, usualCents: number | null) =>
   usualCents && usualCents > flashCents ? Math.round(100 - (100 * flashCents) / usualCents) : null
 
 export const offerLine = (drop: AdminFlashDrop) => {
+  // Only a fixed flash price has a usual price to compare with.
+  if (drop.offerType === 'BUY_ONE_GET_ONE') return '1-for-1'
+  if (drop.offerType === 'PERCENT_OFF') return `${drop.discountPercent}% off`
+  if (drop.offerType !== 'FIXED_PRICE' || drop.flashPriceCents === null) return 'Other offer'
   const flash = formatPrice(drop.flashPriceCents)
   if (drop.usualPriceCents == null) return `${flash} (no usual price recorded)`
   const off = percentOff(drop.flashPriceCents, drop.usualPriceCents)
@@ -96,37 +99,20 @@ export const formatDistance = (metres: number) =>
     ? `${(metres / 1000).toFixed(metres % 1000 === 0 ? 0 : 1)}\u00a0km`
     : `${metres}\u00a0m`
 
+// Only a scheduled or live flash deal can be removed.
 export const decisionsFor = (status: FlashDropDisplayStatus): readonly DecisionKind[] =>
-  status === 'IN_REVIEW'
-    ? ['APPROVE', 'SEND_BACK']
-    : status === 'SCHEDULED' || status === 'LIVE'
-      ? ['STOP']
-      : []
+  status === 'SCHEDULED' || status === 'LIVE' ? ['STOP'] : []
 
 export const DECISION_COPY: Record<
   DecisionKind,
   { choice: string; submit: string; verb: string; noteLabel: string; placeholder: string }
 > = {
-  APPROVE: {
-    choice: 'Approve',
-    submit: 'Approve drop',
-    verb: 'approving',
-    noteLabel: 'Note for the merchant (optional)',
-    placeholder: 'e.g. Looks good, thanks!',
-  },
-  SEND_BACK: {
-    choice: 'Send back to merchant',
-    submit: 'Send back',
-    verb: 'sending back',
-    noteLabel: 'What should they change? (required)',
-    placeholder: 'e.g. Please use 500 m so it does not overlap another drop.',
-  },
   STOP: {
-    choice: 'Stop drop now',
-    submit: 'Stop drop now',
-    verb: 'stopping',
-    noteLabel: 'Why are you stopping it? (required)',
-    placeholder: 'e.g. Stall says they ran out early.',
+    choice: 'Remove flash deal',
+    submit: 'Remove flash deal',
+    verb: 'removing',
+    noteLabel: 'Why are you removing it? (required)',
+    placeholder: 'e.g. The price is misleading, or the stall asked us to take it down.',
   },
 }
 
@@ -172,10 +158,14 @@ export const checkRows = (drop: AdminFlashDrop): readonly CheckRow[] => {
       ? {
           key: 'overlaps',
           tone: 'bad',
-          text: `Overlaps ${overlaps.length === 1 ? 'another drop' : `${overlaps.length} other drops`} at the same time. Ask for a smaller radius or a later start.`,
+          text: `Overlaps ${overlaps.length === 1 ? 'another flash deal' : `${overlaps.length} other flash deals`} at the same time.`,
           details: overlaps,
         }
-      : { key: 'overlaps', tone: 'ok', text: 'No other drop covers this area at the same time.' },
+      : {
+          key: 'overlaps',
+          tone: 'ok',
+          text: 'No other flash deal covers this area at the same time.',
+        },
     checks.manyCodes
       ? {
           key: 'codes',
@@ -194,8 +184,7 @@ export const CHECK_MARKS: Record<CheckTone, { mark: string; label: string }> = {
 
 export const outcomeLine = (drop: AdminFlashDrop) => {
   const note = drop.reviewNote ? `: “${drop.reviewNote}”` : '.'
-  if (drop.status === 'SENT_BACK') return `Sent back to the merchant${note}`
-  if (drop.status === 'STOPPED') return `Stopped by an admin${note}`
+  if (drop.status === 'STOPPED') return `Removed by an admin${note}`
   if (drop.status === 'ENDED')
     return `Ended. ${drop.claimedCount} of ${drop.codeLimit} codes claimed.${drop.reviewNote ? ` Review note: “${drop.reviewNote}”` : ''}`
   return null

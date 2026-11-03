@@ -335,15 +335,12 @@ for (const width of [320, 768, 1024, 1440]) {
     await page.goto('/admin/ingestion')
     await expect(page.getByRole('heading', { name: 'Ingestion admin', exact: true })).toBeVisible()
     const queue = page.locator('section[aria-labelledby="queue-title"]')
-    const view = queue.getByRole('button', { name: `View details: ${draft.title}`, exact: true })
-    await view.focus()
-    await page.keyboard.press('Enter')
-    const citations = page.getByRole('region', { name: 'Immutable source evidence', exact: true })
-    await expect(citations.getByText('No citations on this page.', { exact: true })).toBeVisible()
-    await expect(citations.getByRole('alert')).toHaveCount(0)
-    await expect(page.getByRole('region', { name: 'Failed post investigation' })).toContainText(
-      'No posts on this page. A bounded page can exclude unsupported sources.',
+    const handoff = queue.getByRole('link', { name: /Open in Deals/ })
+    await expect(handoff).toHaveAttribute(
+      'href',
+      new RegExp(`/admin/deals\\?dealId=${draft.id}&tab=content`),
     )
+    await queue.locator('details.imported-deal-images > summary').click()
     const evidence = page.getByRole('region', { name: 'Imported image evidence' })
     await painted(evidence.getByRole('img', { name: deal.imageAltText ?? '', exact: true }))
     await painted(evidence.getByRole('img', { name: 'Synthetic archive GIF', exact: true }))
@@ -357,7 +354,8 @@ for (const width of [320, 768, 1024, 1440]) {
       'href',
       image.sourceUrl,
     )
-    await expect(queue.getByTestId('approve-draft')).toBeDisabled()
+    await expect(queue.getByTestId('approve-draft')).toHaveCount(0)
+    await expect(queue.locator('form')).toHaveCount(0)
     await evidence.screenshot({
       path: test.info().outputPath(`synthetic-admin-${width}.png`),
       style: '[data-synthetic-fixture-note] { visibility: hidden !important; }',
@@ -406,16 +404,18 @@ for (const width of [320, 768, 1024, 1440]) {
     // Current mobile routes open a half-height sheet. Expand it with the actual accessible
     // handle before inspecting cards below the viewport; never force eager loading in tests.
     await expandSheet(page, width)
+    // On the map a venue's deals are rows, like the map's results.
     const ongoing = page
       .getByRole('tabpanel', { name: 'Now', exact: true })
-      .getByTestId('food-deal-grid')
+      .getByTestId('venue-deals')
     await painted(ongoing.locator('img').first())
     await painted(ongoing.getByRole('img', { name: 'Synthetic archive GIF', exact: true }))
-    // A deal without a photo keeps its card with a decorative placeholder in the photo slot.
+    // A deal without a photo keeps its row with a decorative placeholder in the photo slot.
     await expect(
       ongoing
-        .getByRole('article', { name: `Synthetic no-image offer at ${venue.name}`, exact: true })
-        .locator('.food-deal-card__placeholder'),
+        .locator('li')
+        .filter({ hasText: 'Synthetic no-image offer' })
+        .locator('.deal-rows__media--placeholder'),
     ).toBeVisible()
     await ongoing.screenshot({
       path: test.info().outputPath(`synthetic-venue-${width}.png`),

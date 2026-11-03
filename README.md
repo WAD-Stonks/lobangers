@@ -24,13 +24,12 @@ https://github.com/WAD-Stonks/lobangers
 
 ## Test accounts
 
-| Role     | Email                       | Password                                   |
-| -------- | --------------------------- | ------------------------------------------ |
-| Admin    | `noah.moehtet@gmail.com`    | `pKTTHL83AdM7TrkksHWe8xufCd3cczGIGe2Zue2g` |
-| Customer | `damienlaw0601@gmail.com`   | `12345678`                                 |
-| Merchant |                             |                                            |
-
 Sign in at https://lobangers.vercel.app/sign-in.
+
+| Role | Email | Password |
+| --- | --- | --- |
+| Admin | `professor-admin@demo.example.test` | `pJ6_5RqQlrQ9xF1jGUqXVz3NUUJsqYIY` |
+| Customer | `professor-customer@demo.example.test` | `IBkjrZGzuT0C3fpWgnoH93ong4S4FmqY` |
 
 ## Technology
 
@@ -49,7 +48,13 @@ Repository layout:
 - `scripts`: setup, development and build scripts
 
 ## 1. How to Run
-Open two terminals, both opened at the repository root.
+From the repository root, install dependencies and create local configuration:
+
+```sh
+pnpm install --frozen-lockfile --ignore-scripts
+pnpm run setup
+```
+Fill in the .env file. Then, open two terminals at the repository root.
 
 **Terminal 1: start the local database**
 
@@ -57,7 +62,6 @@ Open two terminals, both opened at the repository root.
 pnpm run db:local
 ```
 
-This starts a local MongoDB replica set on port 27017.
 
 **Terminal 2: create the schema and start the app**
 
@@ -69,11 +73,11 @@ pnpm run dev
 Then open:
 
 - Frontend: http://localhost:5173
-- API: http://localhost:3000 
+- API: http://localhost:3000
 
 ### Optional: load demo data
 
-You can seed the database with fake data. First register an account in the app at http://localhost:5173/register, then run:
+The local database can be seeded with fake data. First register two  accounts at http://localhost:5173/register, then run this command:
 
 ```sh
 pnpm --dir apps/api run seed:local-demo 

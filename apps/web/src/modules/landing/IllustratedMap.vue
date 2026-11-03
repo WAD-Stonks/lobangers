@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useTheme } from '@web/lib/theme'
 import { regions } from '@web/modules/landing/deals'
 import FoodMapPin from '@web/modules/landing/FoodMapPin.vue'
 import { computed } from 'vue'
@@ -18,6 +19,16 @@ const props = withDefaults(
 )
 defineEmits<{ select: [index: number] }>()
 
+// The paintings sit on white paper that the light page blends away with `multiply`. That would
+// turn them black on a dark page, so dark mode swaps in copies with the paper cut out ("-dark").
+const { isDark } = useTheme()
+const art = (src: string) => (isDark.value ? src.replace(/\.webp$/, '-dark.webp') : src)
+const heroSrcset = computed(() =>
+  props.heroPins
+    ? `${art('/landing/singapore-map-hero-water-extended-768.webp')} 768w, ${art('/landing/singapore-map-hero-water-extended-1536.webp')} 1536w`
+    : undefined,
+)
+
 // Hero coordinates refer to the raster itself, independent of preview layout.
 const markerRegions = computed(() => props.heroPins
   ? regions.map((region, index) => ({
@@ -31,7 +42,7 @@ const markerRegions = computed(() => props.heroPins
 
 <template>
   <div class="illustrated-map">
-    <img :src="artSrc" :srcset="heroPins ? '/landing/singapore-map-hero-water-extended-768.webp 768w, /landing/singapore-map-hero-water-extended-1536.webp 1536w' : undefined" :sizes="heroPins ? '(max-width: 800px) 100vw, 70vw' : undefined" alt="Illustrated Singapore, from Woodlands and Sengkang to Jurong, Tampines and Marina Bay" width="1536" height="1024" class="island-art" :fetchpriority="heroPins ? 'high' : undefined" :loading="heroPins ? undefined : 'lazy'" decoding="async" />
+    <img :src="art(artSrc)" :srcset="heroSrcset" :sizes="heroPins ? '(max-width: 800px) 100vw, 70vw' : undefined" alt="Illustrated Singapore, from Woodlands and Sengkang to Jurong, Tampines and Marina Bay" width="1536" height="1024" class="island-art" :fetchpriority="heroPins ? 'high' : undefined" :loading="heroPins ? undefined : 'lazy'" decoding="async" />
     <slot />
     <div class="island-markers" :class="{ 'pins-hidden': !showPins }">
       <button v-for="(region, index) in markerRegions" :key="region.name" class="island-marker" :class="{ active: active === index }" :style="{ left: `${region.x}%`, top: `${region.y}%`, '--pin-color': heroPins && active === index ? '#ff7657' : '#fac7ba', '--pin-index': index, '--pin-enter': Math.max(0, Math.min(1, (pinProgress - index * .07) / .72)), opacity: (active === index ? activeOpacity : inactiveOpacity) * Math.max(0, Math.min(1, (pinProgress - index * .07) / .72)) }" type="button" :aria-label="heroPins ? `${region.name}: preview current food deals` : `${region.name}: preview sample food deal in ${region.area}`" :aria-pressed="interactive ? active === index : undefined" :disabled="!showPins || !interactive" @click="$emit('select', index)">

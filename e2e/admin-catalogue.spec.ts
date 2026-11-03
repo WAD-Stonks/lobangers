@@ -87,7 +87,7 @@ test('connected native sign-in, merchant/outlet correction, manual receipts, inv
   await page.locator('#venue-note').fill('Synthetic resolved outlet tuple reviewed')
   await page.locator('input[name="confirmed"]').check()
   await page.getByRole('button', { name: 'Create unverified outlet', exact: true }).click()
-  await expect(page.getByText('Unselectable — maintenance only', { exact: true })).toBeVisible()
+  await expect(page.getByText('Maintenance only', { exact: true })).toBeVisible()
   await page.locator('#proof-reference').fill('Synthetic reviewed merchant source')
   await page.locator('#proof-url').fill('https://example.test/official-outlets')
   await page.locator('#proof-kind').selectOption('OCCUPANCY')
@@ -99,9 +99,8 @@ test('connected native sign-in, merchant/outlet correction, manual receipts, inv
   await page.getByLabel('I personally reviewed a real supporting source', { exact: false }).check()
   await page.getByLabel('I confirm Synthetic browser outlet (version', { exact: false }).check()
   await page.getByRole('button', { name: 'Record manual verification', exact: true }).click()
-  await expect(
-    page.getByText('Selectable under existing outlet policy', { exact: true }),
-  ).toBeVisible()
+  await expect(page.getByText('Ready for selection', { exact: true })).toBeVisible()
+  await page.getByText(/Retained verification history/).click()
   await expect(page.getByText('Synthetic reviewed merchant source', { exact: true })).toBeVisible()
   await page.locator('#venue-name').fill('Synthetic corrected browser outlet')
   await page.locator('#venue-note').fill('Synthetic spelling correction invalidates tuple proof')
@@ -111,10 +110,34 @@ test('connected native sign-in, merchant/outlet correction, manual receipts, inv
     .locator('input[name="confirmed"]')
     .check()
   await page.getByRole('button', { name: 'Save outlet correction', exact: true }).click()
-  await expect(page.getByText('Unselectable — maintenance only', { exact: true })).toBeVisible()
+  await expect(page.getByText('Maintenance only', { exact: true })).toBeVisible()
+  await page.getByText(/Retained verification history/).click()
   await expect(
     page.getByText('Synthetic reviewed merchant source', { exact: true }).first(),
   ).toBeVisible()
+  const outletId = new URL(page.url()).searchParams.get('recordId')
+  const merchantId = new URL(page.url()).searchParams.get('merchantId')
+  expect(outletId).toMatch(/^[a-f0-9]{24}$/)
+  expect(merchantId).toMatch(/^[a-f0-9]{24}$/)
+  await page.getByRole('button', { name: 'View merchant', exact: true }).click()
+  await expect(
+    page.getByRole('heading', { name: 'Synthetic browser merchant', exact: true }),
+  ).toBeVisible()
+  await expect(page).toHaveURL(new RegExp(`recordId=${merchantId}`))
+  await page.getByRole('button', { name: 'View outlets for this merchant', exact: true }).click()
+  await expect(page.getByRole('region', { name: 'Merchant outlet context' })).toContainText(
+    'Synthetic browser merchant',
+  )
+  await expect(page).toHaveURL(new RegExp(`merchantId=${merchantId}`))
+  await page.locator(`[data-open-id="${outletId}"]`).click()
+  await expect(page).toHaveURL(new RegExp(`recordId=${outletId}`))
+  await page.reload()
+  await expect(
+    page.getByRole('heading', { name: 'Synthetic corrected browser outlet', exact: true }),
+  ).toBeVisible()
+  await expect(page.getByRole('region', { name: 'Merchant outlet context' })).toContainText(
+    'Synthetic browser merchant',
+  )
   for (const width of [320, 768, 1024, 1440]) {
     await page.setViewportSize({ width, height: 900 })
     await page.screenshot({
@@ -153,7 +176,7 @@ test('connected native sign-in, merchant/outlet correction, manual receipts, inv
     page.getByRole('heading', { name: 'Sign in to maintain the catalogue', exact: true }),
   ).toBeVisible()
   await expect(
-    page.getByRole('heading', { name: 'Outlet proof & manual sources', exact: true }),
+    page.getByRole('heading', { name: 'Location & occupancy verification', exact: true }),
   ).toHaveCount(0)
   expect(errors).toEqual([])
 })

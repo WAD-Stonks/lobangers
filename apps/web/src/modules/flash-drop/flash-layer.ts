@@ -1,7 +1,12 @@
 import type { PublicFlashDrop } from '@broke-oclock/contracts/flash-drops'
 import { foodKindFor } from '@web/modules/browse-map/food-kind'
 import { createFoodSprite } from '@web/modules/browse-map/food-sprite'
-import { codesLeftText, countdown, formatCents } from '@web/modules/flash-drop/flash-format'
+import {
+  codesLeftText,
+  countdown,
+  offerText,
+  offerTitle,
+} from '@web/modules/flash-drop/flash-format'
 import L from 'leaflet'
 import '@web/modules/flash-drop/flash-drop.css'
 
@@ -32,16 +37,17 @@ const foodFor = (drop: PublicFlashDrop, size: 'pin' | 'banner') => {
 }
 
 const pinLabel = (drop: PublicFlashDrop) =>
-  `Flash drop: ${formatCents(drop.flashPriceCents)} ${drop.dealTitle} at ${drop.venueName}, ${codesLeftText(drop)}`
+  `Flash drop: ${offerTitle(drop)} at ${drop.venueName}, ${codesLeftText(drop)}`
 
 const bannerLabel = (drop: PublicFlashDrop, now: number) =>
-  `Flash drop: ${formatCents(drop.flashPriceCents)} ${drop.dealTitle} at ${drop.venueName}, ${codesLeftText(drop)}, ends in ${countdown(drop.endsAt, now)}. Open the deal.`
+  `Flash drop: ${offerTitle(drop)} at ${drop.venueName}, ${codesLeftText(drop)}, ends in ${countdown(drop.endsAt, now)}. Open the deal.`
 
 const pinIcon = (drop: PublicFlashDrop, now: number) => {
   const oval = el('span', 'flash-pin__oval')
   oval.append(
     foodFor(drop, 'pin'),
-    el('span', 'flash-pin__price', formatCents(drop.flashPriceCents)),
+    // The offer in a few characters; an "other" offer just says Flash.
+    el('span', 'flash-pin__price', offerText(drop) || 'Flash'),
   )
   oval.append(el('span', 'flash-pin__timer', countdown(drop.endsAt, now)))
   const stack = el('span', 'flash-pin__stack')
@@ -77,7 +83,7 @@ const bannerIcon = (
   if (drop.demo) kicker.append(fakeTag())
   text.append(
     kicker,
-    el('span', 'flash-banner__title', `${formatCents(drop.flashPriceCents)} ${drop.dealTitle}`),
+    el('span', 'flash-banner__title', offerTitle(drop)),
     el('span', 'flash-banner__meta', `${codesLeftText(drop)} · ${drop.venueName}`),
   )
   const life = el('span', 'flash-banner__life')

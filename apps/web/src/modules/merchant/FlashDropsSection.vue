@@ -1,39 +1,28 @@
 <script setup lang="ts">
 import TicketLoading from '@web/components/TicketLoading.vue'
-import FlashDropForm from '@web/modules/merchant/FlashDropForm.vue'
+import { useConfirm } from '@web/lib/use-confirm'
 import FlashDropList from '@web/modules/merchant/FlashDropList.vue'
 import {
-  createFlashDrop,
+  deleteFlashDrop,
   endFlashDrop,
   flashDropErrorMessage,
   getFlashDrops,
+  goLiveFlashDrop,
   type MerchantFlashDrop,
-  resendFlashDrop,
-  simulateApproval,
-  simulateClaim,
-  simulateStart,
-  USE_SAMPLE_DATA,
 } from '@web/modules/merchant/flash-drop-api'
-import {
-  blankFlashDropForm,
-  type FlashDropFormState,
-  formFromDrop,
-  toFlashDropBody,
-} from '@web/modules/merchant/flash-drop-rules'
-import type { MerchantDeal, MerchantOutlet } from '@web/modules/merchant/merchant-api'
-import { nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
+import { whenText } from '@web/modules/merchant/flash-drop-rules'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 
-const props = withDefaults(
-  defineProps<{
-    deals: MerchantDeal[] // the merchant's current deals
-    outlets: MerchantOutlet[]
-    sample?: boolean // sample data mode; tests can switch it off
-  }>(),
-  { sample: USE_SAMPLE_DATA },
-)
+// The merchant's own flash deals: drafts (saved from the deal form with "Save as flash deal"),
+// the ones that have gone live, and past ones. Drafts are edited in the deal form, so Edit is
+// passed up to the page.
+const emit = defineEmits<{ edit: [drop: MerchantFlashDrop] }>()
 
-// How often the "min left" text refreshes, and (sample data only) a fake code is claimed.
+// How often the "min left" text and the statuses refresh.
 const TICK_MS = 4000
+
+// The dashboard mounts the app's confirm dialog; these ask through it.
+const { ask } = useConfirm()
 
 const drops = ref<MerchantFlashDrop[]>([])
 const loading = ref(true)
@@ -42,63 +31,27 @@ const successMessage = ref('')
 const now = ref(new Date())
 const busyId = ref<string | null>(null)
 
-// ----- Form -----
-// editingDrop is the sent-back drop being fixed, or null for a new drop. formKey makes Vue
-// build a fresh form each time it opens.
-const showForm = ref(false)
-const editingDrop = ref<MerchantFlashDrop | null>(null)
-const formInitial = ref<FlashDropFormState>(blankFlashDropForm(undefined, []))
-const formKey = ref(0)
-const saving = ref(false)
-const serverError = ref('')
-const formHolder = ref<HTMLElement | null>(null)
-// The button that opened the form, so focus goes back to it when the form closes.
-let formOpener: HTMLElement | null = null
+const drafts = computed(() => drops.value.filter((drop) => drop.status === 'DRAFT'))
+const running = computed(() =>
+  drops.value.filter((drop) => drop.status === 'SCHEDULED' || drop.status === 'LIVE'),
+)
+const past = computed(() =>
+  drops.value.filter((drop) => drop.status === 'ENDED' || drop.status === 'STOPPED'),
+)
 
-const showFormWith = async (initial: FlashDropFormState, drop: MerchantFlashDrop | null) => {
-  const active = document.activeElement
-  if (!showForm.value) formOpener = active instanceof HTMLElement ? active : null
-  formInitial.value = initial
-  editingDrop.value = drop
-  serverError.value = ''
-  successMessage.value = ''
-  formKey.value += 1
-  showForm.value = true
-  // Bring the form into view and move focus to its heading.
-  await nextTick()
-  const reduced = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false
-  formHolder.value?.scrollIntoView?.({ behavior: reduced ? 'auto' : 'smooth', block: 'start' })
-  formHolder.value?.querySelector<HTMLElement>('h3')?.focus({ preventScroll: true })
-}
-
-// Called by the page: "New flash drop" (no deal) or "Flash drop this" (one deal).
-const openForm = (dealId?: string) => {
-  const deal = props.deals.find((item) => item.id === dealId)
-  return showFormWith(blankFlashDropForm(deal, props.outlets), null)
-}
-defineExpose({ openForm })
-
-const closeForm = async () => {
-  showForm.value = false
-  await nextTick()
-  if (formOpener?.isConnected) formOpener.focus()
-  formOpener = null
-}
-
-// ----- Loading -----
 const loadDrops = async () => {
   loading.value = true
   errorMessage.value = ''
   try {
     drops.value = await getFlashDrops()
   } catch (error) {
-    errorMessage.value = flashDropErrorMessage(error, 'Could not load your flash drops.')
+    errorMessage.value = flashDropErrorMessage(error, 'Could not load your flash deals.')
   } finally {
     loading.value = false
   }
 }
 
-// Swap one drop in the list for its updated copy (or add it at the top if it is new).
+// Swap one flash deal in the list for its updated copy (or add it at the top if it is new).
 const putDrop = (updated: MerchantFlashDrop) => {
   const known = drops.value.some((drop) => drop.id === updated.id)
   drops.value = known
@@ -106,74 +59,105 @@ const putDrop = (updated: MerchantFlashDrop) => {
     : [updated, ...drops.value]
 }
 
-// ----- Sending (new or resend) -----
-const sendDrop = async (form: FlashDropFormState) => {
-  if (saving.value) return
-  saving.value = true
-  serverError.value = ''
-  try {
-    const body = toFlashDropBody(form, new Date())
-    const sent = editingDrop.value
-      ? await resendFlashDrop(editingDrop.value, body)
-      : await createFlashDrop(body)
-    putDrop(sent)
-    void closeForm()
-    successMessage.value = `“${sent.dealTitle}” was sent for review. LoBangers usually replies within 30 minutes.`
-  } catch (error) {
-    serverError.value = flashDropErrorMessage(error, 'Could not send the flash drop. Please try again.')
-  } finally {
-    saving.value = false
-  }
+// The page calls this after "Save as flash deal".
+const saved = (drop: MerchantFlashDrop, created: boolean) => {
+  putDrop(drop)
+  errorMessage.value = ''
+  successMessage.value = created
+    ? `“${drop.dealTitle}” was saved as a draft. Press Go live when you are ready.`
+    : `The draft “${drop.dealTitle}” was updated.`
 }
+defineExpose({ saved })
 
-// ----- Withdraw / end early -----
-const confirmEnd = async (drop: MerchantFlashDrop) => {
-  const inReview = drop.status === 'IN_REVIEW'
-  const question = inReview
-    ? `Withdraw the flash drop for “${drop.dealTitle}”? LoBangers will stop reviewing it.`
-    : `End the flash drop for “${drop.dealTitle}” now? People will stop seeing the banner.`
-  if (!window.confirm(question)) return
+// Runs one request for a flash deal, with its button disabled meanwhile.
+const act = async (drop: MerchantFlashDrop, work: () => Promise<string>, failure: string) => {
   busyId.value = drop.id
   errorMessage.value = ''
   successMessage.value = ''
   try {
-    putDrop(await endFlashDrop(drop))
-    successMessage.value = inReview
-      ? `The flash drop for “${drop.dealTitle}” was withdrawn.`
-      : `The flash drop for “${drop.dealTitle}” has ended.`
+    successMessage.value = await work()
   } catch (error) {
-    errorMessage.value = flashDropErrorMessage(error, 'Could not end the flash drop. Please try again.')
+    errorMessage.value = flashDropErrorMessage(error, failure)
   } finally {
     busyId.value = null
   }
 }
 
-const openResend = (drop: MerchantFlashDrop) => showFormWith(formFromDrop(drop), drop)
+const goLive = async (drop: MerchantFlashDrop) => {
+  const when = drop.startsOnGoLive ? 'now' : whenText(drop.startsAt, new Date()).toLowerCase()
+  const confirmed = await ask({
+    title: 'Send this flash deal live?',
+    body: `“${drop.dealTitle}” starts ${when}. Everyone on LoBangers is told when it starts.`,
+    confirmLabel: 'Go live',
+    tone: 'primary',
+  })
+  if (!confirmed) return
+  return act(
+    drop,
+    async () => {
+      const live = await goLiveFlashDrop(drop)
+      putDrop(live)
+      return live.status === 'LIVE'
+        ? `“${drop.dealTitle}” is live now.`
+        : `“${drop.dealTitle}” goes live ${whenText(live.startsAt, new Date()).toLowerCase()}.`
+    },
+    'Could not send the flash deal live. Please try again.',
+  )
+}
 
-// ----- Demo only (sample data) -----
-const approveDemo = (drop: MerchantFlashDrop) => {
-  const approved = simulateApproval(drop)
-  putDrop(approved)
-  successMessage.value =
-    approved.status === 'LIVE'
-      ? `Demo: LoBangers approved “${drop.dealTitle}”. It is live now.`
-      : `Demo: LoBangers approved “${drop.dealTitle}”. It goes live at its start time.`
-}
-const startDemo = (drop: MerchantFlashDrop) => {
-  putDrop(simulateStart(drop))
+// Deletes a draft, or takes a past flash deal out of the merchant's history.
+const remove = async (drop: MerchantFlashDrop) => {
+  const draft = drop.status === 'DRAFT'
+  const confirmed = await ask(
+    draft
+      ? {
+          title: 'Delete this draft?',
+          body: `The draft “${drop.dealTitle}” will be deleted. This cannot be undone.`,
+          confirmLabel: 'Delete draft',
+        }
+      : {
+          title: 'Delete this flash deal?',
+          body: `“${drop.dealTitle}” will be removed from your past flash deals. Codes people claimed stay valid.`,
+          confirmLabel: 'Delete',
+        },
+  )
+  if (!confirmed) return
+  return act(
+    drop,
+    async () => {
+      await deleteFlashDrop(drop)
+      drops.value = drops.value.filter((item) => item.id !== drop.id)
+      return draft
+        ? `The draft “${drop.dealTitle}” was deleted.`
+        : `“${drop.dealTitle}” was deleted from your past flash deals.`
+    },
+    'Could not delete the flash deal. Please try again.',
+  )
 }
 
-// Every few seconds: refresh the clock and, with sample data, let one fake person claim a code
-// from each live drop.
-const tick = () => {
-  now.value = new Date()
-  if (!props.sample) return
-  for (const drop of drops.value) if (drop.status === 'LIVE') putDrop(simulateClaim(drop))
+const endNow = async (drop: MerchantFlashDrop) => {
+  const confirmed = await ask({
+    title: 'End this flash deal?',
+    body: `“${drop.dealTitle}” ends now and people will stop seeing it.`,
+    confirmLabel: 'End now',
+  })
+  if (!confirmed) return
+  return act(
+    drop,
+    async () => {
+      putDrop(await endFlashDrop(drop))
+      return `The flash deal “${drop.dealTitle}” has ended.`
+    },
+    'Could not end the flash deal. Please try again.',
+  )
 }
+
 let timer: ReturnType<typeof setInterval> | undefined
 onMounted(() => {
   loadDrops()
-  timer = setInterval(tick, TICK_MS)
+  timer = setInterval(() => {
+    now.value = new Date()
+  }, TICK_MS)
 })
 onBeforeUnmount(() => clearInterval(timer))
 </script>
@@ -181,46 +165,41 @@ onBeforeUnmount(() => clearInterval(timer))
 <template>
   <section class="mb-4" aria-labelledby="flash-drops-title">
     <div class="d-flex flex-wrap justify-content-between align-items-baseline gap-2 mb-3">
-      <h2 id="flash-drops-title" class="h4 mb-0">Flash drops</h2>
-      <span class="small text-secondary">Short, limited-code drops that pop up on the map</span>
+      <h2 id="flash-drops-title" class="h4 mb-0">Flash deals</h2>
+      <span class="small text-secondary">Short, limited-code deals that pop up on the map</span>
     </div>
 
     <p v-if="errorMessage" class="alert alert-danger" role="alert">{{ errorMessage }}</p>
     <p v-if="successMessage" class="alert alert-success" role="status">{{ successMessage }}</p>
 
-    <div v-if="showForm" ref="formHolder" class="form-holder">
-      <FlashDropForm
-        :key="formKey"
-        :deals="deals"
-        :outlets="outlets"
-        :initial="formInitial"
-        :editing="editingDrop !== null"
-        :saving="saving"
-        :server-error="serverError"
-        :sample="sample"
-        @submit="sendDrop"
-        @cancel="closeForm"
+    <TicketLoading v-if="loading" class="text-secondary" label="Loading your flash deals…" />
+    <template v-else>
+      <h3 class="h6 text-uppercase text-secondary mb-2">Drafts</h3>
+      <FlashDropList
+        :drops="drafts"
+        :busy-id="busyId"
+        :now="now"
+        empty="No drafts. Use “Save as flash deal” in the deal form to make one."
+        @edit="emit('edit', $event)"
+        @go-live="goLive"
+        @remove="remove"
       />
-    </div>
-
-    <TicketLoading v-if="loading" class="text-secondary" label="Loading your flash drops…" />
-    <FlashDropList
-      v-else
-      :drops="drops"
-      :sample="sample"
-      :busy-id="busyId"
-      :now="now"
-      @end="confirmEnd"
-      @resend="openResend"
-      @approve="approveDemo"
-      @start="startDemo"
-    />
+      <h3 class="h6 text-uppercase text-secondary mb-2">Live and scheduled</h3>
+      <FlashDropList
+        :drops="running"
+        :busy-id="busyId"
+        :now="now"
+        empty="Nothing live right now."
+        @end="endNow"
+      />
+      <h3 class="h6 text-uppercase text-secondary mb-2">Past flash deals</h3>
+      <FlashDropList
+        :drops="past"
+        :busy-id="busyId"
+        :now="now"
+        empty="No past flash deals yet."
+        @remove="remove"
+      />
+    </template>
   </section>
 </template>
-
-<style scoped>
-/* Leave room above the form when it is scrolled into view. */
-.form-holder {
-  scroll-margin-top: 80px;
-}
-</style>

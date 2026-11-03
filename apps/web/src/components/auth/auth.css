@@ -75,7 +75,7 @@
   font-weight: 700;
 }
 .auth-flow .auth-primary {
-  color: var(--admin-text, var(--ink));
+  color: var(--admin-on-accent, var(--on-accent));
   background: var(--admin-accent, var(--sunny));
   border: 1px solid var(--admin-accent, var(--sunny));
 }
@@ -116,18 +116,43 @@
   cursor: default;
   text-decoration: none;
 }
-.auth-flow .auth-label-row {
-  display: flex;
-  flex-wrap: wrap;
+.auth-flow .auth-password {
+  position: relative;
+}
+.auth-flow .auth-password .form-control {
+  width: 100%;
+  padding-right: 3.25rem;
+}
+.auth-flow .auth-password-toggle {
+  position: absolute;
+  inset-block: 0;
+  right: 0;
+  display: inline-flex;
   align-items: center;
-  justify-content: space-between;
-  gap: var(--space-2);
+  justify-content: center;
+  width: 3rem;
+  padding: 0;
+  color: var(--ink-muted);
+  background: none;
+  border: 0;
+  border-radius: var(--radius-control);
 }
-.auth-flow .auth-label-row .form-label {
-  margin: 0;
+.auth-flow .auth-password-toggle:hover {
+  color: var(--ink);
 }
-.auth-flow .auth-label-row {
-  margin-top: calc(-1 * var(--space-2));
+.auth-flow .auth-password-toggle svg {
+  width: 1.25rem;
+  height: 1.25rem;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.auth-flow .auth-forgot {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: calc(-1 * var(--space-2));
 }
 .auth-flow .auth-divider {
   display: flex;
@@ -231,5 +256,67 @@
 @media (min-width: 576px) {
   .auth-card {
     padding: var(--space-8);
+  }
+}
+
+/* Lobbie sits on the card's top edge; each sprite's view box ends exactly at that edge.
+   The nearest positioned ancestor is the card, so the sprite rises above it. */
+.auth-lobbie {
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  width: 10rem;
+  aspect-ratio: 280 / 240;
+  transform: translate(-50%, 1px);
+  pointer-events: none;
+}
+.auth-lobbie__sprite {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transform: translateY(6px);
+  transition:
+    opacity 180ms ease,
+    transform 220ms ease;
+}
+.auth-lobbie__sprite.is-active {
+  opacity: 1;
+  transform: none;
+}
+/* Where the top of his head starts in each sprite: the body copy shows below it, the antennae above. */
+.auth-lobbie__sprite[data-sprite="password-hidden"] {
+  --head-top: 36%;
+}
+.auth-lobbie__sprite[data-sprite="password-shown"] {
+  --head-top: 46%;
+}
+.auth-lobbie__sprite img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  clip-path: inset(var(--head-top) 0 0 0);
+}
+/* Skewing from the strip's bottom edge keeps the antenna bases on his head while the tips wave. */
+.auth-lobbie__sprite img.auth-lobbie__antennae {
+  clip-path: inset(0 0 calc(100% - var(--head-top)) 0);
+  transform-origin: 50% var(--head-top);
+  animation: auth-lobbie-antennae 2.4s ease-in-out infinite alternate;
+}
+@keyframes auth-lobbie-antennae {
+  from {
+    transform: skewX(-7deg);
+  }
+  to {
+    transform: skewX(7deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .auth-lobbie__sprite {
+    transform: none;
+    transition: none;
+  }
+  .auth-lobbie__sprite img.auth-lobbie__antennae {
+    animation: none;
   }
 }

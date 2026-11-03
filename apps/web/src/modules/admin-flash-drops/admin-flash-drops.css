@@ -1,6 +1,6 @@
 /* Admin Flash Drop review. Matches the overview's 14px cards, accent headings and status pills. */
 .fd-panel {
-  --fd-radius: 14px;
+  --fd-radius: 20px;
   --fd-line: var(--admin-line);
   display: grid;
   gap: 24px;

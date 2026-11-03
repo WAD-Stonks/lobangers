@@ -32,9 +32,9 @@
         // App.vue keeps this in sync after mount; adding it now stops a light flash on app routes.
         const appRoute = !/^\/(about\/?)?$/.test(location.pathname)
         if (appRoute) root.classList.add('app-palette')
-        // Tint the mobile toolbar to match; the landing page always stays light.
+        // Tint the mobile toolbar to match, on the landing page too.
         const themeColor = document.querySelector('meta[name="theme-color"]')
-        if (themeColor && appRoute && theme === 'dark') themeColor.content = '#141412'
+        if (themeColor && theme === 'dark') themeColor.content = '#141412'
       })()
     </script>
     <link rel="preload" href="/fonts/lobang-pop-v6/LobangPop-Heavy.woff2" as="font" type="font/woff2" crossorigin />

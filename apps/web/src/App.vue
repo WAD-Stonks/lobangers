@@ -3,7 +3,7 @@ import { AppShell, BApp } from '@broke-oclock/ui'
 import { adminNavigation } from '@web/components/admin/admin-navigation'
 import PageHeader from '@web/components/PageHeader.vue'
 import SplashScreen from '@web/components/SplashScreen.vue'
-import { syncThemeColor } from '@web/lib/theme'
+import { syncThemeColor, useTheme } from '@web/lib/theme'
 import AuthPrompt from '@web/modules/account/AuthPrompt.vue'
 import { authPrompt } from '@web/modules/account/auth-prompt'
 import { readSplit } from '@web/modules/map-shell/filter-query'
@@ -15,6 +15,9 @@ import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { RouterView, useRoute } from 'vue-router'
 
 onBeforeUnmount(() => authPrompt.value?.resolve(null))
+// Start the theme on every page, not only where a Dark mode switch or the map mounts, so system
+// and other-tab changes apply at once instead of after a reload.
+useTheme()
 const route = useRoute()
 const breakpoint = useBreakpoint()
 const layout = computed(() => routeLayout(route))

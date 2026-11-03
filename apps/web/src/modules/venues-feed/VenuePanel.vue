@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import TicketLoading from '@web/components/TicketLoading.vue'
+import DealRowList from '@web/modules/browse-map/DealRowList.vue'
 import FoodDealGrid from '@web/modules/browse-map/FoodDealGrid.vue'
 import type { DealRow } from '@web/modules/browse-map/types'
 import PanelFrame from '@web/modules/map-shell/PanelFrame.vue'
@@ -120,6 +121,8 @@ watch(venueId, () => {
       <div id="venue-tabpanel" role="tabpanel" :aria-labelledby="`venue-tab-${tab}`">
         <template v-if="tab === 'now'">
           <p v-if="rows.length === 0" class="lb-meta">No ongoing deals at this venue right now.</p>
+          <!-- On the map a venue's deals are a list, like the map's results; All Deals keeps cards. -->
+          <DealRowList v-else-if="shell.view.value === 'map'" :rows="rows" :to="toDeal" test-id="venue-deals" />
           <FoodDealGrid v-else :rows="rows" :to="toDeal" two-column />
         </template>
 

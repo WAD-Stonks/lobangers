@@ -3,26 +3,31 @@ import { DEAL_CATEGORIES, type DealCategory, dealCategorySchema } from '@broke-o
 import type { IngestionDraft, IngestionDraftsQuery, IngestionReviewRequest } from '@broke-oclock/contracts/ingestion'
 import type { PlatformVenue } from '@broke-oclock/contracts/platform-admin'
 import { BButton } from '@broke-oclock/ui'
+import AdminStatusBadge from '@web/components/admin/AdminStatusBadge.vue'
+import AdminWorkspace from '@web/components/admin/AdminWorkspace.vue'
 import TicketLoading from '@web/components/TicketLoading.vue'
 import { api } from '@web/lib/api-client'
-import { formatDate, formatMoneyMinor } from '@web/lib/format'
+import { formatDate, formatMoneyMinor, formatOfferType } from '@web/lib/format'
 import DraftEvidence from '@web/modules/ingestion-admin/DraftEvidence.vue'
 import DraftImages from '@web/modules/ingestion-admin/DraftImages.vue'
 import { approvalBlockReason } from '@web/modules/ingestion-admin/draft-validity'
 import { errorCode } from '@web/modules/ingestion-admin/errors'
 import PostInvestigation from '@web/modules/ingestion-admin/PostInvestigation.vue'
 import { clearRecoveryWorkspace, useRecoveryWorkspace } from '@web/modules/ingestion-admin/recovery-workspace'
-import { computed, onBeforeUnmount, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
 
 const workspace = useRecoveryWorkspace()
 type Draft = IngestionDraft
 const props = defineProps<{ revision: number; initialStatus?: 'PENDING' | 'APPROVED' | 'REJECTED' }>()
-const emit = defineEmits<{ changed: []; denied: [code: string] }>()
+const emit = defineEmits<{ changed: []; denied: [code: string]; busy: [value: boolean] }>()
 const status = ref<IngestionDraftsQuery['status']>(['PENDING', 'APPROVED', 'REJECTED'].includes(props.initialStatus ?? '') ? props.initialStatus ?? 'PENDING' : 'PENDING')
 const items = ref<Draft[] | null>(null)
 const selectedId = ref<string | null>(null)
 const selected = computed(() => items.value?.find(item => item.id === selectedId.value))
 const investigationId = ref<string | null>(null)
+const investigationBusy = ref(false)
+const detailHeading = ref<HTMLElement | null>(null)
+const queueHeading = ref<HTMLElement | null>(null)
 const pending = ref(false)
 const nextCursor = ref<string | null>(null)
 const error = ref('')
@@ -44,7 +49,8 @@ const outletError = ref('')
 const category = ref('')
 const categoryPending = ref(false)
 const categoryError = ref('')
-const busy = computed(() => reviewPending.value || associationPending.value || categoryPending.value)
+const busy = computed(() => reviewPending.value || associationPending.value || categoryPending.value || investigationBusy.value)
+watch(busy, value => emit('busy', value), { immediate: true, flush: 'sync' })
 // Identity guards survive selection, filter and pagination changes.
 const locks = ref(new Map<string, { version: number; operationVersion: number; after: number }>())
 const highest = new Map<string, Draft>()
@@ -77,7 +83,7 @@ const denied = (failure: unknown) => {
   if (code !== 'UNAUTHORIZED' && code !== 'FORBIDDEN') return false
   clearRecoveryWorkspace(workspace); close(); emit('denied', code); return true
 }
-onBeforeUnmount(close)
+onBeforeUnmount(() => { close(); emit('busy', false) })
 const sourceLink = computed(() => {
   if (!selected.value) return null
   try {
@@ -131,6 +137,16 @@ const select = (draft: Draft) => {
   clearOutlets(); investigationId.value = null; selectedId.value = draft.id; note.value = ''
   category.value = draft.category; categoryError.value = ''
   reviewError.value = conflict.value ? conflictMessage : ''; success.value = ''
+  void nextTick(() => {
+    detailHeading.value?.focus({ preventScroll: true })
+    detailHeading.value?.scrollIntoView?.({ block: 'nearest' })
+  })
+}
+const closeSelection = () => {
+  if (busy.value || venuePending.value) return
+  selectedId.value = null; investigationId.value = null; note.value = ''; reviewError.value = ''
+  clearOutlets()
+  void nextTick(() => queueHeading.value?.focus({ preventScroll: true }))
 }
 const searchOutlets = async (cursor?: string) => {
   if (closed || !selected.value || !associationAllowed.value || busy.value || pending.value || venuePending.value || conflict.value || error.value || outletQuery.value.trim().length > 100) return
@@ -219,8 +235,9 @@ const setCategory = async () => {
 // Reviewers see the exact stored terms ("1250 minor units · SGD"), led by the formatted price
 // when the currency code is valid: "$12.50 (1250 minor units · SGD)". Never a guessed currency.
 const priceText = (draft: Pick<Draft, 'priceMinor' | 'currency'>) => {
-  const raw = `${draft.priceMinor ?? 'Unknown'} minor units · ${draft.currency ?? 'Unknown currency'}`
-  if (draft.priceMinor === null || draft.priceMinor === undefined || !draft.currency) return raw
+  if (draft.priceMinor === null || draft.priceMinor === undefined) return 'Price not supplied'
+  const raw = `${draft.priceMinor} minor units · ${draft.currency ?? 'Unknown currency'}`
+  if (!draft.currency) return raw
   try {
     return `${formatMoneyMinor(draft.priceMinor, draft.currency)} (${raw})`
   } catch {
@@ -259,6 +276,9 @@ const review = async (decision: IngestionReviewRequest['decision']) => {
     if (live(epoch)) reviewPending.value = false
   }
 }
+watch(() => props.initialStatus, value => {
+  status.value = value === 'APPROVED' || value === 'REJECTED' ? value : 'PENDING'
+}, { flush: 'sync' })
 watch(venueId, () => { confirmed.value = false }, { flush: 'sync' })
 watch([selectedId, () => selected.value?.contentVersion, () => selected.value?.operationVersion, conflict, () => note.value.trim() === ''], () => { rejectConfirmed.value = false }, { flush: 'sync' })
 watch(outletQuery, () => { venues.value = null; venueId.value = ''; confirmed.value = false; venueCursor.value = null }, { flush: 'sync' })
@@ -274,33 +294,43 @@ watch([() => props.revision, status], (_value, previous) => {
 </script>
 
 <template>
-  <section aria-labelledby="queue-title" class="card p-3 p-sm-4 mb-4" :aria-busy="pending">
-    <h2 id="queue-title" class="h4">Draft review queue</h2>
-    <label for="queue-status" class="form-label">Review status</label>
-    <select id="queue-status" v-model="status" class="form-select mb-3" :disabled="busy || venuePending">
-      <option value="PENDING">Pending</option><option value="APPROVED">Approved</option><option value="REJECTED">Rejected</option>
-    </select>
+  <section aria-labelledby="queue-title" class="draft-workspace" :aria-busy="pending">
+    <header class="draft-toolbar">
+      <div><h2 id="queue-title" ref="queueHeading" tabindex="-1">Draft review queue</h2><p>Choose a draft to inspect its source, offer and review requirements.</p></div>
+      <div class="draft-status-filter"><label for="queue-status">Review status</label>
+        <select id="queue-status" v-model="status" class="form-select" :disabled="busy || venuePending">
+          <option value="PENDING">Pending</option><option value="APPROVED">Approved</option><option value="REJECTED">Rejected</option>
+        </select>
+      </div>
+    </header>
     <TicketLoading v-if="pending" label="Loading drafts…" />
     <div v-if="error" role="alert"><p>{{ error }}</p><BButton :disabled="pending || busy" @click="load()">Retry drafts</BButton></div>
     <p v-if="success" role="status">{{ success }}</p>
     <p v-if="!pending && !error && items?.length === 0">No drafts match this status.</p>
-    <ul v-if="items?.length" class="list-unstyled">
-      <li v-for="draft in items" :key="draft.id" class="border-top py-3">
-        <h3 class="h6 text-break">{{ draft.title }}</h3>
-        <p class="admin-figures">{{ priceText(draft) }} · {{ draft.discountPercent ?? 'Unknown' }}% discount</p>
-        <p class="small text-break">{{ draft.sourceName }} · {{ draft.reviewStatus }} · Version {{ draft.contentVersion }}</p>
-        <BButton :data-testid="`view-${draft.id}`" :disabled="busy || pending || Boolean(error) || (conflict && selectedId === draft.id)" :aria-label="`View details: ${draft.title}`" @click="select(draft)">View details</BButton>
-      </li>
-    </ul>
-    <BButton v-if="nextCursor" data-testid="more-drafts" class="mb-3" :disabled="pending || busy || venuePending" @click="load(nextCursor)">Load more drafts</BButton>
-    <article v-if="selected" aria-labelledby="draft-title" class="border-top pt-4 text-break">
-      <h3 id="draft-title" class="h5">{{ selected.title }}</h3>
+    <AdminWorkspace :selected="Boolean(selected)" label="Imported draft records" detail-label="Draft review details" :disabled="busy || venuePending" @close="closeSelection">
+      <template #list>
+        <p v-if="!pending && !error" class="draft-list-heading">{{ items?.length ?? 0 }} drafts loaded</p>
+        <ul v-if="items?.length" class="draft-records">
+          <li v-for="draft in items" :key="draft.id">
+            <button type="button" class="draft-record" :class="{ 'is-selected': selectedId === draft.id }" :data-testid="`view-${draft.id}`" :disabled="busy || pending || Boolean(error) || (conflict && selectedId === draft.id)" :aria-current="selectedId === draft.id ? 'true' : undefined" :aria-label="`View details: ${draft.title}`" @click="select(draft)">
+              <span class="draft-record-heading"><strong>{{ draft.title }}</strong><AdminStatusBadge :status="draft.reviewStatus" /></span>
+              <span class="draft-record-meta">{{ draft.sourceName }}</span>
+              <span class="admin-figures">{{ priceText(draft) }}<template v-if="draft.discountPercent != null"> · {{ draft.discountPercent }}% off</template></span>
+              <small>Version {{ draft.contentVersion }}</small>
+            </button>
+          </li>
+        </ul>
+        <BButton v-if="nextCursor" data-testid="more-drafts" class="draft-pagination" :disabled="pending || busy || venuePending" @click="load(nextCursor)">Load more drafts</BButton>
+      </template>
+      <template #detail>
+    <article v-if="selected" aria-labelledby="draft-title" class="draft-detail text-break">
+      <header class="draft-detail-heading"><div><p class="draft-source-label">{{ selected.sourceName }}</p><h3 id="draft-title" ref="detailHeading" tabindex="-1">{{ selected.title }}</h3></div><AdminStatusBadge :status="selected.reviewStatus" /></header>
       <p class="draft-text">{{ selected.description }}</p>
       <DraftImages :key="`${selected.id}:${selected.contentVersion}`" :images="selected.images" :title="selected.title" />
-      <dl>
-        <dt>Numeric offer</dt><dd class="admin-figures">{{ priceText(selected) }} · {{ selected.discountPercent ?? 'Unknown' }}% discount</dd>
+      <dl class="draft-facts">
+        <dt>Offer</dt><dd class="admin-figures">{{ priceText(selected) }}<template v-if="selected.discountPercent != null"> · {{ selected.discountPercent }}% off</template></dd>
         <dt>Terms</dt><dd class="draft-text">{{ selected.terms ?? 'Not supplied' }}</dd>
-        <dt>Category / offer type</dt><dd>{{ selected.category }} / {{ selected.offerType }}</dd>
+        <dt>Category / offer type</dt><dd>{{ selected.category }} / {{ formatOfferType(selected.offerType) }}</dd>
         <dt>Validity</dt><dd><time v-if="selected.validFrom" :datetime="selected.validFrom">{{ formatDate(selected.validFrom) }}</time><template v-else>Unknown start</template> to <time v-if="selected.validUntil" :datetime="selected.validUntil">{{ formatDate(selected.validUntil) }}</time><template v-else>Unknown end</template></dd>
         <dt>Original validity text</dt><dd>{{ selected.rawValidityText ?? 'Not supplied' }}</dd>
         <dt>Content version</dt><dd>Version {{ selected.contentVersion }}</dd>
@@ -325,8 +355,9 @@ watch([() => props.revision, status], (_value, previous) => {
         <dt>Previous review note</dt><dd>{{ selected.reviewNote ?? 'No previous note' }}</dd>
       </dl>
       <DraftEvidence :key="`${selected.id}:${selected.contentVersion}`" :deal-id="selected.id" :content-version="selected.contentVersion" @denied="code => { clearRecoveryWorkspace(workspace); close(); emit('denied', code) }" @investigate="investigationId = $event" />
-      <PostInvestigation v-if="investigationId" :post-id="investigationId" @denied="code => { clearRecoveryWorkspace(workspace); close(); emit('denied', code) }" />
-      <form @submit.prevent="review('APPROVE')" :aria-busy="reviewPending">
+      <PostInvestigation v-if="investigationId" :post-id="investigationId" @busy="investigationBusy = $event" @denied="code => { clearRecoveryWorkspace(workspace); close(); emit('denied', code) }" />
+      <form class="draft-decision" @submit.prevent="review('APPROVE')" :aria-busy="reviewPending">
+        <h4>Review decision</h4>
         <label for="review-note" class="form-label">Review note (required)</label>
         <textarea id="review-note" v-model="note" name="review-note" class="form-control mb-3" rows="3" maxlength="1000" required :disabled="busy || pending || selected.reviewStatus !== 'PENDING'" />
         <p v-if="approvalReason" id="approval-reason" class="text-secondary">{{ approvalReason }}</p>
@@ -382,12 +413,48 @@ watch([() => props.revision, status], (_value, previous) => {
       </section>
       <p v-else>This applicability or review status cannot be changed through single-outlet association.</p>
     </article>
+    <div v-else class="draft-empty-detail"><h3>Select a draft to review</h3><p>The offer, source evidence and available actions will appear here.</p></div>
+      </template>
+    </AdminWorkspace>
   </section>
 </template>
 
 <style scoped>
-.draft-text { white-space: pre-wrap; }
-.admin-figures { font-variant-numeric: tabular-nums; }
-/* Long outlet names, addresses and review notes wrap on phones instead of widening the card. */
 dd, li, label { min-width: 0; overflow-wrap: anywhere; }
+.admin-figures { font-variant-numeric: tabular-nums; }
+.draft-workspace { min-width: 0; margin-bottom: 24px; }
+.draft-toolbar { display: flex; align-items: end; justify-content: space-between; gap: 20px; margin-bottom: 20px; }
+.draft-toolbar h2 { margin-bottom: 8px; }
+.draft-toolbar p { color: var(--admin-muted); margin: 0; }
+.draft-status-filter { display: grid; gap: 6px; min-width: 180px; font-size: .8125rem; font-weight: 600; }
+.draft-list-heading { padding: 16px 18px; margin: 0; color: var(--admin-muted); font-size: .8125rem; border-bottom: 1px solid var(--admin-border); }
+.draft-records { list-style: none; padding: 0; margin: 0; }
+.draft-record { display: grid; gap: 8px; width: 100%; padding: 18px; border: 0; border-bottom: 1px solid var(--admin-border); background: transparent; color: var(--admin-text); text-align: left; font: inherit; cursor: pointer; }
+.draft-record:hover { background: var(--admin-hover); }
+.draft-record.is-selected { background: var(--admin-selected-bg); box-shadow: inset 3px 0 var(--admin-accent); }
+.draft-record:disabled { opacity: .6; cursor: not-allowed; }
+.draft-record-heading { display: flex; flex-wrap: wrap; align-items: start; justify-content: space-between; gap: 10px; }
+.draft-record-heading strong { flex: 1 1 180px; font-size: .9375rem; line-height: 1.5; }
+.draft-record-meta, .draft-record small { color: var(--admin-muted); font-size: .8125rem; }
+.draft-record .admin-figures { font-size: .8125rem; }
+.draft-pagination { margin: 16px; }
+.draft-detail-heading { display: flex; align-items: start; justify-content: space-between; gap: 16px; margin-bottom: 20px; }
+.draft-detail-heading h3 { margin-bottom: 0; font-size: 1.25rem; }
+.draft-source-label { margin: 0 0 8px; color: var(--admin-muted); font-size: .8125rem; }
+.draft-text { white-space: pre-wrap; }
+.draft-facts { display: grid; grid-template-columns: minmax(110px, .6fr) minmax(0, 1.4fr); gap: 12px 20px; padding-block: 20px; margin-block: 20px; border-block: 1px solid var(--admin-border); }
+.draft-facts dt { color: var(--admin-muted); font-weight: 500; }
+.draft-facts dd { margin: 0; }
+.draft-decision { border: 1px solid var(--admin-accent-border); border-radius: 16px; background: var(--admin-accent-wash); padding: 20px; margin-block: 24px; }
+.draft-decision h4 { margin-bottom: 16px; }
+.draft-empty-detail { padding: 40px 12px; text-align: center; color: var(--admin-muted); }
+.draft-empty-detail h3 { font-size: 1rem; }
+@media (max-width: 767px) {
+ .draft-toolbar { flex-direction: column; align-items: stretch; }
+ .draft-status-filter { min-width: 0; }
+ .draft-facts { grid-template-columns: 1fr; gap: 4px; }
+ .draft-facts dd { margin-bottom: 14px; }
+ .draft-detail-heading { flex-direction: column; }
+ .draft-decision { padding: 16px; }
+}
 </style>

@@ -18,12 +18,10 @@ export type DecisionProblem = { kind: 'stale' | 'invalid' | 'error'; text: strin
 type Counts = AdminFlashDropsResponse['counts']
 
 export const NOTE_LIMIT = 500
-const EMPTY_COUNTS: Counts = { review: 0, scheduled: 0, live: 0, ended: 0, claimedToday: 0 }
+const EMPTY_COUNTS: Counts = { scheduled: 0, live: 0, ended: 0, claimedToday: 0 }
 const STALE_CODES = new Set(['CONFLICT', 'PRECONDITION_FAILED', 'NOT_FOUND'])
 const DONE_COPY: Record<DecisionKind, string> = {
-  APPROVE: 'Approved. The drop is now scheduled and will go live at its start time.',
-  SEND_BACK: 'Sent back. The merchant can see your note and edit the drop.',
-  STOP: 'Stopped. The banner is off the map and no more codes can be claimed.',
+  STOP: 'Removed. The flash deal is off the map and no more codes can be claimed.',
 }
 
 const codeOf = (error: unknown) => (error instanceof ApiClientError ? error.code : undefined)
@@ -32,13 +30,13 @@ export const useAdminFlashDrops = (
   client: AdminFlashDropsClient,
   denied: (code: DeniedCode) => void,
 ) => {
-  const view = ref<FlashDropView>('review')
+  const view = ref<FlashDropView>('live')
   const items = ref<readonly AdminFlashDrop[]>([])
   const counts = ref<Counts>(EMPTY_COUNTS)
   const status = ref<'idle' | 'loading' | 'ready' | 'error' | 'closed'>('idle')
   const updatedAt = ref<Date | null>(null)
   const selectedId = ref<string | null>(null)
-  const decision = ref<DecisionKind>('APPROVE')
+  const decision = ref<DecisionKind>('STOP')
   const note = ref('')
   const confirmed = ref(false)
   const pending = ref(false)
@@ -54,9 +52,8 @@ export const useAdminFlashDrops = (
   const activeDecision = computed<DecisionKind | null>(() =>
     choices.value.includes(decision.value) ? decision.value : (choices.value[0] ?? null),
   )
-  const noteRequired = computed(
-    () => activeDecision.value !== null && activeDecision.value !== 'APPROVE',
-  )
+  // Removing a flash deal always needs a note for the merchant.
+  const noteRequired = computed(() => activeDecision.value !== null)
   const canSubmit = computed(
     () =>
       !pending.value &&
@@ -153,7 +150,7 @@ export const useAdminFlashDrops = (
       problem.value = STALE_CODES.has(code ?? '')
         ? {
             kind: 'stale',
-            text: `${code === 'CONFLICT' ? 'Someone else changed this drop since you opened it.' : message || 'This drop has changed.'} Refresh to see its current state before deciding.`,
+            text: `${code === 'CONFLICT' ? 'Someone else changed this flash deal since you opened it.' : message || 'This flash deal has changed.'} Refresh to see its current state before deciding.`,
           }
         : code === 'BAD_REQUEST'
           ? { kind: 'invalid', text: message || 'Check the note and try again.' }

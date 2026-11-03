@@ -1,6 +1,7 @@
 import type { RestDependencies } from '@api/rest/context'
 import { methodNotAllowed } from '@api/rest/policy'
 import { createDeal } from '@api/rest/routers/merchant/handlers/create-deal'
+import { deleteDeal } from '@api/rest/routers/merchant/handlers/delete-deal'
 import { endDeal } from '@api/rest/routers/merchant/handlers/end-deal'
 import { listDeals } from '@api/rest/routers/merchant/handlers/list-deals'
 import { listOutlets } from '@api/rest/routers/merchant/handlers/list-outlets'
@@ -13,10 +14,11 @@ export const createMerchantRouter = (dependencies: RestDependencies): Router => 
   router.get('/deals', listDeals(dependencies))
   router.post('/deals', createDeal(dependencies))
   router.patch('/deals/:dealId', updateDeal(dependencies))
+  router.delete('/deals/:dealId', deleteDeal(dependencies))
   router.post('/deals/:dealId/end', endDeal(dependencies))
   router.all('/outlets', methodNotAllowed('GET'))
   router.all('/deals', methodNotAllowed('GET', 'POST'))
-  router.all('/deals/:dealId', methodNotAllowed('PATCH'))
+  router.all('/deals/:dealId', methodNotAllowed('PATCH', 'DELETE'))
   router.all('/deals/:dealId/end', methodNotAllowed('POST'))
   return router
 }

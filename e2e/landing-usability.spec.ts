@@ -15,7 +15,7 @@ const venueResponse = {
   deals: [],
   pastDeals: [],
 }
-const deals = Array.from({ length: 6 }, (_, index) => ({
+const deals = Array.from({ length: 8 }, (_, index) => ({
   id: String(index + 1).padStart(24, '0'),
   title: `Synthetic meal ${index + 1}`,
   category: 'FOOD',
@@ -55,7 +55,7 @@ for (const width of [320, 390, 1440]) {
     await expect(page.locator('.hero-live-card')).toBeVisible()
     await expect(page.locator('.hero-deal-action')).toHaveAttribute(
       'href',
-      new RegExp(`/deals/\\d{24}\\?at=${venueId}`),
+      new RegExp(`/deals/\\d{24}\\?at=${venueId}&view=list&discovery=1`),
     )
     await expect(page.locator('.hero-restaurant-link')).toHaveAttribute(
       'href',
@@ -67,17 +67,18 @@ for (const width of [320, 390, 1440]) {
     await how.click()
     await expect(page.locator('.landing-mobile-menu')).toHaveCount(0)
     await page.locator('#cuisines').scrollIntoViewIfNeeded()
-    const cards = page.locator('.landing-food-card')
-    await expect(cards).toHaveCount(4)
-    await expect(cards.first().locator('.landing-card-link')).toHaveAttribute(
+    // The All Deals card: the whole card opens the deal over the All Deals list.
+    // One row per page, as many cards as the width fits.
+    const perPage = width < 600 ? 2 : 5
+    const cards = page.locator('.food-deal-card')
+    await expect(cards).toHaveCount(perPage)
+    await expect(cards.first().locator('.food-deal-card__link')).toHaveAttribute(
       'href',
-      `/deals/${deals[0]?.id}?at=${venueId}`,
+      `/deals/${deals[0]?.id}?at=${venueId}&view=list&discovery=1`,
     )
-    await expect(cards.first().locator('.landing-photo-badge')).toHaveText('Likely still on')
-    await expect(cards.first().locator('.landing-offer-link')).toHaveText('Synthetic meal 1')
-    await expect(cards.first().locator('.landing-venue-link')).toHaveAttribute(
-      'href',
-      `/venues/${venueId}`,
+    await expect(cards.first().locator('.food-deal-card__status')).toHaveText('Likely still on')
+    await expect(cards.first().locator('.food-deal-card__description')).toHaveText(
+      'Synthetic meal 1',
     )
     const controls = page.locator('.landing-carousel-controls')
     await expect(
@@ -92,7 +93,9 @@ for (const width of [320, 390, 1440]) {
     expect(bounds.controls).toBeGreaterThanOrEqual(bounds.grid)
     await controls.getByRole('button', { name: 'Next deals', exact: true }).focus()
     await page.keyboard.press('Enter')
-    await expect(page.locator('.landing-carousel-status')).toContainText('Showing 5–6')
+    await expect(page.locator('.landing-carousel-status')).toContainText(
+      `Showing ${perPage + 1}–${Math.min(2 * perPage, deals.length)}`,
+    )
     await controls.getByRole('button', { name: 'Previous deals', exact: true }).click()
     await page.screenshot({ path: info.outputPath(`landing-deals-${width}.png`) })
     if (width === 390) {
@@ -151,7 +154,9 @@ test('failed deals can retry, with skeletons until the replacement response arri
   await page.goto('/')
   const section = page.locator('#cuisines')
   await section.getByRole('button', { name: 'Retry loading deals' }).click()
-  await expect(section.locator('.landing-skeleton-card')).toHaveCount(4)
+  // One row of skeletons, as many as the width fits; the loaded cards replace them one for one.
+  const skeletons = await section.locator('.landing-skeleton-card').count()
+  expect(skeletons).toBeGreaterThanOrEqual(2)
   await expect(page.locator('.hero-loading-card')).toHaveAttribute('role', 'status')
   await expect(page.locator('.hero-map-area')).toHaveClass(/hero-map-docked/)
   const skeletonPosition = await page.locator('.hero-loading-card').evaluate((element) => {
@@ -160,7 +165,7 @@ test('failed deals can retry, with skeletons until the replacement response arri
   })
   release()
   await expect(section.locator('.landing-skeleton-card')).toHaveCount(0)
-  await expect(section.locator('.landing-food-card')).toHaveCount(4)
+  await expect(section.locator('.food-deal-card')).toHaveCount(skeletons)
   const featuredCard = page.locator('.hero-live-card:not(.hero-loading-card)')
   await expect(featuredCard).toBeVisible()
   await expect(page.locator('.hero-map-area')).toHaveClass(/hero-map-docked/)
@@ -170,6 +175,8 @@ test('failed deals can retry, with skeletons until the replacement response arri
   })
   expect(featuredPosition.x).toBeCloseTo(skeletonPosition.x, 0)
   expect(featuredPosition.y).toBeCloseTo(skeletonPosition.y, 0)
-  await expect(section.locator('.landing-offer-link').first()).toHaveText('Synthetic meal 1')
+  await expect(section.locator('.food-deal-card__description').first()).toHaveText(
+    'Synthetic meal 1',
+  )
   expect(calls).toBe(2)
 })

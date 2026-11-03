@@ -176,9 +176,9 @@ it('renders protected operational counts and exact actionable links without live
       'registration-title',
       'attention-title',
       'quick-actions-title',
+      'recent-activity-title',
       'import-chart-title',
       'overview-runs-title',
-      'recent-activity-title',
       'readiness-title',
     ],
   )
@@ -188,11 +188,11 @@ it('renders protected operational counts and exact actionable links without live
   expect(w.get('a[href="/admin/ingestion?status=PENDING#queue-title"]').text()).toContain('5')
   expect(w.find('a[href="/admin/ingestion#runs-title"]').exists()).toBe(true)
   expect(w.text()).toContain('Failed imported posts: 7')
-  const flash = w.get('.overview-summary a[href="/admin/flash-drops"]')
-  expect(flash.text()).toContain('Flash drops to review: 2')
+  const flash = w.get('.overview-summary a[href="/admin/flash-drops?view=scheduled"]')
+  expect(flash.text()).toContain('Flash deals scheduled: 2')
   const attention = w.get('.overview-attention')
-  expect(attention.text()).toContain('2 Flash drops waiting for review')
-  expect(attention.text()).toContain('1 Flash drops live now')
+  expect(attention.text()).not.toContain('Flash deals scheduled to start')
+  expect(attention.text()).toContain('1 Flash deals live now')
   expect(attention.find('a[href="/admin/flash-drops?view=live"]').exists()).toBe(true)
   expect(w.text()).toContain('NOT_ESTABLISHED')
   expect(w.text()).toContain('not publisher permission')
@@ -241,7 +241,7 @@ it('keeps the overview available when activity fails and clears it when audit ac
   expect(w.find('.recent-admin-activity').exists()).toBe(false)
   w.unmount()
 })
-it('shows only nonempty attention queues and links quick actions to existing admin destinations', async () => {
+it('keeps each pending queue in one summary and links quick actions to existing admin destinations', async () => {
   rest.overview.mockResolvedValueOnce({
     ...overview,
     counts: {
@@ -253,10 +253,10 @@ it('shows only nonempty attention queues and links quick actions to existing adm
     },
   })
   const w = await open()
-  const attention = w.get('.overview-attention')
-  expect(attention.findAll('li')).toHaveLength(1)
-  expect(attention.get('a').attributes('href')).toBe('/admin/ingestion?status=PENDING#queue-title')
-  expect(attention.text()).toContain('5 Imported drafts await review')
+  expect(w.find('.overview-attention').exists()).toBe(false)
+  expect(w.findAll('a[href="/admin/ingestion?status=PENDING#queue-title"]')).toHaveLength(1)
+  expect(w.get('.overview-import-chart').element.tagName).toBe('DETAILS')
+  expect(w.get('.overview-import-chart').attributes('open')).toBeUndefined()
   expect(
     w
       .get('.overview-shortcuts')
@@ -279,10 +279,7 @@ it('shows only nonempty attention queues and links quick actions to existing adm
   })
   await w.get('[data-testid="overview-refresh"]').trigger('click')
   await flushPromises()
-  expect(w.get('.overview-attention').findAll('li')).toHaveLength(0)
-  expect(w.get('.overview-attention').text()).toContain(
-    'No pending merchant requests, imported drafts, flash drops or failed imported posts in this snapshot',
-  )
+  expect(w.find('.overview-attention').exists()).toBe(false)
   w.unmount()
 })
 it('compares recent runs on one shared scale and filters series without fetching more data', async () => {

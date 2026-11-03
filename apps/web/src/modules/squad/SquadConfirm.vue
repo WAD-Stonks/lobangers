@@ -2,7 +2,7 @@
 import { useSheetFocus } from '@web/modules/squad/use-sheet-focus'
 import { ref } from 'vue'
 
-// A small confirm sheet on the dark room surface ("Close the lobby?", "Remove Noah?"). Focus
+// A small confirm sheet on the room surface ("Close the lobby?", "Remove Noah?"). Focus
 // starts on the safe choice and stays inside; Escape or tapping outside keeps things as they
 // are, and focus goes back to the button that opened it.
 const props = withDefaults(

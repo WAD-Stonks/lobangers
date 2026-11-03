@@ -1,30 +1,36 @@
 <script setup lang="ts">
 import { RouterLink } from 'vue-router'
 
-const plannedModules = [
+const features = [
   {
-    name: 'browse-map',
-    ownership: 'Browse and map experience; define discovery and map contracts.',
+    name: 'Find a deal',
+    path: '/browse',
+    description: 'Explore the map or list, filter offers and check each outlet and its terms.',
   },
   {
-    name: 'add-deal',
-    ownership: 'Deal submission flow; define validation and moderation handoff.',
+    name: 'Share a deal',
+    path: '/add',
+    description: 'Sign in and submit an offer with a photo. An admin reviews it before publication.',
   },
   {
-    name: 'community',
-    ownership: 'Community interactions; define reports, votes, and discussion surfaces.',
+    name: 'Check recent experiences',
+    path: '/deals',
+    description: 'Open a deal to read comments and recent availability reports, or sign in to contribute.',
   },
   {
-    name: 'account',
-    ownership: 'Account experience; connect BetterAuth flows when the backend contract is ready.',
+    name: 'Your account',
+    path: '/me/profile',
+    description: 'Manage your profile, find saved deals and track your submissions.',
   },
   {
-    name: 'ingestion-admin',
-    ownership: 'Ingestion and admin tools; document job status and review responsibilities.',
+    name: 'Plan with a Squad',
+    path: '/squad/new',
+    description: 'Sign in to start a room, invite friends and choose a deal together.',
   },
   {
-    name: 'venues-feed',
-    ownership: 'Venue and feed integration; define source data and freshness boundaries.',
+    name: 'My codes',
+    path: '/codes',
+    description: 'Find the Flash Drop codes you claimed and check their offer details and expiry.',
   },
 ]
 </script>
@@ -34,23 +40,21 @@ const plannedModules = [
     <RouterLink class="link-secondary d-inline-block mb-4" to="/">← Back home</RouterLink>
     <h1 id="setup-title" class="h2 mb-3">Getting started</h1>
     <p class="text-secondary setup-copy">
-      This is the frontend starter for the six planned workstreams. It supplies the Vue shell,
-      routing, Bootstrap baseline, and auth client wiring only. Product behavior belongs to each
-      module and should follow the team plans rather than invented endpoints or schemas.
+      LoBangers brings nearby food promotions, recent community experiences and group planning
+      into one place. Start with the map, then open an offer to check its details before heading out.
     </p>
 
-    <h2 class="h4 mt-5 mb-3">Planned module ownership</h2>
+    <h2 class="h4 mt-5 mb-3">Explore LoBangers</h2>
     <dl class="row g-0 module-list">
-      <template v-for="module in plannedModules" :key="module.name">
-        <dt class="col-md-4 py-3 font-monospace">src/modules/{{ module.name }}</dt>
-        <dd class="col-md-8 py-3 mb-0">{{ module.ownership }}</dd>
+      <template v-for="feature in features" :key="feature.path">
+        <dt class="col-md-4 py-3"><RouterLink :to="feature.path">{{ feature.name }}</RouterLink></dt>
+        <dd class="col-md-8 py-3 mb-0">{{ feature.description }}</dd>
       </template>
     </dl>
 
     <p class="text-secondary small mt-4 mb-0">
-      Auth UI is intentionally not included here. The generic client lives at
-      <code>src/lib/auth-client.ts</code>; the Vite proxy forwards same-origin <code>/api</code>
-      requests to the local backend.
+      You can browse without an account. Sign in to save deals, submit an offer or share an
+      experience. Merchant tools require approved outlet access; administration is restricted to staff.
     </p>
   </section>
 </template>
