@@ -2,6 +2,7 @@ import type { Database } from '@api/modules/platform-admin/transaction'
 import {
   choiceOutcome,
   isPresent,
+  keepLookingOutcome,
   LOBBY_LIFETIME_MS,
   voters,
   votingOutcome,
@@ -40,10 +41,10 @@ export const closeRoom = async (
 const advance = (room: RoomRow, events: NewEvent[]) => {
   if (room.dealIndex + 1 < room.dealIds.length) {
     events.push({ kind: 'NEXT_DEAL', dealIndex: room.dealIndex + 1 })
-    return { dealIndex: room.dealIndex + 1, round: 0, phase: 'VOTING' as const }
+    return { dealIndex: room.dealIndex + 1, round: 0, phase: 'VOTING' as const, matchDealId: null }
   }
   events.push({ kind: 'OUT_OF_DEALS', dealIndex: room.dealIndex })
-  return { phase: 'OUT_OF_DEALS' as const }
+  return { phase: 'OUT_OF_DEALS' as const, matchDealId: null }
 }
 
 type Reader = Tx | Database
@@ -58,10 +59,14 @@ const plan = async (
 ): Promise<Step | null> => {
   if (room.status === 'LOBBY' && now.getTime() - room.createdAt.getTime() > LOBBY_LIFETIME_MS)
     return { close: 'EXPIRED' }
-  if (room.status !== 'LIVE' || (room.phase !== 'VOTING' && room.phase !== 'DECIDING')) return null
+  if (room.status !== 'LIVE' || !['VOTING', 'DECIDING', 'MATCHED'].includes(room.phase)) return null
   if (!seats.some((seat) => isPresent(seat) && !seat.spectator)) return { close: 'EMPTY' }
   const events: NewEvent[] = []
-  const [deal] = await loadDeals(reader, [room.dealIds[room.dealIndex] ?? ''], now)
+  // A match stands even if its deal ends afterwards; the squad already picked it.
+  const [deal] =
+    room.phase === 'MATCHED'
+      ? [{ ended: false }]
+      : await loadDeals(reader, [room.dealIds[room.dealIndex] ?? ''], now)
   if (!deal || deal.ended) {
     events.push({ kind: 'DEAL_ENDED', dealIndex: room.dealIndex })
     return { data: advance(room, events), events }
@@ -71,6 +76,8 @@ const plan = async (
     select: { memberId: true, stance: true, choice: true },
   })
   const voterIds = voters(seats, now).map((seat) => seat.id)
+  if (room.phase === 'MATCHED')
+    return keepLookingOutcome(voterIds, ballots) ? { data: advance(room, events), events } : null
   if (room.phase === 'VOTING') {
     const outcome = votingOutcome(voterIds, ballots)
     if (outcome === 'MATCH') {

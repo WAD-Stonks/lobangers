@@ -305,6 +305,42 @@ describe('voting', () => {
     expect(moved.body).toMatchObject({ phase: 'VOTING', round: 0, dealIndex: 1 })
   })
 
+  it('keeps looking after a match once 80% pick it, and only next is allowed', async () => {
+    const code = await liveRoom([await publishedDeal('Matched'), await publishedDeal('After')])
+    await voteAs(host, code, 'YAY')
+    await voteAs(ashley, code, 'YAY')
+    expect((await chooseAs(host, code, 'AGAIN')).status).toBe(400)
+    const one = await chooseAs(host, code, 'NEXT')
+    expect(one.body).toMatchObject({ phase: 'MATCHED', tally: { next: 1 } })
+    await chooseAs(ashley, code, 'NEXT')
+    const moved = await chooseAs(damien, code, 'NEXT')
+    expect(moved.body).toMatchObject({
+      phase: 'VOTING',
+      dealIndex: 1,
+      round: 0,
+      matchDealId: null,
+      tally: { next: 0, yesPeople: 0 },
+    })
+  })
+
+  it('lets the host remove someone mid-vote and close a matched room', async () => {
+    const code = await liveRoom([await publishedDeal('Kick live')])
+    const synced = await call(host, 'POST', room(code, '/sync'), { after: 0 })
+    const damienId = synced.body.state.members.find(
+      (member: { name: string }) => member.name === 'Damien',
+    ).id
+    const removed = await call(host, 'POST', room(code, `/members/${damienId}/remove`))
+    expect(removed.status).toBe(200)
+    expect(removed.body.tally.voters).toBe(2)
+    expect((await voteAs(damien, code, 'YAY')).status).toBe(403)
+    await voteAs(host, code, 'YAY')
+    expect((await voteAs(ashley, code, 'YAY')).body.phase).toBe('MATCHED')
+    expect((await call(host, 'POST', room(code, '/close'))).body).toMatchObject({
+      status: 'CLOSED',
+      closeReason: 'HOST_CLOSED',
+    })
+  })
+
   it('offers the top pick when every deal is voted down, then lets the host add more', async () => {
     const only = await publishedDeal('Only')
     const code = await liveRoom([only])

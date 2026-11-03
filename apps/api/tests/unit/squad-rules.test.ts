@@ -1,6 +1,7 @@
 import {
   AWAY_AFTER_MS,
   choiceOutcome,
+  keepLookingOutcome,
   nextHost,
   roomCode,
   sameName,
@@ -84,6 +85,15 @@ describe('choiceOutcome', () => {
     expect(choiceOutcome(five, ['m1', 'm2', 'm3', 'm4'].map(next))).toBe('NEXT')
     expect(choiceOutcome(five, ['m1', 'm2', 'm3'].map(next))).toBeNull()
     expect(choiceOutcome(ids, [next('m1'), next('m2')])).toBeNull()
+  })
+
+  it('leaves a match only once at least 80% want to keep looking', () => {
+    const five = ['m1', 'm2', 'm3', 'm4', 'm5']
+    const next = (id: string) => ballot(id, 'YAY', 'NEXT')
+    expect(keepLookingOutcome(five, ['m1', 'm2', 'm3', 'm4'].map(next))).toBe('NEXT')
+    expect(keepLookingOutcome(five, ['m1', 'm2', 'm3'].map(next))).toBeNull()
+    expect(keepLookingOutcome(ids, [ballot('m1', 'YAY', 'AGAIN')])).toBeNull()
+    expect(keepLookingOutcome([], [])).toBeNull()
   })
 
   it('counts each side for the tally', () => {
