@@ -167,8 +167,11 @@ export const choose = async (
     const room = await requireRoom(tx, code)
     const seats = await seatsOf(tx, room.id)
     const seat = requireVoter(requireMember(seats, actor.userId))
-    if (room.status !== 'LIVE' || room.phase !== 'DECIDING')
+    // After a match the only choice is to keep looking.
+    if (room.status !== 'LIVE' || (room.phase !== 'DECIDING' && room.phase !== 'MATCHED'))
       throw new DomainError('PRECONDITION_FAILED', 'The room has already moved on')
+    if (room.phase === 'MATCHED' && input.choice !== 'NEXT')
+      throw new DomainError('BAD_REQUEST', 'This deal already matched. Pick Keep looking instead')
     await tx.squadVote.upsert({
       where: ballotKey(room.id, seat.id, room.dealIndex, room.round),
       create: {

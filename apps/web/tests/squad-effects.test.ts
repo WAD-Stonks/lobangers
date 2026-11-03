@@ -39,9 +39,11 @@ describe('squad effects', () => {
     const effects = useSquadEffects()
     effects.whoosh('again', 'Ashley')
     effects.whoosh('next', 'Damien')
+    effects.whoosh('look', 'Noah')
     expect(effects.whooshes.value.map((item) => item.text)).toEqual([
       'Ashley wants to vote again',
       'Damien wants the next deal',
+      'Noah wants to keep looking',
     ])
     effects.yay('teh', photo, { x: 0, y: 0 })
     effects.clearStickers()

@@ -26,6 +26,7 @@ const FALLBACK_HEADER_BOTTOM_PX = 128
 const FALLBACK_VIEWPORT = { width: 1280, height: 800 }
 // Snap indexes: peek, half, full (stops below the header) and expanded (covers the whole screen).
 export const SHEET_FULL = 2
+export const SHEET_EXPANDED = 3
 
 type Options = {
   readonly breakpoint: Readonly<Ref<Breakpoint>>

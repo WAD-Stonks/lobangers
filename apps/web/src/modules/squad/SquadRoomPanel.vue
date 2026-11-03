@@ -37,14 +37,17 @@ watch(
   { immediate: true },
 )
 
-// The moment a lobby goes live, a short 3-2-1 plays over the room (skipped for reduced motion).
+// The moment a lobby goes live, the sheet opens to full screen (even if it was dragged down or
+// minimised in the lobby) and a short 3-2-1 plays over the room (skipped for reduced motion).
 const stirring = ref(false)
 const reducedMotion = () =>
   typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
 watch(
   () => state.value?.status,
   (next, previous) => {
-    if (previous === 'LOBBY' && next === 'LIVE' && !reducedMotion()) stirring.value = true
+    if (previous !== 'LOBBY' || next !== 'LIVE') return
+    sheet?.expand()
+    if (!reducedMotion()) stirring.value = true
   },
 )
 const hostName = computed(() => state.value?.members.find((member) => member.isHost)?.name ?? null)

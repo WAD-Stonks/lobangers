@@ -36,7 +36,7 @@ import { browseLocation, dealLocation, panelSnapFor, shellQuery, venueLocation }
 import { provideShellState } from '@web/modules/map-shell/shell-state'
 import { useBreakpoint, useFinePointer, usePrefersReducedMotion } from '@web/modules/map-shell/use-breakpoint'
 import { provideSavedDeals } from '@web/modules/map-shell/use-saved-deals'
-import { SHEET_FULL, useShellLayout } from '@web/modules/map-shell/use-shell-layout'
+import { SHEET_EXPANDED, SHEET_FULL, useShellLayout } from '@web/modules/map-shell/use-shell-layout'
 import { provideToastQueue } from '@web/modules/map-shell/use-toast'
 import { SHEET_CONTROL_KEY } from '@web/modules/squad/sheet-control'
 import { provideSquadRoom } from '@web/modules/squad/use-squad-room'
@@ -132,7 +132,7 @@ provide(SHEET_CONTROL_KEY, {
     layout.snap.value = 0
   },
   expand: () => {
-    layout.snap.value = SHEET_FULL
+    layout.snap.value = SHEET_EXPANDED
   },
 })
 const panelRef = ref<InstanceType<typeof ShellPanel> | null>(null)
@@ -327,7 +327,7 @@ watch(mapPreferences.sidebarVisible, async () => {
 const resultsQuery = computed(() => ({ ...route.query, ...(shell.savedOnly.value ? { collection: 'saved' } : {}) }))
 const openVenue = (venueId: string) => {
   if (inSquad.value) {
-    if (venueId === squadVenueId.value) layout.snap.value = SHEET_FULL
+    if (venueId === squadVenueId.value) layout.snap.value = SHEET_EXPANDED
     else toast.show(`You're in Room ${squad.code.value}. Leave the room to open other deals.`)
     return
   }
