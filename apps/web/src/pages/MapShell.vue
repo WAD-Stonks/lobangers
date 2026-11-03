@@ -188,6 +188,12 @@ const selectedVenueId = computed(() => {
 const selectedPin = computed(() => (selectedVenueId.value ? shell.findVenuePin(selectedVenueId.value) : null))
 const lobbiePins = computed(() => (isLobbie.value ? lobbie.resultPins.value : []))
 const mapFramed = computed(() => lobbiePins.value.length > 0)
+// On a phone the Lobbie chat opens at full height, which leaves only a sliver of map above it.
+// When Lobbie answers with picks, drop the sheet to half so the framed pins can be seen. This
+// runs before the map hears about the picks, so it frames them for the lower sheet.
+watch(lobbiePins, (pins) => {
+  if (pins.length > 0 && layout.mode.value === 'sheet') layout.snap.value = Math.min(layout.snap.value, 1)
+})
 
 // A filter can hide the deal being viewed; its pin still shows so the map matches the panel.
 // A stall running a Flash Drop is drawn by the drop's coral pin instead of its usual one, so the
