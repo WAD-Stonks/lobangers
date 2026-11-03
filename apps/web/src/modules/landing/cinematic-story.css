@@ -94,7 +94,7 @@
 .cinematic-story .story-copy h2 {
   font-size: clamp(44px, 5vw, 78px);
 }
-.cinematic-story .story-copy :is(a, button, select) {
+.cinematic-story .story-copy :is(a, button, .app-select) {
   pointer-events: auto;
 }
 .cinematic-story .story-copy > div > p {

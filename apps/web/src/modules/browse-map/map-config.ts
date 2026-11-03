@@ -26,6 +26,5 @@ export const MAX_ACCURACY_HALO_METRES = 500
 // Venue pins (animated 3D food plus a black price badge) are built by venue-pin.ts; area and
 // "Near you" pills by cluster-icon.ts, chosen per zoom by map-tiers.ts. Styled in DealMap.vue.
 export const DEAL_PIN_CLASS = 'deal-map-pin'
-export const DEAL_PIN_BUBBLE_PX = 44
 // Longer labels are cut so a badge never grows into a banner across the map.
 export const DEAL_PIN_LABEL_MAX_CHARS = 14

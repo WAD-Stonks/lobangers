@@ -22,9 +22,6 @@ export const countdown = (endsAt: string, now: number): string => {
   return hours > 0 ? `${hours}:${pad(minutes)}:${pad(seconds)}` : `${minutes}:${pad(seconds)}`
 }
 
-export const secondsLeft = (endsAt: string, now: number): number =>
-  Math.max(0, Math.floor((new Date(endsAt).getTime() - now) / 1000))
-
 // "−63%" when the drop beats a known usual price by a whole percent, otherwise null.
 export const savingText = (flashCents: number, usualCents: number | null): string | null => {
   if (!usualCents || usualCents <= flashCents) return null

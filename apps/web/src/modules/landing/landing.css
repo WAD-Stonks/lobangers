@@ -32,7 +32,7 @@
   text-decoration: none;
 }
 .lobangers-landing button,
-.lobangers-landing select {
+.lobangers-landing .app-select {
   font: inherit;
   color: inherit;
 }
@@ -40,7 +40,7 @@
   cursor: pointer;
   touch-action: manipulation;
 }
-.lobangers-landing :is(button, a, select):focus-visible {
+.lobangers-landing :is(button, a, .app-select):focus-visible {
   outline: 3px solid #b24d2e;
   outline-offset: 5px;
 }
@@ -544,7 +544,7 @@
   pointer-events: none;
 }
 .story-copy a,
-.story-copy select,
+.story-copy .app-select,
 .story-copy button {
   pointer-events: auto;
 }
@@ -607,8 +607,8 @@
   padding: 10px 17px;
   gap: 7px;
 }
-.neighbourhood-controls select,
-.deal-grid-toolbar select {
+.neighbourhood-controls .app-select,
+.deal-grid-toolbar .app-select {
   border: 1px solid #dcd9cb;
   border-radius: 30px;
   background: #fff;
@@ -923,7 +923,7 @@
   display: flex;
   gap: 8px;
 }
-.deal-grid-toolbar select {
+.deal-grid-toolbar .app-select {
   font-size: 11px;
   padding: 8px 10px;
   min-height: 40px;
@@ -1308,7 +1308,7 @@
     min-height: 40px;
     padding: 9px 14px;
   }
-  .neighbourhood-controls select {
+  .neighbourhood-controls .app-select {
     font-size: 11px;
     min-height: 40px;
     padding-block: 8px;
@@ -1573,7 +1573,7 @@
   .deal-grid-toolbar > div {
     gap: 5px;
   }
-  .deal-grid-toolbar select {
+  .deal-grid-toolbar .app-select {
     font-size: 11px;
     padding: 7px;
     max-width: 160px;

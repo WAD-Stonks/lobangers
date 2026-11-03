@@ -176,7 +176,7 @@ for (const width of [320, 390, 1280]) {
     await requestLink.focus()
     await requestLink.press('Enter')
     await expect(page).toHaveURL('/admin/accounts?requestStatus=PENDING#merchant-requests')
-    await expect(page.locator('#request-status')).toHaveValue('PENDING')
+    await expect(page.locator('#request-status')).toHaveAttribute('data-value', 'PENDING')
     await expect(page.locator('#merchant-requests')).toBeVisible()
     expect(
       await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
@@ -190,7 +190,7 @@ for (const width of [320, 390, 1280]) {
     await page
       .locator('.overview-summary a[href="/admin/ingestion?status=PENDING#queue-title"]')
       .click()
-    await expect(page.locator('#queue-status')).toHaveValue('PENDING')
+    await expect(page.locator('#queue-status')).toHaveAttribute('data-value', 'PENDING')
     await expect(page.locator('#queue-title')).toBeVisible()
     await page.goto('/admin')
     await page
@@ -425,12 +425,14 @@ test('dark admin dropdown indicators remain distinguishable from their controls'
   await expect(select).toBeVisible()
   const contrast = await select.evaluate((element) => {
     const style = getComputedStyle(element)
-    const svg = decodeURIComponent(style.backgroundImage)
-    const stroke = svg.match(/stroke=['"](#[0-9a-f]{6})['"]/i)?.[1]
-    if (!stroke) return 0
-    const foreground = [1, 3, 5].map((offset) =>
-      Number.parseInt(stroke.slice(offset, offset + 2), 16),
-    )
+    // AppSelect draws its chevron as an inline SVG stroked with currentColor.
+    const chevron = element.querySelector('.app-select__chevron')
+    if (!chevron) return 0
+    const foreground = getComputedStyle(chevron)
+      .color.match(/[0-9.]+/g)
+      ?.slice(0, 3)
+      .map(Number)
+    if (!foreground) return 0
     const background = style.backgroundColor
       .match(/[0-9.]+/g)
       ?.slice(0, 3)

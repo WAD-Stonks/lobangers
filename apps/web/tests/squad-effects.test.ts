@@ -29,7 +29,8 @@ describe('squad effects', () => {
       effects.nah(390)
     }
     expect(effects.stickers.value.length).toBeLessThanOrEqual(14)
-    expect(effects.drops.value.length).toBeLessThanOrEqual(24)
+    // Enough thumbs for a downpour, never more.
+    expect(effects.drops.value).toHaveLength(40)
     vi.advanceTimersByTime(3000)
     expect(effects.drops.value).toHaveLength(0)
   })

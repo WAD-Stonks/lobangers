@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { CommunityComment } from '@broke-oclock/contracts/community'
 import { formatDateTime, formatRelativeTime } from '@web/lib/format'
+import { useConfirm } from '@web/lib/use-confirm'
 import CommentBody from '@web/modules/community/CommentBody.vue'
 import { computed, nextTick, ref } from 'vue'
 import { type RouteLocationRaw, RouterLink } from 'vue-router'
@@ -30,15 +31,18 @@ const postedAt = computed(() => formatDateTime(props.comment.createdAt))
 const editDirty = computed(() => editBody.value.trim() !== props.comment.body.trim())
 const replyDirty = computed(() => replyBody.value.trim().length > 0)
 // Cancel asks before throwing a draft away, then hands focus back to what opened the form.
-const keepDraft = (dirty: boolean) => dirty && !window.confirm(DISCARD_DRAFT)
+const { ask } = useConfirm()
+const keepDraft = async (dirty: boolean) =>
+  dirty &&
+  !(await ask({ title: 'Discard draft?', body: DISCARD_DRAFT, confirmLabel: 'Discard', cancelLabel: 'Keep writing' }))
 const cancelEdit = async () => {
-  if (keepDraft(editDirty.value)) return
+  if (await keepDraft(editDirty.value)) return
   editing.value = false
   await nextTick()
   moreButton.value?.focus()
 }
 const cancelReply = async () => {
-  if (keepDraft(replyDirty.value)) return
+  if (await keepDraft(replyDirty.value)) return
   replying.value = false
   replyBody.value = ''
   await nextTick()

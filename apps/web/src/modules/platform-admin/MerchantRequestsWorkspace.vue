@@ -1,10 +1,18 @@
 <script setup lang="ts">
+import AppSelect from '@web/components/AppSelect.vue'
 import AdminTaskLink from '@web/components/admin/AdminTaskLink.vue'
+import { optionsFromValues, type SelectOption } from '@web/components/select-options'
 import TicketLoading from '@web/components/TicketLoading.vue'
 import { adminRecordId } from '@web/lib/admin-workflow-links'
 import { formatDateTime } from '@web/lib/format'
 import type { usePlatformAdmin } from '@web/modules/platform-admin/use-platform-admin'
 import { computed } from 'vue'
+
+const STATUS_OPTIONS = optionsFromValues(['PENDING', 'APPROVED', 'REJECTED'])
+const DECISION_OPTIONS: readonly SelectOption[] = [
+  { value: 'APPROVE', label: 'Approve' },
+  { value: 'REJECT', label: 'Reject' },
+]
 
 const props = defineProps<{ s: ReturnType<typeof usePlatformAdmin> }>()
 const applicantHref = computed(() => {
@@ -18,7 +26,7 @@ const applicantHref = computed(() => {
 <section aria-label="Merchant requests" class="workspace-surface">
         <h2 id="merchant-requests" class="h4">Merchant requests</h2>
         <label for="request-status" class="form-label">Request status</label>
-        <select id="request-status" v-model="s.requestStatus" :disabled="s.busy" class="form-select mb-3"><option>PENDING</option><option>APPROVED</option><option>REJECTED</option></select>
+        <AppSelect id="request-status" v-model="s.requestStatus" :options="STATUS_OPTIONS" :disabled="s.busy" class="form-select mb-3" />
         <TicketLoading v-if="s.requests.loading" label="Loading requests…" />
         <p v-if="s.requests.error" role="alert">{{ s.requests.error }}</p>
         <button type="button" class="btn btn-outline-secondary mb-3" :disabled="s.busy || s.requests.loading" data-testid="reload-requests" @click="s.loadRequests()">Reload requests</button>
@@ -36,7 +44,7 @@ const applicantHref = computed(() => {
           <form v-if="s.selectedRequest.status === 'PENDING'" id="request-form" @submit.prevent="s.reviewRequest">
             <fieldset :disabled="s.busy || s.requests.loading">
               <label for="request-decision" class="form-label">Request decision</label>
-              <select id="request-decision" v-model="s.decision" class="form-select mb-3"><option value="APPROVE">Approve</option><option value="REJECT">Reject</option></select>
+              <AppSelect id="request-decision" v-model="s.decision" :options="DECISION_OPTIONS" class="form-select mb-3" />
               <p>Approval grants only this named stall. An eligible USER becomes MERCHANT. Existing staff roles are not silently downgraded.</p>
               <label for="request-note" class="form-label">Request review note (required)</label>
               <textarea id="request-note" v-model="s.requestNote" class="form-control mb-3" maxlength="500" required />

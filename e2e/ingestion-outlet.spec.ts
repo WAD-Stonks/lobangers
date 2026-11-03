@@ -16,6 +16,8 @@ import {
 } from '@broke-oclock/contracts/admin-deals'
 import type { IngestionDashboardResponse, IngestionDraft } from '@broke-oclock/contracts/ingestion'
 import { expect, type Page, type TestInfo, test } from '@playwright/test'
+// biome-ignore lint/style/noRestrictedImports: E2E-only helper; no E2E alias exists.
+import { chooseOption } from './choose-option'
 
 // Real SPA, router, Axios and contract parsers; all network data and writes are synthetic.
 // Native authorization and actual publication are covered by disposable HTTP integration tests.
@@ -461,9 +463,10 @@ for (const width of [320, 390, 1280]) {
       await page
         .getByLabel('What did the source confirm?', { exact: true })
         .fill('Synthetic source explicitly confirms the complete two-outlet scope.')
-      await page
-        .getByRole('combobox', { name: 'Reviewed source snapshot', exact: true })
-        .selectOption(citationId)
+      await chooseOption(
+        page.getByRole('combobox', { name: 'Reviewed source snapshot', exact: true }),
+        citationId,
+      )
       await page
         .getByLabel('I reviewed this supporting source and confirmed the complete stated scope.', {
           exact: true,

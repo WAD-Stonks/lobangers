@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import AppSelect from '@web/components/AppSelect.vue'
+import type { SelectOption } from '@web/components/select-options'
 import TicketLoading from '@web/components/TicketLoading.vue'
 import { api } from '@web/lib/api-client'
 import { formatCount, formatDateTime } from '@web/lib/format'
@@ -29,9 +31,16 @@ const login = computed(() => ({ path: '/login', query: { redirect: route.fullPat
 const labels = { LIKELY_STILL_ON: 'Likely still on', UNCERTAIN: 'Availability uncertain', EXPIRED: 'Promotion has ended', NO_RECENT_REPORTS: 'No recent reports' }
 const removeId = ref<string | null>(null)
 const report = ref<{ kind: 'deal' | 'comment'; id: string } | null>(null)
-const reason = ref<'SPAM' | 'MISLEADING' | 'INAPPROPRIATE' | 'OTHER'>('INAPPROPRIATE')
+type ReportReason = 'SPAM' | 'MISLEADING' | 'INAPPROPRIATE' | 'OTHER'
+const reason = ref<ReportReason>('INAPPROPRIATE')
 const details = ref('')
-const reasonInput = ref<HTMLSelectElement | null>(null)
+const REPORT_REASONS: readonly SelectOption[] = [
+  { value: 'INAPPROPRIATE', label: 'Inappropriate content' },
+  { value: 'SPAM', label: 'Spam' },
+  { value: 'MISLEADING', label: 'Misleading information' },
+  { value: 'OTHER', label: 'Other' },
+]
+const reasonInput = ref<InstanceType<typeof AppSelect> | null>(null)
 const reportDialog = ref<HTMLDialogElement | null>(null)
 const commentInput = ref<HTMLTextAreaElement | null>(null)
 const pending = ref<'vote' | 'comment' | 'delete' | 'report' | null>(null)
@@ -92,7 +101,7 @@ const openReport = async (kind: 'deal' | 'comment', id: string, event: Event) =>
   details.value = ''
   await nextTick()
   reportDialog.value?.showModal?.()
-  reasonInput.value?.focus()
+  ;(reasonInput.value?.$el as HTMLElement | undefined)?.focus()
 }
 const closeReport = async () => {
   reportDialog.value?.close?.()
@@ -231,7 +240,7 @@ const commentLimit = formatCount(COMMENT_MAX)
       <p v-if="error" class="deal-community-error" role="alert">{{ error }}</p>
       <p class="deal-community-help">For spam or inappropriate content. Use “Gone” to report availability.</p>
       <label for="deal-community-reason">Reason</label>
-      <select id="deal-community-reason" ref="reasonInput" v-model="reason" name="reason" :disabled="busy"><option value="INAPPROPRIATE">Inappropriate content</option><option value="SPAM">Spam</option><option value="MISLEADING">Misleading information</option><option value="OTHER">Other</option></select>
+      <AppSelect id="deal-community-reason" ref="reasonInput" :model-value="reason" name="reason" :options="REPORT_REASONS" :disabled="busy" @update:model-value="reason = $event as ReportReason" />
       <label for="deal-community-report-details">Details (optional)</label>
       <textarea id="deal-community-report-details" v-model="details" name="details" maxlength="500" rows="3" :disabled="busy" />
       <div class="deal-community-actions deal-community-actions--end"><button class="lb-btn" type="button" :disabled="busy" @click="closeReport">Cancel</button><button class="lb-btn lb-btn--primary" type="submit" :disabled="busy">{{ pending === 'report' ? 'Sending…' : 'Send report' }}</button></div>
@@ -304,7 +313,8 @@ const commentLimit = formatCount(COMMENT_MAX)
 .deal-community-comment-total { display: inline-grid; place-items: center; min-width: 24px; min-height: 24px; padding: 0 6px; border-radius: 8px; background: var(--paper-sunk); color: var(--ink-muted); font: 600 0.75rem/1 var(--font-sans); vertical-align: middle; }
 .deal-community-comment-form, .deal-community-report { display: grid; gap: 8px; min-width: 0; }
 .deal-community label { font-size: 0.875rem; font-weight: 600; }
-.deal-community textarea, .deal-community select { box-sizing: border-box; width: 100%; min-width: 0; border: 1px solid var(--hairline-strong); border-radius: 12px; padding: 12px; background: var(--paper-white); color: var(--ink); font: 400 1rem/1.5 var(--font-sans); }
+.deal-community textarea, .deal-community .app-select { box-sizing: border-box; width: 100%; min-width: 0; border: 1px solid var(--hairline-strong); border-radius: 12px; padding: 12px; background: var(--paper-white); color: var(--ink); font: 400 1rem/1.5 var(--font-sans); }
+.deal-community .app-select { padding-inline-end: 40px; }
 .deal-community textarea { resize: vertical; }
 .deal-community textarea::placeholder { color: var(--ink-muted); }
 .deal-community-actions--end { justify-content: flex-end; }
@@ -354,7 +364,7 @@ const commentLimit = formatCount(COMMENT_MAX)
 }
 .deal-community-error { flex-direction: column; color: var(--ink); background: var(--paper-sunk); border: 1px solid var(--hairline-strong); }
 .deal-community-loading { margin: 0; font-size: 0.875rem; color: var(--ink-muted); }
-.deal-community :is(button, a, summary, textarea, select):focus-visible { outline: 3px solid var(--coral-deep); outline-offset: 3px; }
+.deal-community :is(button, a, summary, textarea, .app-select):focus-visible { outline: 3px solid var(--coral-deep); outline-offset: 3px; }
 .deal-community .lb-btn { min-height: 44px; }
 .deal-community-post:disabled { cursor: default; background: var(--sunny); color: var(--on-accent); transform: none; transition: none; animation: none; box-shadow: none; }
 </style>

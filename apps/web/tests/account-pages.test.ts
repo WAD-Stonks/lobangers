@@ -8,6 +8,7 @@ import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
 import MerchantAccessPage from '@web/pages/MerchantAccessPage.vue'
 import MySubmissionsPage from '@web/pages/MySubmissionsPage.vue'
 import SavedDealsPage from '@web/pages/SavedDealsPage.vue'
+import { chooseOption, optionLabels, selectedValue } from '@web-tests/support/select'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { type Component, h } from 'vue'
 import { createMemoryHistory, createRouter } from 'vue-router'
@@ -239,15 +240,15 @@ describe('merchant access page', () => {
     // The newer search (B) finishes first and the user picks a stall from it.
     searchB.resolve([venue('venue-b', 'Stall B')])
     await flushPromises()
-    await wrapper.find('#venue').setValue('venue-b')
+    await chooseOption(wrapper, '#venue', 'venue-b')
 
     // The older search (A) finishes last and must change nothing.
     searchA.resolve([venue('venue-a', 'Stall A')])
     await flushPromises()
 
-    const options = wrapper.findAll('#venue option').map((option) => option.text())
+    const options = await optionLabels(wrapper, '#venue')
     expect(options).toEqual(['Choose a stall', 'Stall B (Merchant)'])
-    expect((wrapper.find('#venue').element as HTMLSelectElement).value).toBe('venue-b')
+    expect(selectedValue(wrapper, '#venue')).toBe('venue-b')
   })
 
   it('does not show an error from an older search that failed after a newer one succeeded', async () => {
@@ -265,9 +266,7 @@ describe('merchant access page', () => {
     searchA.reject(new Error('offline'))
     await flushPromises()
     expect(wrapper.text()).not.toContain('Could not search stalls')
-    expect(wrapper.findAll('#venue option').map((option) => option.text())).toContain(
-      'Stall B (Merchant)',
-    )
+    expect(await optionLabels(wrapper, '#venue')).toContain('Stall B (Merchant)')
   })
 
   it('discards a Load more response that finishes after a refresh', async () => {
@@ -286,7 +285,7 @@ describe('merchant access page', () => {
       items: [request(9), request(1)],
       nextCursor: 'cursor-new',
     })
-    await wrapper.find('#venue').setValue('venue-1')
+    await chooseOption(wrapper, '#venue', 'venue-1')
     await wrapper.find('#why').setValue('Please approve')
     await wrapper.find('form').trigger('submit')
     await flushPromises()
@@ -312,7 +311,7 @@ describe('merchant access page', () => {
 
     const refresh = deferred<Page<MyMerchantRequest>>()
     account.merchantRequests.mockReturnValueOnce(refresh.promise)
-    await wrapper.find('#venue').setValue('venue-1')
+    await chooseOption(wrapper, '#venue', 'venue-1')
     await wrapper.find('#why').setValue('Please approve')
     await wrapper.find('form').trigger('submit')
     await flushPromises()

@@ -36,7 +36,7 @@ import { browseLocation, dealLocation, panelSnapFor, shellQuery, venueLocation }
 import { provideShellState } from '@web/modules/map-shell/shell-state'
 import { useBreakpoint, useFinePointer, usePrefersReducedMotion } from '@web/modules/map-shell/use-breakpoint'
 import { provideSavedDeals } from '@web/modules/map-shell/use-saved-deals'
-import { useShellLayout } from '@web/modules/map-shell/use-shell-layout'
+import { SHEET_FULL, useShellLayout } from '@web/modules/map-shell/use-shell-layout'
 import { provideToastQueue } from '@web/modules/map-shell/use-toast'
 import { SHEET_CONTROL_KEY } from '@web/modules/squad/sheet-control'
 import { provideSquadRoom } from '@web/modules/squad/use-squad-room'
@@ -132,7 +132,7 @@ provide(SHEET_CONTROL_KEY, {
     layout.snap.value = 0
   },
   expand: () => {
-    layout.snap.value = layout.heights.value.length - 1
+    layout.snap.value = SHEET_FULL
   },
 })
 const panelRef = ref<InstanceType<typeof ShellPanel> | null>(null)
@@ -231,7 +231,7 @@ const showControls = computed(
   () =>
     mapWorkspace.value &&
     (layout.mode.value === 'side' ||
-      (layout.snap.value < layout.heights.value.length - 1 && layout.mapRoom.value >= CONTROLS_BASE_ROOM_PX)),
+      (layout.snap.value < SHEET_FULL && layout.mapRoom.value >= CONTROLS_BASE_ROOM_PX)),
 )
 const showZoom = computed(
   () => layout.mode.value === 'side' || layout.mapRoom.value >= CONTROLS_BASE_ROOM_PX + CONTROLS_ZOOM_ROOM_PX,
@@ -327,7 +327,7 @@ watch(mapPreferences.sidebarVisible, async () => {
 const resultsQuery = computed(() => ({ ...route.query, ...(shell.savedOnly.value ? { collection: 'saved' } : {}) }))
 const openVenue = (venueId: string) => {
   if (inSquad.value) {
-    if (venueId === squadVenueId.value) layout.snap.value = layout.heights.value.length - 1
+    if (venueId === squadVenueId.value) layout.snap.value = SHEET_FULL
     else toast.show(`You're in Room ${squad.code.value}. Leave the room to open other deals.`)
     return
   }

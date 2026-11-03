@@ -6,6 +6,7 @@ import type { PlatformVenue } from '@broke-oclock/contracts/platform-admin'
 import { flushPromises, mount } from '@vue/test-utils'
 import { ApiClientError, api } from '@web/lib/api-client'
 import DraftQueue from '@web/modules/ingestion-admin/DraftQueue.vue'
+import { chooseOption, optionLabels, selectedValue } from '@web-tests/support/select'
 import type { InternalAxiosRequestConfig } from 'axios'
 import { expect, it, type TestContext } from 'vitest'
 
@@ -91,7 +92,7 @@ async function choose(wrapper: ReturnType<typeof mount>) {
   await wrapper.get('#outlet-query').setValue('  Synthetic  ')
   await wrapper.get('[data-testid="outlet-search"]').trigger('submit')
   await flushPromises()
-  await wrapper.get('#outlet-choice').setValue(venue.id)
+  await chooseOption(wrapper, '#outlet-choice', venue.id)
   await wrapper.get('#outlet-confirmation').setValue(true)
 }
 
@@ -118,8 +119,8 @@ it('requires evidence confirmation and captures the exact draft version and exis
   })
   expect(wrapper.find('script').exists()).toBe(false)
   expect(wrapper.find('img').exists()).toBe(false)
-  expect(wrapper.get('#outlet-choice').element).toHaveProperty('value', '')
-  await wrapper.get('#outlet-choice').setValue(venue.id)
+  expect(selectedValue(wrapper, '#outlet-choice')).toBe('')
+  await chooseOption(wrapper, '#outlet-choice', venue.id)
   expect(wrapper.get('[data-testid="associate-outlet"]').attributes('disabled')).toBeDefined()
   await wrapper.get('#outlet-confirmation').setValue(true)
   await wrapper.get('[data-testid="outlet-association"]').trigger('submit')
@@ -230,7 +231,7 @@ it.for(['association', 'review', 'search'] as const)(
       await wrapper.get('[data-testid="outlet-search"]').trigger('submit')
       if (operation === 'association') {
         await flushPromises()
-        await wrapper.get('#outlet-choice').setValue(venue.id)
+        await chooseOption(wrapper, '#outlet-choice', venue.id)
         await wrapper.get('#outlet-confirmation').setValue(true)
         await wrapper.get('[data-testid="outlet-association"]').trigger('submit')
       }
@@ -316,7 +317,7 @@ it('clears review consent and outlet choices on same-version revision before fre
   await wrapper.get('#review-note').setValue('Old context consent')
   await wrapper.setProps({ revision: 1 })
   expect(wrapper.get('#review-note').element).toHaveProperty('value', '')
-  expect(wrapper.get('#outlet-choice').element).toHaveProperty('value', '')
+  expect(selectedValue(wrapper, '#outlet-choice')).toBe('')
   held.resolve(page())
   await flushPromises()
   expect(wrapper.get('[data-testid="reject-draft"]').attributes('disabled')).toBeDefined()
@@ -351,7 +352,7 @@ it('explains missing canonical records and paginates bounded active outlets with
   expect(wrapper.text()).toContain('Association requires an existing merchant and outlet')
   await wrapper.get('[data-testid="outlet-search"]').trigger('submit')
   await flushPromises()
-  await wrapper.get('#outlet-choice').setValue(venue.id)
+  await chooseOption(wrapper, '#outlet-choice', venue.id)
   await wrapper.get('#outlet-confirmation').setValue(true)
   await wrapper.get('[data-testid="more-outlets"]').trigger('click')
   await flushPromises()
@@ -360,8 +361,8 @@ it('explains missing canonical records and paginates bounded active outlets with
     limit: 20,
     cursor: otherId,
   })
-  expect(wrapper.findAll('#outlet-choice option')).toHaveLength(2)
-  expect(wrapper.get('#outlet-choice').element).toHaveProperty('value', '')
+  expect(await optionLabels(wrapper, '#outlet-choice')).toHaveLength(2)
+  expect(selectedValue(wrapper, '#outlet-choice')).toBe('')
   expect(wrapper.get('#outlet-confirmation').element).toHaveProperty('checked', false)
   expect(calls.filter((c) => c.method === 'patch')).toHaveLength(0)
 })
@@ -393,7 +394,7 @@ it.for(['search', 'queue', 'association', 'review'] as const)(
         await wrapper.get('[data-testid="outlet-search"]').trigger('submit')
         if (operation === 'association') {
           await flushPromises()
-          await wrapper.get('#outlet-choice').setValue(venue.id)
+          await chooseOption(wrapper, '#outlet-choice', venue.id)
           await wrapper.get('#outlet-confirmation').setValue(true)
           await wrapper.get('[data-testid="outlet-association"]').trigger('submit')
         }
@@ -448,7 +449,7 @@ it('requires new confirmation after a conflict and fresh same-version evidence, 
   await flushPromises()
   expect(wrapper.get('#review-note').element).toHaveProperty('value', '')
   expect(wrapper.get('#outlet-confirmation').element).toHaveProperty('checked', false)
-  expect(wrapper.get('#outlet-choice').element).toHaveProperty('value', '')
+  expect(selectedValue(wrapper, '#outlet-choice')).toBe('')
   expect(wrapper.get('[data-testid="associate-outlet"]').attributes('disabled')).toBeDefined()
   expect(calls.filter((c) => c.method === 'patch')).toHaveLength(1)
 })

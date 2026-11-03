@@ -1,6 +1,7 @@
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
 import { formatDateTime } from '@web/lib/format'
 import AccountSecurityPanel from '@web/modules/platform-security/AccountSecurityPanel.vue'
+import { chooseOption, optionLabels } from '@web-tests/support/select'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 
 // Labelled synthetic REST responses: mounted UI proof, not server authorization.
@@ -238,8 +239,8 @@ it('paginates safe session rows, resets consent on selection/evidence and revoke
   const gate = deferred<typeof sessions>()
   rest.sessions.mockReturnValueOnce(gate.promise)
   const w = await open()
-  await w.get('[data-testid="security-action"]').setValue('session')
-  await w.get('[data-testid="security-session"]').setValue(session.id)
+  await chooseOption(w, '[data-testid="security-action"]', 'session')
+  await chooseOption(w, '[data-testid="security-session"]', session.id)
   await confirm(w)
   await w.get('[data-testid="security-more-sessions"]').trigger('click')
   expect(rest.sessions).toHaveBeenLastCalledWith(detail.userId, {
@@ -253,11 +254,11 @@ it('paginates safe session rows, resets consent on selection/evidence and revoke
     items: [session, { ...session, id: 'synthetic-session-2', deviceLabel: 'Synthetic phone' }],
   })
   await flushPromises()
-  expect(w.get('[data-testid="security-session"]').findAll('option')).toHaveLength(3)
+  expect(await optionLabels(w, '[data-testid="security-session"]')).toHaveLength(3)
   expect((w.get('[data-testid="security-confirm"]').element as HTMLInputElement).checked).toBe(
     false,
   )
-  await w.get('[data-testid="security-session"]').setValue('synthetic-session-2')
+  await chooseOption(w, '[data-testid="security-session"]', 'synthetic-session-2')
   await confirm(w, 'Synthetic single-session review')
   expect(w.get('[data-testid="security-confirm-label"]').text()).toContain('synthetic-session-2')
   await w.get('[data-testid="security-form"]').trigger('submit')
@@ -271,7 +272,7 @@ it('paginates safe session rows, resets consent on selection/evidence and revoke
   rest.sessions.mockResolvedValue({ ...sessions, version: 8 })
   await w.get('[data-testid="security-reload"]').trigger('click')
   await flushPromises()
-  await w.get('[data-testid="security-action"]').setValue('sessions')
+  await chooseOption(w, '[data-testid="security-action"]', 'sessions')
   expect(w.text()).toContain('Ends all sessions for this account')
   await confirm(w, 'Synthetic all-session review')
   await w.get('[data-testid="security-form"]').trigger('submit')

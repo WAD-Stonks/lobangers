@@ -321,13 +321,9 @@
   margin-left: 0;
   gap: 8px;
 }
-.lobangers-landing .deal-grid-toolbar select {
-  appearance: none;
+.lobangers-landing .deal-grid-toolbar .app-select {
+  --app-select-chevron-inset: 16px;
   padding: 10px 44px 10px 16px;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23252a20' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 16px center;
-  background-size: 16px 16px;
 }
 .landing-skeleton {
   display: block;
@@ -419,12 +415,12 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 8px;
   }
-  .lobangers-landing .deal-grid-toolbar select {
+  .lobangers-landing .deal-grid-toolbar .app-select {
     width: 100%;
     min-width: 0;
     max-width: none;
     padding-inline: 12px 36px;
-    background-position: right 12px center;
+    --app-select-chevron-inset: 12px;
   }
 }
 

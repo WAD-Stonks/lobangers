@@ -4,6 +4,7 @@ import SharedSignIn from '@web/components/auth/SharedSignIn.vue'
 import { confirmAdminIdentity } from '@web/lib/admin-recovery'
 import { ApiClientError } from '@web/lib/api-client'
 import routes from '@web/router/routes'
+import { chooseOption } from '@web-tests/support/select'
 import { beforeEach, expect, it, vi } from 'vitest'
 import { createMemoryHistory, createRouter } from 'vue-router'
 
@@ -319,7 +320,7 @@ it('compares recent runs on one shared scale and filters series without fetching
   expect(
     chart.findAll('[data-series="created"].overview-chart-bar')[1]?.attributes('style'),
   ).toContain('width: 100%')
-  await w.get('[data-testid="import-chart-metric"]').setValue('failedCount')
+  await chooseOption(w, '[data-testid="import-chart-metric"]', 'failedCount')
   expect(chart.findAll('.overview-chart-bar')).toHaveLength(2)
   expect(chart.find('[data-series="created"]').exists()).toBe(false)
   expect(chart.findAll('.overview-chart-bar')[0]?.attributes('style')).toContain('width: 100%')

@@ -6,10 +6,12 @@ import {
 } from '@broke-oclock/contracts/admin-deals'
 import { DEAL_CATEGORIES } from '@broke-oclock/contracts/deal-categories'
 import { DEAL_CUISINES } from '@broke-oclock/contracts/deal-cuisines'
+import AppSelect from '@web/components/AppSelect.vue'
 import AdminStatusBadge from '@web/components/admin/AdminStatusBadge.vue'
 import AdminTaskLink from '@web/components/admin/AdminTaskLink.vue'
 import AdminWorkspace from '@web/components/admin/AdminWorkspace.vue'
 import AdminWorkspaceTabs from '@web/components/admin/AdminWorkspaceTabs.vue'
+import { type SelectOption, withLeading } from '@web/components/select-options'
 import TicketLoading from '@web/components/TicketLoading.vue'
 import { adminCatalogueHref, adminDealHref, adminRecordId, adminReturnTo, type DealWorkflowTab } from '@web/lib/admin-workflow-links'
 import { api } from '@web/lib/api-client'
@@ -200,6 +202,59 @@ const decisionUnavailable = computed(() => {
 })
 const lookupDenied = (code: string) => { if (code === 'UNAUTHORIZED' || code === 'FORBIDDEN') { state.close(); emit('denied', code) } }
 const readable = (value: string) => value.replaceAll('_', ' ').toLowerCase()
+const ORIGIN_OPTIONS: readonly SelectOption[] = [
+  { value: '', label: 'All sources' },
+  { value: 'IMPORTED', label: 'Imported' },
+  { value: 'USER_SUBMITTED', label: 'Community' },
+]
+const REVIEW_OPTIONS: readonly SelectOption[] = [
+  { value: '', label: 'All states' },
+  { value: 'PENDING', label: 'Needs review' },
+  { value: 'APPROVED', label: 'Approved' },
+  { value: 'REJECTED', label: 'Rejected' },
+  { value: 'HIDDEN', label: 'Hidden' },
+]
+const PUBLICATION_OPTIONS: readonly SelectOption[] = [
+  { value: '', label: 'Any visibility' },
+  { value: 'PUBLISHED', label: 'Published' },
+  { value: 'UNPUBLISHED', label: 'Unpublished' },
+  { value: 'EXPIRED', label: 'Expired' },
+]
+const OFFER_OPTIONS: readonly SelectOption[] = [
+  { value: 'FIXED_PRICE', label: 'Fixed price' },
+  { value: 'PERCENT_OFF', label: 'Percentage off' },
+  { value: 'BUY_ONE_GET_ONE', label: 'Buy one, get one' },
+  { value: 'OTHER', label: 'Other' },
+]
+const APPLICABILITY_OPTIONS: readonly SelectOption[] = [
+  { value: 'SELECTED_OUTLETS', label: 'Selected outlets' },
+  { value: 'ALL_MERCHANT_OUTLETS', label: 'All merchant outlets' },
+  { value: 'ONLINE', label: 'Online' },
+  { value: 'NO_FIXED_LOCATION', label: 'No fixed location' },
+]
+const readableOptions = (values: readonly string[]): readonly SelectOption[] =>
+  values.map((value) => ({ value, label: readable(value) }))
+const CATEGORY_OPTIONS = readableOptions(DEAL_CATEGORIES)
+const CUISINE_OPTIONS = withLeading({ value: '', label: 'No cuisine' }, readableOptions(DEAL_CUISINES))
+const currencyOptions = computed<readonly SelectOption[]>(() => [
+  ...(selected.value && selected.value.currency !== 'SGD' ? [{ value: selected.value.currency, label: `${selected.value.currency} (stored)` }] : []),
+  { value: 'SGD', label: 'SGD · Singapore dollar' },
+])
+const citationOptions = computed(() =>
+  withLeading(
+    { value: '', label: 'Choose the source you reviewed' },
+    (selected.value?.sources ?? []).map((source) => ({ value: source.citationId, label: source.sourceUrl || source.citationId })),
+  ),
+)
+const reviewActionOptions = computed<readonly SelectOption[]>(() => {
+  const row = selected.value
+  if (!row) return []
+  return [
+    ...(row.reviewStatus === 'PENDING' ? [{ value: 'APPROVE', label: 'Approve review' }, { value: 'REJECT', label: 'Reject review' }] : []),
+    ...(row.reviewStatus === 'APPROVED' ? [{ value: 'unpublish', label: 'Unpublish deal' }] : []),
+    ...(['HIDDEN', 'REJECTED'].includes(row.reviewStatus) || (row.reviewStatus === 'APPROVED' && !row.publishedAt) ? [{ value: 'reopen', label: 'Reopen for new review' }] : []),
+  ]
+})
 const safeUrl = (value: string | null) => {
   if (!value) return undefined
   try {
@@ -337,9 +392,9 @@ onUnmounted(state.dispose)
     <form class="deal-filters" @submit.prevent="reloadList()">
       <fieldset :disabled="pending" class="filters">
         <label class="filter-search">Search deals<input v-model="filters.search" name="search" type="search" autocomplete="off" class="form-control" maxlength="100" placeholder="Title or description…" /></label>
-        <label>Source<select v-model="filters.origin" name="origin" class="form-select"><option value="">All sources</option><option value="IMPORTED">Imported</option><option value="USER_SUBMITTED">Community</option></select></label>
-        <label>Review<select v-model="filters.reviewStatus" name="reviewStatus" class="form-select"><option value="">All states</option><option value="PENDING">Needs review</option><option value="APPROVED">Approved</option><option value="REJECTED">Rejected</option><option value="HIDDEN">Hidden</option></select></label>
-        <label>Visibility<select v-model="filters.publication" name="publication" class="form-select"><option value="">Any visibility</option><option value="PUBLISHED">Published</option><option value="UNPUBLISHED">Unpublished</option><option value="EXPIRED">Expired</option></select></label>
+        <label>Source<AppSelect v-model="filters.origin" name="origin" :options="ORIGIN_OPTIONS" class="form-select" /></label>
+        <label>Review<AppSelect v-model="filters.reviewStatus" name="reviewStatus" :options="REVIEW_OPTIONS" class="form-select" /></label>
+        <label>Visibility<AppSelect v-model="filters.publication" name="publication" :options="PUBLICATION_OPTIONS" class="form-select" /></label>
         <div class="filter-actions"><button type="submit" data-testid="reload-list" class="btn btn-primary" :disabled="loading">{{ loading ? 'Loading…' : 'Apply filters' }}</button><button type="button" data-testid="clear-deal-filters" class="btn btn-outline-secondary" :disabled="loading || pending" @click="reloadList(true)">Clear</button></div>
       </fieldset>
       <details class="advanced-filters"><summary>Advanced filters<span v-if="filters.merchantId || filters.includeDeleted" class="filter-active"> · active</span></summary><div class="advanced-filter-fields"><label>Merchant ID<input v-model="filters.merchantId" name="merchantId" class="form-control" maxlength="24" spellcheck="false" autocomplete="off" autocapitalize="none" translate="no" :disabled="pending" /></label><label class="check"><input v-model="filters.includeDeleted" name="includeDeleted" type="checkbox" :disabled="pending" /> Include deleted records for investigation</label></div></details>
@@ -372,11 +427,11 @@ onUnmounted(state.dispose)
                   <label class="editor-wide">Title <small>Up to 40 characters</small><input v-model="editor.title" name="edit-title" type="text" class="form-control" maxlength="40" /></label>
                   <label class="editor-wide">Description <small>Up to 120 characters</small><textarea v-model="editor.description" name="edit-description" class="form-control" rows="2" maxlength="120" /></label>
                   <label class="editor-wide">Terms<textarea v-model="editor.terms" name="edit-terms" class="form-control" rows="3" maxlength="1000" /></label>
-                  <label>Category<select v-model="editor.category" name="edit-category" class="form-select"><option v-for="value in DEAL_CATEGORIES" :key="value" :value="value">{{ readable(value) }}</option></select></label>
-                  <label>Cuisine<select v-model="editor.cuisine" name="edit-cuisine" class="form-select"><option value="">No cuisine</option><option v-for="value in DEAL_CUISINES" :key="value" :value="value">{{ readable(value) }}</option></select></label>
-                  <label>Offer type<select v-model="editor.offerType" name="edit-offerType" class="form-select"><option value="FIXED_PRICE">Fixed price</option><option value="PERCENT_OFF">Percentage off</option><option value="BUY_ONE_GET_ONE">Buy one, get one</option><option value="OTHER">Other</option></select></label>
+                  <label>Category<AppSelect v-model="editor.category" name="edit-category" :options="CATEGORY_OPTIONS" class="form-select" /></label>
+                  <label>Cuisine<AppSelect v-model="editor.cuisine" name="edit-cuisine" :options="CUISINE_OPTIONS" class="form-select" /></label>
+                  <label>Offer type<AppSelect v-model="editor.offerType" name="edit-offerType" :options="OFFER_OPTIONS" class="form-select" /></label>
                   <label>Price ({{ editor.currency || 'SGD' }})<input v-model="editor.priceMinor" name="edit-priceMinor" class="form-control" type="text" inputmode="decimal" placeholder="12.90" /><small>Use dollars and cents. Leave blank if unknown.</small></label>
-                  <label>Currency<select v-model="editor.currency" name="edit-currency" class="form-select"><option v-if="selected.currency !== 'SGD'" :value="selected.currency">{{ selected.currency }} (stored)</option><option value="SGD">SGD · Singapore dollar</option></select></label>
+                  <label>Currency<AppSelect v-model="editor.currency" name="edit-currency" :options="currencyOptions" class="form-select" /></label>
                   <label>Discount (%)<input v-model="editor.discountPercent" name="edit-discountPercent" type="text" inputmode="numeric" class="form-control" placeholder="Leave blank if unknown" /></label>
                   <label>Starts (SGT)<input v-model="editor.validFrom" name="edit-validFrom" type="datetime-local" step="0.001" class="form-control" /><small>Singapore time, UTC+8</small></label>
                   <label>Ends, exclusive (SGT)<input v-model="editor.validUntil" name="edit-validUntil" type="datetime-local" step="0.001" class="form-control" /><small>The offer stops being valid at this time.</small></label>
@@ -386,7 +441,7 @@ onUnmounted(state.dispose)
               <section id="deal-editor-panel-scope" role="tabpanel" aria-labelledby="deal-editor-tab-scope" :hidden="section !== 'scope'">
                 <h3>Outlets & scope</h3><p class="section-description">Choose where this offer applies. Replacing the scope clears its approval and supporting scope evidence.</p>
                 <p v-if="selected.merchantId"><AdminTaskLink :to="adminCatalogueHref({ kind: 'venues', merchantId: selected.merchantId, returnTo: currentHref('scope') })" :disabled="pending">Manage this merchant’s outlets ↗</AdminTaskLink></p>
-                <label>Where is the offer available?<select v-model="scope.applicability" class="form-select"><option value="SELECTED_OUTLETS">Selected outlets</option><option value="ALL_MERCHANT_OUTLETS">All merchant outlets</option><option value="ONLINE">Online</option><option value="NO_FIXED_LOCATION">No fixed location</option></select></label>
+                <label>Where is the offer available?<AppSelect v-model="scope.applicability" :options="APPLICABILITY_OPTIONS" class="form-select" /></label>
                 <p v-if="!selected.scopeEditable" class="notice">This record has more than 100 outlet links and is read only here. The complete set will not be truncated.</p>
                 <DealScopePicker v-if="section === 'scope'" v-model:merchant-id="scope.merchantId" :venue-ids="completeVenueIds" :outlets="selected.outlets" :disabled="blocked || !selected.scopeEditable" @update:venue-ids="scope.venueIds = $event.join('\n')" @denied="lookupDenied" />
                 <details class="technical-details"><summary>Advanced: edit exact IDs</summary><label>Merchant ID (blank means none)<input v-model="scope.merchantId" class="form-control" spellcheck="false" autocomplete="off" /></label><label>Complete outlet IDs, one per line<textarea v-model="scope.venueIds" class="form-control" rows="5" :disabled="!selected.scopeEditable" spellcheck="false" /></label><p class="small text-secondary">This replaces the full selection, including outlets not shown on the current page.</p></details>
@@ -395,11 +450,11 @@ onUnmounted(state.dispose)
               <section id="deal-editor-panel-evidence" role="tabpanel" aria-labelledby="deal-editor-tab-evidence" :hidden="section !== 'evidence'">
                 <h3>Supporting evidence</h3><p class="section-description">Inspect an original source before recording what it confirms. Evidence alone does not publish a deal.</p>
                 <details open><summary>Original sources & images</summary><p v-if="!selected.sources.length">This community submission has no imported source snapshot.</p><div v-for="source in selected.sources" :key="source.citationId" class="source-record"><a v-if="safeUrl(source.sourceUrl)" :href="safeUrl(source.sourceUrl)" target="_blank" rel="noopener noreferrer">Open original source ↗</a><p class="small">{{ source.current ? 'Current source snapshot' : 'Source has changed' }}</p><details><summary>Read source snapshot</summary><pre>{{ source.sourceContentSnapshot }}</pre><p class="small" translate="no">{{ source.citationId }} · {{ source.sourceContentHash }}</p></details></div><a v-for="(image, index) in selected.images" :key="index" class="source-image-link" :href="safeUrl(image.url)" target="_blank" rel="noopener noreferrer">{{ safeUrl(image.url) ? `Open image ${index + 1} ↗` : 'Unsafe image link omitted' }}</a></details>
-                <template v-if="section === 'evidence'"><label>Supporting URL or source reference<input v-model="evidence.reference" name="reference" class="form-control" maxlength="2048" /></label><label>What did the source confirm?<textarea v-model="evidence.statement" name="statement" class="form-control" rows="3" maxlength="2000" /></label><label v-if="selected.origin === 'IMPORTED'">Reviewed source snapshot<select v-model="evidence.citationId" class="form-select"><option value="">Choose the source you reviewed</option><option v-for="source in selected.sources" :key="source.citationId" :value="source.citationId">{{ source.sourceUrl || source.citationId }}</option></select></label><label class="check"><input v-model="evidence.staffConfirmed" type="checkbox" /> I reviewed this supporting source and confirmed the complete stated scope.</label></template>
+                <template v-if="section === 'evidence'"><label>Supporting URL or source reference<input v-model="evidence.reference" name="reference" class="form-control" maxlength="2048" /></label><label>What did the source confirm?<textarea v-model="evidence.statement" name="statement" class="form-control" rows="3" maxlength="2000" /></label><label v-if="selected.origin === 'IMPORTED'">Reviewed source snapshot<AppSelect v-model="evidence.citationId" :options="citationOptions" class="form-select" /></label><label class="check"><input v-model="evidence.staffConfirmed" type="checkbox" /> I reviewed this supporting source and confirmed the complete stated scope.</label></template>
               </section>
               <section id="deal-editor-panel-review" role="tabpanel" aria-labelledby="deal-editor-tab-review" :hidden="section !== 'review'">
                 <h3>Review decision</h3><p class="section-description">Approval publishes the deal when current scope evidence is present. Check the result below before confirming. Reopening always requires a new review.</p>
-                <label class="action-picker">Decision<select v-model="action" class="form-select"><template v-if="selected.reviewStatus === 'PENDING'"><option value="APPROVE">Approve review</option><option value="REJECT">Reject review</option></template><option v-if="selected.reviewStatus === 'APPROVED'" value="unpublish">Unpublish deal</option><option v-if="['HIDDEN', 'REJECTED'].includes(selected.reviewStatus) || (selected.reviewStatus === 'APPROVED' && !selected.publishedAt)" value="reopen">Reopen for new review</option></select></label>
+                <label class="action-picker">Decision<AppSelect v-model="action" :options="reviewActionOptions" class="form-select" /></label>
                 <p v-if="action === 'APPROVE'" class="notice">{{ !selected.approvalReady ? 'Approval is blocked. Complete the content, outlet checks and supporting evidence first.' : selected.publicationReady ? 'This approval will publish the deal.' : 'This approval will leave the deal unpublished. Record current scope evidence before approval to publish it.' }}</p>
                 <p v-if="action === 'unpublish'" class="notice">This removes the entire promotion from public view across every associated outlet.</p>
                 <p v-if="selected.reviewNote"><strong>Previous review:</strong> {{ selected.reviewNote }}</p>

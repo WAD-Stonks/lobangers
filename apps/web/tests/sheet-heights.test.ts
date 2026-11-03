@@ -1,0 +1,17 @@
+import { SHEET_FULL, sheetHeights } from '@web/modules/map-shell/use-shell-layout'
+import { describe, expect, it } from 'vitest'
+
+// An 800px tall phone whose header ends 120px down.
+describe('bottom sheet heights', () => {
+  it('stops below the header at full, then can cover the whole screen', () => {
+    const heights = sheetHeights(800, 120, 0.58)
+    expect(heights).toHaveLength(4)
+    expect(heights[SHEET_FULL]).toBe(800 - 120 - 8)
+    expect(heights.at(-1)).toBe(800)
+  })
+
+  it('keeps every height strictly taller than the one before', () => {
+    const heights = sheetHeights(320, 300, 0.58)
+    for (let i = 1; i < heights.length; i++) expect(heights[i]).toBeGreaterThan(heights[i - 1] ?? 0)
+  })
+})

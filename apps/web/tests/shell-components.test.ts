@@ -302,6 +302,26 @@ describe('ShellPanel', () => {
     expect(wrapper.emitted('update:snap')?.[0]).toEqual([2])
   })
 
+  it('rises above the header only at the expanded height', async () => {
+    const heights = [120, 400, 680, 800]
+    const full = mount(ShellPanel, { props: { mode: 'sheet', heights, snap: 2 } })
+    expect(full.classes()).not.toContain('is-expanded')
+    const expanded = mount(ShellPanel, { props: { mode: 'sheet', heights, snap: 3 } })
+    expect(expanded.classes()).toContain('is-expanded')
+  })
+
+  it('drops from expanded back to full on a downward flick', async () => {
+    const wrapper = mount(ShellPanel, {
+      props: { mode: 'sheet', heights: [120, 400, 680, 800], snap: 3 },
+    })
+    await drag(wrapper, [
+      { y: 20, t: 0 },
+      { y: 30, t: 10 },
+      { y: 60, t: 20 },
+    ])
+    expect(wrapper.emitted('update:snap')?.[0]).toEqual([2])
+  })
+
   it('steps up on a tap and moves with the arrow keys', async () => {
     const wrapper = mount(ShellPanel, { props: { mode: 'sheet', heights: HEIGHTS, snap: 0 } })
     await drag(wrapper, [{ y: 700, t: 0 }])

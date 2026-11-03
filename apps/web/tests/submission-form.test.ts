@@ -1,5 +1,6 @@
 import { enableAutoUnmount, mount } from '@vue/test-utils'
 import SubmissionForm from '@web/pages/SubmissionForm.vue'
+import { chooseOption, optionLabels } from '@web-tests/support/select'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const addDealApi = vi.hoisted(() => ({ submitDeal: vi.fn(), searchStalls: vi.fn() }))
@@ -59,9 +60,9 @@ async function addStall(wrapper: FormWrapper) {
 async function fillValidForm(wrapper: FormWrapper) {
   await wrapper.get('#deal-title').setValue('  1-for-1 chicken rice  ')
   await wrapper.get('#deal-description').setValue('  Two plates for one.  ')
-  await wrapper.get('#deal-category').setValue('FOOD')
-  await wrapper.get('#deal-cuisine').setValue('CHINESE')
-  await wrapper.get('#deal-offer').setValue('BUY_ONE_GET_ONE')
+  await chooseOption(wrapper, '#deal-category', 'FOOD')
+  await chooseOption(wrapper, '#deal-cuisine', 'CHINESE')
+  await chooseOption(wrapper, '#deal-offer', 'BUY_ONE_GET_ONE')
   await addStall(wrapper)
   await wrapper.get('#deal-start').setValue('2099-01-01')
   await wrapper.get('#deal-end').setValue('2099-01-31')
@@ -76,7 +77,7 @@ const errorTexts = (wrapper: FormWrapper) =>
     .filter(Boolean)
 
 describe('add a deal form', () => {
-  it('shows its heading and field labels, with no sample-mode notice', () => {
+  it('shows its heading and field labels, with no sample-mode notice', async () => {
     const wrapper = mountForm()
     expect(wrapper.get('h1').text()).toBe('Add a deal')
     expect(wrapper.text()).not.toContain('Sample mode')
@@ -92,7 +93,9 @@ describe('add a deal form', () => {
       'Terms & conditions',
       'Photo of the deal (JPEG, PNG or WebP, up to 4 MB)',
     ])
-    expect(wrapper.get('#deal-cuisine').text()).toContain('No specific cuisine')
+    expect(await optionLabels(wrapper, '#deal-cuisine')).toContain(
+      'No specific cuisine (e.g. drinks, desserts)',
+    )
     expect(wrapper.get('#deal-photo').attributes('accept')).toBe('image/jpeg,image/png,image/webp')
   })
 
@@ -122,7 +125,7 @@ describe('add a deal form', () => {
   ])('rejects a %j percent discount', async (percent, message) => {
     const wrapper = mountForm()
     await fillValidForm(wrapper)
-    await wrapper.get('#deal-offer').setValue('PERCENT_OFF')
+    await chooseOption(wrapper, '#deal-offer', 'PERCENT_OFF')
     await wrapper.get('#deal-discount').setValue(percent)
     await wrapper.get('form').trigger('submit')
     expect(errorTexts(wrapper)).toEqual([message])
@@ -132,7 +135,7 @@ describe('add a deal form', () => {
   it('asks for a price on a fixed-price offer', async () => {
     const wrapper = mountForm()
     await fillValidForm(wrapper)
-    await wrapper.get('#deal-offer').setValue('FIXED_PRICE')
+    await chooseOption(wrapper, '#deal-offer', 'FIXED_PRICE')
     await wrapper.get('form').trigger('submit')
     expect(errorTexts(wrapper)).toEqual(['Please enter the price.'])
   })
@@ -196,8 +199,8 @@ describe('add a deal form', () => {
   it('submits a trimmed deal with its photo, shows a pop-up and clears the form', async () => {
     const wrapper = mountForm()
     await fillValidForm(wrapper)
-    await wrapper.get('#deal-cuisine').setValue('NONE')
-    await wrapper.get('#deal-offer').setValue('FIXED_PRICE')
+    await chooseOption(wrapper, '#deal-cuisine', 'NONE')
+    await chooseOption(wrapper, '#deal-offer', 'FIXED_PRICE')
     await wrapper.get('#deal-price').setValue('4.5')
     await wrapper.get('form').trigger('submit')
     await flush()

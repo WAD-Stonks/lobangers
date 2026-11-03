@@ -73,7 +73,10 @@ export const createFlashDrops = (session: Session) => {
 
   const start = () => {
     void refresh()
-    refreshTimer = setInterval(() => void refresh(), REFRESH_MS)
+    // A hidden tab skips polls; onVisible catches up the moment it is shown again.
+    refreshTimer = setInterval(() => {
+      if (!document.hidden) void refresh()
+    }, REFRESH_MS)
     tickTimer = setInterval(() => {
       now.value = Date.now()
     }, TICK_MS)

@@ -2,6 +2,7 @@ import { flushPromises, type VueWrapper } from '@vue/test-utils'
 import { FOCUS_ZOOM, LOCATE_ZOOM } from '@web/modules/browse-map/map-config'
 import { MAP_SIDEBAR_STORAGE_KEY } from '@web/modules/map-shell/map-preferences'
 import { defined } from '@web-tests/support/defined'
+import { chooseOption, selectedValue } from '@web-tests/support/select'
 import {
   DEALS_RESPONSE,
   HAWKER_VENUE,
@@ -308,13 +309,13 @@ describe('near me', () => {
     stubGeolocation(HAWKER_VENUE)
     const { router, wrapper } = await mountAt('/deals')
     const titles = () => wrapper.findAll('.food-deal-card__description').map((item) => item.text())
-    expect((wrapper.get('[data-testid="sort"]').element as HTMLSelectElement).value).toBe('near')
+    expect(selectedValue(wrapper, '[data-testid="sort"]')).toBe('near')
     expect(titles()).toEqual([
       'Synthetic noodle set',
       'Synthetic chicken rice',
       'Synthetic iced kopi',
     ])
-    await wrapper.get('[data-testid="sort"]').setValue('newest')
+    await chooseOption(wrapper, '[data-testid="sort"]', 'newest')
     await flushPromises()
     expect(router.currentRoute.value.query.sort).toBe('newest')
     expect(titles()).toEqual([
@@ -322,7 +323,7 @@ describe('near me', () => {
       'Synthetic noodle set',
       'Synthetic chicken rice',
     ])
-    await wrapper.get('[data-testid="sort"]').setValue('ending')
+    await chooseOption(wrapper, '[data-testid="sort"]', 'ending')
     await flushPromises()
     expect(titles()).toEqual([
       'Synthetic noodle set',
@@ -701,7 +702,7 @@ describe('saved results panel', () => {
     expect(wrapper.find('[role="tablist"]').exists()).toBe(false)
     expect(rowTitles(wrapper)).toEqual([KOPI.title])
     expect(wrapper.get('[data-testid="shell-panel"] h1').text()).toBe('1 saved deal')
-    await wrapper.get('[data-testid="sort"]').setValue('ending')
+    await chooseOption(wrapper, '[data-testid="sort"]', 'ending')
     await flushPromises()
     expect(router.currentRoute.value.name).toBe('saved')
     await wrapper.get('[data-testid="results-cards"]').trigger('click')

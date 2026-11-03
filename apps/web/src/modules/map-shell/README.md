@@ -32,7 +32,7 @@ Pass anything that changes the content (tab, step, sort) as `scroll-key`, and th
 - `shell-state.ts`: deals, filters (read from the route query), sort, view, pins, rows, ending-soon deals, hover, location, plus `applyFilters` (push or replace) and `findDeal`.
 - `filter-query.ts`: filters to and from `?q=&cat=&max=&now=&type=&walk=&when=`. Pure functions; defaults leave the URL clean.
 - `nav-direction.ts`, `use-panel-scroll.ts`, `use-breakpoint.ts`, `use-hot-rotation.ts`, `use-toast.ts`, `use-saved-deals.ts`, `sheet-snap.ts`: the composables from the plan.
-- `ShellHeader.vue` (`BrandMenu`, `SearchField`, `QuickChips`), `MapControls.vue`, `HotCard.vue`, `FilterSheet.vue`, `ShellPanel.vue`, `ShellToast.vue`, `ComingSoonPanel.vue`, `ShellIcon.vue`.
+- `ShellHeader.vue` (`BrandMenu`, `SearchField`, `QuickChips`), `MapControls.vue`, `HotCard.vue`, `FilterSheet.vue`, `ShellPanel.vue`, `ShellToast.vue`, `ShellIcon.vue`.
 - `shell-ui.css`: shared primitives (`.lb-btn`, `.lb-chip`, `.lb-ctrl`, `.lb-tag`, `.lb-tabs`, `.lb-state`). `motion.css`: panel, menu, sheet and toast transitions, and the reduced-motion rules.
 
 ## Headers that must match

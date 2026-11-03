@@ -24,9 +24,9 @@ The shell loads `GET /api/deals` once per validity setting: only `validNow` goes
 - `station-layer.ts`: MRT/LRT stations (from `@broke-oclock/contracts/rail-stations`, shared with the chatbot) as landmarks below the pins from zoom 14, ringed in their line colours (split for interchanges); hovering or tapping one shows its name and lines.
 - `venue-pin.ts`: `createVenuePinIcon`, built from DOM nodes so deal text is never parsed as HTML.
 - `BrowseListPanel.vue`: count heading, sort, location notice, filter tokens, rows (map view) or cards (list view), and loading, error and empty states.
-- `DealRowList.vue` / `DealCardGrid.vue`: rows and cards that link to the deal panel; hovering a row lights its pin.
+- `DealRowList.vue`: rows that link to the deal panel; hovering a row lights its pin.
 - `DealPanel.vue`: deal details, live `DealCommunity` voting/comments/reports, more deals at the outlet, and the sticky Save and Get directions bar. Save is optimistic and rolls back with an error toast. Community behavior and the approved freshness policy are documented in [community.md](../../../../../docs/community.md).
-- `CategoryBubble.vue`, `DealReviewSummary.vue`, `category-style.ts`, `distance.ts`, `singapore-bounds.ts`, `map-config.ts`, `use-geolocation.ts`, `types.ts`: unchanged helpers.
+- `CategoryBubble.vue`, `category-style.ts`, `distance.ts`, `singapore-bounds.ts`, `map-config.ts`, `use-geolocation.ts`, `types.ts`: unchanged helpers.
 
 ## Still to do
 

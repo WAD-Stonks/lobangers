@@ -6,8 +6,9 @@ import { useToast } from '@web/modules/map-shell/use-toast'
 import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 
-// "Lobangers nearby" in the map's control stack. Turning it on shows other people and opens a
-// small choice: show yourself too (signed in only) or just look. Turning it off hides you.
+// "Lobangers nearby" in the map's control stack. It starts on, showing other people. Turning it
+// on (or, once, being located while signed in) opens a small choice: show yourself too (signed
+// in only) or just look. Turning it off hides you.
 const store = useHungryNearby()
 store?.bindToast(useToast())
 const route = useRoute()
@@ -46,8 +47,12 @@ watch(
     document.addEventListener('pointerdown', onDocumentPointer)
     document.addEventListener('keydown', onKey)
     await nextTick()
-    popover.value?.querySelector<HTMLElement>('button, a')?.focus({ preventScroll: true })
+    // Opened by the toggle, focus moves in; asked unprompted, it never pulls focus from elsewhere.
+    const active = document.activeElement
+    if (active === document.body || (active && root.value?.contains(active)))
+      popover.value?.querySelector<HTMLElement>('button, a')?.focus({ preventScroll: true })
   },
+  { immediate: true },
 )
 onBeforeUnmount(() => {
   document.removeEventListener('pointerdown', onDocumentPointer)
