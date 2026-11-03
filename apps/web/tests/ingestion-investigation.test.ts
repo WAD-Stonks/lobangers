@@ -239,6 +239,119 @@ const clickText = async (w: ReturnType<typeof mount>, text: string) => {
   await button.trigger('click')
   await flushPromises()
 }
+const replaceableFailedPosts = () =>
+  mount(
+    defineComponent({
+      components: { FailedPosts },
+      setup: () => ({ revision: ref(0) }),
+      template:
+        '<div><button data-testid="replace-posts" @click="revision++">Replace protected queue</button><FailedPosts :key="revision"/></div>',
+    }),
+  )
+
+it('opens a linked post with a fresh read even when it is absent from the first result page', async () => {
+  calls.posts.mockResolvedValue({ items: [], nextCursor: null })
+  calls.post.mockResolvedValue(detail())
+  const w = mount(FailedPosts, { props: { initialPostId: postId } })
+  try {
+    await flushPromises()
+    expect(calls.post).toHaveBeenCalledWith(postId, { limit: 20 })
+    expect(w.get('section[aria-label="Post investigation"]').text()).toContain(postId)
+    expect(w.text()).toContain('No posts on this page')
+    expect(calls.recover).not.toHaveBeenCalled()
+  } finally {
+    w.unmount()
+  }
+})
+
+it('ignores invalid linked post IDs without reading protected post details', async () => {
+  calls.posts.mockResolvedValue({ items: [], nextCursor: null })
+  const w = mount(FailedPosts, { props: { initialPostId: '../../invalid' } })
+  try {
+    await flushPromises()
+    expect(calls.post).not.toHaveBeenCalled()
+    expect(w.find('section[aria-label="Post investigation"]').exists()).toBe(false)
+  } finally {
+    w.unmount()
+  }
+})
+
+it('defers the latest linked post until recovery settles and guards filter and selection unmounts', async () => {
+  const secondId = '1123456789abcdef01234568'
+  const thirdId = '2123456789abcdef01234568'
+  calls.posts.mockResolvedValue({
+    items: [detail().post, { ...detail().post, id: secondId, externalId: '456' }],
+    nextCursor: 'next-page',
+  })
+  calls.post.mockImplementation(async (id: string) => ({
+    ...detail(),
+    post: { ...detail().post, id },
+  }))
+  let rejectRecovery!: (failure: Error) => void
+  calls.recover.mockImplementationOnce(
+    () =>
+      new Promise((_resolve, reject) => {
+        rejectRecovery = reject
+      }),
+  )
+  const w = mount(FailedPosts, { props: { initialPostId: postId } })
+  try {
+    await flushPromises()
+    await consent(w)
+    await w.get('section[aria-label="Post investigation"] form').trigger('submit')
+    expect(w.get('[name="post-status"]').attributes('disabled')).toBeDefined()
+    expect(w.get('[name="source-id"]').attributes('disabled')).toBeDefined()
+    expect(w.get('[name="error-code"]').attributes('disabled')).toBeDefined()
+    expect(
+      w
+        .findAll('button')
+        .find((button) => button.text() === 'Investigate 456')
+        ?.attributes('disabled'),
+    ).toBeDefined()
+    await w.get('[name="post-status"]').setValue('NEW')
+    await w.get('form').trigger('submit')
+    await clickText(w, 'Investigate 456')
+    await clickText(w, 'More posts')
+    await w.setProps({ initialPostId: secondId })
+    await w.setProps({ initialPostId: thirdId })
+    expect(calls.posts).toHaveBeenCalledTimes(1)
+    expect(calls.post).toHaveBeenCalledTimes(1)
+    expect(w.get('section[aria-label="Post investigation"]').text()).toContain(postId)
+    rejectRecovery(new Error('Synthetic lost response'))
+    await flushPromises()
+    expect(calls.post).toHaveBeenCalledTimes(2)
+    expect(calls.post).toHaveBeenLastCalledWith(thirdId, { limit: 20 })
+    expect(w.get('textarea').element.value).toBe('')
+    expect(w.get<HTMLInputElement>('input[type="checkbox"]').element.checked).toBe(false)
+    await w.setProps({ initialPostId: postId })
+    await flushPromises()
+    await consent(w)
+    expect(w.get('[data-testid="recover-post"]').attributes('disabled')).toBeDefined()
+    expect(w.text()).toContain('Recovery result must be reconciled')
+    expect(calls.recover).toHaveBeenCalledTimes(1)
+  } finally {
+    w.unmount()
+  }
+})
+
+it('closes linked post investigation and queued selection after a protected read denial', async () => {
+  calls.posts.mockResolvedValue({ items: [detail().post], nextCursor: null })
+  calls.post.mockRejectedValue(new ApiClientError('FORBIDDEN', 403, 'Synthetic denied'))
+  const w = mount(FailedPosts, { props: { initialPostId: postId } })
+  try {
+    await flushPromises()
+    expect(w.emitted('denied')).toEqual([['FORBIDDEN']])
+    expect(w.find('section[aria-label="Post investigation"]').exists()).toBe(false)
+    expect(w.find('textarea').exists()).toBe(false)
+    await w.setProps({ initialPostId: '1123456789abcdef01234568' })
+    await flushPromises()
+    expect(calls.post).toHaveBeenCalledTimes(1)
+    expect(calls.recover).not.toHaveBeenCalled()
+  } finally {
+    w.unmount()
+  }
+})
+
 it('retains unknown attempt through original FailedPosts filter unmount and reconciles exact terminal plus fresh target', async () => {
   calls.posts.mockResolvedValue({ items: [detail().post], nextCursor: null })
   calls.post.mockResolvedValue(detail())
@@ -443,18 +556,16 @@ it('does not let a late recovery response after access denial attach to a new wo
         finish = resolve
       }),
   )
-  const w = mount(FailedPosts)
+  const w = replaceableFailedPosts()
   try {
     await flushPromises()
     await clickText(w, 'Investigate 123')
     await consent(w)
     await w.get('section[aria-label="Post investigation"] form').trigger('submit')
-    await w.get('select').setValue('NEW')
-    await flushPromises()
     calls.posts.mockRejectedValueOnce(new ApiClientError('FORBIDDEN', 403, 'Synthetic revoked'))
-    await w.get('form').trigger('submit')
+    await w.get('[data-testid="replace-posts"]').trigger('click')
     await flushPromises()
-    expect(w.emitted('denied')).toEqual([['FORBIDDEN']])
+    expect(w.getComponent(FailedPosts).emitted('denied')).toEqual([['FORBIDDEN']])
     expect(w.find('textarea').exists()).toBe(false)
     finish(recovery({ status: 'SUCCEEDED', targetOutcome: 'RECOVERED' }))
     await flushPromises()
@@ -750,20 +861,17 @@ it('F8 retains a matched terminal POST barrier after child unmount without resto
         finish = resolve
       }),
   )
-  const w = mount(FailedPosts)
+  const w = replaceableFailedPosts()
   try {
     await flushPromises()
     await clickText(w, 'Investigate 123')
     await consent(w)
     await w.get('section[aria-label="Post investigation"] form').trigger('submit')
-    await w.get('select').setValue('NEW')
+    await w.get('[data-testid="replace-posts"]').trigger('click')
     await flushPromises()
     finish(recovery({ status: 'SUCCEEDED', targetOutcome: 'UNCHANGED' }))
     await flushPromises()
     expect(w.find('section[aria-label="Post investigation"]').exists()).toBe(false)
-    await w.get('select').setValue('FAILED')
-    await w.get('form').trigger('submit')
-    await flushPromises()
     await clickText(w, 'Investigate 123')
     expect(w.get('textarea').element.value).toBe('')
     await consent(w)

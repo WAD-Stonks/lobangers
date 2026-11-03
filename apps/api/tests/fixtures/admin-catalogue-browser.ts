@@ -79,7 +79,7 @@ const start = async () => {
         transformIndexHtml: {
           order: 'pre',
           handler: () =>
-            `<!doctype html><html><head><title>Connected catalogue</title><meta name="viewport" content="width=device-width, initial-scale=1"></head><body><main id="app"></main><script type="module">import {createApp} from 'vue'; import Page from '/src/pages/AdminCataloguePage.vue'; import '@broke-oclock/ui/styles.css'; import '/src/assets/main.css'; import '/src/assets/bootstrap-theme.css'; createApp(Page).mount('#app');</script></body></html>`,
+            `<!doctype html><html><head><title>Connected catalogue</title><meta name="viewport" content="width=device-width, initial-scale=1"></head><body><main id="app"></main><script type="module">import {createApp} from 'vue'; import {createRouter,createWebHistory,RouterView} from 'vue-router'; import Page from '/src/pages/AdminCataloguePage.vue'; import '@broke-oclock/ui/styles.css'; import '/src/assets/main.css'; import '/src/assets/bootstrap-theme.css'; const router=createRouter({history:createWebHistory(),routes:[{path:'/admin/catalogue',component:Page},{path:'/:pathMatch(.*)*',redirect:'/admin/catalogue'}]});createApp(RouterView).use(router).mount('#app');</script></body></html>`,
         },
       },
     ],

@@ -3,10 +3,10 @@ import { adminAuditActionSchema, adminSubjectTypeSchema } from '@broke-oclock/co
 import TicketLoading from '@web/components/TicketLoading.vue'
 import { isoToSingaporeInput, singaporeInputToIso } from '@web/lib/admin-date-input'
 import { api } from '@web/lib/api-client'
-import { type AuditDenial, type AuditList, useAudit } from '@web/modules/platform-admin/use-audit'
+import { type AuditDenial, type AuditInitialFilters, type AuditList, useAudit } from '@web/modules/platform-admin/use-audit'
 import { computed, onUnmounted, reactive, useId, watch } from 'vue'
 
-const props = withDefaults(defineProps<{ list?: AuditList; enabled?: boolean; accessKey?: number }>(), { enabled: true, accessKey: 0 })
+const props = withDefaults(defineProps<{ list?: AuditList; enabled?: boolean; accessKey?: number; initialFilters?: AuditInitialFilters }>(), { enabled: true, accessKey: 0 })
 const emit = defineEmits<{ denied: [code: AuditDenial] }>()
 const audit = useAudit((query) => (props.list ?? api.platformAdmin.audit)(query), (code) => emit('denied', code))
 const { filters, items, nextCursor, status, loading, validation } = audit
@@ -32,11 +32,11 @@ const resetFilters = () => { dateErrors.from = ''; dateErrors.until = ''; void a
 const singaporeTime = (value: string) => new Intl.DateTimeFormat('en-SG', {
   timeZone: 'Asia/Singapore', dateStyle: 'medium', timeStyle: 'long',
 }).format(new Date(value))
-watch(() => [props.enabled, props.accessKey], () => {
+watch(() => [props.enabled, props.accessKey, props.initialFilters], () => {
   audit.close()
   dateErrors.from = ''
   dateErrors.until = ''
-  if (props.enabled) void audit.load()
+  if (props.enabled) void audit.initialize(props.initialFilters)
 }, { immediate: true, flush: 'sync' })
 onUnmounted(audit.dispose)
 </script>

@@ -351,7 +351,7 @@ export function usePlatformAdmin(
       return
     }
     access.value = 'allowed'
-    await Promise.all([loadRequests(), loadAudit()])
+    await loadRequests()
   }
   const load = () => {
     if (!busy.value) return loadAuthorizedPage()
@@ -368,7 +368,6 @@ export function usePlatformAdmin(
     await Promise.all([
       loadAccounts(),
       loadRequests(),
-      loadAudit(),
       ...(selectedId.value ? [loadDetail(selectedId.value)] : []),
     ])
   }

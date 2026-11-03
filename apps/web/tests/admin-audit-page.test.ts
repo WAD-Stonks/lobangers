@@ -1,5 +1,7 @@
 import { flushPromises, mount } from '@vue/test-utils'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
+import { reactive } from 'vue'
+import { routeLocationKey } from 'vue-router'
 
 // Synthetic native and REST boundaries. Does not establish live auth acceptance.
 const rest = vi.hoisted(() => ({
@@ -49,6 +51,48 @@ it('mounts audit investigation inside existing administrator session shell', asy
   expect(rest.audit).toHaveBeenCalledWith({ limit: 25 })
   wrapper.unmount()
 })
+it('loads contextual filters before its first audit read and offers the safe task return', async () => {
+  const userId = 'b'.repeat(24)
+  const subjectId = 'c'.repeat(24)
+  const returnTo = `/admin/accounts?accountId=${userId}`
+  const route = reactive({ query: { userId, subjectType: 'USER', subjectId, returnTo } })
+  const wrapper = mount(await page(), {
+    global: { provide: { [routeLocationKey as symbol]: route } },
+  })
+  try {
+    await flushPromises()
+    expect(rest.audit).toHaveBeenCalledTimes(1)
+    expect(rest.audit).toHaveBeenCalledWith({ limit: 25, userId, subjectType: 'USER', subjectId })
+    expect((wrapper.get('[name="userId"]').element as HTMLInputElement).value).toBe(userId)
+    expect(wrapper.get(`a[href="${returnTo}"]`).text()).toBe('Back to account')
+  } finally {
+    wrapper.unmount()
+  }
+})
+it.each([
+  { userId: 'not-an-id' },
+  { userId: ['a'.repeat(24), 'b'.repeat(24)] },
+  { subjectId: 'a'.repeat(24) },
+  { subjectType: 'UNKNOWN', subjectId: 'a'.repeat(24) },
+  { from: '2026-01-01T00:00:00Z', until: '2026-05-01T00:00:00Z' },
+])(
+  'rejects malformed audit link filters without falling back to a global read: %j',
+  async (query) => {
+    const route = reactive({ query: { ...query, returnTo: 'https://example.test/steal' } })
+    const wrapper = mount(await page(), {
+      global: { provide: { [routeLocationKey as symbol]: route } },
+    })
+    try {
+      await flushPromises()
+      expect(rest.audit).not.toHaveBeenCalled()
+      expect(wrapper.text()).toContain('Check the selected filters')
+      expect(wrapper.find('a[href="https://example.test/steal"]').exists()).toBe(false)
+      expect(wrapper.find('[name="userId"]').exists()).toBe(true)
+    } finally {
+      wrapper.unmount()
+    }
+  },
+)
 it('does not read audit for absent native identity', async () => {
   rest.session.mockResolvedValue({ data: null, error: null })
   const wrapper = mount(await page())

@@ -170,7 +170,8 @@ const destinations = [
     name: 'Ingestion',
     path: '/admin/ingestion',
     heading: 'Ingestion admin',
-    content: 'Draft review queue',
+    content:
+      'Choose an import to correct its content, confirm its scope and complete its review in Deals.',
     api: '/api/ingestion/dashboard',
   },
   {

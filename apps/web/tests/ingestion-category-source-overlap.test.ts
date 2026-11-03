@@ -5,7 +5,7 @@ import IngestionAdminPage from '@web/pages/IngestionAdminPage.vue'
 import type { InternalAxiosRequestConfig } from 'axios'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 
-// Original mounted page and typed HTTP client; only transport/native identity are synthetic.
+// Original readonly import page and typed HTTP client; transport/native identity are synthetic.
 vi.mock('@web/lib/auth-client', () => ({
   authClient: {
     getSession: vi.fn(async () => ({
@@ -138,21 +138,6 @@ const open = async () => {
   await flushPromises()
   return wrapper
 }
-const select = async (page: VueWrapper, id: string) =>
-  page.get(`[data-testid="view-${id}"]`).trigger('click')
-const startCategory = async (page: VueWrapper, id: string) => {
-  await select(page, id)
-  await page.get('#draft-category').setValue('DRINKS')
-  await page.get('[data-testid="category-form"]').trigger('submit')
-  await flushPromises()
-  expect(requests(`/ingestion/drafts/${id}/category`)).toHaveLength(1)
-  expect(JSON.parse(requests(`/ingestion/drafts/${id}/category`)[0]?.data)).toEqual({
-    expectedContentVersion: 2,
-    expectedOperationVersion: 1,
-    category: 'DRINKS',
-  })
-  expect(page.get('[data-testid="save-category"]').text()).toBe('Saving…')
-}
 const changeSource = async (page: VueWrapper, operation: 'add' | 'toggle') => {
   const panel = page.get('section[aria-labelledby="sources-title"]')
   if (operation === 'add') {
@@ -169,104 +154,39 @@ const changeSource = async (page: VueWrapper, operation: 'add' | 'toggle') => {
   await flushPromises()
   expect(requests('/ingestion/dashboard')).toHaveLength(2)
 }
-const finishCategory = async (id: string) => {
-  writes.get(id)?.resolve({
-    id,
-    contentVersion: 3,
-    operationVersion: 2,
-    category: 'DRINKS',
-    reviewStatus: 'PENDING',
-  })
-  await flushPromises()
-}
-
 it.each(['add', 'toggle'] as const)(
-  'recovers category pending after source %s refresh without accepting stale completion or in-flight read as fresh evidence',
+  'source %s refreshes readonly imports without category or review side effects',
   async (operation) => {
     const page = await open()
-    await startCategory(page, idA)
+    expect(page.findAll('[data-testid^="open-imported-"]')).toHaveLength(2)
+    await page.get('#ingestion-workspace-tab-settings').trigger('click')
     await changeSource(page, operation)
-    expect(page.get('[data-testid="reject-draft"]').attributes('disabled')).toBeDefined()
-    await page.get('[data-testid="reload-draft"]').trigger('click')
-    await flushPromises()
-    expect(page.find('[data-testid="reload-draft"]').exists()).toBe(true)
-    await finishCategory(idA)
-    expect(page.get('[data-testid="reload-draft"]').attributes('disabled')).toBeUndefined()
-    // Revision and explicit in-flight read both ran, but neither could unlock active A.
-    expect(requests('/ingestion/drafts')).toHaveLength(3)
-    expect(page.get('article').text()).toContain('FOOD / Other offer')
-    expect(page.get('article').text()).toContain('Version 2')
-    expect(page.text()).not.toContain('Category updated.')
-    expect(requests('/ingestion/dashboard')).toHaveLength(2)
-    expect(requests(`/ingestion/drafts/${idA}/category`)).toHaveLength(1)
-    // A post-completion but old-version response cannot unlock the identity either.
-    await page.get('[data-testid="reload-draft"]').trigger('click')
-    await flushPromises()
-    expect(page.find('[data-testid="reload-draft"]').exists()).toBe(true)
-    rows = [
-      { ...draft(idA), contentVersion: 3, operationVersion: 2, category: 'DRINKS' },
-      draft(idB),
-    ]
-    await page.get('[data-testid="reload-draft"]').trigger('click')
-    await flushPromises()
-    expect(page.find('[data-testid="reload-draft"]').exists()).toBe(false)
-    expect(page.get('article').text()).toContain('DRINKS / Other offer')
-    expect(page.get('#review-note').element).toHaveProperty('value', '')
-    await page.get('#review-note').setValue('Freshly reviewed version three')
-    await page.get('#reject-confirmation').setValue(true)
-    expect(page.get('[data-testid="reject-draft"]').attributes('disabled')).toBeUndefined()
+    expect(requests('/ingestion/drafts')).toHaveLength(2)
+    expect(
+      calls.filter((call) => call.url?.match(/\/drafts\/.*\/(category|review|outlet)$/u)),
+    ).toHaveLength(0)
+    await page.get('#ingestion-workspace-tab-drafts').trigger('click')
+    expect(page.find('[data-testid="category-form"]').exists()).toBe(false)
+    expect(page.find('[data-testid="approve-draft"]').exists()).toBe(false)
+    const link = new URL(
+      page.get(`[data-testid="open-imported-${idA}"]`).attributes('href') ?? '',
+      'http://localhost',
+    )
+    expect(link.pathname).toBe('/admin/deals')
+    expect(link.searchParams.get('dealId')).toBe(idA)
+    expect(link.searchParams.get('tab')).toBe('content')
   },
 )
 
-it('late category A completion cannot clear category B pending or its identity lock after a source revision', async () => {
+it('sign-out closes the readonly queue and removes imported image evidence', async () => {
   const page = await open()
-  await startCategory(page, idA)
-  await changeSource(page, 'add')
-  await startCategory(page, idB)
-  await finishCategory(idA)
-  expect(page.get('#draft-title').text()).toBe(draft(idB).title)
-  expect(page.get('article').text()).toContain('FOOD / Other offer')
-  expect(page.get('[data-testid="category-form"]').attributes('aria-busy')).toBe('true')
-  expect(page.get('[data-testid="save-category"]').text()).toBe('Saving…')
-  expect(page.get('#queue-status').attributes('disabled')).toBeDefined()
-  expect(page.get('[data-testid="reload-draft"]').attributes('disabled')).toBeDefined()
-  expect(requests('/ingestion/dashboard')).toHaveLength(2)
-  await finishCategory(idB)
-  expect(page.get('[data-testid="category-form"]').attributes('aria-busy')).toBe('false')
-  expect(page.get('#queue-status').attributes('disabled')).toBeUndefined()
-  await select(page, idA)
-  expect(page.find('[data-testid="reload-draft"]').exists()).toBe(true)
-  await page.get('[data-testid="reload-draft"]').trigger('click')
-  await flushPromises()
-  expect(page.find('[data-testid="reload-draft"]').exists()).toBe(true)
-  rows = [{ ...draft(idA), contentVersion: 3, operationVersion: 2, category: 'DRINKS' }, draft(idB)]
-  await page.get('[data-testid="reload-draft"]').trigger('click')
-  await flushPromises()
-  expect(page.find('[data-testid="reload-draft"]').exists()).toBe(false)
-  expect(requests(`/ingestion/drafts/${idA}/category`)).toHaveLength(1)
-  expect(requests(`/ingestion/drafts/${idB}/category`)).toHaveLength(1)
-})
-
-it('sign-out while category is pending clears private images and selection and fences late completion', async () => {
-  const page = await open()
-  await select(page, idA)
-  await page.get('#review-note').setValue('Private pending review note')
-  expect(page.findAll('img')).toHaveLength(1)
-  await page.get('#draft-category').setValue('DRINKS')
-  await page.get('[data-testid="category-form"]').trigger('submit')
-  await flushPromises()
-  expect(requests(`/ingestion/drafts/${idA}/category`)).toHaveLength(1)
-  expect(page.get('#review-note').element).toHaveProperty('value', 'Private pending review note')
+  await page.get('details.imported-deal-images summary').trigger('click')
+  expect(page.findAll('img').length).toBeGreaterThan(0)
   await page.get('[data-testid="admin-sign-out"]').trigger('click')
   await flushPromises()
   expect(page.find('section[aria-labelledby="queue-title"]').exists()).toBe(false)
   expect(page.find('img').exists()).toBe(false)
-  await finishCategory(idA)
-  expect(page.find('article').exists()).toBe(false)
-  expect(page.find('img').exists()).toBe(false)
   expect(page.html()).not.toContain('media.example.test/private.jpg')
   expect(page.text()).not.toContain(draft(idA).title)
-  expect(page.html()).not.toContain('Private pending review note')
-  expect(page.text()).not.toContain('Category updated.')
   expect(requests('/ingestion/dashboard')).toHaveLength(1)
 })

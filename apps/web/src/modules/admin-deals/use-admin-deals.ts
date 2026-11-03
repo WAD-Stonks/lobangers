@@ -142,7 +142,17 @@ export const useAdminDeals = (
       if (epoch === generation && ticket === listTicket) loading.value = false
     }
   }
+  const clearSelection = () => {
+    if (pending.value) return
+    detailTicket++
+    target.value = ''
+    selected.value = null
+    reading.value = false
+    message.value = ''
+    resetConsent()
+  }
   const select = async (id: string, outletCursor?: string) => {
+    if (!alive || !recovery.current() || pending.value) return
     const ticket = ++detailTicket,
       epoch = generation
     target.value = id
@@ -159,12 +169,12 @@ export const useAdminDeals = (
         target.value !== id
       )
         return
+      if (row.id !== id) return
       if (!mark(row)) {
         message.value = 'Older detail ignored. Refresh the selected deal.'
         return
       }
       const lock = locks.get(id)
-      if (row.id !== id) return
       if (
         lock &&
         !lock.pending &&
@@ -291,6 +301,7 @@ export const useAdminDeals = (
     blocked,
     load,
     select,
+    clearSelection,
     write,
     close,
     dispose,

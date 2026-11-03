@@ -493,7 +493,7 @@ test('mobile Accounts keeps role badges and every workspace label whole through 
   if (!administrator) throw new Error('Missing synthetic administrator record')
   administrator.role = 'ADMIN'
   const tablist = page.getByRole('tablist', { name: 'Accounts workspace', exact: true })
-  const labels = ['Directory', 'Merchant requests', 'Account activity'] as const
+  const labels = ['Directory', 'Merchant requests'] as const
   const receipts: unknown[] = []
   const inspectLabels = async (width: number, stage: string) => {
     const geometry = await tablist.evaluate((list) => {
@@ -569,17 +569,17 @@ test('mobile Accounts keeps role badges and every workspace label whole through 
     await inspectLabels(width, 'initial')
     await inspectBadges('initial')
     await page.screenshot({ path: info.outputPath(`mobile-accounts-${width}-initial.png`) })
-    for (const name of ['Merchant requests', 'Account activity', 'Directory'] as const) {
+    for (const name of ['Merchant requests', 'Directory'] as const) {
       await chooseAccountsWorkspace(page, name)
       await inspectLabels(width, `clicked ${name}`)
     }
     const directory = tablist.getByRole('tab', { name: 'Directory', exact: true })
     await directory.press('End')
-    const activity = tablist.getByRole('tab', { name: 'Account activity', exact: true })
-    await expect(activity).toBeFocused()
-    await expect(activity).toHaveAttribute('aria-selected', 'true')
+    const lastTab = tablist.getByRole('tab', { name: 'Merchant requests', exact: true })
+    await expect(lastTab).toBeFocused()
+    await expect(lastTab).toHaveAttribute('aria-selected', 'true')
     await inspectLabels(width, 'keyboard End')
-    await activity.press('Home')
+    await lastTab.press('Home')
     await expect(directory).toBeFocused()
     await expect(directory).toHaveAttribute('aria-selected', 'true')
     await inspectLabels(width, 'keyboard Home')
@@ -693,7 +693,7 @@ for (const width of [320, 390, 1280, 1440]) {
     await page.getByLabel('New role').selectOption('USER')
     await accountNote(page, 'End merchant responsibility')
     const reads = Object.fromEntries(
-      ['accounts', 'account', 'requests', 'audit'].map((name) => [name, calls(state, name).length]),
+      ['accounts', 'account', 'requests'].map((name) => [name, calls(state, name).length]),
     )
     await page.getByRole('button', { name: 'Change role', exact: true }).click()
     await expect(
@@ -717,10 +717,16 @@ for (const width of [320, 390, 1280, 1440]) {
     ])
     await expect(page.getByLabel('Account action note (required)')).toHaveValue('')
     await expect(page.locator('#account-confirm')).not.toBeChecked()
-    await chooseAccountsWorkspace(page, 'Account activity')
+    expect(calls(state, 'audit')).toHaveLength(0)
+    await page.getByTestId('account-audit').click()
+    await expect(page).toHaveURL(new RegExp(`/admin/audit\\?userId=${userA}`))
     await expect(page.getByRole('region', { name: 'Audit history' })).toContainText(
-      'MERCHANT → USER',
+      'Role: MERCHANT to USER',
     )
+    expect(calls(state, 'audit').at(-1)?.input).toMatchObject({ userId: userA })
+    await page.getByRole('link', { name: 'Back to account', exact: true }).click()
+    await expect(page).toHaveURL(`/admin/accounts?accountId=${userA}`)
+    await expect(page.getByRole('region', { name: 'Account details' })).toContainText(userA)
     expect(errors).toEqual([])
   })
 }
@@ -1081,9 +1087,8 @@ for (const width of [320, 390, 1440]) {
     const panels = {
       Directory: page.locator('#accounts-workspace-panel-accounts'),
       'Merchant requests': page.locator('#accounts-workspace-panel-requests'),
-      'Account activity': page.locator('#accounts-workspace-panel-activity'),
     }
-    for (const selected of ['Directory', 'Merchant requests', 'Account activity'] as const) {
+    for (const selected of ['Directory', 'Merchant requests'] as const) {
       await chooseAccountsWorkspace(page, selected)
       for (const [name, panel] of Object.entries(panels)) {
         if (name === selected) {
@@ -1098,7 +1103,7 @@ for (const width of [320, 390, 1440]) {
       }
     }
     const directory = page.getByRole('tab', { name: 'Directory', exact: true })
-    await page.getByRole('tab', { name: 'Account activity', exact: true }).press('Home')
+    await page.getByRole('tab', { name: 'Merchant requests', exact: true }).press('Home')
     await expect(directory).toBeFocused()
     await expect(directory).toHaveAttribute('aria-selected', 'true')
     await page.getByTestId(`account-${userA}`).click()

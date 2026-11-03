@@ -115,6 +115,29 @@ test('connected native sign-in, merchant/outlet correction, manual receipts, inv
   await expect(
     page.getByText('Synthetic reviewed merchant source', { exact: true }).first(),
   ).toBeVisible()
+  const outletId = new URL(page.url()).searchParams.get('recordId')
+  const merchantId = new URL(page.url()).searchParams.get('merchantId')
+  expect(outletId).toMatch(/^[a-f0-9]{24}$/)
+  expect(merchantId).toMatch(/^[a-f0-9]{24}$/)
+  await page.getByRole('button', { name: 'View merchant', exact: true }).click()
+  await expect(
+    page.getByRole('heading', { name: 'Synthetic browser merchant', exact: true }),
+  ).toBeVisible()
+  await expect(page).toHaveURL(new RegExp(`recordId=${merchantId}`))
+  await page.getByRole('button', { name: 'View outlets for this merchant', exact: true }).click()
+  await expect(page.getByRole('region', { name: 'Merchant outlet context' })).toContainText(
+    'Synthetic browser merchant',
+  )
+  await expect(page).toHaveURL(new RegExp(`merchantId=${merchantId}`))
+  await page.locator(`[data-open-id="${outletId}"]`).click()
+  await expect(page).toHaveURL(new RegExp(`recordId=${outletId}`))
+  await page.reload()
+  await expect(
+    page.getByRole('heading', { name: 'Synthetic corrected browser outlet', exact: true }),
+  ).toBeVisible()
+  await expect(page.getByRole('region', { name: 'Merchant outlet context' })).toContainText(
+    'Synthetic browser merchant',
+  )
   for (const width of [320, 768, 1024, 1440]) {
     await page.setViewportSize({ width, height: 900 })
     await page.screenshot({

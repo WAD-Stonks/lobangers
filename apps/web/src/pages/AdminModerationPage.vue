@@ -3,13 +3,17 @@ import AdminShell from '@web/components/admin/AdminShell.vue'
 import SharedSignIn from '@web/components/auth/SharedSignIn.vue'
 import { confirmAdminIdentity } from '@web/lib/admin-recovery'
 import { createAdminReadFence } from '@web/lib/admin-session'
+import { adminReturnTo } from '@web/lib/admin-workflow-links'
 import { authClient } from '@web/lib/auth-client'
 import ModerationPanel from '@web/modules/admin-moderation/ModerationPanel.vue'
 
 type ModerationDenial = 'UNAUTHORIZED' | 'FORBIDDEN'
 
-import { onMounted, onUnmounted, ref } from 'vue'
+import { computed, inject, onMounted, onUnmounted, ref } from 'vue'
+import { routeLocationKey } from 'vue-router'
 
+const route = inject(routeLocationKey, null)
+const destination = computed(() => adminReturnTo(route?.fullPath) ?? '/admin/moderation')
 const access = ref<'loading' | 'allowed' | 'closed' | 'error' | ModerationDenial>('loading')
 const refreshKey = ref(0)
 const fence = createAdminReadFence()
@@ -61,14 +65,14 @@ onUnmounted(fence.dispose)
 <template>
   <AdminShell title="Reports &amp; comment moderation" :refresh-key="refreshKey" @closing="close" @signed-out="anonymous" @access-reload="reload">
     <p v-if="access === 'loading'" role="status">Checking moderation access…</p>
-    <SharedSignIn v-else-if="access === 'UNAUTHORIZED'" title="Sign in to moderate" destination="/admin/moderation" @signed-in="signedIn" />
+    <SharedSignIn v-else-if="access === 'UNAUTHORIZED'" title="Sign in to moderate" :destination="destination" @signed-in="signedIn" />
     <div v-else-if="access === 'FORBIDDEN'" role="alert">
       <p>You do not have permission to moderate.</p>
       <button type="button" class="btn btn-outline-primary" @click="reload">Recheck moderation access</button>
     </div>
     <p v-else-if="access === 'closed'" role="status">Moderation access is closed. Use the session controls to retry or recheck.</p>
     <div v-else-if="access === 'error'" role="alert">
-      <p>Unable to confirm your session. Audit history remains closed.</p>
+      <p>Unable to confirm your session. Moderation remains closed.</p>
       <button type="button" class="btn btn-outline-primary" @click="reload">Retry moderation access</button>
     </div>
     <ModerationPanel v-else  @denied="denied" />

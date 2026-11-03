@@ -58,6 +58,38 @@ it('labels system attribution in the account activity workspace', async () => {
   expect(wrapper.text()).not.toContain('()')
   wrapper.unmount()
 })
+it('initializes contextual audit queries without an unfiltered read and fences superseded context', async () => {
+  const component = await panel()
+  let release!: (value: { items: (typeof row)[]; nextCursor: string | null }) => void
+  const list = vi
+    .fn()
+    .mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          release = resolve
+        }),
+    )
+    .mockResolvedValue({ items: [], nextCursor: null })
+  const wrapper = mount(component, {
+    props: { list, initialFilters: { subjectType: 'DEAL', subjectId: id } },
+  })
+  try {
+    expect(list).toHaveBeenCalledTimes(1)
+    expect(list).toHaveBeenCalledWith({ limit: 25, subjectType: 'DEAL', subjectId: id })
+    const userId = 'a'.repeat(24)
+    await wrapper.setProps({ initialFilters: { userId } })
+    await flushPromises()
+    release({ items: [row], nextCursor: id })
+    await flushPromises()
+    expect(list).toHaveBeenCalledTimes(2)
+    expect(list).toHaveBeenLastCalledWith({ limit: 25, userId })
+    expect(wrapper.find('[data-testid="audit-entry"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="audit-more"]').exists()).toBe(false)
+    expect((wrapper.get('[name="userId"]').element as HTMLInputElement).value).toBe(userId)
+  } finally {
+    wrapper.unmount()
+  }
+})
 it('labels system policy actors without a fabricated human identity', async () => {
   const component = await panel()
   const list = vi.fn().mockResolvedValue({

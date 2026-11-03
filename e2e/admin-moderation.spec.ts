@@ -46,6 +46,18 @@ for (const width of [320, 768, 1024, 1440])
   test(`synthetic moderation exact decision and responsive ${width}px`, async ({ page }) => {
     const errors: string[] = []
     page.on('pageerror', (e) => errors.push(e.message))
+    const targetComment = {
+      id: '1123456789abcdef01234567',
+      dealId: '2123456789abcdef01234567',
+      body: 'Exact reported comment',
+      author: { id, name: 'Synthetic author' },
+      createdAt: '2026-01-01T00:00:00Z',
+      deletedAt: null,
+      hiddenAt: null,
+      state: 'VISIBLE',
+      moderationVersion: 11,
+      deal: null,
+    }
     const row = {
       id,
       targetType: 'COMMENT',
@@ -56,12 +68,14 @@ for (const width of [320, 768, 1024, 1440])
       details: '<img src=x> Original evidence',
       reporter: { id, name: 'Synthetic reporter' },
       deal: null,
-      comment: null,
+      comment: { ...targetComment, moderationVersion: 2 },
       resolution: null,
       resolvedAt: null,
       createdAt: '2026-01-01T00:00:00Z',
     }
-    const writes: unknown[] = []
+    const writes: unknown[] = [],
+      visibilityWrites: unknown[] = []
+    let currentComment = { ...targetComment, hiddenAt: null as string | null }
     let release!: () => void, seen!: () => void
     const hold = new Promise<void>((r) => {
         release = r
@@ -80,6 +94,17 @@ for (const width of [320, 768, 1024, 1440])
         }
       else if (p.endsWith('/auth-methods'))
         body = { password: true, google: false, emailOtp: false, passwordRecovery: false }
+      else if (p.endsWith(`/comments/${targetComment.id}/visibility`)) {
+        visibilityWrites.push(r.postDataJSON())
+        currentComment = {
+          ...currentComment,
+          state: 'HIDDEN',
+          hiddenAt: '2026-01-01T01:00:00Z',
+          moderationVersion: 12,
+        }
+        body = currentComment
+      } else if (p.endsWith(`/comments/${targetComment.id}`)) body = currentComment
+      else if (p.endsWith('/comments')) body = { items: [currentComment], nextCursor: null }
       else if (p.endsWith('/resolve')) {
         writes.push(r.postDataJSON())
         seen()
@@ -90,7 +115,7 @@ for (const width of [320, 768, 1024, 1440])
           resolution: 'Reviewed explicit evidence',
           moderationVersion: 5,
         }
-      } else if (p.endsWith(`/COMMENT/${id}`)) body = row
+      } else if (p.endsWith(`/COMMENT/${id}`)) body = { ...row, comment: currentComment }
       else if (p.endsWith('/reports')) body = { items: [row], nextCursor: null }
       else throw new Error(`Unexpected synthetic endpoint ${p}`)
       await route.fulfill({ contentType: 'application/json', body: JSON.stringify(body) })
@@ -113,6 +138,32 @@ for (const width of [320, 768, 1024, 1440])
         return range.getClientRects().length
       }),
     ).toBe(1)
+    await page.getByLabel('Resolution (required)').fill('Unsubmitted report note')
+    await page.getByLabel('I reviewed this exact target').check()
+    await page.getByTestId('open-reported-comment').click()
+    await expect(page.getByRole('heading', { name: 'Review comment', exact: true })).toBeVisible()
+    await expect(page.getByLabel('Moderation note (required)')).toHaveValue('')
+    await expect(page.getByLabel('I reviewed this exact target')).not.toBeChecked()
+    expect(writes).toEqual([])
+    expect(visibilityWrites).toEqual([])
+    await page.getByLabel('Moderation note (required)').fill('Reviewed reported comment')
+    await page.getByLabel('I reviewed this exact target').check()
+    await page.getByRole('button', { name: 'Hide comment', exact: true }).click()
+    await expect(
+      page.getByText('Comment hidden. Reports and votes were not changed.', { exact: true }),
+    ).toBeVisible()
+    expect(visibilityWrites).toEqual([
+      {
+        expectedVersion: 11,
+        visibility: 'HIDDEN',
+        note: 'Reviewed reported comment',
+        confirmed: true,
+      },
+    ])
+    expect(writes).toEqual([])
+    await page.getByTestId('back-to-report').click()
+    await expect(page.getByLabel('Resolution (required)')).toHaveValue('')
+    await expect(page.getByLabel('I reviewed this exact target')).not.toBeChecked()
     await page.getByLabel('Resolution (required)').fill('Reviewed explicit evidence')
     await page.getByLabel('I reviewed this exact target').check()
     await page.getByRole('button', { name: 'Record report decision' }).focus()

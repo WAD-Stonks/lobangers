@@ -3,6 +3,7 @@ import type { AuthMethodsResponse } from '@broke-oclock/contracts/api'
 import PasswordRecovery from '@web/components/auth/PasswordRecovery.vue'
 import '@web/components/auth/auth.css'
 import { consumeOAuthError, safeAuthDestination } from '@web/lib/admin-session'
+import { adminReturnTo } from '@web/lib/admin-workflow-links'
 import { api } from '@web/lib/api-client'
 import { authClient } from '@web/lib/auth-client'
 import { safeRedirect } from '@web/router/guards'
@@ -82,7 +83,7 @@ const google = async () => {
   if (pending.value || !methods.value?.google) return
   const current = ++generation
   pending.value = true; error.value = ''; password.value = ''; code.value = ''
-  // Keep the admin exact allowlist. Only the public account entry accepts safe SPA paths.
+  // Admin callbacks stay on allowlisted task pages; record queries survive a new session.
   let callback: string
   let errorCallback: string
   if (props.context === 'account') {
@@ -90,7 +91,10 @@ const google = async () => {
     callback = new URL(destination, window.location.origin).href
     errorCallback = new URL(`/login?redirect=${encodeURIComponent(destination)}`, window.location.origin).href
   } else {
-    callback = safeAuthDestination(props.destination, window.location.origin)
+    const allowed = adminReturnTo(props.destination)
+    const currentTask = adminReturnTo(`${window.location.pathname}${window.location.search}${window.location.hash}`)
+    const task = allowed && !allowed.includes('?') && !allowed.includes('#') && currentTask && new URL(currentTask, window.location.origin).pathname === allowed ? currentTask : allowed
+    callback = task ? new URL(task, window.location.origin).href : safeAuthDestination(props.destination, window.location.origin)
     errorCallback = callback
   }
   try {

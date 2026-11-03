@@ -7,9 +7,11 @@ import {
 import { DEAL_CATEGORIES } from '@broke-oclock/contracts/deal-categories'
 import { DEAL_CUISINES } from '@broke-oclock/contracts/deal-cuisines'
 import AdminStatusBadge from '@web/components/admin/AdminStatusBadge.vue'
+import AdminTaskLink from '@web/components/admin/AdminTaskLink.vue'
 import AdminWorkspace from '@web/components/admin/AdminWorkspace.vue'
 import AdminWorkspaceTabs from '@web/components/admin/AdminWorkspaceTabs.vue'
 import TicketLoading from '@web/components/TicketLoading.vue'
+import { adminCatalogueHref, adminDealHref, adminRecordId, adminReturnTo, type DealWorkflowTab } from '@web/lib/admin-workflow-links'
 import { api } from '@web/lib/api-client'
 import { formatDateTime, formatMoneyMinor, formatOfferType } from '@web/lib/format'
 import DealScopePicker from '@web/modules/admin-deals/DealScopePicker.vue'
@@ -20,7 +22,9 @@ import {
   singaporeInputToIso,
 } from '@web/modules/admin-deals/deal-editor-values'
 import { useAdminDeals } from '@web/modules/admin-deals/use-admin-deals'
-import { computed, nextTick, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
+import DraftEvidence from '@web/modules/ingestion-admin/DraftEvidence.vue'
+import { computed, inject, nextTick, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
+import { type LocationQueryRaw, routeLocationKey, routerKey } from 'vue-router'
 
 const props = defineProps<{ client?: AdminDealsClient }>()
 const emit = defineEmits<{ denied: [code: 'UNAUTHORIZED' | 'FORBIDDEN'] }>()
@@ -61,25 +65,140 @@ const actionLabels: Record<string, string> = {
   content: 'Save content correction', scope: 'Save scope', evidence: 'Record scope evidence',
   APPROVE: 'Approve review', REJECT: 'Reject review', unpublish: 'Unpublish deal', reopen: 'Reopen review',
 }
-const chooseSection = (value: string) => { if (!pending.value) action.value = value === 'review' ? 'APPROVE' : value }
-const pick = async (id: string) => {
+const route = inject(routeLocationKey, null)
+const router = inject(routerKey, null)
+const returnTo = computed(() => adminReturnTo(route?.query.returnTo))
+const routeNotice = computed(() => route?.query.dealId && !adminRecordId(route.query.dealId) ? 'The linked deal ID is invalid. Select a deal from the directory.' : '')
+const evidenceVisited = ref(false)
+const reviewAction = () => selected.value?.reviewStatus === 'PENDING' ? 'APPROVE'
+  : selected.value?.reviewStatus === 'APPROVED' && selected.value.publishedAt ? 'unpublish' : 'reopen'
+const setSection = (value: string) => {
+  action.value = value === 'review' ? reviewAction() : value
+  if (value === 'evidence') evidenceVisited.value = true
+  state.resetConsent()
+}
+const currentHref = (tab = section.value) => {
+  if (!selected.value) return '/admin/deals'
+  const url = new URL(adminDealHref({ dealId: selected.value.id, tab: tab as DealWorkflowTab, returnTo: returnTo.value }), 'http://admin.local')
+  for (const [key, value] of Object.entries(filters)) if (value) url.searchParams.set(key, String(value))
+  return `${url.pathname}${url.search}`
+}
+let internalPath: string | null = null
+let queuedRoute = false
+let appliedRecord: string | undefined
+const routeFilterKeys = new Set<string>()
+let routeGeneration = 0
+const syncUrl = async (dealId?: string, tab = section.value) => {
+  if (!router || !route) return
+  const query = { ...route.query, dealId, tab: dealId ? tab : undefined }
+  const target = router.resolve({ path: '/admin/deals', query }).fullPath
+  if (target === route.fullPath) return
+  internalPath = target
+  try { await router.replace(target) } finally { internalPath = null }
+}
+const reloadList = async (clear = false) => {
   if (pending.value) return
-  detailOpen.value = true
-  await state.select(id)
-  if (selected.value?.id !== id) return
+  state.resetConsent()
+  if (clear) await state.clearFilters()
+  else await state.load()
+  if (!router || !route || status.value === 'closed') return
+  const query: LocationQueryRaw = { ...route.query }
+  for (const [key, value] of Object.entries(filters)) query[key] = value ? String(value) : undefined
+  const destination = router.resolve({ path: '/admin/deals', query }).fullPath
+  if (destination === route.fullPath) return
+  internalPath = destination
+  try { await router.replace(destination) } finally { internalPath = null }
+}
+const focusDetail = async () => {
   await nextTick()
   detailHeading.value?.focus({ preventScroll: true })
-  if (window.innerWidth < 992)
-    detailHeading.value?.closest('.admin-record-workspace-detail')?.scrollIntoView?.({ block: 'start' })
+  if (window.innerWidth < 992) detailHeading.value?.closest('.admin-record-workspace-detail')?.scrollIntoView?.({ block: 'start' })
+}
+const pick = async (id: string) => {
+  if (pending.value) return
+  appliedRecord = id
+  detailOpen.value = true
+  evidenceVisited.value = false
+  await syncUrl(id, 'content')
+  setSection('content')
+  await state.select(id)
+  if (selected.value?.id === id) await focusDetail()
+}
+const chooseSection = (value: string) => {
+  if (pending.value || !editorTabs.some(tab => tab.id === value)) return
+  setSection(value)
+  void syncUrl(selected.value?.id, value)
 }
 const closeDetails = async () => {
   if (pending.value) return
+  const id = selected.value?.id
+  appliedRecord = undefined
   detailOpen.value = false
-  state.resetConsent()
+  state.clearSelection()
+  await syncUrl()
   await nextTick()
-  recordsRoot.value?.querySelector<HTMLButtonElement>('button[aria-current="true"]')?.focus()
+  if (id) recordsRoot.value?.querySelector<HTMLButtonElement>(`button[data-deal-id="${id}"]`)?.focus()
 }
-const lookupDenied = (code: 'UNAUTHORIZED' | 'FORBIDDEN') => { state.close(); emit('denied', code) }
+const applyRoute = async (initial = false) => {
+  if (pending.value) { queuedRoute = true; return }
+  queuedRoute = false
+  const ticket = ++routeGeneration
+  const id = adminRecordId(route?.query.dealId)
+  const tab = typeof route?.query.tab === 'string' && editorTabs.some(tab => tab.id === route.query.tab) ? route.query.tab : 'content'
+  let filtersChanged = false
+  for (const key of ['search', 'origin', 'reviewStatus', 'publication', 'merchantId'] as const) {
+    const value = route?.query[key]
+    if (typeof value !== 'string') {
+      if (routeFilterKeys.delete(key) && filters[key] !== '') { filters[key] = ''; filtersChanged = true }
+      continue
+    }
+    routeFilterKeys.add(key)
+    const allowed = key === 'origin' ? ['', 'IMPORTED', 'USER_SUBMITTED'].includes(value)
+      : key === 'reviewStatus' ? ['', 'PENDING', 'APPROVED', 'REJECTED', 'HIDDEN'].includes(value)
+      : key === 'publication' ? ['', 'PUBLISHED', 'UNPUBLISHED', 'EXPIRED'].includes(value)
+      : key === 'merchantId' ? !value || !!adminRecordId(value) : value.length <= 100
+    if (allowed && filters[key] !== value) { filters[key] = value; filtersChanged = true }
+  }
+  const deleted = route?.query.includeDeleted
+  if (deleted === 'true' || deleted === 'false') {
+    routeFilterKeys.add('includeDeleted')
+    if (filters.includeDeleted !== (deleted === 'true')) { filters.includeDeleted = deleted === 'true'; filtersChanged = true }
+  } else if (routeFilterKeys.delete('includeDeleted') && filters.includeDeleted) { filters.includeDeleted = false; filtersChanged = true }
+  if (initial || filtersChanged) void state.load()
+  if (id !== appliedRecord || (id && !selected.value && !reading.value)) {
+    appliedRecord = id
+    evidenceVisited.value = false
+    detailOpen.value = !!id
+    if (id) await state.select(id)
+    else state.clearSelection()
+  }
+  if (ticket !== routeGeneration) return
+  setSection(tab)
+  if (id && selected.value?.id === id) await focusDetail()
+}
+watch(() => route?.fullPath, () => {
+  if (route?.path !== '/admin/deals' || route.fullPath === internalPath) return
+  void applyRoute()
+}, { flush: 'sync' })
+watch(pending, async value => {
+  if (value || !queuedRoute) return
+  await nextTick()
+  if (queuedRoute && !pending.value) void applyRoute()
+})
+const investigate = (postId: string) => {
+  if (pending.value || !adminRecordId(postId) || !router) return
+  void router.push({ path: '/admin/ingestion', query: { postId, returnTo: currentHref('evidence') }, hash: '#failed-posts' })
+}
+const decisionUnavailable = computed(() => {
+  const row = selected.value
+  if (!row) return true
+  if (action.value === 'APPROVE') return row.reviewStatus !== 'PENDING' || !row.approvalReady
+  if (action.value === 'REJECT') return row.reviewStatus !== 'PENDING'
+  if (action.value === 'unpublish') return row.reviewStatus !== 'APPROVED'
+  if (action.value === 'reopen') return !['HIDDEN', 'REJECTED'].includes(row.reviewStatus) && !(row.reviewStatus === 'APPROVED' && !row.publishedAt)
+  return false
+})
+const lookupDenied = (code: string) => { if (code === 'UNAUTHORIZED' || code === 'FORBIDDEN') { state.close(); emit('denied', code) } }
 const readable = (value: string) => value.replaceAll('_', ' ').toLowerCase()
 const safeUrl = (value: string | null) => {
   if (!value) return undefined
@@ -114,6 +233,7 @@ watch(selected, (row) => {
     initialEditor[key] = value
   }
   if (!row) return
+  if (section.value === 'review' && decisionUnavailable.value) action.value = reviewAction()
   scope.applicability = row.applicability
   scope.merchantId = row.merchantId ?? ''
   scope.venueIds = row.selectedVenueIds?.join('\n') ?? ''
@@ -159,7 +279,7 @@ const submitAction = () => {
   validation.value = ''
   const chosen = action.value,
     row = selected.value
-  if (!row) return
+  if (!row || decisionUnavailable.value) return
   if (chosen === 'scope') {
     const captured = {
       applicability: scope.applicability as typeof row.applicability,
@@ -206,19 +326,21 @@ const amount = (minor: number | null, currency: string) => {
     return `${currency} ${minor} minor units`
   }
 }
-onMounted(() => state.load())
+onMounted(() => applyRoute(true))
 onUnmounted(state.dispose)
 </script>
 <template>
   <section class="deals-directory" :class="{ 'deal-detail-open': detailOpen && (Boolean(selected) || reading) }" aria-label="Deals operations">
-    <p class="directory-intro">Find a deal, check its details and make a review decision.</p>
-    <form class="deal-filters" @submit.prevent="state.load()">
+    <AdminTaskLink v-if="returnTo" :to="returnTo" :disabled="pending" class="task-return">← Back to previous task</AdminTaskLink>
+    <p class="directory-intro">Check the content, confirm the outlets and evidence, then review the complete deal.</p>
+    <p v-if="routeNotice" role="alert">{{ routeNotice }}</p>
+    <form class="deal-filters" @submit.prevent="reloadList()">
       <fieldset :disabled="pending" class="filters">
         <label class="filter-search">Search deals<input v-model="filters.search" name="search" type="search" autocomplete="off" class="form-control" maxlength="100" placeholder="Title or description…" /></label>
         <label>Source<select v-model="filters.origin" name="origin" class="form-select"><option value="">All sources</option><option value="IMPORTED">Imported</option><option value="USER_SUBMITTED">Community</option></select></label>
         <label>Review<select v-model="filters.reviewStatus" name="reviewStatus" class="form-select"><option value="">All states</option><option value="PENDING">Needs review</option><option value="APPROVED">Approved</option><option value="REJECTED">Rejected</option><option value="HIDDEN">Hidden</option></select></label>
         <label>Visibility<select v-model="filters.publication" name="publication" class="form-select"><option value="">Any visibility</option><option value="PUBLISHED">Published</option><option value="UNPUBLISHED">Unpublished</option><option value="EXPIRED">Expired</option></select></label>
-        <div class="filter-actions"><button type="submit" data-testid="reload-list" class="btn btn-primary" :disabled="loading">{{ loading ? 'Loading…' : 'Apply filters' }}</button><button type="button" data-testid="clear-deal-filters" class="btn btn-outline-secondary" :disabled="loading || pending" @click="state.clearFilters()">Clear</button></div>
+        <div class="filter-actions"><button type="submit" data-testid="reload-list" class="btn btn-primary" :disabled="loading">{{ loading ? 'Loading…' : 'Apply filters' }}</button><button type="button" data-testid="clear-deal-filters" class="btn btn-outline-secondary" :disabled="loading || pending" @click="reloadList(true)">Clear</button></div>
       </fieldset>
       <details class="advanced-filters"><summary>Advanced filters<span v-if="filters.merchantId || filters.includeDeleted" class="filter-active"> · active</span></summary><div class="advanced-filter-fields"><label>Merchant ID<input v-model="filters.merchantId" name="merchantId" class="form-control" maxlength="24" spellcheck="false" autocomplete="off" autocapitalize="none" translate="no" :disabled="pending" /></label><label class="check"><input v-model="filters.includeDeleted" name="includeDeleted" type="checkbox" :disabled="pending" /> Include deleted records for investigation</label></div></details>
     </form>
@@ -227,8 +349,8 @@ onUnmounted(state.dispose)
       <template #list>
         <header class="queue-heading"><h2>Deals</h2><span v-if="!loading && status === 'ready'" class="small text-secondary">{{ items.length }} loaded</span></header>
         <TicketLoading v-if="loading" label="Loading deals…" />
-        <div v-else-if="status === 'ready' && !items.length" class="queue-empty" role="status"><h3>No matching deals</h3><p>Try another search or clear the filters to see more deals.</p><button class="btn btn-outline-secondary" type="button" @click="state.clearFilters()">Clear filters</button></div>
-        <ol ref="recordsRoot" class="records"><li v-for="item in items" :key="item.id"><button type="button" data-testid="select-deal" :disabled="pending" :aria-current="selected?.id === item.id ? 'true' : undefined" @click="pick(item.id)"><strong>{{ item.title }}</strong><span class="record-statuses"><AdminStatusBadge :status="item.reviewStatus" :label="item.reviewStatus === 'PENDING' ? 'Needs review' : undefined" /><AdminStatusBadge :status="item.publication" /></span><small>{{ item.origin === 'IMPORTED' ? 'Imported source' : 'Community submission' }}<span v-if="item.validUntil"> · Ends {{ formatDateTime(item.validUntil) }}</span></small></button></li></ol>
+        <div v-else-if="status === 'ready' && !items.length" class="queue-empty" role="status"><h3>No matching deals</h3><p>Try another search or clear the filters to see more deals.</p><button class="btn btn-outline-secondary" type="button" @click="reloadList(true)">Clear filters</button></div>
+        <ol ref="recordsRoot" class="records"><li v-for="item in items" :key="item.id"><button type="button" :data-deal-id="item.id" data-testid="select-deal" :disabled="pending" :aria-current="selected?.id === item.id ? 'true' : undefined" @click="pick(item.id)"><strong>{{ item.title }}</strong><span class="record-statuses"><AdminStatusBadge :status="item.reviewStatus" :label="item.reviewStatus === 'PENDING' ? 'Needs review' : undefined" /><AdminStatusBadge :status="item.publication" /></span><small>{{ item.origin === 'IMPORTED' ? 'Imported source' : 'Community submission' }}<span v-if="item.validUntil"> · Ends {{ formatDateTime(item.validUntil) }}</span></small></button></li></ol>
         <footer v-if="cursor" class="queue-footer"><button type="button" class="btn btn-outline-secondary" :disabled="loading || pending" @click="state.load(true)">Load more deals</button></footer>
       </template>
       <template #detail>
@@ -263,11 +385,12 @@ onUnmounted(state.dispose)
               </section>
               <section id="deal-editor-panel-scope" role="tabpanel" aria-labelledby="deal-editor-tab-scope" :hidden="section !== 'scope'">
                 <h3>Outlets & scope</h3><p class="section-description">Choose where this offer applies. Replacing the scope clears its approval and supporting scope evidence.</p>
+                <p v-if="selected.merchantId"><AdminTaskLink :to="adminCatalogueHref({ kind: 'venues', merchantId: selected.merchantId, returnTo: currentHref('scope') })" :disabled="pending">Manage this merchant’s outlets ↗</AdminTaskLink></p>
                 <label>Where is the offer available?<select v-model="scope.applicability" class="form-select"><option value="SELECTED_OUTLETS">Selected outlets</option><option value="ALL_MERCHANT_OUTLETS">All merchant outlets</option><option value="ONLINE">Online</option><option value="NO_FIXED_LOCATION">No fixed location</option></select></label>
                 <p v-if="!selected.scopeEditable" class="notice">This record has more than 100 outlet links and is read only here. The complete set will not be truncated.</p>
                 <DealScopePicker v-if="section === 'scope'" v-model:merchant-id="scope.merchantId" :venue-ids="completeVenueIds" :outlets="selected.outlets" :disabled="blocked || !selected.scopeEditable" @update:venue-ids="scope.venueIds = $event.join('\n')" @denied="lookupDenied" />
                 <details class="technical-details"><summary>Advanced: edit exact IDs</summary><label>Merchant ID (blank means none)<input v-model="scope.merchantId" class="form-control" spellcheck="false" autocomplete="off" /></label><label>Complete outlet IDs, one per line<textarea v-model="scope.venueIds" class="form-control" rows="5" :disabled="!selected.scopeEditable" spellcheck="false" /></label><p class="small text-secondary">This replaces the full selection, including outlets not shown on the current page.</p></details>
-                <details><summary>Current outlets ({{ selected.outletCount }})</summary><ul class="outlet-list"><li v-for="venue in selected.outlets" :key="venue.id"><strong>{{ venue.name }}</strong><span>{{ venue.address }}</span><small>{{ venue.deletedAt ? 'Deleted' : 'Active' }} · Geography {{ venue.geographyReady ? 'verified' : 'unverified' }} · Occupancy {{ venue.occupancyReady ? 'verified' : 'unverified' }}</small></li></ul><button v-if="selected.nextOutletCursor" type="button" class="btn btn-outline-secondary" @click="state.select(selected.id, selected.nextOutletCursor ?? undefined)">Next outlet page</button><p class="small text-secondary">Showing a page of the {{ selected.outletCount }} associated outlets. Eligibility checks use the full set.</p></details>
+                <details><summary>Current outlets ({{ selected.outletCount }})</summary><ul class="outlet-list"><li v-for="venue in selected.outlets" :key="venue.id"><strong>{{ venue.name }}</strong><span>{{ venue.address }}</span><AdminTaskLink :to="adminCatalogueHref({ kind: 'venues', merchantId: selected.merchantId ?? undefined, recordId: venue.id, returnTo: currentHref('scope') })" :disabled="pending">Inspect outlet ↗</AdminTaskLink><small>{{ venue.deletedAt ? 'Deleted' : 'Active' }} · Geography {{ venue.geographyReady ? 'verified' : 'unverified' }} · Occupancy {{ venue.occupancyReady ? 'verified' : 'unverified' }}</small></li></ul><button v-if="selected.nextOutletCursor" type="button" class="btn btn-outline-secondary" @click="state.select(selected.id, selected.nextOutletCursor ?? undefined)">Next outlet page</button><p class="small text-secondary">Showing a page of the {{ selected.outletCount }} associated outlets. Eligibility checks use the full set.</p></details>
               </section>
               <section id="deal-editor-panel-evidence" role="tabpanel" aria-labelledby="deal-editor-tab-evidence" :hidden="section !== 'evidence'">
                 <h3>Supporting evidence</h3><p class="section-description">Inspect an original source before recording what it confirms. Evidence alone does not publish a deal.</p>
@@ -275,8 +398,9 @@ onUnmounted(state.dispose)
                 <template v-if="section === 'evidence'"><label>Supporting URL or source reference<input v-model="evidence.reference" name="reference" class="form-control" maxlength="2048" /></label><label>What did the source confirm?<textarea v-model="evidence.statement" name="statement" class="form-control" rows="3" maxlength="2000" /></label><label v-if="selected.origin === 'IMPORTED'">Reviewed source snapshot<select v-model="evidence.citationId" class="form-select"><option value="">Choose the source you reviewed</option><option v-for="source in selected.sources" :key="source.citationId" :value="source.citationId">{{ source.sourceUrl || source.citationId }}</option></select></label><label class="check"><input v-model="evidence.staffConfirmed" type="checkbox" /> I reviewed this supporting source and confirmed the complete stated scope.</label></template>
               </section>
               <section id="deal-editor-panel-review" role="tabpanel" aria-labelledby="deal-editor-tab-review" :hidden="section !== 'review'">
-                <h3>Review decision</h3><p class="section-description">Review and publication are separate. Approval without current evidence stays unpublished; reopening always requires a new review.</p>
-                <label class="action-picker">Decision<select v-model="action" class="form-select"><option value="APPROVE">Approve review</option><option value="REJECT">Reject review</option><option value="unpublish">Unpublish deal</option><option value="reopen">Reopen for new review</option></select></label>
+                <h3>Review decision</h3><p class="section-description">Approval publishes the deal when current scope evidence is present. Check the result below before confirming. Reopening always requires a new review.</p>
+                <label class="action-picker">Decision<select v-model="action" class="form-select"><template v-if="selected.reviewStatus === 'PENDING'"><option value="APPROVE">Approve review</option><option value="REJECT">Reject review</option></template><option v-if="selected.reviewStatus === 'APPROVED'" value="unpublish">Unpublish deal</option><option v-if="['HIDDEN', 'REJECTED'].includes(selected.reviewStatus) || (selected.reviewStatus === 'APPROVED' && !selected.publishedAt)" value="reopen">Reopen for new review</option></select></label>
+                <p v-if="action === 'APPROVE'" class="notice">{{ !selected.approvalReady ? 'Approval is blocked. Complete the content, outlet checks and supporting evidence first.' : selected.publicationReady ? 'This approval will publish the deal.' : 'This approval will leave the deal unpublished. Record current scope evidence before approval to publish it.' }}</p>
                 <p v-if="action === 'unpublish'" class="notice">This removes the entire promotion from public view across every associated outlet.</p>
                 <p v-if="selected.reviewNote"><strong>Previous review:</strong> {{ selected.reviewNote }}</p>
               </section>
@@ -284,10 +408,11 @@ onUnmounted(state.dispose)
                 <label>Required reason<textarea v-model="consent.note" name="note" class="form-control" rows="2" maxlength="500" placeholder="Explain the change or decision…" /></label>
                 <label class="check"><input v-model="consent.confirmed" name="confirm" type="checkbox" /> I confirm {{ actionLabels[action]?.toLowerCase() }} for {{ selected.title }} ({{ selected.id }}), content {{ selected.contentVersion }} / operation {{ selected.operationVersion }}, scope {{ readable(selected.applicability) }} / {{ selected.outletCount }} outlets, and the complete changes entered above.</label>
                 <p v-if="validation" role="alert">{{ validation }}</p>
-                <button type="submit" :class="['btn', ['REJECT', 'unpublish'].includes(action) ? 'btn-outline-danger' : 'btn-primary']" :data-testid="action === 'content' ? 'save-content' : 'save-operation'" :disabled="blocked || !consent.note.trim() || !consent.confirmed || (action === 'scope' && !selected.scopeEditable)">{{ pending ? 'Saving…' : actionLabels[action] }}</button>
+                <button type="submit" :class="['btn', ['REJECT', 'unpublish'].includes(action) ? 'btn-outline-danger' : 'btn-primary']" :data-testid="action === 'content' ? 'save-content' : 'save-operation'" :disabled="blocked || decisionUnavailable || !consent.note.trim() || !consent.confirmed || (action === 'scope' && !selected.scopeEditable)">{{ pending ? 'Saving…' : actionLabels[action] }}</button>
               </footer>
             </fieldset>
           </form>
+          <section v-if="selected.origin === 'IMPORTED' && evidenceVisited" v-show="section === 'evidence'" class="imported-evidence" aria-label="Imported source investigation"><DraftEvidence :key="`${selected.id}-${selected.contentVersion}`" :deal-id="selected.id" :content-version="selected.contentVersion" @denied="lookupDenied" @investigate="investigate" /></section>
         </article>
       </template>
     </AdminWorkspace>
@@ -302,6 +427,9 @@ summary { cursor: pointer; font-weight: 600; }
 .deal-filters { padding: 18px; margin-bottom: 24px; border: 1px solid var(--admin-border); border-radius: 20px; background: var(--admin-surface); }
 .filters { display: grid; grid-template-columns: minmax(180px, 1.6fr) repeat(3, minmax(110px, 1fr)) auto; align-items: end; gap: 12px; margin: 0; min-width: 0; }
 label { display: grid; gap: 6px; min-width: 0; font-size: 13px; font-weight: 600; }
+.form-control, .form-select { min-width: 0; width: 100%; max-width: 100%; }
+.task-return { display: inline-block; margin-bottom: 16px; }
+.imported-evidence { margin-top: 24px; }
 label small { color: var(--admin-muted); font-size: 12px; font-weight: 400; }
 .filter-actions { display: flex; align-items: center; gap: 8px; }
 .advanced-filters { margin: 14px 0 0; padding: 12px 0 0; border-top: 1px solid var(--admin-line); }
