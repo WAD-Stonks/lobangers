@@ -20,6 +20,9 @@ await writeFile(
     // The ingestion service has a 90s soft admission budget; in-flight work may finish later.
     // This ceiling requires a compatible Vercel plan/Fluid compute setup before activation.
     maxDuration: 300,
+    // Beside the Singapore MongoDB Atlas cluster. Prisma on MongoDB makes several round trips
+    // per request, so the default US East region turned each one into a trans-Pacific hop.
+    regions: ['sin1'],
   }),
 )
 await writeFile(
