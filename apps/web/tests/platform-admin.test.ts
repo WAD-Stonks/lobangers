@@ -1122,14 +1122,18 @@ it('links selected account history to Audit and restores the authoritative accou
     expect(rest.audit).not.toHaveBeenCalled()
     await w.get('[data-testid="account-audit"]').trigger('click')
     await flushPromises()
-    expect(w.get('h1').text()).toBe('Audit investigation')
-    expect(rest.audit).toHaveBeenCalledTimes(1)
+    await vi.waitFor(() => {
+      expect(w.get('h1').text()).toBe('Audit investigation')
+      expect(rest.audit).toHaveBeenCalledTimes(1)
+    })
     expect(rest.audit).toHaveBeenLastCalledWith({ limit: 25, userId: selected.id })
     await w.get('a[href^="/admin/accounts?accountId="]').trigger('click')
     await flushPromises()
-    expect(w.get('section[aria-label="Account details"]').text()).toContain(
-      `Account ID: ${selected.id}`,
-    )
+    await vi.waitFor(() => {
+      expect(w.get('section[aria-label="Account details"]').text()).toContain(
+        `Account ID: ${selected.id}`,
+      )
+    })
     expect(rest.account).toHaveBeenLastCalledWith(selected.id)
     expect(w.find('#accounts-workspace-tab-activity').exists()).toBe(false)
   } finally {
