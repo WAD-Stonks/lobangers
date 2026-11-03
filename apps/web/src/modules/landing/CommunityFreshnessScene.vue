@@ -42,9 +42,22 @@ const chapters = [
 ] as const
 const chapterIndex = computed(() => props.reduced ? 2 : progress.value < .35 ? 0 : progress.value < .7 ? 1 : 2)
 const chapter = computed(() => chapters[chapterIndex.value])
+const card = ref<HTMLElement | null>(null)
+// While it travels to the stall the card fades out; the chapter copy waits until it has all but
+// gone, so the card never sits over that text either.
+const cardOpacity = computed(() => props.offer * (modelReady.value ? 1 - segment(motion.value.handoff, .72, 1) : 1))
 const introStyle = computed(() => ({
-  opacity: props.reduced ? 1 : segment(progress.value, .1, .22) * ((layout.value.mobile || props.viewport.height <= 850) ? 1 - motion.value.cta : 1),
+  opacity: props.reduced ? 1 : segment(progress.value, .1, .22) * ((layout.value.mobile || props.viewport.height <= 850) ? 1 - motion.value.cta : 1) * (motion.value.handoff < 1 ? 1 - segment(cardOpacity.value, 0, .05) : 1),
 }))
+// Where the story's "A deal near you" copy ends, in the card's coordinates, so the card can start
+// below it however the heading wraps. Read each frame: the copy slides and wraps with the viewport.
+const belowStoryCopy = () => {
+  const el = card.value
+  const copy = el?.closest('.cinematic-story')?.querySelector('.portal-food-copy')
+  const frame = el?.offsetParent
+  if (!el || !copy || !frame) return 0
+  return copy.getBoundingClientRect().bottom - frame.getBoundingClientRect().top + 16 + el.offsetHeight / 2
+}
 const cardStyle = computed(() => {
   if (props.reduced) return { '--stall': 1, opacity: 1 }
   const { width: w, height: h } = props.viewport
@@ -53,9 +66,9 @@ const cardStyle = computed(() => {
   const travel = motion.value.handoff
   const sourceWidth = Math.min(sourceMobile ? w * .84 : w * .34, 420)
   const sourceX = sourceMobile ? w * .5 : w * .075 + sourceWidth / 2
-  const sourceY = h * (sourceMobile ? .77 : .67)
+  const sourceY = Math.max(h * (sourceMobile ? .77 : .67), belowStoryCopy())
   return {
-    opacity: props.offer * (modelReady.value ? 1 - segment(travel, .72, 1) : 1),
+    opacity: cardOpacity.value,
     left: `${sourceX + (g.x - sourceX) * travel}px`,
     top: `${sourceY + (g.top + anchors.value.sign.y * g.height - sourceY) * travel}px`,
     width: `${sourceWidth + (g.signWidth - sourceWidth) * travel}px`,
@@ -114,7 +127,7 @@ const joinStyle = computed(() => layout.value.mobile && !props.reduced
     <div class="hawker-stage" :style="stallStyle">
       <HawkerStallModel :motion="motion" :deal="deal" :area="area" :active="offer > .05 || reduced" :reduced="reduced" @ready="modelReady = $event" @anchors="anchors = $event" />
     </div>
-    <article class="travelling-deal shared-deal-sign" :style="cardStyle" :aria-hidden="!reduced && (offer < .1 || (modelReady && motion.handoff >= 1))" :data-deal-id="deal.id">
+    <article ref="card" class="travelling-deal shared-deal-sign" :style="cardStyle" :aria-hidden="!reduced && (offer < .1 || (modelReady && motion.handoff >= 1))" :data-deal-id="deal.id">
       <div class="travelling-content">
         <small class="sample-label">{{ motion.handoff > .6 ? 'Lobangers · Sample stall' : 'Illustrative food deal' }}</small>
         <h3>{{ deal.restaurant }}</h3>

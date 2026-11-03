@@ -404,16 +404,18 @@ for (const width of [320, 768, 1024, 1440]) {
     // Current mobile routes open a half-height sheet. Expand it with the actual accessible
     // handle before inspecting cards below the viewport; never force eager loading in tests.
     await expandSheet(page, width)
+    // On the map a venue's deals are rows, like the map's results.
     const ongoing = page
       .getByRole('tabpanel', { name: 'Now', exact: true })
-      .getByTestId('food-deal-grid')
+      .getByTestId('venue-deals')
     await painted(ongoing.locator('img').first())
     await painted(ongoing.getByRole('img', { name: 'Synthetic archive GIF', exact: true }))
-    // A deal without a photo keeps its card with a decorative placeholder in the photo slot.
+    // A deal without a photo keeps its row with a decorative placeholder in the photo slot.
     await expect(
       ongoing
-        .getByRole('article', { name: `Synthetic no-image offer at ${venue.name}`, exact: true })
-        .locator('.food-deal-card__placeholder'),
+        .locator('li')
+        .filter({ hasText: 'Synthetic no-image offer' })
+        .locator('.deal-rows__media--placeholder'),
     ).toBeVisible()
     await ongoing.screenshot({
       path: test.info().outputPath(`synthetic-venue-${width}.png`),

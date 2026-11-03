@@ -28,6 +28,8 @@ export type AppConfig = {
     google?: { clientId: string; clientSecret: string }
     email?: { apiKey: string; from: string }
   }
+  // Present only when all four PUSHER_* values are set; rooms fall back to polling otherwise.
+  pusher?: { appId: string; key: string; secret: string; cluster: string }
 }
 
 type Environment = Record<string, string | undefined>
@@ -147,6 +149,23 @@ const parseAssistant = (env: Environment): AppConfig['assistant'] => {
   }
 }
 
+const parsePusher = (env: Environment): AppConfig['pusher'] => {
+  const names = ['PUSHER_APP_ID', 'PUSHER_KEY', 'PUSHER_SECRET', 'PUSHER_CLUSTER'] as const
+  const values = names.map((name) => {
+    const value = env[name]?.trim()
+    return !value || /^(?:unset|unconfigured)$/iu.test(value) ? undefined : value
+  })
+  if (values.every((value) => value === undefined)) return undefined
+  const [appId, key, secret, cluster] = values
+  if (!appId || !key || !secret || !cluster)
+    throw new Error(`Set all of ${names.join(', ')} or none of them`)
+  if (!/^\d{1,20}$/u.test(appId)) throw new Error('PUSHER_APP_ID must be numeric')
+  if (!/^[A-Za-z0-9]{8,64}$/u.test(key)) throw new Error('PUSHER_KEY is malformed')
+  if (!/^[A-Za-z0-9]{8,64}$/u.test(secret)) throw new Error('PUSHER_SECRET is malformed')
+  if (!/^[a-z0-9-]{2,20}$/u.test(cluster)) throw new Error('PUSHER_CLUSTER is malformed')
+  return { appId, key, secret, cluster }
+}
+
 const parseCommunityPolicy = (env: Environment): CommunityPolicy => {
   const integer = (name: string, fallback: number, max: number) => {
     const raw = env[name]?.trim()
@@ -172,6 +191,7 @@ export const parseConfig = (env: Environment): AppConfig => {
     throw new Error('BETTER_AUTH_SECRET must be at least 32 characters')
   const authProviders = parseAuthProviders(env)
   const email = authProviders?.email
+  const pusher = parsePusher(env)
   return {
     port: parsePort(env.PORT),
     community: parseCommunityPolicy(env),
@@ -187,6 +207,7 @@ export const parseConfig = (env: Environment): AppConfig => {
     betterAuthSecret,
     databaseUrl: validateDatabaseUrl(requiredString(env, 'DATABASE_URL')),
     ...(email ? { email } : {}),
+    ...(pusher ? { pusher } : {}),
   }
 }
 export const loadConfig = (): AppConfig => parseConfig(process.env)

@@ -134,6 +134,7 @@ const logOut = () => { close(); return signOut() }
           </button>
         </div>
 
+        <div class="brand-menu__divider" role="presentation" />
         <!-- Makan Squad: start a room or join a friend's with its code. -->
         <RouterLink class="brand-menu__codes brand-menu__squad" :to="navigationTo(squadTo)" data-testid="menu-squad-new"
           @click="closeDrawer">
@@ -153,6 +154,7 @@ const logOut = () => { close(); return signOut() }
         </RouterLink>
         <RouterLink class="brand-menu__link" :to="navigationTo({ name: 'squad-join' })" data-testid="menu-squad-join"
           @click="closeDrawer">Join a squad room</RouterLink>
+        <div class="brand-menu__divider" role="presentation" data-testid="menu-squad-divider" />
 
         <RouterLink v-if="user" class="brand-menu__codes" :to="navigationTo({ name: 'codes' })"
           data-testid="my-codes-link" @click="closeDrawer">
@@ -459,6 +461,12 @@ const logOut = () => { close(); return signOut() }
   transform-origin: top left;
 }
 
+/* The panel scrolls when its rows don't fit; they keep their height instead of being squeezed
+   until two-line rows (My codes, the Squad room) spill out of their backgrounds. */
+.brand-menu__panel>* {
+  flex-shrink: 0;
+}
+
 .brand-menu__scrim {
   position: fixed;
   inset: 0;
@@ -483,8 +491,6 @@ const logOut = () => { close(); return signOut() }
 .brand-menu__map-tools {
   display: grid;
   gap: 6px;
-  padding-bottom: 12px;
-  border-bottom: 1px solid var(--hairline);
 }
 
 .brand-menu__sidebar-toggle {
@@ -637,6 +643,13 @@ const logOut = () => { close(); return signOut() }
   cursor: pointer;
 }
 
+/* Sets the Squad rows apart from the account above and the visitor's codes and deals below. */
+.brand-menu__divider {
+  flex-shrink: 0;
+  height: 1px;
+  background: var(--hairline);
+}
+
 .brand-menu__links+.brand-menu__links {
   padding-top: 12px;
   border-top: 1px solid var(--hairline);
@@ -660,9 +673,7 @@ const logOut = () => { close(); return signOut() }
   background: var(--sunny-wash);
 }
 
-.brand-menu--rail .brand-menu__panel>* {
-  flex-shrink: 0;
-}
+
 
 .brand-menu__theme {
   flex-shrink: 0;

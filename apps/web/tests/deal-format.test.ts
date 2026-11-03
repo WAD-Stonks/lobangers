@@ -124,6 +124,26 @@ describe('limited promotions on the venue page and landing cards', () => {
     const pin = { validUntil: null, rawValidityText: 'While stocks last', limitedTime: true }
     expect(promotionDates(pin as Parameters<typeof promotionDates>[0])).toBe('Limited promotion')
   })
+
+  it('shows landing cards the same end date as the deal page, never ingestion notes', async () => {
+    const { promotionDates } = await import('@web/modules/landing/live-deals')
+    type Pin = Parameters<typeof promotionDates>[0]
+    const scraped = {
+      validUntil: '2026-12-31T15:59:59.000Z',
+      rawValidityText:
+        'Publisher window (Singapore): 2025-12-31T16:00:00.000Z to 2026-12-31T15:59:59.000Z.',
+      limitedTime: false,
+    }
+    expect(promotionDates(scraped as Pin)).toBe('Until 31 Dec 2026')
+    expect(promotionDates({ ...scraped, validUntil: null } as Pin)).toBe('No end date given')
+    expect(
+      promotionDates({
+        validUntil: null,
+        rawValidityText: 'While stocks last',
+        limitedTime: false,
+      } as Pin),
+    ).toBe('While stocks last')
+  })
 })
 
 describe('dealNoticeTags', () => {

@@ -24,6 +24,9 @@ const mapTo = computed(() => ({ name: 'browse', query: { ...shellQuery(route.que
 // chips underneath. On desktop it sits over the left drawer, beside the navigation rail (All
 // Deals has its own full-width header); below 992px it spans the screen.
 const session = authClient.useSession()
+// Merchants already have access, and staff can't request it, so only visitors and regular
+// accounts are offered it.
+const offerMerchantAccess = computed(() => !session.value.data || session.value.data.user.role === 'USER')
 const props = withDefaults(
   defineProps<{
     filters: BrowseFilters
@@ -78,7 +81,7 @@ defineExpose({ focusAllFilters: () => {
       </div>
       <div class="shell-header__actions">
         <SquadHeaderButton :compact="bottomNav" />
-        <RouterLink class="shell-header__contribute" :to="navigationTo('/me/merchant-access')">Become a merchant</RouterLink>
+        <RouterLink v-if="offerMerchantAccess" class="shell-header__contribute" :to="navigationTo('/me/merchant-access')" data-testid="become-merchant">Become a merchant</RouterLink>
         <ProfileMenu v-if="session.data" class="shell-header__profile" />
         <RouterLink v-else class="shell-header__account" to="/login" aria-label="Log in"><ShellIcon name="user" :size="22" /></RouterLink>
       </div>
@@ -107,6 +110,7 @@ defineExpose({ focusAllFilters: () => {
       :filters="filters"
       :sheet-open="sheetOpen"
       :lobbie-open="lobbieOpen"
+      :hide-lobbie="dealsHeader"
       :categories="categories"
       :cuisines="cuisines"
       :count-for="countFor"

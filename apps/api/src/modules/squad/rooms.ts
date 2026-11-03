@@ -144,7 +144,7 @@ export const joinRoom = (
     const seat = existing
       ? await tx.squadMember.update({ where: { id: existing.id }, data })
       : await tx.squadMember.create({ data: { ...data, roomId: room.id, userId: actor.userId } })
-    await appendEvents(tx, room.id, [{ kind: 'JOINED', memberId: seat.id }])
+    await appendEvents(tx, room, [{ kind: 'JOINED', memberId: seat.id }])
     return stateFor(tx, code, actor.userId, now)
   })
 
@@ -161,7 +161,7 @@ export const startRoom = (database: Database, actor: AuthenticatedActor, code: s
       where: { id: room.id },
       data: { status: 'LIVE', phase: 'VOTING', startedAt: now, dealIndex: 0, round: 0 },
     })
-    await appendEvents(tx, room.id, [{ kind: 'STARTED', dealIndex: 0 }])
+    await appendEvents(tx, room, [{ kind: 'STARTED', dealIndex: 0 }])
     return stateFor(tx, code, actor.userId, now)
   })
 
@@ -181,7 +181,7 @@ export const leaveRoom = (database: Database, actor: AuthenticatedActor, code: s
       await tx.squadMember.update({ where: { id: heir.id }, data: { isHost: true } })
       events.push({ kind: 'HOST_CHANGED', memberId: heir.id })
     }
-    await appendEvents(tx, room.id, events)
+    await appendEvents(tx, room, events)
     const after = await seatsOf(tx, room.id)
     if (!after.some((other) => isPresent(other) && !other.spectator))
       await closeRoom(tx, room, 'EMPTY', now)
@@ -206,7 +206,7 @@ export const kickMember = (
       throw new DomainError('NOT_FOUND', 'That person already left')
     if (target.id === host.id) throw new DomainError('BAD_REQUEST', 'Leave the room instead')
     await tx.squadMember.update({ where: { id: target.id }, data: { kickedAt: now } })
-    await appendEvents(tx, room.id, [{ kind: 'KICKED', memberId: target.id }])
+    await appendEvents(tx, room, [{ kind: 'KICKED', memberId: target.id }])
     await settle(tx, room, await seatsOf(tx, room.id), now)
     return stateFor(tx, code, actor.userId, now)
   })
@@ -253,6 +253,6 @@ export const addDeals = (
         ...(outOfDeals ? { dealIndex: room.dealIds.length, round: 0, phase: 'VOTING' } : {}),
       },
     })
-    await appendEvents(tx, room.id, [{ kind: 'DEALS_ADDED', dealIndex: room.dealIds.length }])
+    await appendEvents(tx, room, [{ kind: 'DEALS_ADDED', dealIndex: room.dealIds.length }])
     return stateFor(tx, code, actor.userId, now)
   })

@@ -30,10 +30,11 @@ const toggles = async (form: Component, fields: Record<string, string>) => {
     const field = wrapper.get(`#${input}`)
     const button = wrapper.get(`[data-testid="${toggle}"]`)
     expect(field.attributes('type')).toBe('password')
-    expect(button.text()).toBe('Show')
+    // The accessible name, since the login toggle is an eye icon with no visible text.
+    expect(button.attributes('aria-label')).toMatch(/^Show /)
     await button.trigger('click')
     expect(field.attributes('type')).toBe('text')
-    expect(button.text()).toBe('Hide')
+    expect(button.attributes('aria-label')).toMatch(/^Hide /)
     expect(button.attributes('aria-pressed')).toBe('true')
     await button.trigger('click')
     expect(field.attributes('type')).toBe('password')

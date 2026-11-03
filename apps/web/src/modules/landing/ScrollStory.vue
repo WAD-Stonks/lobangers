@@ -244,7 +244,8 @@ const chapters = [0, 0.1, 0.25, 0.34, 0.45, 0.54, 0.66, 0.81, 0.92, 1]
         </svg></span>
       </div>
       <div class="story-food-portal" :style="portalStyle" :aria-hidden="reduced || motion.portal < .98 || motion.transfer > .98">
-        <div class="portal-food-copy" :style="{ opacity: motion.offer * (1 - segment(progress, .79, .815)), transform: `translateY(${55 * (1 - motion.offer)}px)` }">
+        <!-- Gone before the deal card leaves for the stall (from about .797), so it never passes over this copy. -->
+        <div class="portal-food-copy" :style="{ opacity: motion.offer * (1 - segment(progress, .783, .796)), transform: `translateY(${55 * (1 - motion.offer)}px)` }">
           <h2>A deal near you.<br />
             <em>Lobang found.</em>
           </h2>

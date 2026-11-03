@@ -574,7 +574,7 @@ describe('map shell routes', () => {
     const { router, wrapper } = await mountAt('/add')
     expect(router.currentRoute.value.name).toBe('sign-in')
     expect(router.currentRoute.value.query.redirect).toBe('/add')
-    expect(wrapper.get('[data-testid="standalone-auth"] h1').text()).toBe('Welcome back')
+    expect(wrapper.get('[data-testid="standalone-auth"] h1').text()).toBe('Welcome back!')
   })
 
   it('keeps visitors without the merchant role out of the merchant dashboard', async () => {

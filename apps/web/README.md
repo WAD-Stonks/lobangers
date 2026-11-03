@@ -1,17 +1,12 @@
-# Broke O'Clock web starter
+# LoBangers web application
 
-Minimal Vue frontend shell for the parent pnpm monorepo. This is intentionally not a finished deals app: it contains the app shell, honest starter copy, developer setup route, 404 handling, Bootstrap baseline, and generic BetterAuth Vue client wiring.
+Vue application for deal discovery, map browsing, community verification, accounts, merchant promotions, Flash Drops, Squad rooms and administration. It uses the shared typed API client and native Better Auth sessions.
 
 ## Run
 
-```sh
-cd ../..
-pnpm install --frozen-lockfile --ignore-scripts
-pnpm run setup
-pnpm run dev:web
-```
+Follow the repository [setup instructions](../../README.md) for Node/pnpm prerequisites, dependency installation, root `.env`, Prisma Client generation and the local database. Run `pnpm run dev` from the repository root to start both apps, or `pnpm run dev:web` when the API is already running.
 
-The Vite dev server binds to `localhost:5173` and proxies same-origin `/api` requests to `http://localhost:3000`. No frontend secrets or API implementation belong here.
+The Vite dev server binds to `localhost:5173` and proxies same-origin `/api` requests to `http://127.0.0.1:3000`. Vite reads the repository-root `.env` and exposes only `VITE_*` settings to the browser. Keep auth, database and provider credentials server-side. The optional `VITE_CARTO_API_KEY` is a publishable basemap key; keyless OneMap tiles are the fallback.
 
 ## Scripts
 
@@ -22,9 +17,15 @@ The Vite dev server binds to `localhost:5173` and proxies same-origin `/api` req
 
 ## Routes
 
-- `/` — browse map landing page: full-bleed Leaflet map fitted to Singapore with floating filters and a list panel. Uses the `canvas` route layout from `src/router/layouts.ts`.
-- `/browse` — redirects to `/` so older links keep working
-- `/getting-started` — six-module ownership notes and folder path
+- `/` — public landing page; signed-in visitors continue to deals
+- `/browse` — map with feature panels; `/deals` redirects to its list view
+- `/deals/:dealId` and `/venues/:venueId` — deal and outlet details
+- `/sign-in`, `/sign-up`, `/me/profile` and `/saved` — account and saved deals
+- `/add` — photo-backed deal submission for admin review
+- `/merchant` — approved merchants' deals and Flash Drops
+- `/codes`, `/squad/new`, `/squad/join` and `/ask-lobbie` — codes, group planning and assistant
+- `/admin` and its child paths — staff operations with server-enforced access
+- `/getting-started` — guide to using the application
 - `/:pathMatch(.*)*` — accessible 404 page
 
 ## Shared sign-in UI
@@ -37,6 +38,6 @@ The shared account component accepts validated same-site callback paths includin
 
 ## Conventions
 
-Use two-space indentation, single quotes, and semicolons only as needed to match the parent Biome configuration. Keep workstream behavior in `src/modules/<module>/`; these folders currently contain ownership notes only. `src/components/DealCard.vue` is deliberately absent until the team agrees on its contract.
+Use two-space indentation, single quotes, and semicolons only as needed to match the parent Biome configuration. Feature behavior lives in `src/modules/<module>/`; shared pages and components compose these modules. Tests use synthetic data or disposable fixtures and do not establish production provider acceptance.
 
 References: [Vue quick start](https://vuejs.org/guide/quick-start.html), [Bootstrap with Vite](https://getbootstrap.com/docs/5.3/getting-started/vite/), and [BetterAuth client](https://better-auth.com/docs/concepts/client).
