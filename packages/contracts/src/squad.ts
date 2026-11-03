@@ -1,8 +1,9 @@
 import { dealObjectIdSchema } from '@contracts/deal-forms'
 import { z } from 'zod'
 
-// Browser-safe schemas for Makan Squad rooms (/api/squad/...). A room is polled through
-// POST /sync, which doubles as the heartbeat; GET reads never write.
+// Browser-safe schemas for Makan Squad rooms (/api/squad/...). Room writes are pushed live over
+// a private Pusher channel per room; POST /sync is the heartbeat and the fallback when the
+// channel is down or unconfigured. GET reads never write.
 
 export const SQUAD_MIN_SIZE = 2
 export const SQUAD_MAX_SIZE = 8
@@ -147,6 +148,23 @@ export const squadSyncResponseSchema = z.strictObject({
   nextSeq: z.number().int().nonnegative(),
 })
 
+// The live channel: the public key the browser connects with, or null when the API has none.
+export const squadRealtimeConfigSchema = z.strictObject({
+  pusher: z.strictObject({ key: z.string().min(1), cluster: z.string().min(1) }).nullable(),
+})
+export const squadChannelPattern = /^private-squad-[A-Z]{4}$/
+export const squadChannelFor = (code: string) => `private-squad-${code}`
+export const squadRealtimeAuthSchema = z.strictObject({
+  socketId: z.string().regex(/^\d+\.\d+$/, 'Invalid socket'),
+  channel: z.string().regex(squadChannelPattern, 'Invalid channel'),
+})
+export const squadRealtimeAuthResponseSchema = z.strictObject({ auth: z.string().min(1) })
+// What a room write pushes to everyone on the channel: the new effects, in order.
+export const SQUAD_PUSH_EVENT = 'events'
+export const squadPushSchema = z.strictObject({
+  events: z.array(squadEventSchema).max(50),
+})
+
 // What the join screen shows before someone joins.
 export const squadPeekSchema = z.strictObject({
   code: z.string(),
@@ -171,3 +189,6 @@ export type SquadDeal = z.infer<typeof squadDealSchema>
 export type SquadMember = z.infer<typeof squadMemberSchema>
 export type SquadState = z.infer<typeof squadStateSchema>
 export type SquadSyncResponse = z.infer<typeof squadSyncResponseSchema>
+export type SquadRealtimeConfig = z.infer<typeof squadRealtimeConfigSchema>
+export type SquadRealtimeAuth = z.infer<typeof squadRealtimeAuthSchema>
+export type SquadPush = z.infer<typeof squadPushSchema>
