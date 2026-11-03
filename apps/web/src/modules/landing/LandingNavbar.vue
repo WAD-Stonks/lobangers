@@ -5,10 +5,12 @@ import ProfileMenu from '@web/components/ProfileMenu.vue'
 import { useSiteMenu } from '@web/components/use-site-menu'
 import { authClient } from '@web/lib/auth-client'
 import { useTheme } from '@web/lib/theme'
-import { nextTick, ref } from 'vue'
+import { computed, nextTick, ref } from 'vue'
 import { RouterLink } from 'vue-router'
 
 const session = authClient.useSession()
+// Merchants get their dashboard in the top links, not only in the avatar menu.
+const isMerchant = computed(() => session.value.data?.user.role === 'MERCHANT')
 const root = ref<HTMLElement | null>(null)
 const toggleButton = ref<HTMLElement | null>(null)
 const panel = ref<HTMLElement | null>(null)
@@ -69,6 +71,7 @@ const switchTheme = async (event: MouseEvent) => {
         <RouterLink to="/browse">Map</RouterLink>
         <RouterLink v-if="session.data" to="/saved">Saved deals</RouterLink>
         <a v-else href="#story">How it works</a>
+        <RouterLink v-if="isMerchant" to="/merchant" data-testid="landing-merchant-dashboard">Merchant dashboard</RouterLink>
       </div>
       <!-- Shows what a press switches to: the moon in light mode, the sun in dark. -->
       <button

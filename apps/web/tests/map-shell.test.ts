@@ -69,8 +69,8 @@ afterEach(() => {
 
 describe('Become a merchant', () => {
   it.each([
-    ['a signed-out visitor', SIGNED_OUT, true],
-    ['a regular account', SIGNED_IN, true],
+    ['a signed-out visitor', SIGNED_OUT, true, false],
+    ['a regular account', SIGNED_IN, true, false],
     [
       'a merchant',
       {
@@ -78,6 +78,7 @@ describe('Become a merchant', () => {
         data: { ...SIGNED_IN.data, user: { ...SIGNED_IN.data.user, role: 'MERCHANT' } },
       },
       false,
+      true,
     ],
     [
       'an admin',
@@ -86,13 +87,17 @@ describe('Become a merchant', () => {
         data: { ...SIGNED_IN.data, user: { ...SIGNED_IN.data.user, role: 'ADMIN' } },
       },
       false,
+      false,
     ],
   ])(
-    'is offered on the All Deals header to %s only when they can request it',
-    async (_, session, offered) => {
+    'is offered on the All Deals header to %s only when they can request it; merchants get their dashboard there instead',
+    async (_, session, offered, dashboard) => {
       auth.session.current = session
       const { wrapper } = await mountAt('/browse?view=list')
       expect(wrapper.find('[data-testid="become-merchant"]').exists()).toBe(offered)
+      const link = wrapper.find('[data-testid="header-merchant-dashboard"]')
+      expect(link.exists()).toBe(dashboard)
+      if (dashboard) expect(link.attributes('href')).toBe('/merchant')
     },
   )
 })

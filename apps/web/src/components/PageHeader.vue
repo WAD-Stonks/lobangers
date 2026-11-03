@@ -19,6 +19,8 @@ const session = authClient.useSession()
 // Merchants already have access, and staff can't request it, so only visitors and regular
 // accounts are offered it.
 const offerMerchantAccess = computed(() => !session.value.data || session.value.data.user.role === 'USER')
+// Merchants get their dashboard in the same spot, so it is one click away and not only in menus.
+const isMerchant = computed(() => session.value.data?.user.role === 'MERCHANT')
 // The menu shows the saved-deals count, which lives in the map shell everywhere else.
 provideSavedDeals(session)
 const router = useRouter()
@@ -49,6 +51,7 @@ const onSearch = (q: string) =>
     <div class="page-header__actions">
       <SquadHeaderButton :compact="bottomNav" />
       <RouterLink v-if="offerMerchantAccess" class="page-header__contribute" to="/me/merchant-access" data-testid="become-merchant">Become a merchant</RouterLink>
+      <RouterLink v-else-if="isMerchant" class="page-header__contribute" to="/merchant" data-testid="header-merchant-dashboard">Merchant dashboard</RouterLink>
       <ProfileMenu v-if="session.data" class="page-header__profile" />
       <RouterLink v-else class="page-header__account" to="/login" aria-label="Log in"><ShellIcon name="user" :size="22" /></RouterLink>
     </div>
