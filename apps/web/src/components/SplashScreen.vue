@@ -4,8 +4,6 @@ import { SPLASH_DURATION_MS } from '@web/components/splash-config'
 import TicketLoader from '@web/components/TicketLoader.vue'
 import { onBeforeUnmount, onMounted, ref } from 'vue'
 
-// A solid sunny-yellow curtain with the logo in the middle, held for a fixed beat on first load,
-// then launched up off the top of the screen to reveal the app behind it.
 const visible = ref(true)
 let timer: ReturnType<typeof setTimeout> | undefined
 
@@ -38,56 +36,62 @@ onBeforeUnmount(() => clearTimeout(timer))
   place-content: center;
   justify-items: center;
   gap: var(--space-6, 2rem);
-  background: var(--sunny);
-  color: var(--on-accent);
+  overflow: hidden;
+  background: var(--paper);
+  color: var(--ink);
 }
 
 .splash__logo {
   display: block;
   width: min(54vw, 18rem);
   height: auto;
+  animation: splash-rise 480ms var(--ease-out, ease-out) backwards;
 }
 
 .splash__loader {
-  color: var(--on-accent);
+  color: var(--coral);
+  animation: splash-rise 480ms 120ms var(--ease-out, ease-out) backwards;
 }
 
-/* The curtain stays sunny in dark mode, so the black wordmark must not be inverted there. */
-.app-palette[data-theme='dark'] .splash__logo {
-  filter: none;
+@keyframes splash-rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
 }
 
-/* Extends the curtain above the viewport so the wind-up squat never shows the page behind. */
-.splash::before {
-  content: '';
-  position: absolute;
-  inset: auto 0 100% 0;
-  height: 30vh;
-  background: inherit;
-}
-
-/* Exit: a quick squat downwards to wind up, then launch up and clear off the top. */
 .splash-leave-active {
-  animation: splash-launch 0.65s forwards;
+  transition: opacity 360ms ease;
 }
 
-@keyframes splash-launch {
-  0% {
-    transform: translateY(0);
-    animation-timing-function: ease-out;
-  }
-  28% {
-    transform: translateY(6%);
-    animation-timing-function: cubic-bezier(0.55, 0, 0.8, 0.2);
-  }
-  100% {
-    transform: translateY(-105%);
-  }
+.splash-leave-active .splash__logo,
+.splash-leave-active .splash__loader {
+  transition: transform 360ms var(--ease-out, ease-out);
+}
+
+.splash-leave-to {
+  opacity: 0;
+}
+
+.splash-leave-to .splash__logo,
+.splash-leave-to .splash__loader {
+  transform: translateY(-12px) scale(0.98);
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .splash-leave-active {
+  .splash__logo,
+  .splash__loader {
     animation: none;
+  }
+
+  .splash-leave-active .splash__logo,
+  .splash-leave-active .splash__loader {
+    transition: none;
+  }
+
+  .splash-leave-to .splash__logo,
+  .splash-leave-to .splash__loader {
+    transform: none;
   }
 }
 </style>
