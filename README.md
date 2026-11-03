@@ -10,13 +10,20 @@ The app is hosted on the cloud (Vercel) at:
 
 **https://lobangers.vercel.app**
 
-## Demo access
+## Professor test accounts
 
-Create dedicated demo accounts with unique passwords and share access privately with intended reviewers. Keep account emails, passwords and production credentials out of repository files, issues and public documentation.
+These dedicated accounts are intentionally shared for course assessment and are separate from team members' personal accounts.
 
-Use a separate disposable database and deployment for privileged demonstrations. Give an admin demo account only the permissions needed for the demonstration, and use a different account for the merchant role. Rotate any credentials previously published in this repository and revoke their existing sessions before sharing access again.
+Sign in at https://lobangers.vercel.app/login using **password sign-in**. Use the email and password below; these shared accounts do not have mailboxes for email-code sign-in or password recovery. Sign out before switching roles.
 
-Sign in at https://lobangers.vercel.app/login.
+| Role | Email | Password |
+| --- | --- | --- |
+| Admin | `professor-admin@demo.example.test` | `pJ6_5RqQlrQ9xF1jGUqXVz3NUUJsqYIY` |
+| Customer | `professor-customer@demo.example.test` | `IBkjrZGzuT0C3fpWgnoH93ong4S4FmqY` |
+
+The admin account can manage live application data. Use assessment records when testing admin actions.
+
+For local demonstrations, follow the setup and demo-seeding instructions below. Local demo accounts and data are separate from these live grading accounts. Keep personal passwords, database credentials and provider keys private.
 
 ## Technology
 
