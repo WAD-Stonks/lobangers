@@ -2,8 +2,6 @@
 import { lobbieSpriteUrl } from '@web/modules/lobbie/sprites'
 import { ref } from 'vue'
 
-// The "Ask Lobbie" pill with Lobbie peeking over its top edge. While the chat is open it shrinks
-// into a round close button, anchored at its right edge. Where it sits is up to the page.
 defineProps<{ open: boolean; controls: string }>()
 const emit = defineEmits<{ toggle: [] }>()
 const button = ref<HTMLButtonElement | null>(null)
@@ -22,9 +20,7 @@ defineExpose({ focus: () => button.value?.focus() })
     data-testid="lobbie-launcher"
     @click="emit('toggle')"
   >
-    <!-- Lobbie ducks out of sight while the chat is open. -->
     <img class="lobbie-launcher__peek" :src="lobbieSpriteUrl('idle-peek')" alt="" width="280" height="240" />
-    <!-- Both stay rendered so the pill can cross-fade into the round close button. -->
     <span class="lobbie-launcher__label">
       <svg class="lobbie-launcher__chat" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false"><path d="M20.5 11.5a8.5 8.5 0 0 1-12.4 7.6L3.5 20.5l1.4-4.4A8.5 8.5 0 1 1 20.5 11.5Z" /></svg>Ask Lobbie
     </span>
@@ -70,7 +66,6 @@ defineExpose({ focus: () => button.value?.focus() })
   outline-offset: 3px;
 }
 
-/* Both are centred on the button itself, so the cross sits in the middle of the 52px circle. */
 .lobbie-launcher__label,
 .lobbie-launcher__close {
   position: absolute;
@@ -118,14 +113,12 @@ defineExpose({ focus: () => button.value?.focus() })
   transform: none;
 }
 
-/* The sprite's view box ends at his claws, so a small overlap hooks them over the button's edge. */
 .lobbie-launcher__peek {
   position: absolute;
   bottom: calc(100% - 13px);
   left: 50%;
   width: 108px;
   height: auto;
-  pointer-events: none;
   transform: translateX(-50%);
   transition:
     transform 260ms var(--ease-out),
@@ -137,11 +130,11 @@ defineExpose({ focus: () => button.value?.focus() })
 }
 
 .lobbie-launcher.is-open .lobbie-launcher__peek {
+  pointer-events: none;
   opacity: 0;
   transform: translate(-50%, 36px);
 }
 
-/* Phones get a smaller pill and a smaller Lobbie on every page. */
 @media (max-width: 599.98px) {
   .lobbie-launcher {
     width: 140px;
