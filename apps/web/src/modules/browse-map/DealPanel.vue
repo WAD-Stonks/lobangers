@@ -30,6 +30,7 @@ import {
   venueLocation,
 } from '@web/modules/map-shell/shell-routes'
 import { useShell } from '@web/modules/map-shell/shell-state'
+import { useBreakpoint } from '@web/modules/map-shell/use-breakpoint'
 import { useSavedDeals } from '@web/modules/map-shell/use-saved-deals'
 import { useToast } from '@web/modules/map-shell/use-toast'
 import SquadDealCta from '@web/modules/squad/SquadDealCta.vue'
@@ -46,6 +47,7 @@ const toast = useToast()
 const session = authClient.useSession()
 const route = useRoute()
 const router = useRouter()
+const breakpoint = useBreakpoint()
 
 const SAVE_VIBRATE_MS = 10
 const DIRECTIONS_URL = 'https://www.google.com/maps/dir/?api=1&destination='
@@ -92,6 +94,18 @@ const photos = computed(() => {
     : []
 })
 const freshness = computed(() => (selected.value ? dealFreshness(selected.value.deal) : null))
+const freshnessClass = computed(() =>
+  freshness.value
+    ? [
+        `lb-tag--${freshness.value.tone}`,
+        {
+          'deal-panel__expired': freshness.value.label === 'Expired',
+          'deal-panel__conflicting': freshness.value.label === 'Mixed reports',
+        },
+      ]
+    : [],
+)
+const phone = computed(() => breakpoint.value === 'phone')
 const walkLabel = computed(() =>
   selected.value?.distanceMetres == null ? null : `${walkMinutesFor(selected.value.distanceMetres)} min walk`,
 )
@@ -166,7 +180,7 @@ const toggleSave = async () => {
   <PanelFrame
     v-if="selected"
     class="deal-panel"
-    :class="{ 'deal-panel--dialog': props.dialog, 'deal-panel--comments': commentsOpen, 'deal-panel--no-image': !photosShown }"
+    :class="{ 'deal-panel--dialog': props.dialog, 'deal-panel--phone': phone, 'deal-panel--comments': commentsOpen, 'deal-panel--no-image': !photosShown }"
     :title="commentsOpen ? 'Comments' : selected.deal.title"
     :hide-title="commentsOpen"
     :back="commentsOpen || props.dialog ? null : backTo"
@@ -186,8 +200,8 @@ const toggleSave = async () => {
       />
     </div>
 
-    <div class="deal-panel__status">
-      <span v-if="freshness" class="lb-tag" :class="[`lb-tag--${freshness.tone}`, { 'deal-panel__expired': freshness.label === 'Expired', 'deal-panel__conflicting': freshness.label === 'Mixed reports' }]">{{ freshness.label }}</span>
+    <div v-if="!phone" class="deal-panel__status">
+      <span v-if="freshness" class="lb-tag" :class="freshnessClass">{{ freshness.label }}</span>
     </div>
     </template>
 
@@ -201,6 +215,8 @@ const toggleSave = async () => {
     <FlashClaimCard v-if="flashDrop" :drop="flashDrop" />
 
     <div class="deal-panel__tags">
+      <!-- Phones read top-down, so freshness joins the facts here instead of sitting alone above the title. -->
+      <span v-if="phone && freshness" class="lb-tag" :class="freshnessClass">{{ freshness.label }}</span>
       <!-- With a photo in the hero, these move here so they never cover the poster's text. -->
       <template v-if="heroTags.length">
         <span v-for="tag in heroTags" :key="tag" class="lb-tag lb-tag--new">{{ tag }}</span>
@@ -306,6 +322,54 @@ const toggleSave = async () => {
   .deal-panel :deep(.panel-frame__actions > .lb-btn:last-child) {
     flex: 1 1 auto;
   }
+}
+
+/* Phones, in the map sheet and the All deals popup alike, read top-down: what it is, where, when
+   it's valid, then the photo (capped so it gives way first, as in the Squad room), the fine
+   print, and only then the extras. The Squad card is the darkest thing on the page, so it waits
+   until after the terms instead of outshouting the deal. The doubled class outranks the popup's
+   own order and poster rules. */
+.deal-panel.deal-panel--phone :deep(.panel-frame__body > *) {
+  order: 9;
+}
+
+.deal-panel.deal-panel--phone :deep(.panel-frame__body > .panel-frame__back),
+.deal-panel.deal-panel--phone :deep(.panel-frame__body > .panel-frame__heading),
+.deal-panel.deal-panel--phone :deep(.panel-frame__body > .deal-panel__headline),
+.deal-panel.deal-panel--phone :deep(.panel-frame__body > .deal-panel__tags) {
+  order: 0;
+}
+
+.deal-panel.deal-panel--phone :deep(.panel-frame__body > .deal-panel__fine-print) {
+  display: contents;
+}
+
+.deal-panel.deal-panel--phone :deep(.panel-frame__body .deal-panel__validity-field),
+.deal-panel.deal-panel--phone :deep(.panel-frame__body > .deal-panel__outlet-note) {
+  order: 1;
+}
+
+.deal-panel.deal-panel--phone :deep(.panel-frame__body > .flash-claim),
+.deal-panel.deal-panel--phone :deep(.panel-frame__body > .deal-panel__media) {
+  order: 2;
+}
+
+.deal-panel.deal-panel--phone :deep(.panel-frame__body .deal-panel__conditions) {
+  order: 3;
+}
+
+.deal-panel.deal-panel--phone :deep(.panel-frame__body > .squad-cta) {
+  order: 4;
+}
+
+/* The poster sits in a quiet neutral frame sized to the photo, instead of floating with blank
+   sides (or, in the popup, above an empty band). */
+.deal-panel.deal-panel--phone :deep(.deal-gallery) {
+  height: auto;
+  max-height: min(240px, 34vh);
+  aspect-ratio: var(--frame-ratio);
+  background: var(--paper-sunk);
+  border-radius: 18px;
 }
 
 .deal-panel:not(.deal-panel--dialog) :deep(.panel-frame__title) {
@@ -428,6 +492,45 @@ const toggleSave = async () => {
 
 .deal-panel__save-icon.is-popping {
   animation: shell-pop 220ms var(--ease-out);
+}
+
+/* Phones (sheet and popup): one loud thing (the coral title), then quieter layers under it. The
+   outlet is a secondary line, not a second heading; validity reads as one fact row; section
+   headings share one size with the community sections below. */
+.deal-panel.deal-panel--phone :deep(.panel-frame__title) {
+  font-size: 1.5rem;
+}
+
+.deal-panel.deal-panel--phone .deal-panel__venue {
+  font-weight: 500;
+  color: var(--ink-muted);
+  text-decoration-color: var(--hairline-strong);
+  text-decoration-thickness: 1px;
+}
+
+.deal-panel.deal-panel--phone .deal-panel__validity-field {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  margin: 0;
+  font-size: var(--text-sm);
+}
+
+.deal-panel.deal-panel--phone .deal-panel__validity-field dd {
+  margin: 0;
+}
+
+.deal-panel.deal-panel--phone .deal-panel__conditions {
+  padding: 16px;
+}
+
+.deal-panel.deal-panel--phone .deal-panel__conditions h2 {
+  margin-bottom: 8px;
+  font-size: 1rem;
+}
+
+.deal-panel.deal-panel--phone .deal-panel__terms {
+  font-size: var(--text-sm);
 }
 
 @media (prefers-reduced-motion: reduce) {

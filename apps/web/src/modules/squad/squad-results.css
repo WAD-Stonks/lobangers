@@ -1,0 +1,326 @@
+/* ----- Round results: what the room does when a vote lands -----
+   A match bounces the card; a no-match shakes and greys it, with its own banner. The dock's
+   next step rises in, and Next deal fills over five seconds as a nudge (visual only: the room
+   still waits for the squad to pick). Imported by squad.css. */
+
+.squad-match.squad-match--miss {
+  color: var(--squad-text);
+  background: var(--squad-surface);
+  box-shadow:
+    0 0 0 2px var(--hairline),
+    0 14px 30px rgba(0, 0, 0, 0.2);
+}
+
+.squad-match.squad-match--miss span {
+  color: var(--squad-muted);
+}
+
+/* Any result dims the card behind its banner, so the banner is what you see first. */
+.squad-card--hit,
+.squad-card--miss {
+  position: relative;
+}
+
+.squad-card--hit::after,
+.squad-card--miss::after {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  content: '';
+  pointer-events: none;
+  background: rgba(15, 15, 18, 0.5);
+  border-radius: inherit;
+  animation: squad-fade 300ms ease both;
+}
+
+/* The result's icon sits half above the banner, in the result's colour. */
+.squad-live__stage .squad-match {
+  z-index: 15;
+  padding-top: 32px;
+}
+
+/* Layering around the banner: yay stickers, bursts and nah thumbs land on the photo under it,
+   while the vote-again and next-deal tags fly over it. The effects layer drops its own stacking
+   context so its children can sit either side of the banner. */
+.squad-room .squad-fx {
+  z-index: auto;
+}
+
+.squad-room .squad-fx__sticker,
+.squad-room .squad-fx__burst,
+.squad-room .squad-fx__drop {
+  z-index: 10;
+}
+
+.squad-room .squad-fx__whoosh {
+  z-index: 20;
+}
+
+.squad-result-badge {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  color: var(--on-accent);
+  background: var(--sunny);
+  border-radius: 50%;
+  box-shadow: 0 0 0 4px #1d1d22;
+  transform: translate(-50%, -50%);
+  animation: squad-badge 460ms cubic-bezier(0.34, 1.4, 0.64, 1) 120ms both;
+}
+
+.squad-result-badge--miss {
+  color: #fff;
+  background: var(--squad-accent);
+  box-shadow: 0 0 0 4px var(--squad-surface);
+  animation:
+    squad-badge 460ms cubic-bezier(0.34, 1.4, 0.64, 1) 120ms both,
+    squad-badge-shake 360ms var(--ease-out) 900ms;
+}
+
+/* Match: the hands hinge at the wrists and clap three times, sparking on each clap. */
+.squad-result-badge__hand {
+  fill: currentColor;
+  stroke: var(--sunny);
+  stroke-width: 1;
+  transform-box: view-box;
+  animation: 1.2s var(--ease-out) 420ms both;
+}
+
+.squad-result-badge__hand--left {
+  transform-origin: 8px 21px;
+  animation-name: squad-clap-left;
+}
+
+.squad-result-badge__hand--right {
+  transform-origin: 16px 21px;
+  animation-name: squad-clap-right;
+}
+
+.squad-result-badge__sparks {
+  opacity: 0;
+  animation: squad-sparks 1.2s linear 420ms both;
+}
+
+/* No match: each stroke of the X draws in, one after the other. */
+.squad-result-badge__stroke {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: squad-draw 220ms var(--ease-out) 420ms forwards;
+}
+
+.squad-result-badge__stroke--second {
+  animation-delay: 620ms;
+}
+
+.squad-card--hit {
+  animation: squad-card-hit 520ms cubic-bezier(0.34, 1.4, 0.64, 1) both;
+}
+
+.squad-card--miss {
+  animation: squad-card-miss 420ms var(--ease-out) both;
+}
+
+.squad-card--miss .squad-card__photo {
+  filter: grayscale(0.7);
+  opacity: 0.75;
+  transition:
+    filter 400ms ease,
+    opacity 400ms ease;
+}
+
+/* Each result's lead, note and buttons rise in one after another. */
+.squad-dock__lead,
+.squad-dock__note,
+.squad-dock__votes,
+.squad-dock__match {
+  animation: squad-rise 320ms var(--ease-out) both;
+}
+
+.squad-dock__note {
+  animation-delay: 60ms;
+}
+
+.squad-dock__votes,
+.squad-dock__match {
+  animation-delay: 120ms;
+}
+
+.squad-dock__votes .squad-vote--next {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+/* Next deal starts grey like Vote again, and sunny fills it left to right. Its text turns dark
+   as the fill finishes, so it still reads on sunny in the dark theme. */
+.squad-dock__votes .squad-vote--next {
+  animation: squad-fill-ink 5s linear 200ms both;
+}
+
+.squad-dock__votes .squad-vote--next::after {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  content: '';
+  background: var(--sunny);
+  transform-origin: left;
+  animation: squad-fill 5s linear 200ms both;
+}
+
+.squad-dock__votes .squad-vote--next .squad-vote__count {
+  color: inherit;
+  opacity: 0.7;
+}
+
+@keyframes squad-card-hit {
+  40% {
+    transform: scale(1.04);
+  }
+}
+
+@keyframes squad-card-miss {
+  20%,
+  60% {
+    transform: translateX(-8px);
+  }
+
+  40%,
+  80% {
+    transform: translateX(8px);
+  }
+}
+
+@keyframes squad-clap-left {
+  0%,
+  30%,
+  60% {
+    transform: rotate(-24deg);
+  }
+
+  15%,
+  45%,
+  75% {
+    transform: rotate(0deg);
+  }
+
+  100% {
+    transform: rotate(-8deg);
+  }
+}
+
+@keyframes squad-clap-right {
+  0%,
+  30%,
+  60% {
+    transform: rotate(24deg);
+  }
+
+  15%,
+  45%,
+  75% {
+    transform: rotate(0deg);
+  }
+
+  100% {
+    transform: rotate(8deg);
+  }
+}
+
+@keyframes squad-sparks {
+  0%,
+  12%,
+  27%,
+  42%,
+  57%,
+  72%,
+  100% {
+    opacity: 0;
+  }
+
+  16%,
+  46%,
+  76% {
+    opacity: 1;
+  }
+}
+
+@keyframes squad-draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes squad-badge-shake {
+  25% {
+    transform: translate(-50%, -50%) rotate(-12deg);
+  }
+
+  75% {
+    transform: translate(-50%, -50%) rotate(12deg);
+  }
+}
+
+@keyframes squad-badge {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.3) rotate(-30deg);
+  }
+}
+
+@keyframes squad-fill-ink {
+  70% {
+    color: var(--squad-text);
+    border-color: var(--hairline);
+  }
+
+  to {
+    color: var(--on-accent);
+    border-color: var(--sunny-deep);
+  }
+}
+
+@keyframes squad-fill {
+  from {
+    transform: scaleX(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .squad-card--hit,
+  .squad-card--miss {
+    animation: none;
+  }
+
+  .squad-result-badge {
+    animation: squad-fade 150ms ease both;
+  }
+
+  .squad-result-badge__hand,
+  .squad-result-badge__sparks {
+    animation: none;
+  }
+
+  .squad-result-badge__stroke {
+    stroke-dashoffset: 0;
+    animation: none;
+  }
+
+  .squad-dock__lead,
+  .squad-dock__note,
+  .squad-dock__votes,
+  .squad-dock__match {
+    animation: squad-fade 150ms ease both;
+  }
+
+  .squad-dock__votes .squad-vote--next {
+    animation: none;
+  }
+
+  .squad-dock__votes .squad-vote--next::after {
+    display: none;
+  }
+}

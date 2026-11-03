@@ -127,6 +127,14 @@ button { min-height: 44px; border-radius: 12px; font-weight: 650; }
 .auth-prompt__content--saved button { min-height: 48px; }
 .auth-prompt__content--saved { padding-bottom: calc(24px + var(--sheet-offset, 0px) + env(safe-area-inset-bottom, 0px)); }
 @media (max-width: 599.98px) { .saved-prompt__benefit { gap: 12px; padding: 14px; } }
+/* Short phones: the art gives way and the buttons move up under the intro, so the heading and
+   sign-in show in one screen; the benefits follow for anyone who wants the reasons. */
+@media (max-width: 599.98px) and (max-height: 760px) {
+  .auth-prompt__content { padding-top: 24px; }
+  .saved-prompt__illustration { max-height: 22vh; }
+  .saved-prompt__benefits { order: 1; margin: 12px 0 0; }
+  .auth-prompt__more { order: 2; }
+}
 /* 320px phones: a little less side padding so the benefit rows keep room for their text. */
 @media (max-width: 359.98px) { .auth-prompt__content { padding-inline: 18px; } .saved-prompt__icon { flex-basis: 44px; height: 44px; } }
 </style>

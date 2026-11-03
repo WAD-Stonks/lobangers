@@ -362,6 +362,22 @@ const commentLimit = formatCount(COMMENT_MAX)
   .deal-community-verification-links { flex-wrap: wrap; }
   .deal-community-report-link { margin-left: 0; }
 }
+/* The disclosure gets a drawn chevron instead of the browser's black triangle. */
+.deal-community-explanation summary { display: flex; align-items: center; justify-content: space-between; gap: 8px; list-style: none; }
+.deal-community-explanation summary::-webkit-details-marker { display: none; }
+.deal-community-explanation summary::after { content: ''; flex: none; width: 7px; height: 7px; margin-right: 4px; border-right: 2px solid var(--ink-muted); border-bottom: 2px solid var(--ink-muted); transform: translateY(-2px) rotate(45deg); transition: transform 160ms var(--ease-out); }
+.deal-community-explanation[open] summary::after { transform: translateY(2px) rotate(-135deg); }
+@media (prefers-reduced-motion: reduce) { .deal-community-explanation summary::after { transition: none; } }
+/* Phones: the sign-in line is plain text under the empty state instead of a second box. */
+@media (max-width: 767.98px) {
+  /* No report yet means no "Last update" line, so it gives back the space it reserves. */
+  .deal-community-last-update:empty { display: none; }
+  .deal-community-empty { order: 1; padding: 18px 12px; }
+  .deal-community-sign-in { order: 2; padding: 0; border: 0; text-align: center; justify-items: center; }
+  .deal-community-sign-in a { min-height: 36px; }
+  .deal-community-comments { order: 3; }
+  .deal-community-discussion > .lb-btn { order: 4; }
+}
 .deal-community-error { flex-direction: column; color: var(--ink); background: var(--paper-sunk); border: 1px solid var(--hairline-strong); }
 .deal-community-loading { margin: 0; font-size: 0.875rem; color: var(--ink-muted); }
 .deal-community :is(button, a, summary, textarea, .app-select):focus-visible { outline: 3px solid var(--coral-deep); outline-offset: 3px; }

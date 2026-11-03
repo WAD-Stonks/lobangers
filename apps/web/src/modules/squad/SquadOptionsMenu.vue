@@ -55,15 +55,15 @@ onBeforeUnmount(() => document.removeEventListener('pointerdown', onOutside))
     <button
       ref="toggle"
       type="button"
-      class="lb-btn squad-btn-dark squad-btn-small"
+      class="squad-icon-btn"
       data-testid="squad-options"
+      aria-label="Room options"
       aria-haspopup="menu"
       :aria-expanded="open ? 'true' : 'false'"
       aria-controls="squad-options-menu"
       @click="open = !open"
     >
-      Options
-      <svg aria-hidden="true" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6" /></svg>
+      <svg aria-hidden="true" viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><circle cx="5" cy="12" r="2" /><circle cx="12" cy="12" r="2" /><circle cx="19" cy="12" r="2" /></svg>
     </button>
     <div v-show="open" id="squad-options-menu" ref="menu" class="squad-options__menu" role="menu" aria-label="Room options" @keydown="onKeydown">
       <button type="button" role="menuitem" class="squad-options__item" data-testid="squad-share" @click="pick('share')">Share code</button>
