@@ -483,6 +483,16 @@ const runSource = async (
   let failedCount = 0
   let errorCode: string | null = null
   let providerFailed = false
+  const persistProgress = () =>
+    retryWrite(() =>
+      db.$transaction(async (tx) => {
+        await guardPostLease(tx, runtime, lease)
+        await tx.ingestionRun.update({
+          where: { id: lease.run.id, status: 'RUNNING' },
+          data: { fetchedCount, createdCount, updatedCount, failedCount, errorCode },
+        })
+      }),
+    )
   try {
     // Re-fence immediately at the external-request boundary. Persist its actual
     // start so a later process applies cooldown even if this process crashes.
@@ -537,6 +547,7 @@ const runSource = async (
         : null
     const posts = [...page.posts, ...(history?.posts ?? [])]
     fetchedCount = posts.length
+    await persistProgress()
     for (const input of posts) {
       let failureStage = 'PARSE'
       try {
@@ -574,6 +585,9 @@ const runSource = async (
           ),
         )
       }
+      // A progress-write failure stops the run, but does not relabel a post
+      // whose content transaction has already committed as a failed import.
+      await persistProgress()
     }
     if (provider) {
       await db.$transaction(async (tx) => {

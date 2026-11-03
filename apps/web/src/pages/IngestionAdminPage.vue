@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { IngestionDashboardResponse, IngestionRunResponse } from '@broke-oclock/contracts/ingestion'
+import type { IngestionDashboardResponse } from '@broke-oclock/contracts/ingestion'
 import { BButton } from '@broke-oclock/ui'
 import AdminShell from '@web/components/admin/AdminShell.vue'
 import AdminStatusBadge from '@web/components/admin/AdminStatusBadge.vue'
@@ -12,6 +12,7 @@ import { adminRecordId, adminReturnTo } from '@web/lib/admin-workflow-links'
 import { api } from '@web/lib/api-client'
 import { authClient } from '@web/lib/auth-client'
 import AdminSignIn from '@web/modules/ingestion-admin/AdminSignIn.vue'
+import { backgroundImport } from '@web/modules/ingestion-admin/background-import'
 import { errorCode } from '@web/modules/ingestion-admin/errors'
 import FailedPosts from '@web/modules/ingestion-admin/FailedPosts.vue'
 import ImportedDealQueue from '@web/modules/ingestion-admin/ImportedDealQueue.vue'
@@ -24,11 +25,8 @@ import { routeLocationKey, routerKey } from 'vue-router'
 const access = ref('loading')
 const dashboard = ref<IngestionDashboardResponse | null>(null)
 const revision = ref(0)
-const runPending = ref(false)
-const runError = ref('')
-const runResult = ref<IngestionRunResponse | null>(null)
+const runPending = backgroundImport.active
 const fence = createAdminReadFence()
-const operationFence = createAdminReadFence()
 const nativeFence = createAdminReadFence()
 const logoutStarting = (event: Event) => { if ((event.target as Element)?.closest('[data-testid="admin-sign-out"]')) nativeFence.invalidate() }
 const sessionRefreshKey = ref(0)
@@ -50,7 +48,7 @@ const workspaceForHash = (hash: string | undefined): Workspace => {
 }
 const workspace = ref<Workspace>(adminRecordId(route?.query.postId) ? 'failed' : workspaceForHash(route?.hash))
 const panelBusy = ref({ drafts: false, failed: false, sources: false })
-const workspaceBusy = computed(() => runPending.value || Object.values(panelBusy.value).some(Boolean))
+const workspaceBusy = computed(() => Object.values(panelBusy.value).some(Boolean))
 const setPanelBusy = (panel: keyof typeof panelBusy.value, value: boolean) => {
   panelBusy.value = { ...panelBusy.value, [panel]: value }
 }
@@ -86,18 +84,15 @@ watch(() => [route?.hash, route?.query.status, route?.query.draftId, route?.quer
 watch(workspaceBusy, pending => { if (!pending && routeChangeQueued) applyRouteWorkspace() }, { flush: 'sync' })
 const close = () => {
   fence.invalidate()
-  operationFence.invalidate()
   access.value = 'closed'
   dashboard.value = null
-  runResult.value = null
-  runError.value = ''
-  runPending.value = false
   panelBusy.value = { drafts: false, failed: false, sources: false }
   revision.value++
   panelKey.value++
 }
 const anonymous = () => { close(); access.value = 'unauthorized' }
 const denied = (code: string) => {
+  backgroundImport.reset()
   nativeFence.invalidate()
   close()
   dashboard.value = null
@@ -124,25 +119,11 @@ const refresh = async () => {
   if (await load()) revision.value += 1
 }
 const run = async () => {
-  if (access.value !== 'allowed' || runPending.value || !dashboard.value?.source.enabled || !dashboard.value.source.reuseApproved) return
-  const ticket = operationFence.begin()
-  runPending.value = true
-  runError.value = ''
-  runResult.value = null
-  try {
-    const result = await api.ingestion.run()
-    if (!operationFence.current(ticket)) return
-    runResult.value = result
-    await refresh()
-  } catch (failure) {
-    if (!operationFence.current(ticket)) return
-    const code = errorCode(failure)
-    if (code === 'UNAUTHORIZED' || code === 'FORBIDDEN') { denied(code); return }
-    runError.value = 'Unable to run ingestion. Please try again.'
-  } finally {
-    if (operationFence.current(ticket)) runPending.value = false
-  }
+  if (access.value !== 'allowed' || workspaceBusy.value || runPending.value || !dashboard.value?.source.enabled || !dashboard.value.source.reuseApproved) return
+  await backgroundImport.start()
 }
+watch(() => backgroundImport.state.completed, () => { if (access.value === 'allowed') void refresh() })
+watch(() => backgroundImport.state.denied, code => { if (code) denied(code) })
 const reload = async () => {
   close()
   const ticket = fence.begin()
@@ -159,7 +140,7 @@ const reload = async () => {
 }
 const signedIn = () => { sessionRefreshKey.value++; void reload() }
 onMounted(reload)
-onUnmounted(() => { fence.dispose(); operationFence.dispose(); nativeFence.dispose() })
+onUnmounted(() => { fence.dispose(); nativeFence.dispose() })
 </script>
 
 <template>
@@ -189,23 +170,22 @@ onUnmounted(() => { fence.dispose(); operationFence.dispose(); nativeFence.dispo
         <ImportedDealQueue :key="panelKey" :initial-status="initialStatus" :initial-cursor="initialCursor" :initial-draft-id="initialDraftId" :revision="revision" @denied="denied" />
       </div>
       <div id="ingestion-workspace-panel-failed" role="tabpanel" aria-labelledby="ingestion-workspace-tab-failed" :hidden="workspace !== 'failed'" :inert="workspace !== 'failed' ? true : undefined">
-        <FailedPosts :key="`posts-${panelKey}`" :initial-post-id="initialPostId" @denied="denied" @busy="setPanelBusy('failed', $event)" />
+        <FailedPosts :active="workspace === 'failed'" :key="`posts-${panelKey}`" :initial-post-id="initialPostId" @denied="denied" @busy="setPanelBusy('failed', $event)" />
       </div>
       <div id="ingestion-workspace-panel-runs" role="tabpanel" aria-labelledby="ingestion-workspace-tab-runs" :hidden="workspace !== 'runs'" :inert="workspace !== 'runs' ? true : undefined">
-        <IngestionRuns :revision="revision" @denied="denied" />
+        <IngestionRuns :revision="revision" :active="workspace === 'runs'" @denied="denied" />
       </div>
       <div id="ingestion-workspace-panel-settings" role="tabpanel" aria-labelledby="ingestion-workspace-tab-settings" :hidden="workspace !== 'settings'" :inert="workspace !== 'settings' ? true : undefined">
         <section class="card p-4 mb-4 ingestion-source" aria-labelledby="source-title">
-          <div class="ingestion-source-heading"><div><h2 id="source-title">Source readiness</h2><p class="mb-0">{{ dashboard.source.name }}</p></div><BButton data-testid="run-ingestion" variant="primary" :disabled="workspaceBusy || !dashboard.source.enabled || !dashboard.source.reuseApproved" @click="run">{{ runPending ? 'Running ingestion…' : 'Run ingestion' }}</BButton></div>
+          <div class="ingestion-source-heading"><div><h2 id="source-title">Source readiness</h2><p class="mb-0">{{ dashboard.source.name }}</p></div><BButton data-testid="run-ingestion" variant="primary" :disabled="workspaceBusy || runPending || !dashboard.source.enabled || !dashboard.source.reuseApproved" @click="run">{{ runPending ? 'Import in progress…' : 'Run ingestion' }}</BButton></div>
           <ul class="ingestion-readiness">
             <li>{{ dashboard.source.enabled ? 'Ingestion is enabled' : 'Ingestion is disabled' }}</li>
             <li>{{ dashboard.source.reuseApproved ? 'Operator reuse attestation is recorded, not publisher permission' : 'Operator reuse attestation is not recorded' }}</li>
             <li>{{ dashboard.source.onemapConfigured ? 'OneMap is configured' : 'OneMap is not configured' }}</li>
           </ul>
-          <p v-if="runError" role="alert" class="text-danger mt-3 mb-0">{{ runError }}</p>
-          <p v-if="runResult" role="status" class="mt-3 mb-0">Run {{ runResult.runId }}: {{ runResult.status }}. Fetched {{ runResult.fetchedCount }}, created {{ runResult.createdCount }}, updated {{ runResult.updatedCount }}, failed {{ runResult.failedCount }}.</p>
+          <p class="text-secondary mt-3 mb-0">Imports run in the background. Progress stays visible as you move between admin pages.</p>
         </section>
-        <SourcesPanel @changed="refresh" @denied="denied" @busy="setPanelBusy('sources', $event)" />
+        <SourcesPanel :import-running="runPending" @changed="refresh" @denied="denied" @busy="setPanelBusy('sources', $event)" />
         <details class="ingestion-tools" :open="route?.hash === '#locations-title'"><summary>Location lookup</summary><p class="text-secondary">Supporting tools for investigation. Location candidates do not verify or attach outlets.</p><LocationSearch :configured="dashboard.source.onemapConfigured" @denied="denied" /></details>
       </div>
     </template>

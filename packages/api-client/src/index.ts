@@ -215,7 +215,12 @@ export const createApiClient = (baseURL = '/api') => {
         const query = validateInput(ingestionRunsQuerySchema, input)
         return request(http.get('/ingestion/runs', { params: query }), ingestionRunsResponseSchema)
       },
-      run: () => request(http.post('/ingestion/runs'), ingestionRunResponseSchema),
+      // Manual ingestion has a shared 90-second server execution budget.
+      run: () =>
+        request(
+          http.post('/ingestion/runs', undefined, { timeout: 120_000 }),
+          ingestionRunResponseSchema,
+        ),
       drafts: (input: QueryInput<typeof ingestionDraftsQuerySchema> = {}) => {
         const query = validateInput(ingestionDraftsQuerySchema, input)
         return request(

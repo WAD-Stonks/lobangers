@@ -1,13 +1,18 @@
 import type { IngestionDashboardResponse, IngestionDraft } from '@broke-oclock/contracts/ingestion'
-import { flushPromises, mount } from '@vue/test-utils'
+import { enableAutoUnmount, flushPromises, mount } from '@vue/test-utils'
+import AdminShell from '@web/components/admin/AdminShell.vue'
 import { ApiClientError } from '@web/lib/api-client'
 import AccountsPanel from '@web/modules/ingestion-admin/AccountsPanel.vue'
+import { backgroundImport } from '@web/modules/ingestion-admin/background-import'
 import DraftQueue from '@web/modules/ingestion-admin/DraftQueue.vue'
 import ImportedDealQueue from '@web/modules/ingestion-admin/ImportedDealQueue.vue'
 import LocationSearch from '@web/modules/ingestion-admin/LocationSearch.vue'
 import SourcesPanel from '@web/modules/ingestion-admin/SourcesPanel.vue'
 import IngestionAdminPage from '@web/pages/IngestionAdminPage.vue'
-import { beforeEach, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, expect, it, vi } from 'vitest'
+
+enableAutoUnmount(afterEach)
+afterEach(() => backgroundImport.reset())
 
 // Synthetic REST boundary only: these component tests preserve UI races but do not prove backend policy.
 const rest = vi.hoisted(() => ({
@@ -74,6 +79,7 @@ const dashboard = {
   counts: { pending: 3, approved: 4, rejected: 2, failed: 1 },
 } satisfies IngestionDashboardResponse
 beforeEach(() => {
+  backgroundImport.reset()
   vi.resetAllMocks()
   rest.session.mockResolvedValue({
     data: {
@@ -238,11 +244,12 @@ it('runs once while pending and refreshes actual dashboard and run reads', async
   })
   await flushPromises()
   expect(rest.dashboard).toHaveBeenCalledTimes(2)
-  expect(rest.runs).toHaveBeenCalledTimes(2)
-  expect(wrapper.text()).toContain('Run run-2: COMPLETED')
+  expect(rest.runs.mock.calls.length).toBeGreaterThanOrEqual(3)
+  expect(wrapper.get('[data-testid="import-progress"]').text()).toContain('Import finished')
+  expect(wrapper.get('[data-testid="import-progress"]').text()).toContain('Created 2')
 })
 
-it('restores the run button after an API error without inventing success', async () => {
+it('keeps a lost-response run guarded while allowing navigation and checking real source activity', async () => {
   rest.dashboard.mockResolvedValue({
     ...dashboard,
     source: { ...dashboard.source, enabled: true, reuseApproved: true },
@@ -253,9 +260,49 @@ it('restores the run button after an API error without inventing success', async
   await showImportWorkspace(wrapper)
   await wrapper.get('[data-testid="run-ingestion"]').trigger('click')
   await flushPromises()
-  expect(wrapper.text()).toContain('Unable to run ingestion')
+  expect(wrapper.text()).toContain('The connection was interrupted')
   expect(wrapper.text()).not.toContain('private provider response')
-  expect(wrapper.get('[data-testid="run-ingestion"]').attributes('disabled')).toBeUndefined()
+  expect(wrapper.get('[data-testid="run-ingestion"]').attributes('disabled')).toBeDefined()
+  expect(wrapper.get('#ingestion-workspace-tab-runs').attributes('disabled')).toBeUndefined()
+  await wrapper.get('#ingestion-workspace-tab-runs').trigger('click')
+  expect(wrapper.get('#ingestion-workspace-panel-runs').attributes('hidden')).toBeUndefined()
+  expect(rest.run).toHaveBeenCalledTimes(1)
+})
+
+it('keeps progress and the pending request when the ingestion page unmounts', async () => {
+  rest.dashboard.mockResolvedValue({
+    ...dashboard,
+    source: { ...dashboard.source, enabled: true, reuseApproved: true },
+  })
+  let release!: (value: unknown) => void
+  rest.run.mockImplementationOnce(
+    () =>
+      new Promise((resolve) => {
+        release = resolve
+      }),
+  )
+  const page = mount(IngestionAdminPage)
+  await flushPromises()
+  await showImportWorkspace(page)
+  await page.get('[data-testid="run-ingestion"]').trigger('click')
+  await flushPromises()
+  page.unmount()
+  const nextPage = mount(AdminShell, { props: { title: 'Another admin page' } })
+  await flushPromises()
+  expect(nextPage.get('[data-testid="import-progress"]').text()).toContain('Import in progress')
+  expect(rest.run).toHaveBeenCalledTimes(1)
+  release({
+    runId: 'background-run',
+    status: 'SUCCEEDED',
+    fetchedCount: 20,
+    createdCount: 2,
+    updatedCount: 1,
+    failedCount: 0,
+  })
+  await flushPromises()
+  expect(nextPage.get('[data-testid="import-progress"]').text()).toContain('Import finished')
+  expect(nextPage.get('[data-testid="import-progress"]').text()).toContain('Created 2')
+  expect(rest.dashboard).toHaveBeenCalledTimes(1)
 })
 
 const draft: IngestionDraft = {
@@ -1131,7 +1178,7 @@ it('keeps imported deals as a read-only handoff while switching task panels', as
   wrapper.unmount()
 })
 
-it('runs imports from Sources & import and fences task and return navigation until the run settles', async () => {
+it('runs imports in the background while keeping workspaces and return navigation available', async () => {
   const { createMemoryHistory, createRouter } = await import('vue-router')
   const router = createRouter({
     history: createMemoryHistory(),
@@ -1159,14 +1206,15 @@ it('runs imports from Sources & import and fences task and return navigation unt
   const back = wrapper.findAll('a').find((link) => link.text() === '← Back to deal evidence')
   expect(back).toBeDefined()
   await wrapper.get('[data-testid="run-ingestion"]').trigger('click')
-  expect(wrapper.get('#ingestion-workspace-tab-failed').attributes('disabled')).toBeDefined()
-  expect(back?.attributes('aria-disabled')).toBe('true')
-  expect(back?.attributes('href')).toBeUndefined()
+  await flushPromises()
+  expect(wrapper.get('#ingestion-workspace-tab-failed').attributes('disabled')).toBeUndefined()
+  expect(back?.attributes('href')).toBe('/admin/deals?tab=evidence')
+  expect(wrapper.get('[data-testid="import-progress"]').text()).toContain('background')
   await wrapper.get('#ingestion-workspace-tab-failed').trigger('click')
-  expect(wrapper.get('#ingestion-workspace-tab-settings').attributes('aria-selected')).toBe('true')
+  expect(wrapper.get('#ingestion-workspace-tab-failed').attributes('aria-selected')).toBe('true')
   await router.push('/admin/ingestion?returnTo=%2Fadmin%2Fdeals%3Ftab%3Devidence#failed-posts')
   await flushPromises()
-  expect(wrapper.get('#ingestion-workspace-tab-settings').attributes('aria-selected')).toBe('true')
+  expect(wrapper.get('#ingestion-workspace-tab-failed').attributes('aria-selected')).toBe('true')
   expect(rest.run).toHaveBeenCalledTimes(1)
   release({
     runId: 'synthetic-run',

@@ -279,13 +279,14 @@ const installSyntheticBoundary = async (page: Page) => {
       }
     } else if (path === 'ingestion.run') {
       await state.runGate
+      const completed = state.runs.find((run) => run.id === 'synthetic-run')
       data = {
         runId: 'synthetic-run',
         status: 'COMPLETED',
-        fetchedCount: 1,
-        createdCount: 1,
-        updatedCount: 0,
-        failedCount: 0,
+        fetchedCount: completed?.fetchedCount ?? 1,
+        createdCount: completed?.createdCount ?? 1,
+        updatedCount: completed?.updatedCount ?? 0,
+        failedCount: completed?.failedCount ?? 0,
       }
     } else if (path === 'ingestion.searchLocations')
       data = {
@@ -476,7 +477,7 @@ test('queue filter ignores an older denial and a current denial clears retained 
   await expect(page.locator('[aria-label="Ingestion counts"]')).toHaveCount(0)
 })
 
-test('Sources & import owns duplicate-protected execution while Run history stays historical', async ({
+test('background import shows source progress across admin routes without blocking navigation or duplicating runs', async ({
   page,
 }) => {
   const fixture = await installSyntheticBoundary(page)
@@ -489,21 +490,47 @@ test('Sources & import owns duplicate-protected execution while Run history stay
   await page.goto('/admin/ingestion')
   await page.getByRole('tab', { name: 'Sources & import', exact: true }).click()
   await page.getByRole('button', { name: 'Run ingestion', exact: true }).click()
-  const running = page.getByRole('button', { name: 'Running ingestion…', exact: true })
+  const running = page.getByRole('button', { name: 'Import in progress…', exact: true })
   await expect(running).toBeDisabled()
-  await expect(page.getByRole('tab', { name: 'Imported deals', exact: true })).toBeDisabled()
+  await expect(page.getByRole('tab', { name: 'Imported deals', exact: true })).toBeEnabled()
   await running.dispatchEvent('click')
   await expect.poll(() => requestsFor(fixture, 'ingestion.run').length).toBe(1)
+  fixture.runs.unshift({
+    id: 'synthetic-run',
+    sourceName: 'Synthetic live source',
+    status: 'RUNNING',
+    startedAt: '2026-11-03T08:00:00Z',
+    finishedAt: null,
+    fetchedCount: 20,
+    createdCount: 3,
+    updatedCount: 1,
+    failedCount: 0,
+    errorCode: null,
+  })
+  const progress = page.getByRole('region', { name: 'Import progress', exact: true })
+  await progress.getByRole('button', { name: 'Refresh progress', exact: true }).click()
+  await expect(progress).toContainText('Synthetic live source')
+  await expect(progress).toContainText('Created 3')
+  await page.getByRole('tab', { name: 'Imported deals', exact: true }).click()
+  await page.getByTestId(`open-imported-${firstId}`).click()
+  await expect(page).toHaveURL(/\/admin\/deals\?/)
+  await expect(progress).toContainText('Import in progress')
+  await expect(progress).toContainText('Created 3')
+  fixture.runs[0] = {
+    ...fixture.runs[0],
+    status: 'SUCCEEDED',
+    finishedAt: '2026-11-03T08:01:00Z',
+  } as IngestionRunsResponse['items'][number]
   release()
-  await expect(
-    page.getByRole('status').filter({ hasText: 'Run synthetic-run: COMPLETED' }),
-  ).toBeVisible()
-  for (const path of ['ingestion.dashboard', 'ingestion.runs', 'ingestion.queue'])
-    await expect.poll(() => requestsFor(fixture, path).length).toBe(2)
-  await page.getByRole('tab', { name: 'Run history', exact: true }).click()
+  await expect(progress).toContainText('Import finished')
+  await progress.getByRole('link', { name: 'View run history' }).click()
+  await expect(page).toHaveURL(/\/admin\/ingestion#runs-title/)
   await expect(page.getByRole('tabpanel', { name: 'Run history', exact: true })).toContainText(
-    'prior-run',
+    'synthetic-run',
   )
+  await page.getByRole('button', { name: 'Refresh runs', exact: true }).click()
+  await expect(progress).toContainText('Import finished')
+  expect(requestsFor(fixture, 'ingestion.run')).toHaveLength(1)
   await expect(
     page
       .getByRole('tabpanel', { name: 'Run history', exact: true })

@@ -249,6 +249,135 @@ const replaceableFailedPosts = () =>
     }),
   )
 
+it('shows unapplied filter instructions until the matching post read succeeds', async () => {
+  calls.posts.mockResolvedValue({ items: [], nextCursor: null })
+  const w = mount(FailedPosts)
+  try {
+    await flushPromises()
+    expect(w.text()).toContain('No posts on this page')
+    await w.get('[name="error-code"]').setValue('MEDIA_FAILED')
+    expect(w.text()).toContain('Load matching posts to see results for these filters')
+    expect(w.text()).not.toContain('No posts on this page')
+    expect(calls.posts).toHaveBeenCalledTimes(1)
+
+    calls.posts.mockRejectedValueOnce(new Error('Synthetic read failure'))
+    await w.get('form').trigger('submit')
+    await flushPromises()
+    expect(w.text()).toContain('Unable to load posts')
+    expect(w.text()).not.toContain('No posts on this page')
+
+    await w.get('form').trigger('submit')
+    await flushPromises()
+    expect(calls.posts).toHaveBeenLastCalledWith({
+      status: 'FAILED',
+      limit: 20,
+      errorCode: 'MEDIA_FAILED',
+    })
+    expect(w.text()).toContain('No posts on this page')
+    expect(w.text()).not.toContain('Load matching posts to see results for these filters')
+  } finally {
+    w.unmount()
+  }
+})
+
+it('does not use an obsolete empty response as results for edited filters', async () => {
+  let release!: (value: unknown) => void
+  calls.posts.mockImplementationOnce(
+    () =>
+      new Promise((resolve) => {
+        release = resolve
+      }),
+  )
+  const w = mount(FailedPosts)
+  try {
+    await w.get('[name="post-status"]').setValue('NEW')
+    release({ items: [], nextCursor: null })
+    await flushPromises()
+    expect(w.text()).toContain('Load matching posts to see results for these filters')
+    expect(w.text()).not.toContain('No posts on this page')
+    calls.posts.mockResolvedValue({ items: [], nextCursor: null })
+    await w.get('form').trigger('submit')
+    await flushPromises()
+    expect(calls.posts).toHaveBeenLastCalledWith({ status: 'NEW', limit: 20 })
+    expect(w.text()).toContain('No posts on this page')
+  } finally {
+    w.unmount()
+  }
+})
+
+it('loads on activation and skips duplicate list reads while one is pending', async () => {
+  let release!: (value: unknown) => void
+  calls.posts.mockImplementationOnce(
+    () =>
+      new Promise((resolve) => {
+        release = resolve
+      }),
+  )
+  const w = mount(FailedPosts, { props: { active: false } })
+  try {
+    await flushPromises()
+    expect(calls.posts).not.toHaveBeenCalled()
+    await w.setProps({ active: true })
+    expect(calls.posts).toHaveBeenCalledTimes(1)
+    await w.setProps({ active: false })
+    await w.setProps({ active: true })
+    expect(calls.posts).toHaveBeenCalledTimes(1)
+    release({ items: [], nextCursor: null })
+    await flushPromises()
+    calls.posts.mockResolvedValue({ items: [detail().post], nextCursor: null })
+    await w.setProps({ active: false })
+    await w.setProps({ active: true })
+    await flushPromises()
+    expect(calls.posts).toHaveBeenCalledTimes(2)
+    expect(w.text()).toContain('Investigate 123')
+  } finally {
+    w.unmount()
+  }
+})
+
+it('preserves investigation state and unknown recovery locks across list activation refreshes', async () => {
+  calls.posts.mockResolvedValue({ items: [detail().post], nextCursor: null })
+  calls.post.mockResolvedValue(detail())
+  let reject!: (failure: Error) => void
+  calls.recover.mockImplementationOnce(
+    () =>
+      new Promise((_resolve, rejectRecovery) => {
+        reject = rejectRecovery
+      }),
+  )
+  const w = mount(FailedPosts, { props: { initialPostId: postId } })
+  try {
+    await flushPromises()
+    await consent(w)
+    await w.setProps({ active: false })
+    await w.setProps({ active: true })
+    await flushPromises()
+    expect(w.get<HTMLTextAreaElement>('textarea').element.value).toBe(
+      'Synthetic explicitly reviewed reason',
+    )
+    expect(w.get<HTMLInputElement>('input[type="checkbox"]').element.checked).toBe(true)
+    expect(calls.post).toHaveBeenCalledTimes(1)
+
+    await w.get('section[aria-label="Post investigation"] form').trigger('submit')
+    await w.setProps({ active: false })
+    await w.setProps({ active: true })
+    expect(calls.posts).toHaveBeenCalledTimes(2)
+    reject(new Error('Synthetic lost response'))
+    await flushPromises()
+
+    await w.setProps({ active: false })
+    await w.setProps({ active: true })
+    await flushPromises()
+    expect(calls.posts).toHaveBeenCalledTimes(3)
+    expect(calls.post).toHaveBeenCalledTimes(1)
+    expect(w.text()).toContain('Recovery result must be reconciled')
+    expect(w.get('[data-testid="recover-post"]').attributes('disabled')).toBeDefined()
+    expect(calls.recover).toHaveBeenCalledTimes(1)
+  } finally {
+    w.unmount()
+  }
+})
+
 it('opens a linked post with a fresh read even when it is absent from the first result page', async () => {
   calls.posts.mockResolvedValue({ items: [], nextCursor: null })
   calls.post.mockResolvedValue(detail())
@@ -344,8 +473,11 @@ it('closes linked post investigation and queued selection after a protected read
     expect(w.find('section[aria-label="Post investigation"]').exists()).toBe(false)
     expect(w.find('textarea').exists()).toBe(false)
     await w.setProps({ initialPostId: '1123456789abcdef01234568' })
+    await w.setProps({ active: false })
+    await w.setProps({ active: true })
     await flushPromises()
     expect(calls.post).toHaveBeenCalledTimes(1)
+    expect(calls.posts).toHaveBeenCalledTimes(1)
     expect(calls.recover).not.toHaveBeenCalled()
   } finally {
     w.unmount()
