@@ -16,6 +16,8 @@ import FlashEdgeBanner from '@web/modules/flash-drop/FlashEdgeBanner.vue'
 import { provideFlashDrops } from '@web/modules/flash-drop/use-flash-drops'
 import { useFlashMap } from '@web/modules/flash-drop/use-flash-map'
 import { provideHungryNearby } from '@web/modules/hungry-nearby/use-hungry-nearby'
+import LobbieLauncher from '@web/modules/lobbie/LobbieLauncher.vue'
+import LobbiePanel from '@web/modules/lobbie/LobbiePanel.vue'
 import { provideLobbieChat } from '@web/modules/lobbie/use-lobbie-chat'
 import FilterSheet from '@web/modules/map-shell/FilterSheet.vue'
 import { withFilters } from '@web/modules/map-shell/filter-query'
@@ -336,7 +338,34 @@ const openVenue = (venueId: string) => {
   )
 }
 
-// The Lobbie chip opens the chat, or closes it back to the results when it is already open.
+// On the All Deals page Lobbie lives in a floating window behind the "Ask Lobbie" button in the
+// bottom-right corner; the conversation is the shell's, so closing and reopening it keeps it. On
+// the map the Ask Lobbie chip beside Filters opens the chat panel instead.
+const lobbieWindowOpen = ref(false)
+const lobbieLauncher = ref<InstanceType<typeof LobbieLauncher> | null>(null)
+const showLobbieLauncher = computed(() => !authPrompt.value && dealsPage.value && isBrowse.value)
+const toggleLobbieWindow = () => { lobbieWindowOpen.value = !lobbieWindowOpen.value }
+const closeLobbieWindow = () => {
+  lobbieWindowOpen.value = false
+  lobbieLauncher.value?.focus()
+}
+
+// A deal opened from the chat shows over the list; the window waits behind it and is still open
+// when the deal closes. Leaving the list for anywhere else puts it away.
+const lobbieKept = computed(() => !authPrompt.value && dealsPage.value && (isBrowse.value || dealDialogOpen.value))
+watch(lobbieKept, (kept) => { if (!kept) lobbieWindowOpen.value = false })
+// Escape closes the window even when focus has left it (a picked suggestion disappears from
+// under the pointer), unless the filter sheet or a deal is open over it and should close first.
+const closeLobbieOnEscape = (event: KeyboardEvent) => {
+  if (event.key === 'Escape' && !sheetOpen.value && !dealDialogOpen.value) closeLobbieWindow()
+}
+watch(lobbieWindowOpen, (open) => {
+  if (open) document.addEventListener('keydown', closeLobbieOnEscape)
+  else document.removeEventListener('keydown', closeLobbieOnEscape)
+})
+onBeforeUnmount(() => document.removeEventListener('keydown', closeLobbieOnEscape))
+
+// The map's Ask Lobbie chip opens the chat panel, or closes it back to the results when it is open.
 // Opening the chat clears the quick chips and the filter sheet, so Lobbie starts from all
 // deals; the search text stays. Closing it returns to the results as they are.
 const toggleLobbie = () => {
@@ -563,6 +592,15 @@ onBeforeUnmount(() => document.documentElement.classList.remove('is-canvas'))
     </ShellPanel>
     </main>
 
+    <template v-if="showLobbieLauncher">
+      <Transition name="lobbie-window">
+        <div v-if="lobbieWindowOpen" id="lobbie-window" class="map-shell__lobbie-window">
+          <LobbiePanel windowed @close="closeLobbieWindow" />
+        </div>
+      </Transition>
+      <LobbieLauncher ref="lobbieLauncher" class="map-shell__lobbie-launcher" :open="lobbieWindowOpen" controls="lobbie-window" @toggle="toggleLobbieWindow" />
+    </template>
+
     <DealDetailsDialog v-if="dealDialogOpen && !authPrompt" :restore-focus-to="dealDialogTrigger" @close="closeDealDialog" />
 
     <FilterSheet
@@ -599,6 +637,34 @@ onBeforeUnmount(() => document.documentElement.classList.remove('is-canvas'))
 
 <style scoped>
 .map-shell__panel-route { height: 100%; }
+
+/* Lobbie's launcher and chat window float in the bottom-right corner of the All Deals page,
+   above the bottom tab bar on phones and tablets. */
+.map-shell__lobbie-launcher {
+  position: fixed;
+  right: calc(24px + env(safe-area-inset-right, 0px));
+  bottom: calc(24px + var(--bottom-nav-h, 0px) + env(safe-area-inset-bottom, 0px));
+  z-index: 40;
+}
+.map-shell__lobbie-window {
+  position: fixed;
+  right: calc(24px + env(safe-area-inset-right, 0px));
+  bottom: calc(24px + 52px + 16px + var(--bottom-nav-h, 0px) + env(safe-area-inset-bottom, 0px));
+  z-index: 40;
+  width: min(400px, calc(100vw - 32px));
+  height: min(620px, calc(100dvh - var(--bottom-nav-h, 0px) - 140px));
+  transform-origin: bottom right;
+}
+@media (max-width: 599.98px) {
+  .map-shell__lobbie-launcher { right: 16px; bottom: calc(16px + var(--bottom-nav-h, 0px) + env(safe-area-inset-bottom, 0px)); }
+  .map-shell__lobbie-window { right: 16px; bottom: calc(16px + 44px + 12px + var(--bottom-nav-h, 0px) + env(safe-area-inset-bottom, 0px)); }
+}
+.lobbie-window-enter-active, .lobbie-window-leave-active { transition: opacity 180ms ease, transform 220ms var(--ease-out); }
+.lobbie-window-enter-from, .lobbie-window-leave-to { opacity: 0; transform: translateY(12px) scale(0.96); }
+@media (prefers-reduced-motion: reduce) {
+  .lobbie-window-enter-active, .lobbie-window-leave-active { transition: opacity 120ms ease; }
+  .lobbie-window-enter-from, .lobbie-window-leave-to { transform: none; }
+}
 
 .map-shell__panel-loading {
   display: flex;
@@ -733,8 +799,10 @@ onBeforeUnmount(() => document.documentElement.classList.remove('is-canvas'))
   background: var(--page-background, var(--paper-white));
 }
 
+/* The panel starts at the header's edge and its gap above the list is padding inside the scroller,
+   so cards scroll up under the header instead of vanishing into an empty strip below it. */
 .map-shell--deals-page:not(.map-shell--map-only) .shell-panel--side {
-  top: calc(var(--shell-header-bottom) + var(--space-4));
+  top: var(--shell-header-bottom);
   right: var(--shell-gutter);
   bottom: var(--shell-gutter);
   left: var(--shell-gutter);
@@ -752,6 +820,10 @@ onBeforeUnmount(() => document.documentElement.classList.remove('is-canvas'))
   width: 100%;
   max-width: 1600px;
   margin-inline: auto;
+}
+
+.map-shell--deals-page.map-shell--side :deep(.browse-list .panel-frame__body) {
+  padding-top: calc(var(--space-4) + 8px);
 }
 
 .map-shell--deals-page :deep(.shell-panel__grip) {

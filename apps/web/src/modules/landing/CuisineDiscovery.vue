@@ -1,34 +1,25 @@
 <script setup lang="ts">
 import type { DealPin } from '@broke-oclock/contracts/deals'
-import { OUTLET_NOT_CONFIRMED } from '@web/modules/browse-map/deal-format'
+import { authClient } from '@web/lib/auth-client'
+import FoodDealCard from '@web/modules/browse-map/FoodDealCard.vue'
+import type { DealRow } from '@web/modules/browse-map/types'
 import { regions } from '@web/modules/landing/deals'
-import { isLikelyStillOn, landingDealLink, promotionDates, venuesInRegion } from '@web/modules/landing/live-deals'
+import { landingDealLink, venuesInRegion } from '@web/modules/landing/live-deals'
 import type { LandingDealsStatus } from '@web/modules/landing/use-landing-deals'
-import { computed, ref, watch } from 'vue'
+import { provideSavedDeals } from '@web/modules/map-shell/use-saved-deals'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { RouterLink } from 'vue-router'
 
 const emit = defineEmits<{ retry: [] }>()
-const failedImages = ref(new Set<string>())
+// The cards are the All Deals page's, and their save buttons need the visitor's saved deals.
+provideSavedDeals(authClient.useSession())
 const cuisine = ref('All Cuisines')
 const area = ref('all')
 const props = defineProps<{ live: DealPin[]; liveState: LandingDealsStatus }>()
 const cuisines = computed(() => ['All Cuisines', ...new Set(props.live.map((deal) => deal.cuisine ?? 'Others'))])
-const outletDialog = ref<HTMLDialogElement | null>(null)
-const outletDeal = ref<DealPin | null>(null)
-const outletSearch = ref('')
-const visibleOutlets = computed(() => {
-  const query = outletSearch.value.trim().toLocaleLowerCase()
-  return outletDeal.value?.venues.filter(venue => venue.name.toLocaleLowerCase().includes(query)) ?? []
-})
-const openOutlets = (deal: DealPin) => {
-  outletDeal.value = deal
-  outletSearch.value = ''
-  outletDialog.value?.showModal()
-}
 const selectedRegion = computed(() => regions[Number(area.value)]?.name)
 const cardVenue = (deal: DealPin) =>
   area.value === 'all' ? deal.venues[0] : selectedRegion.value ? venuesInRegion(deal, selectedRegion.value)[0] : undefined
-const dealLink = (deal: DealPin) => { const venue = cardVenue(deal); return venue ? landingDealLink(deal, venue.id) : `/deals/${deal.id}` }
 const filtered = computed(() =>
   props.live.filter(
     (deal) =>
@@ -37,8 +28,26 @@ const filtered = computed(() =>
   ),
 )
 const page = ref(0)
-// Four deals per page; landing-refinements.css lays them out in four or two columns.
-const pageSize = ref(4)
+// One row of cards per page, as many as fit at a comfortable card width (two to five), so cards
+// never balloon on a narrower screen or turn skinny on a wide one.
+const CARD_MIN_PX = 210
+const CARD_GAP_PX = 20
+const grid = ref<HTMLElement | null>(null)
+const pageSize = ref(5)
+let resizer: ResizeObserver | undefined
+const fitColumns = (width: number) => {
+  const next = Math.min(5, Math.max(2, Math.floor((width + CARD_GAP_PX) / (CARD_MIN_PX + CARD_GAP_PX))))
+  if (next === pageSize.value) return
+  // Keep the first card on screen in view when the page size changes.
+  page.value = Math.floor((page.value * pageSize.value) / next)
+  pageSize.value = next
+}
+onMounted(() => {
+  if (typeof ResizeObserver === 'undefined') return
+  resizer = new ResizeObserver(([entry]) => entry && fitColumns(entry.contentRect.width))
+  watch(grid, (el, old) => { if (old) resizer?.unobserve(old); if (el) resizer?.observe(el) }, { immediate: true })
+})
+onBeforeUnmount(() => resizer?.disconnect())
 let touchStart: { x: number; y: number } | null = null
 const startSwipe = (event: TouchEvent) => {
   const touch = event.touches[0]
@@ -59,6 +68,19 @@ const endSwipe = (event: TouchEvent) => {
 }
 const pageCount = computed(() => Math.ceil(filtered.value.length / pageSize.value))
 const visibleDeals = computed(() => filtered.value.slice(page.value * pageSize.value, (page.value + 1) * pageSize.value))
+// Each card shows the deal at the outlet the region filter picked (its first outlet otherwise).
+// A deal with no listed outlet still shows, named as such, and links to the deal alone.
+const NO_OUTLET = { id: '', name: 'Restaurant details unavailable', lat: 0, lng: 0 }
+const visibleRows = computed<DealRow[]>(() =>
+  visibleDeals.value.map((deal) => ({
+    key: deal.id,
+    deal,
+    venue: { ...(cardVenue(deal) ?? NO_OUTLET), deals: [deal] },
+    distanceMetres: null,
+    outletCount: deal.venues.length,
+  })),
+)
+const rowLink = (row: DealRow) => (row.venue.id ? landingDealLink(row.deal, row.venue.id) : `/deals/${row.deal.id}?view=list&discovery=1`)
 watch(filtered, () => { page.value = 0 }, { flush: 'sync' })
 </script>
 
@@ -86,7 +108,7 @@ watch(filtered, () => { page.value = 0 }, { flush: 'sync' })
     </div>
     <div v-if="liveState === 'loading'" role="status">
       <p>Loading current food deals…</p>
-      <div class="landing-deal-grid" aria-hidden="true">
+      <div ref="grid" class="landing-deal-grid" :style="{ '--deal-columns': pageSize }" aria-hidden="true">
         <div v-for="index in pageSize" :key="index" class="landing-food-card landing-skeleton-card">
           <div class="landing-food-photo landing-skeleton" />
           <div class="landing-food-content"><span class="landing-skeleton" /><span class="landing-skeleton" /><span class="landing-skeleton" /></div>
@@ -100,31 +122,8 @@ watch(filtered, () => { page.value = 0 }, { flush: 'sync' })
     </div>
     <template v-else>
       <div class="landing-carousel">
-      <div id="landing-deal-carousel" class="landing-deal-grid" @touchstart.passive="startSwipe" @touchend="endSwipe" @touchcancel="touchStart = null">
-        <article v-for="deal in visibleDeals" :key="deal.id" class="landing-food-card" :aria-labelledby="`landing-offer-${deal.id} landing-restaurant-${deal.id}`">
-          <RouterLink class="landing-card-link" :to="dealLink(deal)" :aria-label="`View ${deal.title}`" />
-          <div class="landing-food-photo">
-            <RouterLink class="landing-photo-link" :to="dealLink(deal)" :aria-label="`View ${deal.title}`">
-            <img v-if="deal.images[0] && !failedImages.has(deal.images[0].url)" @error="failedImages.add(deal.images[0].url)" :src="deal.images[0].url" :alt="deal.images[0].alt ?? deal.title" loading="lazy" width="640" height="480" />
-            <div v-else class="landing-food-placeholder"><span aria-hidden="true">🍽️</span><span>{{ deal.images.length ? 'Photo unavailable' : 'No photo yet' }}</span></div>
-            </RouterLink>
-            <span class="landing-photo-badge">{{ isLikelyStillOn(deal) ? 'Likely still on' : deal.votes.status === 'EXPIRED' ? 'Ended' : deal.votes.status === 'UNCERTAIN' ? 'Uncertain' : 'Unverified' }}</span>
-          </div>
-          <div class="landing-food-content">
-            <div class="landing-card-heading">
-            <p :id="`landing-offer-${deal.id}`" class="landing-deal-title" :title="deal.title"><RouterLink class="landing-offer-link" :to="dealLink(deal)">{{ deal.title }}</RouterLink></p>
-            <h3 :id="`landing-restaurant-${deal.id}`" class="landing-restaurant-name" :title="cardVenue(deal)?.name"><RouterLink v-if="cardVenue(deal)" class="landing-venue-link" :to="`/venues/${cardVenue(deal)?.id}`">{{ cardVenue(deal)?.name }}</RouterLink><template v-else>Restaurant details unavailable</template></h3>
-            </div>
-            <div class="landing-outlet-summary">
-              <span v-if="deal.outletUnconfirmed" class="landing-outlet-unsure" data-testid="outlet-unconfirmed">{{ OUTLET_NOT_CONFIRMED }}</span>
-              <button v-if="deal.venues.length > 1" type="button" class="landing-outlet-button" aria-haspopup="dialog" @click="openOutlets(deal)">+{{ deal.venues.length - 1 }} more {{ deal.venues.length === 2 ? 'outlet' : 'outlets' }}<span class="visually-hidden"> for {{ deal.title }}</span></button>
-              <span v-else-if="!deal.venues.length" class="landing-outlet-count">{{ deal.venues.length === 0 ? 'No outlets listed' : '' }}</span>
-            </div>
-            <div class="landing-card-meta">
-              <span :title="promotionDates(deal)">{{ promotionDates(deal) }}</span>
-            </div>
-          </div>
-        </article>
+      <div id="landing-deal-carousel" ref="grid" class="landing-deal-grid" :style="{ '--deal-columns': pageSize }" @touchstart.passive="startSwipe" @touchend="endSwipe" @touchcancel="touchStart = null">
+        <FoodDealCard v-for="row in visibleRows" :key="row.key" :row="row" :to="rowLink(row)" />
       </div>
       <nav v-if="filtered.length" class="landing-carousel-controls" aria-label="Deal carousel">
         <button type="button" aria-label="Previous deals" aria-controls="landing-deal-carousel" :disabled="page === 0" @click="page--"><span aria-hidden="true">←</span></button>
@@ -139,18 +138,5 @@ watch(filtered, () => { page.value = 0 }, { flush: 'sync' })
         <button type="button" class="landing-button secondary" @click="cuisine = 'All Cuisines'; area = 'all'">Reset filters</button>
       </div>
     </template>
-    <dialog ref="outletDialog" class="landing-outlet-dialog" aria-labelledby="landing-outlet-title">
-      <div class="landing-outlet-dialog-header">
-        <div><span class="landing-eyebrow">PARTICIPATING OUTLETS</span><h3 id="landing-outlet-title">{{ outletDeal?.title }}</h3></div>
-        <button type="button" aria-label="Close outlets" @click="outletDialog?.close()">✕</button>
-      </div>
-      <label for="landing-outlet-search">Find an outlet</label>
-      <input id="landing-outlet-search" v-model="outletSearch" type="search" name="outlet-search" autocomplete="off" spellcheck="false" placeholder="Search by outlet name…" />
-      <p role="status">{{ visibleOutlets.length }} of {{ outletDeal?.venues.length ?? 0 }} outlets</p>
-      <ul class="landing-outlet-list">
-        <li v-for="venue in visibleOutlets" :key="venue.id"><RouterLink :to="outletDeal ? landingDealLink(outletDeal, venue.id) : '/browse'" @click="outletDialog?.close()">{{ venue.name }} <span aria-hidden="true">↗</span></RouterLink></li>
-      </ul>
-      <p v-if="!visibleOutlets.length">No outlets match your search.</p>
-    </dialog>
   </section>
 </template>

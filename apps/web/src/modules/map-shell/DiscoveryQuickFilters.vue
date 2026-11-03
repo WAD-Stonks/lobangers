@@ -20,6 +20,8 @@ const props = defineProps<{
   locationKnown: boolean
   sheetOpen: boolean
   lobbieOpen?: boolean
+  // The All Deals page has its own Lobbie button in the bottom-right corner instead.
+  hideLobbie?: boolean
 }>()
 const emit = defineEmits<{ apply: [filters: BrowseFilters]; openSheet: []; askLobbie: [] }>()
 type QuickKey = 'location' | 'price' | 'cuisine' | 'category' | 'ending'
@@ -132,6 +134,7 @@ defineExpose({ focusAllFilters: () => allButton.value?.focus() })
         <span v-if="count" :key="count" class="lb-badge discovery-filters__badge" data-testid="filter-badge">{{ count }}<span class="visually-hidden"> active</span></span>
       </button>
       <button
+        v-if="!hideLobbie"
         type="button"
         class="lb-chip discovery-filters__lobbie"
         :class="{ 'is-on': lobbieOpen }"

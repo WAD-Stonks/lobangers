@@ -273,6 +273,48 @@ describe('Ask Lobbie panel', () => {
     expect(iconPaths()).toBe(1)
   })
 
+  it('keeps the All Deals chat window open behind a deal it opened', async () => {
+    const { router, wrapper } = await mountAt('/browse?view=list')
+    await wrapper.get('[data-testid="lobbie-launcher"]').trigger('click')
+    await flushPromises()
+    expect(wrapper.find('[data-testid="lobbie-window"]').exists()).toBe(true)
+    // The deal shows over the list, then closes back to it with the chat still open.
+    await router.push(`/deals/${KOPI.id}?at=${KOPI_VENUE.id}&view=list`)
+    await flushPromises()
+    expect(wrapper.find('[data-testid="lobbie-window"]').exists()).toBe(false)
+    await router.push('/browse?view=list')
+    await flushPromises()
+    expect(wrapper.find('[data-testid="lobbie-window"]').exists()).toBe(true)
+    // Leaving the list for the map puts it away.
+    await router.push('/browse')
+    await flushPromises()
+    await router.push('/browse?view=list')
+    await flushPromises()
+    expect(wrapper.find('[data-testid="lobbie-window"]').exists()).toBe(false)
+  })
+
+  it('opens in a floating window from the corner button on the All Deals page', async () => {
+    const { router, wrapper } = await mountAt('/browse?view=list')
+    // The page has the corner button instead of the chip, and the chat stays off the URL.
+    expect(wrapper.find('[data-testid="ask-lobbie"]').exists()).toBe(false)
+    const launcher = wrapper.get('[data-testid="lobbie-launcher"]')
+    expect(launcher.attributes('aria-expanded')).toBe('false')
+
+    await launcher.trigger('click')
+    await flushPromises()
+    expect(router.currentRoute.value.name).toBe('browse')
+    expect(wrapper.get('[data-testid="lobbie-launcher"]').attributes('aria-expanded')).toBe('true')
+    const chatWindow = wrapper.get('[data-testid="lobbie-window"]')
+    expect(chatWindow.attributes('role')).toBe('dialog')
+    expect(chatWindow.text()).toContain(LOBBIE_GREETING)
+    expect(document.activeElement).toBe(wrapper.get('[data-testid="lobbie-input"]').element)
+
+    await wrapper.get('[data-testid="lobbie-window-close"]').trigger('click')
+    await flushPromises()
+    expect(wrapper.find('[data-testid="lobbie-window"]').exists()).toBe(false)
+    expect(document.activeElement).toBe(wrapper.get('[data-testid="lobbie-launcher"]').element)
+  })
+
   it('asks a suggestion, shows typing with the box disabled, then lists and frames the deals', async () => {
     const answer = deferred<AssistantChatResponse>()
     rest.chat.mockReturnValue(answer.promise)

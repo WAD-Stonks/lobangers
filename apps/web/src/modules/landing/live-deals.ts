@@ -34,4 +34,6 @@ export const promotionDates = (deal: DealPin) => {
 export const isLikelyStillOn = (deal: DealPin) =>
   deal.votes.status === 'LIKELY_STILL_ON' &&
   (!deal.validUntil || new Date(deal.validUntil).getTime() > Date.now())
-export const landingDealLink = (deal: DealPin, venueId: string) => `/deals/${deal.id}?at=${venueId}`
+// Opens the deal over the All Deals list (list view), not the map.
+export const landingDealLink = (deal: DealPin, venueId: string) =>
+  `/deals/${deal.id}?at=${venueId}&view=list&discovery=1`

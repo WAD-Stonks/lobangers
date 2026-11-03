@@ -22,11 +22,12 @@ const registered = (needsVerification: boolean) => needsVerification
 
 <template>
   <AuthLayout>
-    <h1 id="auth-page-title">{{ props.mode === 'login' ? 'Welcome back' : 'Create an account' }}</h1>
-    <p class="auth-page__intro">{{ props.mode === 'login' ? 'Log in to save deals and share your finds.' : 'Save your favourites and discover more food deals.' }}</p>
+    <h1 id="auth-page-title">{{ props.mode === 'login' ? 'Welcome back!' : 'Create an account' }}</h1>
+    <p class="auth-page__intro">{{ props.mode === 'login' ? 'Log in to save deals and share your finds around Singapore.' : 'Save your favourite deals and share your finds around Singapore.' }}</p>
     <p v-if="notice" class="auth-page__notice" role="status">{{ notice }}</p>
-    <LoginForm v-if="props.mode === 'login'" destination="/deals" embedded @signed-in="signedIn" />
-    <RegisterForm v-else @registered="registered" />
+    <LoginForm v-if="props.mode === 'login'" destination="/deals" embedded peek @signed-in="signedIn" />
+    <RegisterForm v-else peek @registered="registered" />
     <p v-if="props.mode === 'login'" class="auth-page__switch">New here? <RouterLink :to="{ name: 'sign-up', query: route.query.redirect ? { redirect: route.query.redirect } : {} }">Create an account</RouterLink></p>
+    <p v-else class="auth-page__switch">Already have an account? <RouterLink :to="{ name: 'sign-in', query: route.query.redirect ? { redirect: route.query.redirect } : {} }">Log in</RouterLink></p>
   </AuthLayout>
 </template>

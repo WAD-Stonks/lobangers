@@ -251,63 +251,6 @@
 .hero-ambient-paused .hero-map-scene .active > .pin-ring {
   animation-play-state: paused;
 }
-/* Pause/play for the deal rotation and the ambient waterfront loops. */
-.hero-motion-toggle {
-  position: absolute;
-  z-index: 6;
-  top: 8px;
-  left: 8px;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  min-height: 32px;
-  padding: 6px 12px;
-  border: 1px solid #c9c2ad;
-  border-radius: 999px;
-  background: #fffdf6e6;
-  color: #3d4237;
-  font: inherit;
-  font-size: 12px;
-  font-weight: 700;
-  line-height: 1;
-  cursor: pointer;
-  touch-action: manipulation;
-  box-shadow: 0 2px 6px #47332114;
-}
-.hero-motion-toggle svg {
-  flex: none;
-  width: 12px;
-  height: 12px;
-}
-@media (hover: hover) and (pointer: fine) {
-  .hero-motion-toggle:hover {
-    background: #fff7dc;
-  }
-}
-@media (pointer: coarse) {
-  .hero-motion-toggle {
-    min-height: 44px;
-    padding-inline: 14px;
-  }
-}
-/* Phones and tablets: an icon-only round button, so it never covers the map pins.
-   The label stays in the accessibility tree. */
-@media (max-width: 800px) {
-  .hero-motion-toggle {
-    justify-content: center;
-    width: 44px;
-    height: 44px;
-    padding: 0;
-  }
-  .hero-motion-toggle span {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    clip-path: inset(50%);
-    white-space: nowrap;
-  }
-}
 .hero-card-eyebrow {
   text-transform: uppercase;
 }

@@ -73,9 +73,10 @@ const isHot = (row: DealRow) => {
 </template>
 
 <style scoped>
+/* Each row sizes to its own content: equal rows (1fr) stretched every card to the tallest one,
+   so zooming the map out to take in one long deal made the whole list grow. */
 .deal-rows {
   display: grid;
-  grid-auto-rows: 1fr;
   gap: 12px;
   margin: 0;
   padding: 0;
