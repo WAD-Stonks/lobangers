@@ -3,7 +3,7 @@ import type { Breakpoint } from '@web/modules/map-shell/use-breakpoint'
 import { computed, onBeforeUnmount, onMounted, type Ref, ref } from 'vue'
 
 // Geometry shared by the panel, controls, hot card and map: header height, the bottom sheet's
-// three snap heights and where the visible map centre is. Exposed as CSS custom properties so
+// four snap heights and where the visible map centre is. Exposed as CSS custom properties so
 // the static layout stays in stylesheets and only these numbers are inline.
 // Panel and sheet sizes from the Prototype board: a right-hand card on desktop (narrower on
 // tablet landscape) and a bottom sheet that opens at 46% (tablet) or 58% (phone) of the screen.
@@ -24,6 +24,8 @@ const SHEET_MIN_STEP_PX = 60
 const DESKTOP_GUTTER_PX = 16
 const FALLBACK_HEADER_BOTTOM_PX = 128
 const FALLBACK_VIEWPORT = { width: 1280, height: 800 }
+// Snap indexes: peek, half, full (stops below the header) and expanded (covers the whole screen).
+export const SHEET_FULL = 2
 
 type Options = {
   readonly breakpoint: Readonly<Ref<Breakpoint>>
@@ -63,7 +65,8 @@ export const sheetHeights = (
       previewHeight ?? Math.round(viewportHeight * halfRatio),
     ),
   )
-  return [SHEET_PEEK_PX, half, full]
+  const expanded = Math.max(full + SHEET_MIN_STEP_PX, viewportHeight)
+  return [SHEET_PEEK_PX, half, full, expanded]
 }
 
 export const panelWidthFor = (viewportWidth: number, wide: boolean): number => {
