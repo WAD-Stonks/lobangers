@@ -153,6 +153,7 @@ const logOut = () => { close(); return signOut() }
         </RouterLink>
         <RouterLink class="brand-menu__link" :to="navigationTo({ name: 'squad-join' })" data-testid="menu-squad-join"
           @click="closeDrawer">Join a squad room</RouterLink>
+        <div class="brand-menu__divider" role="presentation" data-testid="menu-squad-divider" />
 
         <RouterLink v-if="user" class="brand-menu__codes" :to="navigationTo({ name: 'codes' })"
           data-testid="my-codes-link" @click="closeDrawer">
@@ -635,6 +636,13 @@ const logOut = () => { close(); return signOut() }
   border: 0;
   border-radius: 12px;
   cursor: pointer;
+}
+
+/* Sets the Squad rows apart from the visitor's own codes and deals. */
+.brand-menu__divider {
+  flex-shrink: 0;
+  height: 1px;
+  background: var(--hairline);
 }
 
 .brand-menu__links+.brand-menu__links {

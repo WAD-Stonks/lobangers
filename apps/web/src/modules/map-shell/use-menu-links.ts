@@ -51,7 +51,10 @@ export const useMenuLinks = () => {
       },
       {
         label: 'Explore',
-        links: visibleSiteLinks.value.filter((link) => ['/browse', '/deals'].includes(link.to)),
+        // All deals first, then the map.
+        links: ['/deals', '/browse'].flatMap((to) =>
+          visibleSiteLinks.value.filter((link) => link.to === to),
+        ),
       },
       {
         label: 'Contribute',

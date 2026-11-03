@@ -1122,7 +1122,7 @@ describe('review regressions', () => {
 
   it('uses the standalone login page for legacy merchant login links', async () => {
     const { wrapper } = await mountAt('/login?redirect=/merchant')
-    expect(wrapper.get('[data-testid="standalone-auth"] h1').text()).toBe('Welcome back')
+    expect(wrapper.get('[data-testid="standalone-auth"] h1').text()).toBe('Welcome back!')
   })
 
   it('drops a pending search when a panel opens before it fires', async () => {

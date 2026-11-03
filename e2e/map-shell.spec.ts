@@ -164,9 +164,11 @@ for (const width of [390, 1280]) {
       await page.goto('/browse')
       await expect.poll(() => mappedDeals(page)).toBe(3)
 
+      // The button below the zoom controls opens the chat in a window over the map.
       await page.getByRole('button', { name: 'Ask Lobbie for Lobangs' }).click()
-      await expect(page).toHaveURL(/\/ask-lobbie/)
-      await expect(panelHeading(page)).toHaveText('Ask Lobbie')
+      const chatWindow = page.getByRole('dialog', { name: 'Ask Lobbie' })
+      await expect(chatWindow).toBeVisible()
+      await expect(page).toHaveURL(/\/browse/)
       await expect(page.getByTestId('lobbie-log')).toContainText('Lobbie the Lobang Lobster')
 
       await page.getByRole('button', { name: 'Lunch under $5' }).click()
@@ -202,9 +204,11 @@ for (const width of [390, 1280]) {
       await expect(page.locator('.deal-map-pin').last()).toBeInViewport()
       await page.screenshot({ path: `test-results/lobbie-results-${width}.png` })
 
+      // Opening a pick puts the window away; the button brings the same conversation back.
       await page.getByTestId('lobbie-deals').getByRole('link').first().click()
       await expect(panelHeading(page)).toHaveText('Synthetic kopi set')
-      await page.getByRole('link', { name: 'Back to Lobbie' }).click()
+      await expect(chatWindow).toHaveCount(0)
+      await page.getByRole('button', { name: 'Ask Lobbie for Lobangs' }).click()
       await expect(page.getByTestId('lobbie-log')).toContainText('Lunch under $5')
 
       await page.getByRole('button', { name: 'Remove filter Up to $5' }).click()

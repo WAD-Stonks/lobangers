@@ -8,7 +8,7 @@ import { authClient } from '@web/lib/auth-client'
 import BrowseListPanel from '@web/modules/browse-map/BrowseListPanel.vue'
 import DealDetailsDialog from '@web/modules/browse-map/DealDetailsDialog.vue'
 import DealMap from '@web/modules/browse-map/DealMap.vue'
-import { type BrowseFilters, createDefaultFilters } from '@web/modules/browse-map/filters'
+import type { BrowseFilters } from '@web/modules/browse-map/filters'
 import { FOCUS_ZOOM, LOCATE_ZOOM } from '@web/modules/browse-map/map-config'
 import type { Coordinates, SelectedDeal } from '@web/modules/browse-map/types'
 import { BANNER_LIFE_MS } from '@web/modules/flash-drop/banner-schedule'
@@ -16,9 +16,10 @@ import FlashEdgeBanner from '@web/modules/flash-drop/FlashEdgeBanner.vue'
 import { provideFlashDrops } from '@web/modules/flash-drop/use-flash-drops'
 import { useFlashMap } from '@web/modules/flash-drop/use-flash-map'
 import { provideHungryNearby } from '@web/modules/hungry-nearby/use-hungry-nearby'
+import LobbieLauncher from '@web/modules/lobbie/LobbieLauncher.vue'
+import LobbiePanel from '@web/modules/lobbie/LobbiePanel.vue'
 import { provideLobbieChat } from '@web/modules/lobbie/use-lobbie-chat'
 import FilterSheet from '@web/modules/map-shell/FilterSheet.vue'
-import { withFilters } from '@web/modules/map-shell/filter-query'
 import MapControls from '@web/modules/map-shell/MapControls.vue'
 import MapNavigation from '@web/modules/map-shell/MapNavigation.vue'
 import MapTutorial from '@web/modules/map-shell/MapTutorial.vue'
@@ -29,7 +30,7 @@ import ShellHeader from '@web/modules/map-shell/ShellHeader.vue'
 import ShellIcon from '@web/modules/map-shell/ShellIcon.vue'
 import ShellPanel from '@web/modules/map-shell/ShellPanel.vue'
 import ShellToast from '@web/modules/map-shell/ShellToast.vue'
-import { browseLocation, dealLocation, panelSnapFor, shellQuery, venueLocation } from '@web/modules/map-shell/shell-routes'
+import { browseLocation, dealLocation, panelSnapFor, venueLocation } from '@web/modules/map-shell/shell-routes'
 import { provideShellState } from '@web/modules/map-shell/shell-state'
 import { useBreakpoint, useFinePointer, usePrefersReducedMotion } from '@web/modules/map-shell/use-breakpoint'
 import { provideSavedDeals } from '@web/modules/map-shell/use-saved-deals'
@@ -183,7 +184,8 @@ const selectedVenueId = computed(() => {
   return route.name === 'venue' ? String(route.params.venueId ?? '') : null
 })
 const selectedPin = computed(() => (selectedVenueId.value ? shell.findVenuePin(selectedVenueId.value) : null))
-const lobbiePins = computed(() => (isLobbie.value ? lobbie.resultPins.value : []))
+// The chat's picks frame the map, from the /ask-lobbie panel or the floating window over the map.
+const lobbiePins = computed(() => (isLobbie.value || (lobbieWindowOpen.value && mapWorkspace.value) ? lobbie.resultPins.value : []))
 const mapFramed = computed(() => lobbiePins.value.length > 0)
 
 // A filter can hide the deal being viewed; its pin still shows so the map matches the panel.
@@ -336,14 +338,38 @@ const openVenue = (venueId: string) => {
   )
 }
 
-// The Lobbie chip opens the chat, or closes it back to the results when it is already open.
-// Opening the chat clears the quick chips and the filter sheet, so Lobbie starts from all
-// deals; the search text stays. Closing it returns to the results as they are.
-const toggleLobbie = () => {
-  if (isLobbie.value) return router.push(browseLocation(route.query))
-  const cleared = { ...createDefaultFilters(), q: shell.filters.value.q }
-  return router.push({ name: 'lobbie', query: withFilters(shellQuery(route.query), cleared) })
+// Lobbie lives in a floating window behind the "Ask Lobbie" button: in the bottom-right corner
+// of the All Deals page, and below the zoom controls on the map. The conversation is the
+// shell's, so closing and reopening the window keeps it.
+const lobbieWindowOpen = ref(false)
+const lobbieLauncher = ref<InstanceType<typeof LobbieLauncher> | null>(null)
+const showLobbieLauncher = computed(() => !authPrompt.value && (mapWorkspace.value || (dealsPage.value && isBrowse.value)))
+const toggleLobbieWindow = () => { lobbieWindowOpen.value = !lobbieWindowOpen.value }
+const closeLobbieWindow = () => {
+  lobbieWindowOpen.value = false
+  lobbieLauncher.value?.focus()
 }
+// Opening a deal from the chat (or any other panel) puts the window away; the launcher brings it back.
+watch(showLobbieLauncher, (shown) => { if (!shown) lobbieWindowOpen.value = false })
+watch(() => route.name, () => { lobbieWindowOpen.value = false })
+// Beside the side panel, the open window covers the map's right side, so Lobbie's picks are framed
+// in what is left (window 400px, plus the control column and gaps).
+const LOBBIE_WINDOW_COVER_PX = 400 + 20 + 52 + 12 + 24
+const mapViewPadding = computed(() => {
+  const padding = layout.viewPadding.value
+  if (!lobbieWindowOpen.value || !mapWorkspace.value || layout.mode.value !== 'side') return padding
+  return { ...padding, right: Math.max(padding.right, LOBBIE_WINDOW_COVER_PX) }
+})
+// Escape closes the window even when focus has left it (a picked suggestion disappears from
+// under the pointer), unless the filter sheet or a deal is open over it and should close first.
+const closeLobbieOnEscape = (event: KeyboardEvent) => {
+  if (event.key === 'Escape' && !sheetOpen.value && !dealDialogOpen.value) closeLobbieWindow()
+}
+watch(lobbieWindowOpen, (open) => {
+  if (open) document.addEventListener('keydown', closeLobbieOnEscape)
+  else document.removeEventListener('keydown', closeLobbieOnEscape)
+})
+onBeforeUnmount(() => document.removeEventListener('keydown', closeLobbieOnEscape))
 
 const nearMe = async () => {
   const startedAt = route.path
@@ -451,7 +477,6 @@ onBeforeUnmount(() => document.documentElement.classList.remove('is-canvas'))
       ref="headerRef"
       :filters="shell.filters.value"
       :sheet-open="sheetOpen"
-      :lobbie-open="isLobbie"
       :discovery="dealsExperience"
       :deals-header="dealsPage"
       :map-layout="desktopMap"
@@ -466,7 +491,6 @@ onBeforeUnmount(() => document.documentElement.classList.remove('is-canvas'))
       @apply="applyFilters"
       @open-sheet="sheetOpen = !sheetOpen"
       @menu-change="navigationOpen = $event"
-      @ask-lobbie="toggleLobbie"
     />
     <!-- The map is a named region; the panel's content below is the page's main landmark. -->
     <section class="map-shell__map" aria-label="Deal map" :inert="backgroundInert">
@@ -477,7 +501,7 @@ onBeforeUnmount(() => document.documentElement.classList.remove('is-canvas'))
         :focus="mapFocus"
         :focus-zoom="mapFocusZoom"
         :focus-offset="mapOnly && !desktopMap ? { x: 0, y: 0 } : layout.focusOffset.value"
-        :view-padding="mapOnly && !desktopMap ? { top: 0, right: 0, bottom: 0, left: 0 } : layout.viewPadding.value"
+        :view-padding="mapOnly && !desktopMap ? { top: 0, right: 0, bottom: 0, left: 0 } : mapViewPadding"
         :search-padding="layout.searchPadding.value"
         :user-position="shell.position.value"
         :user-accuracy-metres="shell.accuracyMetres.value"
@@ -509,12 +533,14 @@ onBeforeUnmount(() => document.documentElement.classList.remove('is-canvas'))
     <Transition name="shell-fade">
       <div v-show="showControls" class="map-shell__controls" :inert="backgroundInert">
         <MapControls
+          class="map-shell__map-controls"
           :locating="shell.geoStatus.value === 'locating'"
           :show-zoom="showZoom"
           @near-me="nearMe"
           @zoom-in="dealMap?.zoomIn()"
           @zoom-out="dealMap?.zoomOut()"
         />
+        <LobbieLauncher v-if="mapWorkspace && showLobbieLauncher" ref="lobbieLauncher" :open="lobbieWindowOpen" controls="lobbie-window" @toggle="toggleLobbieWindow" />
       </div>
     </Transition>
 
@@ -563,6 +589,15 @@ onBeforeUnmount(() => document.documentElement.classList.remove('is-canvas'))
     </ShellPanel>
     </main>
 
+    <template v-if="showLobbieLauncher">
+      <Transition name="lobbie-window">
+        <div v-if="lobbieWindowOpen" id="lobbie-window" class="map-shell__lobbie-window" :class="{ 'map-shell__lobbie-window--map': mapWorkspace }">
+          <LobbiePanel windowed @close="closeLobbieWindow" />
+        </div>
+      </Transition>
+      <LobbieLauncher v-if="!mapWorkspace" ref="lobbieLauncher" class="map-shell__lobbie-launcher" :open="lobbieWindowOpen" controls="lobbie-window" @toggle="toggleLobbieWindow" />
+    </template>
+
     <DealDetailsDialog v-if="dealDialogOpen && !authPrompt" :restore-focus-to="dealDialogTrigger" @close="closeDealDialog" />
 
     <FilterSheet
@@ -599,6 +634,49 @@ onBeforeUnmount(() => document.documentElement.classList.remove('is-canvas'))
 
 <style scoped>
 .map-shell__panel-route { height: 100%; }
+
+/* Lobbie's launcher and chat window float in the bottom-right corner of the All Deals page,
+   above the bottom tab bar on phones and tablets. */
+.map-shell__lobbie-launcher {
+  position: fixed;
+  right: calc(24px + env(safe-area-inset-right, 0px));
+  bottom: calc(24px + var(--bottom-nav-h, 0px) + env(safe-area-inset-bottom, 0px));
+  z-index: 40;
+}
+.map-shell__lobbie-window {
+  position: fixed;
+  right: calc(24px + env(safe-area-inset-right, 0px));
+  bottom: calc(24px + 52px + 16px + var(--bottom-nav-h, 0px) + env(safe-area-inset-bottom, 0px));
+  z-index: 40;
+  width: min(400px, calc(100vw - 32px));
+  height: min(620px, calc(100dvh - var(--bottom-nav-h, 0px) - 140px));
+  transform-origin: bottom right;
+}
+/* Beside the map: left of the control column, so zoom and Near me stay in reach. */
+.map-shell__lobbie-window--map {
+  right: calc(20px + 52px + 12px + env(safe-area-inset-right, 0px));
+  bottom: 28px;
+  height: min(620px, calc(100dvh - var(--shell-header-bottom, 88px) - 120px));
+}
+/* With a bottom sheet the controls ride on the sheet, so the window takes the space between the
+   header and the tab bar instead; its own close button stays in reach. */
+.map-shell--sheet .map-shell__lobbie-window--map {
+  top: calc(var(--shell-header-bottom, 72px) + 8px);
+  right: calc(16px + env(safe-area-inset-right, 0px));
+  bottom: calc(12px + var(--bottom-nav-h, 0px) + env(safe-area-inset-bottom, 0px));
+  height: auto;
+}
+@media (max-width: 599.98px) {
+  .map-shell__lobbie-launcher { right: 16px; bottom: calc(16px + var(--bottom-nav-h, 0px) + env(safe-area-inset-bottom, 0px)); }
+  .map-shell__lobbie-window { right: 16px; bottom: calc(16px + 44px + 12px + var(--bottom-nav-h, 0px) + env(safe-area-inset-bottom, 0px)); }
+  .map-shell--sheet .map-shell__lobbie-window--map { right: 12px; width: calc(100vw - 24px); }
+}
+.lobbie-window-enter-active, .lobbie-window-leave-active { transition: opacity 180ms ease, transform 220ms var(--ease-out); }
+.lobbie-window-enter-from, .lobbie-window-leave-to { opacity: 0; transform: translateY(12px) scale(0.96); }
+@media (prefers-reduced-motion: reduce) {
+  .lobbie-window-enter-active, .lobbie-window-leave-active { transition: opacity 120ms ease; }
+  .lobbie-window-enter-from, .lobbie-window-leave-to { transform: none; }
+}
 
 .map-shell__panel-loading {
   display: flex;
@@ -674,8 +752,19 @@ onBeforeUnmount(() => document.documentElement.classList.remove('is-canvas'))
   isolation: isolate;
 }
 
+/* Lobbie's button sits below the control column, right-aligned with it. The controls stack above
+   the button, so Lobbie peeking up from it never covers them. */
+.map-shell__map-controls {
+  position: relative;
+  z-index: 1;
+}
+
 .map-shell__controls {
   position: absolute;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--space-3);
   right: calc(20px + env(safe-area-inset-right, 0px));
   bottom: 28px;
   z-index: 10;

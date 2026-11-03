@@ -3,16 +3,20 @@ import { ASSISTANT_MESSAGE_MAX_CHARS } from '@broke-oclock/contracts/assistant'
 import DealRowList from '@web/modules/browse-map/DealRowList.vue'
 import type { DealRow } from '@web/modules/browse-map/types'
 import { filterTokens } from '@web/modules/lobbie/filter-labels'
+import LobbieWindowFrame from '@web/modules/lobbie/LobbieWindowFrame.vue'
 import { lobbieSpriteUrl, PRELOAD_SPRITES } from '@web/modules/lobbie/sprites'
 import { LOBBIE_SUGGESTIONS, useLobbieChat } from '@web/modules/lobbie/use-lobbie-chat'
 import PanelFrame from '@web/modules/map-shell/PanelFrame.vue'
 import ShellIcon from '@web/modules/map-shell/ShellIcon.vue'
-import { browseLocation, lobbieDealLocation } from '@web/modules/map-shell/shell-routes'
+import { browseLocation, dealLocation, lobbieDealLocation } from '@web/modules/map-shell/shell-routes'
 import { useShell } from '@web/modules/map-shell/shell-state'
 import { usePrefersReducedMotion } from '@web/modules/map-shell/use-breakpoint'
 import { computed, nextTick, onMounted, ref, useId, watch } from 'vue'
 import { useRoute } from 'vue-router'
 
+// The map's side panel by default; `windowed` is the floating chat window on the All Deals page.
+const props = withDefaults(defineProps<{ windowed?: boolean }>(), { windowed: false })
+const emit = defineEmits<{ close: [] }>()
 
 const chat = useLobbieChat()
 const shell = useShell()
@@ -32,9 +36,13 @@ const activeTokens = computed(() => filterTokens(chat.activeFilters.value))
 
 onMounted(() => {
   for (const sprite of PRELOAD_SPRITES) new Image().src = lobbieSpriteUrl(sprite)
+  if (props.windowed) input.value?.focus({ preventScroll: true })
 })
 
-const toDeal = (row: DealRow) => lobbieDealLocation(route.query, row.deal.id, row.venue.id)
+// From the window a deal opens over the list, so its back link returns to the list, not the chat.
+const toDeal = (row: DealRow) => props.windowed
+  ? dealLocation(route.query, row.deal.id, row.venue.id)
+  : lobbieDealLocation(route.query, row.deal.id, row.venue.id)
 
 // The composer stays focusable while Lobbie replies (readonly, not disabled), so this guard is
 // what stops a second message going out mid-reply.
@@ -46,8 +54,9 @@ const submit = () => {
   void chat.ask(text)
 }
 
+// In the window the picked pill vanishes, so focus goes to the message box once Lobbie replies.
 const pick = (suggestion: string) => {
-  refocus = false
+  refocus = props.windowed
   void chat.ask(suggestion)
 }
 
@@ -69,7 +78,12 @@ watch(
 </script>
 
 <template>
-  <PanelFrame title="Ask Lobbie" :back="backTo" back-label="Back to results">
+  <component
+    :is="windowed ? LobbieWindowFrame : PanelFrame"
+    title="Ask Lobbie"
+    v-bind="windowed ? {} : { back: backTo, backLabel: 'Back to results' }"
+    @close="emit('close')"
+  >
     <ol ref="log" class="lobbie__log" role="log" aria-live="polite" aria-label="Chat with Lobbie" data-testid="lobbie-log">
       <li
         v-for="entry in chat.entries.value"
@@ -202,7 +216,7 @@ watch(
       </form>
       </div>
     </template>
-  </PanelFrame>
+  </component>
 </template>
 
 <style scoped>

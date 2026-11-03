@@ -24,31 +24,26 @@ const mapTo = computed(() => ({ name: 'browse', query: { ...shellQuery(route.que
 // chips underneath. On desktop it sits over the left drawer, beside the navigation rail (All
 // Deals has its own full-width header); below 992px it spans the screen.
 const session = authClient.useSession()
-const props = withDefaults(
-  defineProps<{
-    filters: BrowseFilters
-    sheetOpen: boolean
-    lobbieOpen?: boolean
-    discovery?: boolean
-    dealsHeader?: boolean
-    mapLayout?: boolean
-    sidebarVisible?: boolean
-    /** A bottom nav is showing: the menu's rows live on the Account page, and Squad takes its slot. */
-    bottomNav?: boolean
-    mapTools?: boolean
-    showLocation?: boolean
-    categories: readonly string[]
-    cuisines: readonly DealCuisine[]
-    countFor: (filters: BrowseFilters) => number
-    locationKnown: boolean
-  }>(),
-  { lobbieOpen: false },
-)
+const props = defineProps<{
+  filters: BrowseFilters
+  sheetOpen: boolean
+  discovery?: boolean
+  dealsHeader?: boolean
+  mapLayout?: boolean
+  sidebarVisible?: boolean
+  /** A bottom nav is showing: the menu's rows live on the Account page, and Squad takes its slot. */
+  bottomNav?: boolean
+  mapTools?: boolean
+  showLocation?: boolean
+  categories: readonly string[]
+  cuisines: readonly DealCuisine[]
+  countFor: (filters: BrowseFilters) => number
+  locationKnown: boolean
+}>()
 const emit = defineEmits<{
   apply: [filters: BrowseFilters, mode: 'push' | 'replace']
   openSheet: []
   menuChange: [open: boolean]
-  askLobbie: []
 }>()
 
 const mobileFilters = ref<HTMLButtonElement | null>(null)
@@ -106,7 +101,6 @@ defineExpose({ focusAllFilters: () => {
       class="shell-header__chips"
       :filters="filters"
       :sheet-open="sheetOpen"
-      :lobbie-open="lobbieOpen"
       :categories="categories"
       :cuisines="cuisines"
       :count-for="countFor"
@@ -114,7 +108,6 @@ defineExpose({ focusAllFilters: () => {
       :location-known="locationKnown"
       @apply="(next) => emit('apply', next, 'push')"
       @open-sheet="emit('openSheet')"
-      @ask-lobbie="emit('askLobbie')"
     />
 
   </header>

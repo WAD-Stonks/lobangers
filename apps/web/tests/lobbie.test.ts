@@ -239,38 +239,55 @@ describe('Ask Lobbie panel', () => {
     mounted = []
   })
 
-  it('opens from the chip beside All filters, and the chip closes it again', async () => {
+  it('opens in a floating window from the button below the map controls, and the button closes it', async () => {
     const { router, wrapper } = await mountAt(
       '/browse?max=500&when=today&cat=DRINKS&q=kopi&sort=ending',
     )
-    const chip = wrapper.get('[data-testid="ask-lobbie"]')
-    expect(chip.attributes('aria-label')).toBe('Ask Lobbie for Lobangs')
-    expect(chip.element.previousElementSibling?.getAttribute('data-testid')).toBe('all-filters')
-    // The sparkle is one path; the cross shown while the chat is open is two strokes.
-    const iconPaths = () => wrapper.findAll('[data-testid="ask-lobbie"] svg path').length
-    expect(iconPaths()).toBe(1)
+    // The filter bar no longer has a chip; the button sits below the map's zoom controls.
+    expect(wrapper.find('[data-testid="ask-lobbie"]').exists()).toBe(false)
+    const launcher = () => wrapper.get('[data-testid="lobbie-launcher"]')
+    expect(launcher().element.previousElementSibling?.getAttribute('data-testid')).toBe('map-controls')
+    expect(launcher().attributes('aria-label')).toBe('Ask Lobbie for Lobangs')
+    expect(launcher().attributes('aria-expanded')).toBe('false')
 
-    await chip.trigger('click')
+    await launcher().trigger('click')
     await flushPromises()
-    expect(router.currentRoute.value.name).toBe('lobbie')
-    // The chips and the filter sheet are cleared; the search text and sort stay.
-    expect(router.currentRoute.value.query).toEqual({ q: 'kopi', sort: 'ending' })
-    const chipSelected = (key: string) =>
-      wrapper.get(`[data-testid="quick-${key}"]`).classes().includes('is-selected')
-    expect(chipSelected('price')).toBe(false)
-    expect(chipSelected('ending')).toBe(false)
-    expect(wrapper.find('[data-testid="filter-badge"]').exists()).toBe(false)
-    expect(wrapper.get('[data-testid="ask-lobbie"]').attributes('aria-expanded')).toBe('true')
-    expect(iconPaths()).toBe(2)
+    // The window opens over the map; the route and the visitor's filters stay as they were.
+    expect(router.currentRoute.value.name).toBe('browse')
+    expect(router.currentRoute.value.query).toEqual({ max: '500', when: 'today', cat: 'DRINKS', q: 'kopi', sort: 'ending' })
+    expect(wrapper.get('[data-testid="lobbie-window"]').attributes('role')).toBe('dialog')
+    expect(launcher().attributes('aria-expanded')).toBe('true')
+    expect(launcher().attributes('aria-label')).toBe('Close chat with Lobbie')
     expect(wrapper.get('[data-testid="lobbie-message"]').text()).toContain(LOBBIE_GREETING)
     expect(
       wrapper.findAll('[data-testid="lobbie-suggestion"]').map((button) => button.text()),
     ).toEqual(['Cheap eats near me', 'Lunch under $5', 'Deals ending today'])
 
-    await wrapper.get('[data-testid="ask-lobbie"]').trigger('click')
+    await launcher().trigger('click')
+    await flushPromises()
+    expect(wrapper.find('[data-testid="lobbie-window"]').exists()).toBe(false)
+    expect(launcher().attributes('aria-expanded')).toBe('false')
+  })
+
+  it('opens in a floating window from the corner button on the All Deals page', async () => {
+    const { router, wrapper } = await mountAt('/browse?view=list')
+    // The chat opens in a window here, so it stays off the URL.
+    const launcher = wrapper.get('[data-testid="lobbie-launcher"]')
+    expect(launcher.attributes('aria-expanded')).toBe('false')
+
+    await launcher.trigger('click')
     await flushPromises()
     expect(router.currentRoute.value.name).toBe('browse')
-    expect(iconPaths()).toBe(1)
+    expect(wrapper.get('[data-testid="lobbie-launcher"]').attributes('aria-expanded')).toBe('true')
+    const chatWindow = wrapper.get('[data-testid="lobbie-window"]')
+    expect(chatWindow.attributes('role')).toBe('dialog')
+    expect(chatWindow.text()).toContain(LOBBIE_GREETING)
+    expect(document.activeElement).toBe(wrapper.get('[data-testid="lobbie-input"]').element)
+
+    await wrapper.get('[data-testid="lobbie-window-close"]').trigger('click')
+    await flushPromises()
+    expect(wrapper.find('[data-testid="lobbie-window"]').exists()).toBe(false)
+    expect(document.activeElement).toBe(wrapper.get('[data-testid="lobbie-launcher"]').element)
   })
 
   it('asks a suggestion, shows typing with the box disabled, then lists and frames the deals', async () => {

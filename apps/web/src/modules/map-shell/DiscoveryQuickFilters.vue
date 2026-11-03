@@ -19,9 +19,8 @@ const props = defineProps<{
   showLocation?: boolean
   locationKnown: boolean
   sheetOpen: boolean
-  lobbieOpen?: boolean
 }>()
-const emit = defineEmits<{ apply: [filters: BrowseFilters]; openSheet: []; askLobbie: [] }>()
+const emit = defineEmits<{ apply: [filters: BrowseFilters]; openSheet: [] }>()
 type QuickKey = 'location' | 'price' | 'cuisine' | 'category' | 'ending'
 const fields = { location: 'location', price: 'priceMaxMinor', cuisine: 'cuisines', category: 'categories', ending: 'ending' } as const
 const labels = { location: 'Location', price: 'Price', cuisine: 'Cuisine', category: 'Category', ending: 'Expiry' }
@@ -131,23 +130,6 @@ defineExpose({ focusAllFilters: () => allButton.value?.focus() })
         <ShellIcon name="filters" :size="16" />Filters
         <span v-if="count" :key="count" class="lb-badge discovery-filters__badge" data-testid="filter-badge">{{ count }}<span class="visually-hidden"> active</span></span>
       </button>
-      <button
-        type="button"
-        class="lb-chip discovery-filters__lobbie"
-        :class="{ 'is-on': lobbieOpen }"
-        :aria-expanded="lobbieOpen"
-        aria-controls="shell-panel"
-        aria-label="Ask Lobbie for Lobangs"
-        data-testid="ask-lobbie"
-        @click="close(); emit('askLobbie')"
-      >
-        <ShellIcon
-          class="discovery-filters__lobbie-icon"
-          :name="lobbieOpen ? 'close' : 'diamond'"
-          :size="16"
-          :stroke-width="lobbieOpen ? 2.4 : 2"
-        /><span>Ask Lobbie</span>
-      </button>
       <span class="discovery-filters__separator" aria-hidden="true" />
       <span v-for="key in keys" :key="key" class="discovery-filters__pair">
         <button class="lb-chip" :class="{ 'is-selected': isOn(key) }" type="button" aria-haspopup="dialog" :aria-expanded="active === key" :aria-controls="active === key ? panelId : undefined" :data-testid="`quick-${key}`" @click="toggle(key, $event)">
@@ -186,22 +168,6 @@ defineExpose({ focusAllFilters: () => allButton.value?.focus() })
 </template>
 
 <style scoped>
-.discovery-filters__lobbie:not(.is-on) .discovery-filters__lobbie-icon {
-  color: var(--coral);
-  fill: var(--coral);
-  animation: lobbie-twinkle 5s var(--ease-out) 1.5s infinite;
-}
-
-@keyframes lobbie-twinkle {
-  0% { transform: rotate(0) scale(1); }
-  8% { transform: rotate(45deg) scale(1.35); }
-  16%, 100% { transform: rotate(90deg) scale(1); }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .discovery-filters__lobbie:not(.is-on) .discovery-filters__lobbie-icon { animation: none; }
-}
-
 .discovery-filters__clear-all {
   min-height: var(--hit);
   padding: 0 12px;
