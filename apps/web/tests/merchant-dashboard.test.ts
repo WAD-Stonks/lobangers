@@ -211,7 +211,7 @@ describe('merchant dashboard', () => {
     ])
     const wrapper = await mountPage()
     const card = (title: string) => {
-      const found = wrapper.findAll('li.card').find((item) => item.text().includes(title))
+      const found = wrapper.findAll('.merchant-card').find((item) => item.text().includes(title))
       if (!found) throw new Error(`No card for ${title}`)
       return found
     }
@@ -246,7 +246,7 @@ describe('merchant dashboard', () => {
     await flushPromises()
     expect(merchantApi.deleteDeal).toHaveBeenCalledWith('2'.repeat(24))
     expect(
-      wrapper.findAll('li.card').some((item) => item.text().includes('Synthetic scheduled')),
+      wrapper.findAll('.merchant-card').some((item) => item.text().includes('Synthetic scheduled')),
     ).toBe(false)
     expect(wrapper.text()).toContain('"Synthetic scheduled" was deleted.')
 

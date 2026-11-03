@@ -234,7 +234,7 @@ test('save a flash deal as a draft, send it live and end it early', async ({ pag
 
   await expect(page.getByRole('status')).toContainText('was saved as a draft')
   const draft = dropCard(page, 'Synthetic roast chicken rice')
-  await expect(draft.locator('.badge')).toHaveText('Draft')
+  await expect(draft.locator('.merchant-card__badge')).toHaveText('Draft')
   await expect(draft).toContainText('Nobody can see it yet')
   const saved = state.requests.find((entry) => entry.method === 'POST')
   expect(saved?.body).toMatchObject({
@@ -250,12 +250,12 @@ test('save a flash deal as a draft, send it live and end it early', async ({ pag
   await draft.getByRole('button', { name: /Go live/ }).click()
   await confirmDialog(page, 'Send this flash deal live?')
   await expect(page.getByRole('status')).toContainText('is live now')
-  await expect(draft.locator('.badge')).toHaveText('Live')
+  await expect(draft.locator('.merchant-card__badge')).toHaveText('Live')
   await expect(draft).toContainText('0 of 40 claimed')
 
   await draft.getByRole('button', { name: /End now/ }).click()
   await confirmDialog(page, 'End this flash deal?')
-  await expect(draft.locator('.badge')).toHaveText('Ended')
+  await expect(draft.locator('.merchant-card__badge')).toHaveText('Ended')
   await expect(page.getByRole('status')).toContainText('has ended')
 
   // A past flash deal can be deleted from the history; Past starts closed.
@@ -269,7 +269,7 @@ test('save a flash deal as a draft, send it live and end it early', async ({ pag
 test('edit a draft in the deal form, then delete it', async ({ page }) => {
   const state = await signInAsMerchant(page, [SAVED_DRAFT])
   const draft = dropCard(page, 'Synthetic steamed chicken rice set')
-  await expect(draft.locator('.badge')).toHaveText('Draft')
+  await expect(draft.locator('.merchant-card__badge')).toHaveText('Draft')
   await expect(draft).toContainText('Starts at Go live')
 
   await draft.getByRole('button', { name: /^Edit/ }).click()

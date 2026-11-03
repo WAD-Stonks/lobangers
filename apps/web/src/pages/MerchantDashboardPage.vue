@@ -24,6 +24,8 @@ import {
   flashFieldsProblem,
   toFlashDropBody,
 } from '@web/modules/merchant/flash-drop-rules'
+import MerchantCardGrid from '@web/modules/merchant/MerchantCardGrid.vue'
+import MerchantDealCard from '@web/modules/merchant/MerchantDealCard.vue'
 import {
   createDeal,
   type DealInput,
@@ -883,52 +885,39 @@ onMounted(loadDashboard)
           :default-open="group.open"
         >
           <p v-if="group.deals.length === 0" class="text-secondary small mb-2">{{ group.empty }}</p>
-          <ul v-else class="list-unstyled d-grid gap-3 mb-2">
-            <li v-for="deal in group.deals" :key="deal.id" class="card card-body">
-              <div class="d-flex justify-content-between align-items-start gap-2">
-                <div class="d-flex flex-wrap align-items-center gap-2 mb-1 deal-heading">
-                  <h4 class="h5 mb-0">{{ deal.title }}</h4>
-                </div>
-                <span
-                  class="badge flex-shrink-0"
-                  :class="statusOf(deal) === 'Live' ? 'text-bg-success' : 'text-bg-info'"
-                >
-                  {{ statusOf(deal) }}
-                </span>
-              </div>
-              <img
-                v-if="deal.photo"
-                :src="deal.photo.url"
-                :alt="deal.title"
-                width="480"
-                height="320"
-                class="photo-preview mb-2"
-              />
-              <p class="mb-2 text-break">{{ deal.description }}</p>
-              <p class="small text-secondary mb-1">
-                <strong>{{ offerText(deal) }}</strong> · {{ datesText(deal) }}
-              </p>
-              <p class="small text-secondary mb-1">At: {{ outletNames(deal) }}</p>
-              <p v-if="deal.terms" class="small text-secondary mb-2 terms">Terms: {{ deal.terms }}</p>
-              <div class="d-flex flex-wrap gap-2 mt-2">
-                <button type="button" class="btn btn-sm btn-outline-primary" @click="openEditForm(deal)">
-                  Edit<span class="visually-hidden"> {{ deal.title }}</span>
-                </button>
-                <!-- A live deal is ended; one that has not started yet can simply be deleted. -->
-                <button
-                  v-if="statusOf(deal) === 'Scheduled'"
-                  type="button"
-                  class="btn btn-sm btn-outline-danger"
-                  @click="confirmDeleteDeal(deal)"
-                >
-                  Delete<span class="visually-hidden">: {{ deal.title }}</span>
-                </button>
-                <button v-else type="button" class="btn btn-sm btn-outline-danger" @click="confirmEndDeal(deal)">
-                  End deal<span class="visually-hidden">: {{ deal.title }}</span>
-                </button>
-              </div>
+          <MerchantCardGrid v-else>
+            <li v-for="deal in group.deals" :key="deal.id">
+              <MerchantDealCard
+                :title="deal.title"
+                :description="deal.description"
+                :offer="offerText(deal)"
+                :dates="datesText(deal)"
+                :location="`At: ${outletNames(deal)}`"
+                :category="deal.category"
+                :photo-url="deal.photo?.url ?? null"
+                :badge="statusOf(deal)"
+                :tone="statusOf(deal) === 'Live' ? 'live' : 'scheduled'"
+              >
+                <template #actions>
+                  <button type="button" class="btn btn-sm btn-outline-primary" @click="openEditForm(deal)">
+                    Edit<span class="visually-hidden"> {{ deal.title }}</span>
+                  </button>
+                  <!-- A live deal is ended; one that has not started yet can simply be deleted. -->
+                  <button
+                    v-if="statusOf(deal) === 'Scheduled'"
+                    type="button"
+                    class="btn btn-sm btn-outline-danger"
+                    @click="confirmDeleteDeal(deal)"
+                  >
+                    Delete<span class="visually-hidden">: {{ deal.title }}</span>
+                  </button>
+                  <button v-else type="button" class="btn btn-sm btn-outline-danger" @click="confirmEndDeal(deal)">
+                    End deal<span class="visually-hidden">: {{ deal.title }}</span>
+                  </button>
+                </template>
+              </MerchantDealCard>
             </li>
-          </ul>
+          </MerchantCardGrid>
         </DealSection>
       </DealSection>
 
@@ -938,43 +927,39 @@ onMounted(loadDashboard)
       <!-- Ended deals: view only, so closed at first -->
       <DealSection title="Ended deals" :count="endedDeals.length" :default-open="false">
         <p v-if="endedDeals.length === 0" class="text-secondary small mb-2">No ended deals.</p>
-        <ul v-else class="list-unstyled d-grid gap-3 mb-2">
-          <li v-for="deal in endedDeals" :key="deal.id" class="card card-body bg-body-tertiary">
-            <div class="d-flex justify-content-between align-items-start gap-2">
-              <div class="d-flex flex-wrap align-items-center gap-2 mb-1 deal-heading">
-                <h3 class="h5 mb-0">{{ deal.title }}</h3>
-              </div>
-              <span class="badge text-bg-secondary flex-shrink-0">Ended</span>
-            </div>
-            <p class="small text-secondary mb-1">
-              <strong>{{ offerText(deal) }}</strong> · {{ datesText(deal) }}
-            </p>
-            <p class="small text-secondary mb-0">At: {{ outletNames(deal) }}</p>
-            <div class="d-flex flex-wrap gap-2 mt-2">
-              <button type="button" class="btn btn-sm btn-outline-primary" @click="openRunAgainForm(deal)">
-                Run it again<span class="visually-hidden">: {{ deal.title }}</span>
-              </button>
-              <button type="button" class="btn btn-sm btn-outline-danger" @click="confirmDeleteDeal(deal)">
-                Delete<span class="visually-hidden">: {{ deal.title }}</span>
-              </button>
-            </div>
+        <MerchantCardGrid v-else>
+          <li v-for="deal in endedDeals" :key="deal.id">
+            <MerchantDealCard
+              :title="deal.title"
+              :description="deal.description"
+              :offer="offerText(deal)"
+              :dates="datesText(deal)"
+              :location="`At: ${outletNames(deal)}`"
+              :category="deal.category"
+              :photo-url="deal.photo?.url ?? null"
+              badge="Ended"
+              tone="ended"
+            >
+              <template #actions>
+                <button type="button" class="btn btn-sm btn-outline-primary" @click="openRunAgainForm(deal)">
+                  Run it again<span class="visually-hidden">: {{ deal.title }}</span>
+                </button>
+                <button type="button" class="btn btn-sm btn-outline-danger" @click="confirmDeleteDeal(deal)">
+                  Delete<span class="visually-hidden">: {{ deal.title }}</span>
+                </button>
+              </template>
+            </MerchantDealCard>
           </li>
-        </ul>
+        </MerchantCardGrid>
       </DealSection>
     </template>
   </section>
 </template>
 
 <style scoped>
-/* A readable width on very wide screens; the deal cards stay a comfortable line length. */
+/* Wide enough for four deal cards in a row on a large screen. */
 .merchant-dashboard {
-  max-width: 64rem;
-}
-
-/* Long deal titles wrap beside the status badge instead of pushing it off a 320px phone. */
-.deal-heading {
-  min-width: 0;
-  overflow-wrap: anywhere;
+  max-width: 82rem;
 }
 
 /* Leave room above the flash fields when they are scrolled into view. */
@@ -988,12 +973,6 @@ onMounted(loadDashboard)
   max-height: 240px;
   border-radius: 8px;
   object-fit: cover;
-}
-
-/* Keep the line breaks the merchant typed in the terms box. */
-.terms {
-  white-space: pre-line;
-  overflow-wrap: anywhere;
 }
 
 .btn {

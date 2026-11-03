@@ -214,6 +214,14 @@ const startText = (drop: MerchantFlashDrop, now: Date) =>
     ? 'Starts at Go live'
     : whenText(drop.startsAt, now)
 
+// When a flash deal runs, for its card: "Today 6:00 pm · 30 min" or "Starts at Go live · 30 min".
+export const flashWhenText = (drop: MerchantFlashDrop, now: Date) =>
+  `${startText(drop, now)} · ${durationMinutesOf(drop)} min`
+
+// How far the banner reaches and how many codes there are: "500 m · 40 codes".
+export const flashReachText = (drop: MerchantFlashDrop) =>
+  `${radiusLabel(drop.radiusMetres)} · ${drop.codeLimit} codes`
+
 // "Maxwell · Today 6:00 pm · 30 min · 500 m · 40 codes"
 export const summaryLine = (drop: MerchantFlashDrop, now: Date) =>
   [

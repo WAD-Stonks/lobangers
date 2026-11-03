@@ -1,6 +1,7 @@
 import { flushPromises, mount } from '@vue/test-utils'
 import MapNavigation from '@web/modules/map-shell/MapNavigation.vue'
 import DealSection from '@web/modules/merchant/DealSection.vue'
+import MerchantDealCard from '@web/modules/merchant/MerchantDealCard.vue'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { h, ref } from 'vue'
 import { createMemoryHistory, createRouter } from 'vue-router'
@@ -41,6 +42,44 @@ describe('DealSection', () => {
     const wrapper = mountSection({ level: 'h3' })
     expect(wrapper.find('h3').exists()).toBe(true)
     expect(wrapper.get('button').attributes('aria-expanded')).toBe('true')
+  })
+})
+
+describe('MerchantDealCard', () => {
+  const card = (photoUrl: string | null) =>
+    mount(MerchantDealCard, {
+      props: {
+        title: 'Synthetic Whopper set',
+        description: 'Burger, fries and a drink.',
+        offer: '$6.90',
+        dates: 'Now to no end date',
+        location: 'At: Synthetic Stall',
+        category: 'FOOD',
+        photoUrl,
+        badge: 'Live',
+        tone: 'live',
+      },
+      slots: { actions: () => h('button', 'Edit') },
+    })
+
+  it('shows the photo, then the title, description, offer and dates on one line, and location', () => {
+    const wrapper = card('https://synthetic.example.test/whopper.webp')
+    expect(wrapper.get('img').attributes('src')).toBe('https://synthetic.example.test/whopper.webp')
+    expect(wrapper.get('h4').text()).toBe('Synthetic Whopper set')
+    const lines = wrapper.findAll('.merchant-card__body > p').map((line) => line.text())
+    expect(lines).toEqual([
+      'Burger, fries and a drink.',
+      '$6.90 · Now to no end date',
+      'At: Synthetic Stall',
+    ])
+    expect(wrapper.get('.merchant-card__badge').text()).toBe('Live')
+    expect(wrapper.get('.merchant-card__actions').text()).toBe('Edit')
+  })
+
+  it('shows the food illustration when the deal has no photo', () => {
+    const wrapper = card(null)
+    expect(wrapper.find('img').exists()).toBe(false)
+    expect(wrapper.find('.merchant-card__placeholder').exists()).toBe(true)
   })
 })
 
