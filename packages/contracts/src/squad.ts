@@ -159,11 +159,28 @@ export const squadRealtimeAuthSchema = z.strictObject({
   channel: z.string().regex(squadChannelPattern, 'Invalid channel'),
 })
 export const squadRealtimeAuthResponseSchema = z.strictObject({ auth: z.string().min(1) })
-// What a room write pushes to everyone on the channel: the new effects, in order.
+// What a room write pushes to everyone on the channel: the new room events, in order, and for a
+// tap batch the voter's new ballot, so others update the tally without re-reading the room.
 export const SQUAD_PUSH_EVENT = 'events'
+export const squadBallotSchema = z.strictObject({
+  memberId: dealObjectIdSchema,
+  stance: z.enum(['YAY', 'NAH']),
+  yays: z.number().int().nonnegative(),
+})
 export const squadPushSchema = z.strictObject({
   events: z.array(squadEventSchema).max(50),
+  ballot: squadBallotSchema.optional(),
 })
+// Tap effects travel browser to browser over the channel and never touch the database; Pusher
+// allows each socket 10 of these a second. Only the tap counts go to the API, in slower batches.
+export const SQUAD_TAP_EVENT = 'client-taps'
+export const squadTapSchema = z
+  .strictObject({
+    memberId: dealObjectIdSchema,
+    yays: z.number().int().min(0).max(50),
+    nahs: z.number().int().min(0).max(50),
+  })
+  .refine((tap) => tap.yays + tap.nahs > 0, 'Send at least one tap')
 
 // What the join screen shows before someone joins.
 export const squadPeekSchema = z.strictObject({
@@ -192,3 +209,5 @@ export type SquadSyncResponse = z.infer<typeof squadSyncResponseSchema>
 export type SquadRealtimeConfig = z.infer<typeof squadRealtimeConfigSchema>
 export type SquadRealtimeAuth = z.infer<typeof squadRealtimeAuthSchema>
 export type SquadPush = z.infer<typeof squadPushSchema>
+export type SquadBallot = z.infer<typeof squadBallotSchema>
+export type SquadTap = z.infer<typeof squadTapSchema>

@@ -25,8 +25,21 @@ let noah: Account
 let late: Account
 
 // Stands in for Pusher: records what each committed write pushes and signs any socket.
-type Push = { channel: string; event: string; data: { events: { kind: string }[] } }
+type Push = {
+  channel: string
+  event: string
+  data: { events: { kind: string }[]; ballot?: { stance: string; yays: number } }
+}
 const pushes: Push[] = []
+let realtime: typeof import('@api/modules/squad/realtime')
+const fakePusher = {
+  trigger: async (channel: string, event: string, data: Push['data']) => {
+    pushes.push({ channel, event, data })
+  },
+  authorizeChannel: (socketId: string, channel: string) => ({
+    auth: `synthetic:${socketId}:${channel}`,
+  }),
+}
 
 let signUps = 1
 const signUp = async (name: string): Promise<Account> => {
@@ -152,13 +165,7 @@ beforeAll(async () => {
       }),
     ),
   )
-  const realtime = await import('@api/modules/squad/realtime')
-  realtime.setSquadPublisher({
-    trigger: async (channel, event, data) => {
-      pushes.push({ channel, event, data })
-    },
-    authorizeChannel: (socketId, channel) => ({ auth: `synthetic:${socketId}:${channel}` }),
-  })
+  realtime = await import('@api/modules/squad/realtime')
   host = await signUp('Synthetic host')
   ashley = await signUp('Synthetic Ashley')
   damien = await signUp('Synthetic Damien')
@@ -359,17 +366,33 @@ describe('voting', () => {
 })
 
 describe('live channel and load', () => {
+  beforeAll(() => realtime.setSquadPublisher(fakePusher))
+  afterAll(() => realtime.setSquadPublisher(null))
   const pushedKinds = (code: string) =>
     pushes
       .filter((push) => push.channel === `private-squad-${code}` && push.event === 'events')
       .flatMap((push) => push.data.events.map((event) => event.kind))
 
-  it('pushes each committed write to the room channel, in order', async () => {
+  it('pushes room changes in order, and for taps only the new ballot', async () => {
     const code = await liveRoom([await publishedDeal('Pushed')])
     expect(pushedKinds(code)).toEqual(['JOINED', 'JOINED', 'STARTED'])
     await voteAs(ashley, code, 'YAY', 2)
+    await voteAs(ashley, code, 'YAY', 3)
     await voteAs(host, code, 'YAY')
-    expect(pushedKinds(code).slice(3)).toEqual(['YAY', 'YAY', 'YAY', 'MATCH'])
+    expect(pushedKinds(code).slice(3)).toEqual(['MATCH'])
+    const ballots = pushes
+      .filter((push) => push.channel === `private-squad-${code}` && push.data.ballot)
+      .map((push) => push.data.ballot)
+    expect(ballots).toEqual([
+      expect.objectContaining({ stance: 'YAY', yays: 2 }),
+      expect.objectContaining({ stance: 'YAY', yays: 5 }),
+      expect.objectContaining({ stance: 'YAY', yays: 1 }),
+    ])
+    const { id: roomId } = await db.squadRoom.findFirstOrThrow({
+      where: { code },
+      orderBy: { createdAt: 'desc' },
+    })
+    expect(await db.squadEvent.count({ where: { roomId, kind: { in: ['YAY', 'NAH'] } } })).toBe(0)
   })
 
   it('signs room members into their channel and turns everyone else away', async () => {
@@ -408,6 +431,25 @@ describe('live channel and load', () => {
         ),
     )
     expect(roomBallots.reduce((sum, ballot) => sum + ballot.nahs, 0)).toBe(10)
+  })
+
+  it('lands a spammer whose taps overlap, switching between yay and nah', async () => {
+    const code = await liveRoom([await publishedDeal('Spam')])
+    const stances = Array.from({ length: 30 }, (_, index) => (index % 3 === 2 ? 'YAY' : 'NAH'))
+    const results = await Promise.all([
+      ...stances.map((stance) => voteAs(host, code, stance as 'YAY' | 'NAH', 2)),
+      ...stances.slice(0, 10).map(() => voteAs(ashley, code, 'NAH')),
+      ...[host, ashley, damien].map((account) =>
+        call(account, 'POST', room(code, '/sync'), { after: 0 }),
+      ),
+    ])
+    expect(results.map((result) => result.status)).toEqual(results.map(() => 200))
+    const host_ = await call(host, 'POST', room(code, '/sync'), { after: 0 })
+    const me = host_.body.state.members.find(
+      (member: { name: string }) => member.name === 'Allison',
+    )
+    const ballot = await db.squadVote.findFirstOrThrow({ where: { memberId: me.id } })
+    expect(ballot.yays + ballot.nahs).toBe(60)
   })
 
   it('keeps the heartbeat read-only while a member was seen recently', async () => {
