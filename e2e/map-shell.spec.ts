@@ -113,28 +113,34 @@ for (const width of [390, 1280]) {
       await mockApi(page)
     })
 
-    test('browse: a quick chip filters pins, list and URL, and survives opening a deal', async ({
-      page,
-    }) => {
-      await page.goto('/browse')
-      await expect(rows(page)).toHaveCount(3)
-      await expect.poll(() => mappedDeals(page)).toBe(3)
+    for (const reducedMotion of ['no-preference', 'reduce'] as const) {
+      test(`browse: a quick chip filters pins, list and URL, and survives opening a deal (${reducedMotion})`, async ({
+        page,
+      }) => {
+        // Reduced motion completes the detail fly-to before Back; normal motion also covers
+        // returning while Leaflet is still animating. Both must recover the prior results.
+        await page.emulateMedia({ reducedMotion })
+        await page.goto('/browse')
+        await expect(rows(page)).toHaveCount(3)
+        await expect.poll(() => mappedDeals(page)).toBe(3)
 
-      await page.getByTestId('quick-price').click()
-      await page.locator('input[type="number"]').fill('5')
-      await page.getByTestId('quick-filter-apply').click()
-      await expect(page).toHaveURL(/max=5/)
-      await expect(rows(page)).toHaveCount(2)
-      await expect.poll(() => mappedDeals(page)).toBe(2)
+        await page.getByTestId('quick-price').click()
+        await page.locator('input[type="number"]').fill('5')
+        await page.getByTestId('quick-filter-apply').click()
+        await expect(page).toHaveURL(/max=5/)
+        await expect(rows(page)).toHaveCount(2)
+        await expect.poll(() => mappedDeals(page)).toBe(2)
 
-      await rows(page).first().getByRole('link').click()
-      await expect(page).toHaveURL(/\/deals\//)
-      await expect(panelHeading(page)).toHaveText('Synthetic kopi set')
+        await rows(page).first().getByRole('link').click()
+        await expect(page).toHaveURL(/\/deals\//)
+        await expect(panelHeading(page)).toHaveText('Synthetic kopi set')
 
-      await page.goBack()
-      await expect(page).toHaveURL(/max=5/)
-      await expect(rows(page)).toHaveCount(2)
-    })
+        await page.goBack()
+        await expect(page).toHaveURL(/max=5/)
+        await expect(rows(page)).toHaveCount(2)
+        await expect.poll(() => mappedDeals(page)).toBe(2)
+      })
+    }
 
     test('Lobbie: a suggestion shows typing, then deals in the chat and framed pins on the map', async ({
       page,

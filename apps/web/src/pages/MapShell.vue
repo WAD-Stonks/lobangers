@@ -377,6 +377,29 @@ watch(mapWorkspace, (visible) => {
   shell.setArea(visible ? visibleMapArea.value : null)
 }, { flush: 'post' })
 
+// Opening a record flies to one outlet. Restore the browsing camera on return so that
+// the detail's narrower geographic filter cannot silently replace the previous results.
+let browseViewport: { centre: [number, number]; zoom: number } | null = null
+const isResultsRoute = (name: unknown) => name === 'browse' || name === 'saved'
+const isRecordRoute = (name: unknown) => name === 'deal' || name === 'venue'
+watch(
+  () => [route.name, mapWorkspace.value] as const,
+  ([name, workspace], [previousName, previousWorkspace]) => {
+    const map = dealMap.value?.leaflet?.()
+    if (previousWorkspace && isResultsRoute(previousName) && isRecordRoute(name)) {
+      const centre = map?.getCenter()
+      browseViewport = centre && map ? { centre: [centre.lat, centre.lng], zoom: map.getZoom() } : null
+    } else if (isRecordRoute(previousName) && isResultsRoute(name)) {
+      const viewport = browseViewport
+      browseViewport = null
+      if (workspace && map && viewport) {
+        map.stop()
+        map.setView(viewport.centre, viewport.zoom, { animate: false })
+      }
+    } else if (!isRecordRoute(name)) browseViewport = null
+  },
+)
+
 const keyFor = (child: RouteLocationNormalizedLoaded) => child.path
 
 // Keyed on a string so query-only changes (filters, sort) never count as navigation.
