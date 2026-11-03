@@ -10,6 +10,7 @@ import {
 
 defineProps<{
   drops: MerchantFlashDrop[]
+  sample: boolean // sample data: show the demo-only buttons
   busyId: string | null // the drop with a request in progress
   now: Date
 }>()
@@ -17,6 +18,8 @@ defineProps<{
 const emit = defineEmits<{
   end: [drop: MerchantFlashDrop]
   resend: [drop: MerchantFlashDrop]
+  approve: [drop: MerchantFlashDrop] // demo only
+  start: [drop: MerchantFlashDrop] // demo only
 }>()
 
 // Badge colours for each status.
@@ -47,7 +50,7 @@ const claimedPercent = (drop: MerchantFlashDrop) =>
       <div class="d-flex justify-content-between align-items-start gap-2">
         <div class="d-flex flex-wrap align-items-center gap-2 title-row">
           <h3 class="h5 mb-0 title">{{ drop.dealTitle }}</h3>
-          <FakeBadge v-if="drop.demo" />
+          <FakeBadge v-if="drop.demo || sample" />
         </div>
         <span class="badge" :class="badgeClass[drop.status]">{{ STATUS_LABELS[drop.status] }}</span>
       </div>
@@ -84,14 +87,33 @@ const claimedPercent = (drop: MerchantFlashDrop) =>
       </p>
 
       <div class="d-flex flex-wrap gap-2 mt-1">
+        <template v-if="drop.status === 'IN_REVIEW'">
+          <button
+            v-if="sample"
+            type="button"
+            class="btn btn-sm btn-outline-secondary demo"
+            :disabled="busyId === drop.id"
+            @click="emit('approve', drop)"
+          >
+            Simulate approval (demo)
+          </button>
+          <button
+            type="button"
+            class="btn btn-sm btn-outline-danger"
+            :disabled="busyId === drop.id"
+            @click="emit('end', drop)"
+          >
+            Withdraw
+          </button>
+        </template>
         <button
-          v-if="drop.status === 'IN_REVIEW'"
+          v-if="sample && drop.status === 'SCHEDULED'"
           type="button"
-          class="btn btn-sm btn-outline-danger"
+          class="btn btn-sm btn-outline-secondary demo"
           :disabled="busyId === drop.id"
-          @click="emit('end', drop)"
+          @click="emit('start', drop)"
         >
-          Withdraw
+          Skip to start time (demo)
         </button>
         <button
           v-if="drop.status === 'SCHEDULED' || drop.status === 'LIVE'"
@@ -157,6 +179,10 @@ const claimedPercent = (drop: MerchantFlashDrop) =>
 }
 .claimed {
   background: var(--coral);
+}
+/* Demo-only buttons look like a note, not a real action. */
+.demo {
+  border-style: dashed;
 }
 /* Comfortable touch targets on phones. */
 @media (max-width: 575.98px) {

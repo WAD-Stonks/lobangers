@@ -239,6 +239,7 @@ describe('FlashDropForm', () => {
         editing: false,
         saving: false,
         serverError: '',
+        sample: true,
         ...props,
       },
     })
@@ -295,6 +296,11 @@ describe('FlashDropForm', () => {
     expect(wrapper.emitted('submit')).toBeUndefined()
     expect(wrapper.get('[role="alert"]').text()).toMatch(/already covers that time/)
   })
+
+  it('labels the form as fake only in sample mode', () => {
+    expect(mountForm().text()).toContain('Fake deal')
+    expect(mountForm({ sample: false }).text()).not.toContain('Fake deal')
+  })
 })
 
 describe('FlashDropList', () => {
@@ -304,14 +310,15 @@ describe('FlashDropList', () => {
     drop({ id: 'live', status: 'LIVE', claimedCount: 12, startsAt: NOW.toISOString() }),
     drop({ id: 'ended', status: 'ENDED', claimedCount: 40 }),
   ]
-  const mountList = (items: MerchantFlashDrop[] = drops) =>
-    mount(FlashDropList, { props: { drops: items, busyId: null, now: NOW } })
+  const mountList = (sample: boolean) =>
+    mount(FlashDropList, { props: { drops, sample, busyId: null, now: NOW } })
   const card = (wrapper: ReturnType<typeof mountList>, id: string) =>
     wrapper.get(`[data-testid="flash-drop-${id}"]`)
 
   it('shows the right actions, note and progress for each status', async () => {
-    const wrapper = mountList()
+    const wrapper = mountList(true)
     expect(card(wrapper, 'review').text()).toContain('Withdraw')
+    expect(card(wrapper, 'review').text()).toContain('Simulate approval (demo)')
     expect(card(wrapper, 'back').text()).toContain('LoBangers: “Synthetic note: use 500 m.”')
     expect(card(wrapper, 'live').text()).toContain('12 of 40 claimed')
     expect(card(wrapper, 'live').text()).toContain('End drop early')
@@ -321,14 +328,17 @@ describe('FlashDropList', () => {
 
     await card(wrapper, 'back').get('button').trigger('click')
     expect(wrapper.emitted('resend')?.[0]?.[0]).toMatchObject({ id: 'back' })
-    await card(wrapper, 'review').get('button').trigger('click')
-    expect(wrapper.emitted('end')?.[0]?.[0]).toMatchObject({ id: 'review' })
+    await card(wrapper, 'review').findAll('button')[0]?.trigger('click')
+    expect(wrapper.emitted('approve')?.[0]?.[0]).toMatchObject({ id: 'review' })
   })
 
-  it('labels only the drops the server marks as demo', () => {
-    const wrapper = mountList([drop({ id: 'seeded' }), drop({ id: 'real', demo: false })])
-    expect(card(wrapper, 'seeded').text()).toContain('Fake deal')
-    expect(card(wrapper, 'real').text()).not.toContain('Fake deal')
+  it('hides every demo-only control when sample data is off', () => {
+    const real = drops.map((item) => ({ ...item, demo: false }))
+    const wrapper = mount(FlashDropList, {
+      props: { drops: real, sample: false, busyId: null, now: NOW },
+    })
     expect(wrapper.text()).not.toContain('(demo)')
+    expect(wrapper.text()).not.toContain('Fake deal')
+    expect(card(wrapper, 'review').text()).toContain('Withdraw')
   })
 })

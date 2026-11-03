@@ -11,6 +11,7 @@ import {
   type DealPhoto,
   endDeal,
   errorMessageFor,
+  USE_SAMPLE_DATA as FLASH_DROPS_USE_SAMPLE_DATA,
   getDeals,
   getOutlets,
   MAX_PHOTO_BYTES,
@@ -343,6 +344,10 @@ onMounted(loadDashboard)
       </div>
     </div>
 
+    <p v-if="FLASH_DROPS_USE_SAMPLE_DATA" class="alert alert-warning">
+      <strong>Fake flash drops.</strong> Your deals are real, but the flash drops on this page are
+      sample data: they are made up, not saved and reset when you refresh.
+    </p>
     <p v-if="errorMessage" class="alert alert-danger" role="alert">{{ errorMessage }}</p>
     <p v-if="successMessage" class="alert alert-success" role="status">{{ successMessage }}</p>
 

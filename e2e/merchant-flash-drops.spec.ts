@@ -1,11 +1,9 @@
-import { expect, type Page, type Route, test } from '@playwright/test'
+import { expect, type Page, test } from '@playwright/test'
 
-// Merchant Flash Drop journeys on /merchant. The page talks to the real routes, so the signed-in
-// merchant session, their outlets and deals, and the flash drop routes are all mocked here. The
-// flash drop routes keep their state in memory for each test, like a tiny server, and the test
-// plays the LoBangers reviewer by changing that state.
-// Every account, outlet, deal and drop below is a labelled synthetic fixture; nothing touches
-// real data.
+// Merchant Flash Drop journeys on /merchant. Flash drops still run on their in-browser sample
+// data (USE_SAMPLE_DATA in merchant-api.ts), but the merchant's outlets and deals come from the
+// server, so those routes are mocked here along with the signed-in merchant session.
+// Every account, outlet and deal below is a labelled synthetic fixture; nothing touches real data.
 const now = new Date().toISOString()
 const SYNTHETIC_MERCHANT = {
   id: 'e'.repeat(24),
@@ -24,23 +22,11 @@ const SYNTHETIC_SESSION = {
   updatedAt: now,
 }
 
-// Two branches of one franchise; the set-price deal has a usual price for a flash drop to beat.
-// Ids are 24-character hex strings because the typed client checks them.
-const OUTLET_MAXWELL = '1'.repeat(24)
-const OUTLET_TIONG_BAHRU = '2'.repeat(24)
-const DEAL_BOGO = '3'.repeat(24)
-const DEAL_SET = '4'.repeat(24)
+// The outlets and deals the sample flash drops were written against (two branches of one
+// franchise; sample-4 has a set price for a flash drop to beat).
 const SYNTHETIC_OUTLETS = [
-  {
-    id: OUTLET_MAXWELL,
-    name: 'Ah Seng Chicken Rice (Maxwell)',
-    address: '1 Kadayanallur St, #01-10',
-  },
-  {
-    id: OUTLET_TIONG_BAHRU,
-    name: 'Ah Seng Chicken Rice (Tiong Bahru)',
-    address: '30 Seng Poh Rd, #02-05',
-  },
+  { id: 'outlet-1', name: 'Ah Seng Chicken Rice (Maxwell)', address: '1 Kadayanallur St, #01-10' },
+  { id: 'outlet-2', name: 'Ah Seng Chicken Rice (Tiong Bahru)', address: '30 Seng Poh Rd, #02-05' },
 ]
 const syntheticDeal = (id: string, title: string, offer: Record<string, unknown>) => ({
   id,
@@ -48,7 +34,7 @@ const syntheticDeal = (id: string, title: string, offer: Record<string, unknown>
   description: 'Fake deal for tests.',
   category: 'FOOD',
   cuisine: 'CHINESE',
-  outletIds: [OUTLET_MAXWELL, OUTLET_TIONG_BAHRU],
+  outletIds: ['outlet-1', 'outlet-2'],
   offerType: 'BUY_ONE_GET_ONE',
   discountPercent: null,
   priceCents: null,
@@ -60,149 +46,14 @@ const syntheticDeal = (id: string, title: string, offer: Record<string, unknown>
   ...offer,
 })
 const SYNTHETIC_DEALS = [
-  syntheticDeal(DEAL_BOGO, '1-for-1 Roast Chicken Rice', {}),
-  syntheticDeal(DEAL_SET, 'Steamed chicken rice set', {
+  syntheticDeal('sample-1', '1-for-1 Roast Chicken Rice', {}),
+  syntheticDeal('sample-4', 'Steamed chicken rice set', {
     offerType: 'FIXED_PRICE',
     priceCents: 350,
   }),
 ]
 
-type FlashDropBody = {
-  dealId: string
-  outletId: string
-  flashPriceCents: number
-  startsAt: string
-  durationMinutes: number
-  radiusMetres: number
-  codeLimit: number
-  version?: number
-}
-type FakeDrop = Omit<FlashDropBody, 'durationMinutes' | 'version'> & {
-  id: string
-  dealTitle: string
-  outletName: string
-  usualPriceCents: number | null
-  endsAt: string
-  claimedCount: number
-  status: 'IN_REVIEW' | 'SCHEDULED' | 'LIVE' | 'ENDED' | 'SENT_BACK' | 'STOPPED'
-  reviewNote: string | null
-  version: number
-  demo: boolean
-}
-
-const HOUR_MS = 3_600_000
-const isoIn = (ms: number) => new Date(Date.now() + ms).toISOString()
-
-// Fills in the names and times the server works out from what the form sent.
-const dropFrom = (id: string, body: FlashDropBody, version: number): FakeDrop => {
-  const deal = SYNTHETIC_DEALS.find((item) => item.id === body.dealId)
-  const outlet = SYNTHETIC_OUTLETS.find((item) => item.id === body.outletId)
-  const startMs = Math.max(Date.parse(body.startsAt), Date.now())
-  return {
-    id,
-    dealId: body.dealId,
-    dealTitle: deal?.title ?? 'Unknown deal',
-    outletId: body.outletId,
-    outletName: outlet?.name ?? 'Unknown outlet',
-    flashPriceCents: body.flashPriceCents,
-    usualPriceCents: (deal?.priceCents as number | null) ?? null,
-    startsAt: new Date(startMs).toISOString(),
-    endsAt: new Date(startMs + body.durationMinutes * 60_000).toISOString(),
-    radiusMetres: body.radiusMetres,
-    codeLimit: body.codeLimit,
-    claimedCount: 0,
-    status: 'IN_REVIEW',
-    reviewNote: null,
-    version,
-    demo: false,
-  }
-}
-
-// The merchant's drops as the server would hold them: one in review, one sent back.
-const startingDrops = (): FakeDrop[] => [
-  dropFrom(
-    '5'.repeat(24),
-    {
-      dealId: DEAL_SET,
-      outletId: OUTLET_TIONG_BAHRU,
-      flashPriceCents: 250,
-      startsAt: isoIn(3 * HOUR_MS),
-      durationMinutes: 30,
-      radiusMetres: 300,
-      codeLimit: 30,
-    },
-    1,
-  ),
-  {
-    ...dropFrom(
-      '6'.repeat(24),
-      {
-        dealId: DEAL_BOGO,
-        outletId: OUTLET_MAXWELL,
-        flashPriceCents: 300,
-        startsAt: isoIn(27 * HOUR_MS),
-        durationMinutes: 60,
-        radiusMetres: 1000,
-        codeLimit: 100,
-      },
-      2,
-    ),
-    status: 'SENT_BACK',
-    reviewNote:
-      'A 1 km circle reaches two other chicken rice drops at that time. Please use 500 m.',
-  },
-]
-
-// An in-memory stand-in for /api/merchant/flash-drops. It also records each request body.
-const fakeFlashDropServer = () => {
-  let drops = startingDrops()
-  let nextId = 7
-  const sent: { method: string; path: string; body: unknown }[] = []
-  const put = (updated: FakeDrop) => {
-    drops = drops.map((drop) => (drop.id === updated.id ? updated : drop))
-    return updated
-  }
-  const find = (id: string) => drops.find((drop) => drop.id === id)
-
-  const handle = (route: Route, path: string) => {
-    const method = route.request().method()
-    const body = route.request().postDataJSON() as FlashDropBody | null
-    sent.push({ method, path, body })
-    if (path === '/api/merchant/flash-drops' && method === 'GET')
-      return route.fulfill({ json: { items: drops } })
-    if (path === '/api/merchant/flash-drops' && method === 'POST' && body) {
-      const created = dropFrom(String(nextId++).repeat(24), body, 1)
-      drops = [created, ...drops]
-      return route.fulfill({ status: 201, json: created })
-    }
-    const match = path.match(/^\/api\/merchant\/flash-drops\/([0-9a-f]{24})(\/end)?$/)
-    const drop = match ? find(match[1] ?? '') : undefined
-    if (!drop || !body) return undefined
-    if (body.version !== drop.version)
-      return route.fulfill({
-        status: 409,
-        json: { error: { code: 'CONFLICT', message: 'Conflict' } },
-      })
-    if (match?.[2] && method === 'POST')
-      return route.fulfill({
-        json: put({ ...drop, status: 'ENDED', endsAt: isoIn(0), version: drop.version + 1 }),
-      })
-    if (method === 'PUT')
-      return route.fulfill({ json: put(dropFrom(drop.id, body, drop.version + 1)) })
-    return undefined
-  }
-
-  // Plays the LoBangers reviewer and the people claiming codes.
-  const approveAndClaim = (flashPriceCents: number, claimedCount: number) => {
-    const drop = drops.find((item) => item.flashPriceCents === flashPriceCents)
-    if (drop) put({ ...drop, status: 'LIVE', claimedCount, version: drop.version + 1 })
-  }
-
-  return { handle, approveAndClaim, sent }
-}
-
 const signInAsMerchant = async (page: Page) => {
-  const flashDrops = fakeFlashDropServer()
   await page.route(/basemaps\.cartocdn\.com|onemap\.gov\.sg/, (route) => route.abort())
   await page.route('**/api/**', (route) => {
     const path = new URL(route.request().url()).pathname
@@ -215,10 +66,7 @@ const signInAsMerchant = async (page: Page) => {
     if (path === '/api/merchant/outlets')
       return route.fulfill({ json: { items: SYNTHETIC_OUTLETS } })
     if (path === '/api/merchant/deals') return route.fulfill({ json: { items: SYNTHETIC_DEALS } })
-    if (path.startsWith('/api/merchant/flash-drops')) {
-      const handled = flashDrops.handle(route, path)
-      if (handled) return handled
-    }
+    // Flash drops make no API calls while they use sample data.
     return route.fulfill({
       status: 404,
       json: { error: { code: 'NOT_FOUND', message: 'Not found' } },
@@ -228,7 +76,6 @@ const signInAsMerchant = async (page: Page) => {
   page.on('dialog', (dialog) => dialog.accept())
   await page.goto('/merchant')
   await expect(page.getByRole('heading', { name: 'Merchant dashboard' })).toBeVisible()
-  return flashDrops
 }
 
 const dealCard = (page: Page, title: string) =>
@@ -247,15 +94,15 @@ const expectNoSideScroll = async (page: Page) => {
   expect(overflow).toBeLessThanOrEqual(0)
 }
 
-test('send a flash drop for review, see it approved and end it early', async ({ page }) => {
-  const server = await signInAsMerchant(page)
-  await expect(page.getByText('sample data')).toHaveCount(0)
+test('send a flash drop for review, approve it (demo) and end it early', async ({ page }) => {
+  await signInAsMerchant(page)
+  await expect(page.getByText('the flash drops on this page are sample data')).toBeVisible()
 
   await dealCard(page, 'Steamed chicken rice set')
     .getByRole('button', { name: 'Flash drop this' })
     .click()
   await expect(page.getByRole('heading', { name: 'New flash drop' })).toBeVisible()
-  await expect(page.getByLabel('Which deal?')).toHaveValue(DEAL_SET)
+  await expect(page.getByLabel('Which deal?')).toHaveValue('sample-4')
 
   // Not lower than the usual $3.50.
   await page.getByLabel('Flash price ($)').fill('3.50')
@@ -275,24 +122,11 @@ test('send a flash drop for review, see it approved and end it early', async ({ 
   await expect(page.getByRole('status')).toContainText('was sent for review')
   const fresh = dropCard(page, 'Flash price $1.20')
   await expect(fresh).toContainText('In review')
-  await expect(fresh).not.toContainText('Fake deal')
-  await expect(fresh.getByRole('button', { name: /demo/ })).toHaveCount(0)
-  expect(server.sent).toContainEqual(
-    expect.objectContaining({
-      method: 'POST',
-      body: expect.objectContaining({
-        dealId: DEAL_SET,
-        outletId: OUTLET_MAXWELL,
-        flashPriceCents: 120,
-      }),
-    }),
-  )
+  await expect(fresh).toContainText('Fake deal')
 
-  // LoBangers approves it and people start claiming codes; the page shows it after a reload.
-  server.approveAndClaim(120, 12)
-  await page.reload()
+  await fresh.getByRole('button', { name: 'Simulate approval (demo)' }).click()
   await expect(fresh.locator('.badge')).toHaveText('Live')
-  await expect(fresh).toContainText('12 of 40 claimed')
+  await expect(fresh).toContainText('of 40 claimed')
 
   await fresh.getByRole('button', { name: 'End drop early' }).click()
   await expect(fresh.locator('.badge')).toHaveText('Ended')
@@ -307,7 +141,7 @@ test('withdraw a drop that is still in review', async ({ page }) => {
 })
 
 test('edit and resend a drop LoBangers sent back', async ({ page }) => {
-  const server = await signInAsMerchant(page)
+  await signInAsMerchant(page)
   const sentBack = dropCard(page, '1-for-1 Roast Chicken Rice')
   await expect(sentBack).toContainText('Sent back')
   await expect(sentBack).toContainText('LoBangers: “A 1 km circle')
@@ -321,13 +155,6 @@ test('edit and resend a drop LoBangers sent back', async ({ page }) => {
   await expect(sentBack.locator('.badge')).toHaveText('In review')
   await expect(sentBack).toContainText('500 m')
   await expect(sentBack).not.toContainText('LoBangers: “')
-  // The resend carries the version it was based on, so the server can spot a stale edit.
-  expect(server.sent).toContainEqual(
-    expect.objectContaining({
-      method: 'PUT',
-      body: expect.objectContaining({ radiusMetres: 500, version: 2 }),
-    }),
-  )
 })
 
 for (const width of [390, 834, 1280]) {
@@ -340,7 +167,7 @@ for (const width of [390, 834, 1280]) {
     await page.screenshot({ path: info.outputPath(`drops-list-${width}.png`), fullPage: true })
 
     await page.getByRole('button', { name: 'New flash drop' }).click()
-    await page.getByLabel('Which deal?').selectOption(DEAL_SET)
+    await page.getByLabel('Which deal?').selectOption('sample-4')
     await page.getByLabel('Flash price ($)').fill('1.50')
     await page.getByText('Pick a time', { exact: true }).click()
     await expect(page.getByLabel('Start time')).toBeVisible()

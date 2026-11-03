@@ -102,13 +102,13 @@ const save = async (wrapper: PageWrapper) => {
 }
 
 describe('merchant dashboard', () => {
-  it('loads outlets and deals from the server with no sample data banner', async () => {
+  it('loads outlets and deals from the server; only flash drops are marked as fake', async () => {
     merchantApi.getDeals.mockResolvedValue([deal({ photo: savedPhoto })])
     const wrapper = await mountPage()
 
     expect(merchantApi.getOutlets).toHaveBeenCalledOnce()
     expect(merchantApi.getDeals).toHaveBeenCalledOnce()
-    expect(wrapper.find('.alert-warning').exists()).toBe(false)
+    expect(wrapper.get('.alert-warning').text()).toContain('Your deals are real')
     expect(wrapper.find('.fake-badge').exists()).toBe(false)
     expect(wrapper.text()).toContain('Synthetic chicken rice')
     expect(wrapper.get('li img').attributes('src')).toBe(savedPhoto.url)

@@ -8,6 +8,7 @@ import {
 import { focusFirstInvalid } from '@web/lib/form-focus'
 import { useUnsavedChanges } from '@web/lib/use-unsaved-changes'
 import ChoiceChips from '@web/modules/merchant/ChoiceChips.vue'
+import FakeBadge from '@web/modules/merchant/FakeBadge.vue'
 import {
   bannerPreview,
   type FlashDropFormState,
@@ -30,6 +31,7 @@ const props = defineProps<{
   editing: boolean // true when fixing a drop that was sent back
   saving: boolean
   serverError: string
+  sample: boolean // sample data: show the "Fake deal" label
 }>()
 
 const emit = defineEmits<{
@@ -106,6 +108,7 @@ const shownError = computed(() => fieldError('form') || (problem.value ? '' : pr
       <h3 id="flash-form-title" class="h4 mb-0 title" tabindex="-1">
         {{ editing ? 'Edit and resend flash drop' : 'New flash drop' }}
       </h3>
+      <FakeBadge v-if="sample" />
     </div>
 
     <label for="flash-deal" class="form-label">Which deal?</label>
