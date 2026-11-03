@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { countdown, distanceText, formatCents } from '@web/modules/flash-drop/flash-format'
+import { countdown, distanceText, offerTitle } from '@web/modules/flash-drop/flash-format'
 import type { EdgeBanner } from '@web/modules/flash-drop/use-flash-map'
 import { computed } from 'vue'
 
@@ -25,7 +25,7 @@ const arrow = computed(() => ({ transform: `rotate(${props.banner.point.angle}de
 const drop = computed(() => props.banner.drop)
 const label = computed(
   () =>
-    `Flash drop off screen: ${formatCents(drop.value.flashPriceCents)} ${drop.value.dealTitle} at ${drop.value.venueName}, ends in ${countdown(drop.value.endsAt, props.now)}. Show it on the map.`,
+    `Flash drop off screen: ${offerTitle(drop.value)} at ${drop.value.venueName}, ends in ${countdown(drop.value.endsAt, props.now)}. Show it on the map.`,
 )
 </script>
 
@@ -50,7 +50,7 @@ const label = computed(
         Flash drop<template v-if="banner.distanceMetres !== null"> · {{ distanceText(banner.distanceMetres) }} away</template>
         <span v-if="drop.demo" class="flash-fake">Fake deal</span>
       </span>
-      <span class="flash-edge__title">{{ formatCents(drop.flashPriceCents) }} {{ drop.dealTitle }}</span>
+      <span class="flash-edge__title">{{ offerTitle(drop) }}</span>
     </span>
     <span class="flash-edge__timer">{{ countdown(drop.endsAt, now) }}</span>
     <span class="flash-edge__life" aria-hidden="true"><i /></span>

@@ -34,7 +34,7 @@ const coordinates = computed(
   <article class="fd-detail" :aria-labelledby="`flash-drop-title-${drop.id}`">
     <header class="fd-detail-head">
       <div>
-        <p class="fd-eyebrow">Flash drop · {{ drop.merchantName }}</p>
+        <p class="fd-eyebrow">Flash deal · {{ drop.merchantName }}</p>
         <h3 :id="`flash-drop-title-${drop.id}`">{{ drop.dealTitle }}<span v-if="drop.demo" class="fd-fake">Fake deal</span></h3>
       </div>
       <span class="fd-status" :data-tone="statusTone(drop.status)">{{ statusLabel(drop.status) }}</span>

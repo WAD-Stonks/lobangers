@@ -78,6 +78,14 @@ describe('choiceOutcome', () => {
     ).toBe('NEXT')
   })
 
+  it('moves on as soon as at least 80% pick the next deal, without waiting for the rest', () => {
+    const five = ['m1', 'm2', 'm3', 'm4', 'm5']
+    const next = (id: string) => ballot(id, 'NAH', 'NEXT')
+    expect(choiceOutcome(five, ['m1', 'm2', 'm3', 'm4'].map(next))).toBe('NEXT')
+    expect(choiceOutcome(five, ['m1', 'm2', 'm3'].map(next))).toBeNull()
+    expect(choiceOutcome(ids, [next('m1'), next('m2')])).toBeNull()
+  })
+
   it('counts each side for the tally', () => {
     expect(tally(ids, [ballot('m1', 'YAY', 'AGAIN'), ballot('m2', 'NAH')])).toEqual({
       voters: 3,

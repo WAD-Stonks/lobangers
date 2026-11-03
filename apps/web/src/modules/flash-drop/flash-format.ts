@@ -43,3 +43,22 @@ export const radiusText = (metres: number): string => {
 }
 
 export const distanceText = (metres: number): string => withNbsp(formatDistance(metres))
+
+// ----- The flash offer -----
+// A flash deal's offer has the same choices as a deal: a fixed flash price, 1-for-1, a percentage
+// off, or something else the title explains.
+type FlashOffer = Pick<PublicFlashDrop, 'offerType' | 'discountPercent' | 'flashPriceCents'>
+
+// "$1.50", "1-for-1", "30% off", or '' for any other offer.
+export const offerText = (offer: FlashOffer): string => {
+  if (offer.offerType === 'FIXED_PRICE' && offer.flashPriceCents !== null)
+    return formatCents(offer.flashPriceCents)
+  if (offer.offerType === 'BUY_ONE_GET_ONE') return '1-for-1'
+  if (offer.offerType === 'PERCENT_OFF' && offer.discountPercent !== null)
+    return `${offer.discountPercent}% off`
+  return ''
+}
+
+// The offer and the deal title together: "1-for-1 Chicken rice", or just "Chicken rice".
+export const offerTitle = (offer: FlashOffer & { dealTitle: string }): string =>
+  [offerText(offer), offer.dealTitle].filter(Boolean).join(' ')

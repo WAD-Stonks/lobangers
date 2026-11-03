@@ -14,16 +14,17 @@ const access = ref<'loading' | 'allowed' | 'closed' | 'error' | 'UNAUTHORIZED' |
 )
 const route = inject(routeLocationKey, null)
 const router = inject(routerKey, null)
-// Deep links such as /admin/flash-drops?view=live open a tab; anything unknown falls back to review.
+// Deep links such as /admin/flash-drops?view=scheduled open a tab; anything unknown falls back
+// to live.
 const initialView = computed(() => {
   const parsed = flashDropViewSchema.safeParse(route?.query.view)
-  return parsed.success ? parsed.data : 'review'
+  return parsed.success ? parsed.data : 'live'
 })
-// Keeps ?view= in step with the open tab; review is the default and needs no query.
+// Keeps ?view= in step with the open tab; live is the default and needs no query.
 const syncView = (view: FlashDropView) => {
   if (!router || !route || initialView.value === view) return
   const { view: _old, ...rest } = route.query
-  void router.replace({ query: view === 'review' ? rest : { ...rest, view } })
+  void router.replace({ query: view === 'live' ? rest : { ...rest, view } })
 }
 const refreshKey = ref(0),
   fence = createAdminReadFence()
@@ -60,12 +61,12 @@ onMounted(reload)
 onUnmounted(fence.dispose)
 </script>
 <template>
- <AdminShell :access="access" title="Flash drops" :refresh-key="refreshKey" @closing="close" @signed-out="denied('UNAUTHORIZED')" @access-reload="reload">
+ <AdminShell :access="access" title="Flash deals" :refresh-key="refreshKey" @closing="close" @signed-out="denied('UNAUTHORIZED')" @access-reload="reload">
   <p v-if="access === 'loading'" role="status">Checking session…</p>
-  <SharedSignIn heading-level="h1" v-else-if="access === 'UNAUTHORIZED'" title="Sign in to review flash drops" destination="/admin/flash-drops" @signed-in="signedIn" />
+  <SharedSignIn heading-level="h1" v-else-if="access === 'UNAUTHORIZED'" title="Sign in to manage flash deals" destination="/admin/flash-drops" @signed-in="signedIn" />
   <div v-else-if="access === 'FORBIDDEN'" role="alert"><p>Current administrator access is required.</p><button type="button" class="btn btn-outline-primary" @click="reload">Recheck access</button></div>
-  <div v-else-if="access === 'error'" role="alert"><p>Unable to confirm session. Flash drop review stays closed.</p><button type="button" class="btn btn-outline-primary" @click="reload">Retry session check</button></div>
-  <p v-else-if="access === 'closed'" role="status">Flash drop review is closed. Use session controls to recheck access.</p>
+  <div v-else-if="access === 'error'" role="alert"><p>Unable to confirm session. Flash deals stay closed.</p><button type="button" class="btn btn-outline-primary" @click="reload">Retry session check</button></div>
+  <p v-else-if="access === 'closed'" role="status">Flash deals are closed. Use session controls to recheck access.</p>
   <FlashDropsPanel v-else :key="refreshKey" :initial-view="initialView" @denied="denied" @view-change="syncView" />
  </AdminShell>
 </template>

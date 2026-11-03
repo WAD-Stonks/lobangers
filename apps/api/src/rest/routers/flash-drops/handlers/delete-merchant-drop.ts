@@ -1,4 +1,4 @@
-import { resubmitMerchantFlashDrop } from '@api/modules/flash-drops/merchant'
+import { deleteMerchantFlashDrop } from '@api/modules/flash-drops/merchant'
 import {
   authenticatedActor,
   createRestHandler,
@@ -10,17 +10,16 @@ import { parseRestInput } from '@api/rest/validation'
 import {
   flashDropEmptyQuerySchema,
   flashDropParamsSchema,
-  merchantFlashDropBodySchema,
-  merchantFlashDropSchema,
+  merchantFlashDropVersionSchema,
 } from '@broke-oclock/contracts/flash-drops'
 
-export const resubmitMerchantDrop = (dependencies: RestDependencies) =>
+export const deleteMerchantDrop = (dependencies: RestDependencies) =>
   createRestHandler(dependencies, async (request, response, context) => {
     requireTrustedOrigin(request.get('Origin'), dependencies.config.webOrigin)
     parseRestInput(flashDropEmptyQuerySchema, request.query)
     const actor = authenticatedActor(requireSession(context))
     const { dropId } = parseRestInput(flashDropParamsSchema, request.params)
-    const input = parseRestInput(merchantFlashDropBodySchema, request.body)
-    const drop = await resubmitMerchantFlashDrop(context.db, actor, dropId, input, new Date())
-    response.json(merchantFlashDropSchema.parse(drop))
+    const { version } = parseRestInput(merchantFlashDropVersionSchema, request.body)
+    await deleteMerchantFlashDrop(context.db, actor, dropId, version, new Date())
+    response.status(204).end()
   })

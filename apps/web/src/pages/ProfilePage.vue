@@ -119,8 +119,13 @@ onMounted(loadProfile)
       <hr />
       <p class="mb-0 small">
         <RouterLink to="/saved">Saved deals</RouterLink> ·
-        <RouterLink to="/me/submissions">My submissions</RouterLink> ·
-        <RouterLink to="/me/merchant-access">Merchant access</RouterLink>
+        <RouterLink to="/me/submissions">My submissions</RouterLink>
+        <template v-if="profile.role === 'MERCHANT'">
+          · <RouterLink to="/merchant">Merchant dashboard</RouterLink>
+        </template>
+        <template v-else-if="profile.role === 'USER'">
+          · <RouterLink to="/me/merchant-access">Merchant access</RouterLink>
+        </template>
       </p>
     </div>
   </section>

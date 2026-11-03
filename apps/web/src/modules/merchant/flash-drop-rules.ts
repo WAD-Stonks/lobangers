@@ -9,11 +9,12 @@ import {
   type MerchantFlashDropBody,
 } from '@broke-oclock/contracts/flash-drops'
 import { formatMoneyMinor } from '@web/lib/format'
-import type { MerchantDeal, MerchantOutlet } from '@web/modules/merchant/merchant-api'
+import { offerText, offerTitle } from '@web/modules/flash-drop/flash-format'
 
-// Plain helpers for the Flash Drop part of the merchant dashboard: the form's fields, checking
-// them before sending, and the sentences shown on each drop. No Vue and no requests in here, so
-// they are easy to test.
+// Plain helpers for flash deals on the merchant dashboard: the flash part of the deal form,
+// checking it before saving, and the sentences shown on each flash deal. The flash offer itself
+// is the deal form's own offer (1-for-1, % off, a fixed price or other). No Vue and no requests
+// in here, so they are easy to test.
 
 export type FlashDropDuration = (typeof FLASH_DROP_DURATIONS)[number]
 export type FlashDropRadius = (typeof FLASH_DROP_RADII)[number]
@@ -24,69 +25,46 @@ export const DEFAULT_CODES = 40
 
 const MINUTE_MS = 60_000
 const DAY_MS = 86_400_000
-// The server lets a "start now" drop be a minute late, so we do the same.
+// The server lets a start time be a minute late, so we do the same.
 const START_GRACE_MS = MINUTE_MS
 // The deal form's top price is $1,000 (100,000 cents); flash prices share that limit.
 const MAX_PRICE_CENTS = 100_000
 
-// ----- The form -----
+// ----- The flash part of the deal form -----
 
-export interface FlashDropFormState {
-  dealId: string
-  priceDollars: number | '' // typed in dollars, sent in cents
+export interface FlashFieldsState {
+  // For a fixed-price flash offer, the usual price it beats, typed in dollars. Optional.
+  usualDollars: number | ''
   codeLimit: number
-  outletId: string
-  startMode: 'NOW' | 'LATER'
+  // GO_LIVE starts it the moment the merchant presses Go live; LATER at the time in startLocal.
+  startMode: 'GO_LIVE' | 'LATER'
   startLocal: string // 'YYYY-MM-DDTHH:mm' from the datetime-local box, used when LATER
   durationMinutes: FlashDropDuration
   radiusMetres: FlashDropRadius
 }
 
-// The outlets a deal runs at, in the merchant's own outlet order.
-export const outletsForDeal = (deal: MerchantDeal | undefined, outlets: MerchantOutlet[]) =>
-  deal ? outlets.filter((outlet) => deal.outletIds.includes(outlet.id)) : []
-
-// Picks the outlet for a newly chosen deal: keep the current one if the deal runs there,
-// otherwise tick the only outlet, or leave it for the merchant to choose.
-export const outletAfterDealChange = (
-  currentOutletId: string,
-  deal: MerchantDeal | undefined,
-  outlets: MerchantOutlet[],
-): string => {
-  const choices = outletsForDeal(deal, outlets)
-  if (choices.some((outlet) => outlet.id === currentOutletId)) return currentOutletId
-  return choices.length === 1 ? (choices[0]?.id ?? '') : ''
-}
-
-// An empty form, optionally already pointing at one deal.
-export const blankFlashDropForm = (
-  deal: MerchantDeal | undefined,
-  outlets: MerchantOutlet[],
-): FlashDropFormState => ({
-  dealId: deal?.id ?? '',
-  priceDollars: '',
+export const blankFlashFields = (): FlashFieldsState => ({
+  usualDollars: '',
   codeLimit: DEFAULT_CODES,
-  outletId: outletAfterDealChange('', deal, outlets),
-  startMode: 'NOW',
+  startMode: 'GO_LIVE',
   startLocal: '',
   durationMinutes: 30,
   radiusMetres: 500,
 })
 
-// The form filled in from a drop that was sent back, so the merchant can fix and resend it.
-export const formFromDrop = (drop: MerchantFlashDrop): FlashDropFormState => {
-  const minutes = Math.round((Date.parse(drop.endsAt) - Date.parse(drop.startsAt)) / MINUTE_MS)
-  const duration = FLASH_DROP_DURATIONS.find((value) => value === minutes) ?? 30
-  const radius = FLASH_DROP_RADII.find((value) => value === drop.radiusMetres) ?? 500
+export const durationMinutesOf = (drop: Pick<MerchantFlashDrop, 'startsAt' | 'endsAt'>) =>
+  Math.round((Date.parse(drop.endsAt) - Date.parse(drop.startsAt)) / MINUTE_MS)
+
+// The flash fields filled in from a draft, so the merchant can change it.
+export const flashFieldsFromDrop = (drop: MerchantFlashDrop): FlashFieldsState => {
+  const minutes = durationMinutesOf(drop)
   return {
-    dealId: drop.dealId,
-    priceDollars: drop.flashPriceCents / 100,
+    usualDollars: drop.usualPriceCents === null ? '' : drop.usualPriceCents / 100,
     codeLimit: drop.codeLimit,
-    outletId: drop.outletId,
-    startMode: 'LATER',
-    startLocal: toLocalInput(new Date(drop.startsAt)),
-    durationMinutes: duration,
-    radiusMetres: radius,
+    startMode: drop.startsOnGoLive ? 'GO_LIVE' : 'LATER',
+    startLocal: drop.startsOnGoLive ? '' : toLocalInput(new Date(drop.startsAt)),
+    durationMinutes: FLASH_DROP_DURATIONS.find((value) => value === minutes) ?? 30,
+    radiusMetres: FLASH_DROP_RADII.find((value) => value === drop.radiusMetres) ?? 500,
   }
 }
 
@@ -108,123 +86,104 @@ export const startLimits = (now: Date) => ({
   max: toLocalInput(new Date(now.getTime() + FLASH_DROP_MAX_LEAD_DAYS * DAY_MS)),
 })
 
-// When the drop would start. "Now" means the moment it is sent. Returns null for a time that
-// cannot be read.
-export const startTimeOf = (form: FlashDropFormState, now: Date): Date | null => {
-  if (form.startMode === 'NOW') return now
-  if (form.startLocal === '') return null
+// The picked start time, or null for one that cannot be read. Only used when LATER.
+export const pickedStartOf = (fields: FlashFieldsState): Date | null => {
+  if (fields.startLocal === '') return null
   // A 'YYYY-MM-DDTHH:mm' string with no zone is read in the browser's own time zone.
-  const start = new Date(form.startLocal)
+  const start = new Date(fields.startLocal)
   return Number.isNaN(start.getTime()) ? null : start
 }
 
-const priceCentsOf = (form: FlashDropFormState) =>
-  form.priceDollars === '' ? Number.NaN : Math.round(form.priceDollars * 100)
+const usualCentsOf = (fields: FlashFieldsState) =>
+  fields.usualDollars === '' ? null : Math.round(fields.usualDollars * 100)
 
 export const moneyText = (cents: number) => formatMoneyMinor(cents)
 
-// ----- Checking the form -----
-// Returns a message describing the first problem with the form, or '' if it is fine.
+// ----- Checking the flash fields -----
 // These repeat the server's rules so the merchant hears about a problem straight away; the
-// server still checks everything again.
+// server still checks everything again (and checks the start time again at Go live).
 
-const checkPrice = (form: FlashDropFormState, deal: MerchantDeal) => {
-  const cents = priceCentsOf(form)
-  if (!Number.isFinite(cents) || cents < 1) return 'Enter the flash price, for example 1.50.'
-  if (cents > MAX_PRICE_CENTS) return 'The flash price looks too high. Please check it.'
-  // Only deals with a set price have a "usual price" to beat.
-  if (deal.priceCents !== null && deal.priceCents > 0 && cents >= deal.priceCents) {
-    return `The flash price has to be lower than the usual ${moneyText(deal.priceCents)}.`
+export type FlashField = 'flashUsual' | 'flashCodes' | 'flashStart'
+export type FlashProblem = { field: FlashField; message: string }
+
+// The flash offer from the deal form; the deal form checks its own fields.
+export type FlashOfferInput = {
+  offerType: MerchantFlashDrop['offerType']
+  priceCents: number | null
+}
+
+// The usual price is optional and only for a fixed flash price, which it has to be above.
+const checkUsual = (fields: FlashFieldsState, offer: FlashOfferInput) => {
+  const usual = usualCentsOf(fields)
+  if (usual === null || offer.offerType !== 'FIXED_PRICE') return ''
+  if (usual < 1 || usual > MAX_PRICE_CENTS) return 'Enter the usual price, for example 4.00.'
+  if (offer.priceCents !== null && usual <= offer.priceCents) {
+    return `The usual price has to be higher than the flash price of ${moneyText(offer.priceCents)}.`
   }
   return ''
 }
 
-// A deal's whole-day 'YYYY-MM-DD' as "1 Dec 2026". Read as UTC so the day never shifts.
-const dealDayFormat = new Intl.DateTimeFormat('en-SG', {
-  day: 'numeric',
-  month: 'short',
-  year: 'numeric',
-  timeZone: 'UTC',
-})
-const dealDayText = (day: string) => {
-  const date = new Date(`${day}T00:00:00Z`)
-  return Number.isNaN(date.getTime()) ? day : dealDayFormat.format(date)
-}
-
-const checkStart = (form: FlashDropFormState, deal: MerchantDeal, now: Date) => {
-  const start = startTimeOf(form, now)
-  if (start === null) return 'Choose when the drop starts.'
+const checkStart = (fields: FlashFieldsState, now: Date) => {
+  if (fields.startMode === 'GO_LIVE') return ''
+  const start = pickedStartOf(fields)
+  if (start === null) return 'Choose when the flash deal starts.'
   if (start.getTime() < now.getTime() - START_GRACE_MS) {
-    return 'A flash drop cannot start in the past. Choose a later time.'
+    return 'A flash deal cannot start in the past. Choose a later time.'
   }
   if (start.getTime() > now.getTime() + FLASH_DROP_MAX_LEAD_DAYS * DAY_MS) {
-    return 'A flash drop can start at most a week from now.'
-  }
-  // The deal's own dates are whole days ('YYYY-MM-DD') in the merchant's time zone.
-  const end = new Date(start.getTime() + form.durationMinutes * MINUTE_MS)
-  if (deal.startDate && start.toLocaleDateString('en-CA') < deal.startDate) {
-    return `This deal only starts on ${dealDayText(deal.startDate)}. Choose a time while it runs.`
-  }
-  if (deal.endDate && end.toLocaleDateString('en-CA') > deal.endDate) {
-    return 'Choose one of your deals that runs for the whole drop.'
+    return 'A flash deal can start at most a week from now.'
   }
   return ''
 }
 
-// Which control a problem belongs to, so the form can show it beside that field. 'form' is a
-// problem with no single field (the code stepper cannot be typed into).
-export type FlashDropField = 'dealId' | 'priceDollars' | 'outletId' | 'startLocal' | 'form'
-export type FlashDropProblem = { field: FlashDropField; message: string }
-
-const problem = (field: FlashDropField, message: string): FlashDropProblem | null =>
-  message ? { field, message } : null
-
-export const flashDropFormProblem = (
-  form: FlashDropFormState,
-  deal: MerchantDeal | undefined,
+export const flashFieldsProblem = (
+  fields: FlashFieldsState,
+  offer: FlashOfferInput,
   now: Date,
-): FlashDropProblem | null => {
-  if (!deal) return problem('dealId', 'Choose which deal to drop.')
-  const priceProblem = problem('priceDollars', checkPrice(form, deal))
-  if (priceProblem) return priceProblem
-  if (form.codeLimit < FLASH_DROP_MIN_CODES || form.codeLimit > FLASH_DROP_MAX_CODES) {
-    return problem(
-      'form',
-      `Give out between ${FLASH_DROP_MIN_CODES} and ${FLASH_DROP_MAX_CODES} codes.`,
-    )
+): FlashProblem | null => {
+  const usual = checkUsual(fields, offer)
+  if (usual) return { field: 'flashUsual', message: usual }
+  if (fields.codeLimit < FLASH_DROP_MIN_CODES || fields.codeLimit > FLASH_DROP_MAX_CODES) {
+    return {
+      field: 'flashCodes',
+      message: `Give out between ${FLASH_DROP_MIN_CODES} and ${FLASH_DROP_MAX_CODES} codes.`,
+    }
   }
-  if (form.outletId === '') return problem('outletId', 'Choose the outlet for the drop.')
-  if (!deal.outletIds.includes(form.outletId)) {
-    return problem('outletId', 'That deal does not run at the chosen outlet.')
-  }
-  // A start time the merchant picked is theirs to fix; with "Now" the deal's own dates clash.
-  return problem(form.startMode === 'LATER' ? 'startLocal' : 'dealId', checkStart(form, deal, now))
+  const start = checkStart(fields, now)
+  return start ? { field: 'flashStart', message: start } : null
 }
 
-export const checkFlashDropForm = (
-  form: FlashDropFormState,
-  deal: MerchantDeal | undefined,
-  now: Date,
-): string => flashDropFormProblem(form, deal, now)?.message ?? ''
+// The deal part of the body: what the deal form already collects.
+export type FlashDealInput = Omit<
+  MerchantFlashDropBody,
+  | 'outletId'
+  | 'usualPriceCents'
+  | 'startsAt'
+  | 'durationMinutes'
+  | 'radiusMetres'
+  | 'codeLimit'
+  | 'version'
+>
 
-// What the server needs. Only call this once checkFlashDropForm has returned ''.
-export const toFlashDropBody = (form: FlashDropFormState, now: Date): MerchantFlashDropBody => ({
-  dealId: form.dealId,
-  outletId: form.outletId,
-  flashPriceCents: priceCentsOf(form),
-  startsAt: (startTimeOf(form, now) ?? now).toISOString(),
-  durationMinutes: form.durationMinutes,
-  radiusMetres: form.radiusMetres,
-  codeLimit: form.codeLimit,
+// What the server needs. Only call this once flashFieldsProblem has returned null.
+export const toFlashDropBody = (
+  deal: FlashDealInput,
+  outletId: string,
+  fields: FlashFieldsState,
+): MerchantFlashDropBody => ({
+  ...deal,
+  outletId,
+  usualPriceCents: deal.offerType === 'FIXED_PRICE' ? usualCentsOf(fields) : null,
+  startsAt: fields.startMode === 'GO_LIVE' ? null : (pickedStartOf(fields)?.toISOString() ?? null),
+  durationMinutes: fields.durationMinutes,
+  radiusMetres: fields.radiusMetres,
+  codeLimit: fields.codeLimit,
 })
 
-// ----- Text for showing a drop -----
+// ----- Text for showing a flash deal -----
 
 export const radiusLabel = (metres: number) =>
-  metres >= 1000 ? `${metres / 1000}\u00a0km` : `${metres}\u00a0m`
-
-export const durationMinutesOf = (drop: MerchantFlashDrop) =>
-  Math.round((Date.parse(drop.endsAt) - Date.parse(drop.startsAt)) / MINUTE_MS)
+  metres >= 1000 ? `${metres / 1000} km` : `${metres} m`
 
 // "Today 6:00 pm", "Tomorrow 12:30 pm", "Yesterday 12:00 pm" or "Sat 7 Nov, 6:00 pm".
 export const whenText = (iso: string, now: Date) => {
@@ -242,11 +201,17 @@ export const whenText = (iso: string, now: Date) => {
   return `${day}, ${time}`
 }
 
+// When a flash deal starts, in words: a draft may start "when you press Go live".
+const startText = (drop: MerchantFlashDrop, now: Date) =>
+  drop.status === 'DRAFT' && drop.startsOnGoLive
+    ? 'Starts at Go live'
+    : whenText(drop.startsAt, now)
+
 // "Maxwell · Today 6:00 pm · 30 min · 500 m · 40 codes"
 export const summaryLine = (drop: MerchantFlashDrop, now: Date) =>
   [
     drop.outletName,
-    whenText(drop.startsAt, now),
+    startText(drop, now),
     `${durationMinutesOf(drop)} min`,
     radiusLabel(drop.radiusMetres),
     `${drop.codeLimit} codes`,
@@ -257,34 +222,40 @@ const minutesLeft = (drop: MerchantFlashDrop, now: Date) =>
 
 export const statusSentence = (drop: MerchantFlashDrop, now: Date) => {
   const sentences: Record<FlashDropDisplayStatus, () => string> = {
-    IN_REVIEW: () => 'In review. LoBangers is checking it.',
+    DRAFT: () =>
+      drop.startsOnGoLive
+        ? 'Draft. Nobody can see it yet. It starts as soon as you press Go live.'
+        : `Draft. Nobody can see it yet. Press Go live to start it ${whenText(drop.startsAt, now).toLowerCase()}.`,
     SCHEDULED: () =>
-      `Approved. Goes live ${whenText(drop.startsAt, now).toLowerCase()} for ${durationMinutesOf(drop)} min.`,
+      `Going live ${whenText(drop.startsAt, now).toLowerCase()} for ${durationMinutesOf(drop)} min.`,
     LIVE: () => `Live now · ${minutesLeft(drop, now)} min left`,
     ENDED: () =>
       drop.claimedCount >= drop.codeLimit
         ? `All ${drop.codeLimit} codes claimed.`
         : `Ended. ${drop.claimedCount} of ${drop.codeLimit} codes claimed.`,
-    SENT_BACK: () => 'Sent back. Fix it and send it again.',
-    STOPPED: () => 'Stopped by LoBangers.',
+    STOPPED: () => 'Removed by LoBangers.',
   }
   return sentences[drop.status]()
 }
 
 export const STATUS_LABELS: Record<FlashDropDisplayStatus, string> = {
-  IN_REVIEW: 'In review',
-  SCHEDULED: 'Approved',
+  DRAFT: 'Draft',
+  SCHEDULED: 'Scheduled',
   LIVE: 'Live',
   ENDED: 'Ended',
-  SENT_BACK: 'Sent back',
-  STOPPED: 'Stopped',
+  STOPPED: 'Removed',
 }
 
-// The small banner people near the stall will see, as text:
-// "FLASH DROP · $1.50 chicken rice · 30:00 · within 500 m"
-export const bannerPreview = (form: FlashDropFormState, deal: MerchantDeal | undefined) => {
-  const cents = priceCentsOf(form)
-  const price = Number.isFinite(cents) && cents > 0 ? moneyText(cents) : '$?'
-  const title = deal ? deal.title : 'your deal'
-  return `FLASH DROP · ${price} ${title} · ${form.durationMinutes}:00 · within ${radiusLabel(form.radiusMetres)}`
+// The flash offer in words, e.g. "$1.50", "1-for-1" or "30% off" ('' for another offer).
+export const flashOfferText = (drop: MerchantFlashDrop) => offerText(drop)
+
+// The small banner people near the stall will see, as text, with the same wording as the map:
+// "FLASH DROP · 1-for-1 chicken rice · 30:00 · within 500 m"
+export const bannerPreview = (
+  fields: FlashFieldsState,
+  title: string,
+  offer: Pick<MerchantFlashDrop, 'offerType' | 'discountPercent' | 'flashPriceCents'>,
+) => {
+  const name = offerTitle({ ...offer, dealTitle: title.trim() || 'your deal' })
+  return `FLASH DROP · ${name} · ${fields.durationMinutes}:00 · within ${radiusLabel(fields.radiusMetres)}`
 }
