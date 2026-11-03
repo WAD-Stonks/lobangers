@@ -322,6 +322,50 @@ describe('ShellPanel', () => {
     expect(wrapper.emitted('update:snap')?.[0]).toEqual([2])
   })
 
+  const touchDrag = async (target: Element, ys: readonly number[], t0 = 0) => {
+    const event = (type: string, y: number, t: number) => {
+      const e = new Event(type, { bubbles: true, cancelable: true })
+      const touches = type === 'touchend' ? [] : [{ clientX: 50, clientY: y }]
+      Object.defineProperty(e, 'touches', { value: touches })
+      Object.defineProperty(e, 'changedTouches', { value: [{ clientX: 50, clientY: y }] })
+      Object.defineProperty(e, 'timeStamp', { value: t })
+      target.dispatchEvent(e)
+      return e
+    }
+    const [start, ...rest] = ys
+    event('touchstart', start ?? 0, t0)
+    const moves = rest.map((y, index) => event('touchmove', y, t0 + 2000 * (index + 1)))
+    event('touchend', ys.at(-1) ?? 0, t0 + 2000 * ys.length)
+    await flushPromises()
+    return moves
+  }
+
+  const sheetWithList = (scrollTop: number) => {
+    const wrapper = mount(ShellPanel, {
+      props: { mode: 'sheet', heights: HEIGHTS, snap: 1 },
+      slots: { default: '<div class="list" style="overflow-y: auto"><p class="row">Row</p></div>' },
+    })
+    const list = wrapper.get('.list').element as HTMLElement
+    Object.defineProperty(list, 'scrollHeight', { value: 900 })
+    Object.defineProperty(list, 'clientHeight', { value: 300 })
+    list.scrollTop = scrollTop
+    return wrapper
+  }
+
+  it('pulls down to peek from content that is scrolled to the top', async () => {
+    const wrapper = sheetWithList(0)
+    const moves = await touchDrag(wrapper.get('.row').element, [300, 420, 560])
+    expect(moves.every((move) => move.defaultPrevented)).toBe(true)
+    expect(wrapper.emitted('update:snap')?.[0]).toEqual([0])
+  })
+
+  it('lets content that is scrolled down keep scrolling', async () => {
+    const wrapper = sheetWithList(120)
+    const moves = await touchDrag(wrapper.get('.row').element, [300, 420, 560])
+    expect(moves.some((move) => move.defaultPrevented)).toBe(false)
+    expect(wrapper.emitted('update:snap')).toBeUndefined()
+  })
+
   it('steps up on a tap and moves with the arrow keys', async () => {
     const wrapper = mount(ShellPanel, { props: { mode: 'sheet', heights: HEIGHTS, snap: 0 } })
     await drag(wrapper, [{ y: 700, t: 0 }])
