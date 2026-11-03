@@ -42,7 +42,9 @@ const cancel = () => {
   <section v-if="visible" class="auth-prompt" aria-labelledby="auth-prompt-title" @keydown.esc="cancel">
     <div class="auth-prompt__content auth-prompt__content--saved">
       <button class="auth-prompt__back" type="button" @click="cancel"><ShellIcon name="back" :size="16" />Back</button>
-      <svg class="saved-prompt__illustration" viewBox="0 0 540 330" aria-hidden="true" focusable="false">
+      <!-- On the bottom nav's More tab the menu rows matter more than the pitch, so the illustration
+           and benefits step aside and the rows sit above the fold. -->
+      <svg v-if="!showMore" class="saved-prompt__illustration" viewBox="0 0 540 330" aria-hidden="true" focusable="false">
         <defs>
           <linearGradient id="saved-yellow" x2="1" y2="1"><stop stop-color="#ffe976" /><stop offset="1" stop-color="#f8cc35" /></linearGradient>
           <filter id="saved-shadow" x="-20%" y="-20%" width="140%" height="150%"><feDropShadow dx="0" dy="5" stdDeviation="5" flood-color="#584827" flood-opacity=".12" /></filter>
@@ -76,7 +78,7 @@ const cancel = () => {
       </svg>
       <h2 id="auth-prompt-title" ref="heading" tabindex="-1">{{ content.heading }}</h2>
       <p class="saved-prompt__intro">{{ content.intro }}</p>
-      <div class="saved-prompt__benefits">
+      <div v-if="!showMore" class="saved-prompt__benefits">
         <div v-for="benefit in content.benefits" :key="benefit.title" class="saved-prompt__benefit">
           <span class="saved-prompt__icon">
             <svg v-if="benefit.icon === 'share'" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V3m-4 4 4-4 4 4M7 10H5a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7a2 2 0 0 0-2-2h-2" /></svg>
