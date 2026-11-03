@@ -10,6 +10,7 @@ import { isNavigationFailure, NavigationFailureType, RouterLink, useRoute } from
 const session = authClient.useSession()
 const initial = computed(() => Array.from(session.value.data?.user.name?.trim() ?? '')[0]?.toUpperCase() || '?')
 const navigationTo = useShellNavigation()
+const isMerchant = computed(() => session.value.data?.user.role === 'MERCHANT')
 
 const props = defineProps<{ panelOpen: boolean; bottom?: boolean }>()
 const emit = defineEmits<{ menuChange: [open: boolean]; openPanel: [] }>()
@@ -40,10 +41,13 @@ onBeforeUnmount(() => emit('menuChange', false))
   <aside class="map-navigation" :class="{ 'map-navigation--bottom': bottom }" aria-label="Map navigation" data-testid="map-navigation">
     <BrandMenu v-if="!bottom" rail map-tools @menu-change="onMenuChange" />
     <nav class="map-navigation__links" aria-label="Explore" :inert="drawerOpen ? true : undefined">
-      <RouterLink v-if="bottom" v-slot="{ href, navigate }" :to="navigationTo('/deals')" custom><a :href="href" data-testid="nav-home" :aria-current="isActive(['home']) ? 'page' : undefined" @click="openPanel($event, navigate)"><ShellIcon name="ticket" :size="23" /><span>All deals</span></a></RouterLink>
-      <RouterLink v-slot="{ href, navigate }" :to="mapTo" custom><a :href="href" :aria-current="isActive(['browse', 'deal', 'venue']) ? 'page' : undefined" @click="openPanel($event, navigate)"><ShellIcon :name="bottom ? 'map' : 'ticket'" :size="23" /><span>{{ bottom ? 'Map' : 'Deals' }}</span></a></RouterLink>
+      <RouterLink v-slot="{ href, navigate }" :to="navigationTo('/deals')" custom><a :href="href" data-testid="nav-home" :aria-current="isActive(['home']) ? 'page' : undefined" @click="openPanel($event, navigate)"><ShellIcon name="ticket" :size="23" /><span>All deals</span></a></RouterLink>
+      <RouterLink v-slot="{ href, navigate }" :to="mapTo" custom><a :href="href" :aria-current="isActive(['browse', 'deal', 'venue']) ? 'page' : undefined" @click="openPanel($event, navigate)"><ShellIcon name="map" :size="23" /><span>Map</span></a></RouterLink>
       <RouterLink v-slot="{ href, navigate }" :to="savedTo" custom><a :href="href" :aria-current="isActive(['saved']) ? 'page' : undefined" @click="openPanel($event, navigate)"><ShellIcon name="bookmark" :size="23" /><span>Saved</span></a></RouterLink>
-      <RouterLink v-slot="{ href, navigate }" :to="navigationTo('/add')" custom><a :href="href" data-testid="map-share" :aria-current="isActive(['submit-deal']) ? 'page' : undefined" @click="openPanel($event, navigate)"><ShellIcon name="plus" :size="23" /><span>Share</span></a></RouterLink>
+      <!-- Merchants add and edit deals from their dashboard, so they get it in Share's spot, in
+           both the phone bottom bar and the desktop side rail. -->
+      <RouterLink v-if="isMerchant" v-slot="{ href, navigate }" :to="navigationTo('/merchant')" custom><a :href="href" data-testid="map-merchant-dashboard" :aria-current="isActive(['merchant']) ? 'page' : undefined" @click="openPanel($event, navigate)"><ShellIcon name="store" :size="23" /><span>Dashboard</span></a></RouterLink>
+      <RouterLink v-else v-slot="{ href, navigate }" :to="navigationTo('/add')" custom><a :href="href" data-testid="map-share" :aria-current="isActive(['submit-deal']) ? 'page' : undefined" @click="openPanel($event, navigate)"><ShellIcon name="plus" :size="23" /><span>Share</span></a></RouterLink>
     </nav>
     <RouterLink v-slot="{ href, navigate }" :to="navigationTo('/me/profile')" custom><a :href="href" class="map-navigation__account" :inert="drawerOpen ? true : undefined" :aria-current="isActive(['profile']) ? 'page' : undefined" @click="openPanel($event, navigate)"><span v-if="session.data" class="map-navigation__avatar" aria-hidden="true">{{ initial }}</span><ShellIcon v-else name="user" :size="23" /><span>Account</span></a></RouterLink>
   </aside>

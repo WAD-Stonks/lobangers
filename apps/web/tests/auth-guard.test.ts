@@ -46,6 +46,16 @@ describe('authGuard', () => {
     expect(await authGuard(to({ requiresAuth: true, roles: ['ADMIN'] }))).toBe(true)
   })
 
+  it('sends merchants who open Add a deal to their dashboard, and lets everyone else in', async () => {
+    const addDeal = to({ requiresAuth: true, roleRedirects: { MERCHANT: '/merchant' } }, '/add')
+    signedIn('MERCHANT')
+    expect(await authGuard(addDeal)).toBe('/merchant')
+    for (const role of ['USER', 'ADMIN']) {
+      signedIn(role)
+      expect(await authGuard(addDeal)).toBe(true)
+    }
+  })
+
   it('bounces signed-in users off guest-only pages', async () => {
     signedIn()
     expect(await authGuard(to({ guestOnly: true }, '/login'))).toBe('/deals')

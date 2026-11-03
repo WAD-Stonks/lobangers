@@ -41,7 +41,8 @@ const emailError = computed(() => !email.value.trim() ? 'Enter your email addres
 const timer = setInterval(() => { if (cooldown.value > 0) cooldown.value-- }, 1000)
 const methods = ref<AuthMethodsResponse | null>(null)
 const methodsUnavailable = ref(false)
-const method = ref<'code' | 'password'>('code')
+// Password first; an emailed code is one tap away.
+const method = ref<'code' | 'password'>('password')
 const passwordMode = computed(() => method.value === 'password' || methodsUnavailable.value || methods.value?.emailOtp === false)
 let generation = 0
 let alive = true

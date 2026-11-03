@@ -561,13 +561,13 @@ describe('map tutorial', () => {
 })
 
 describe('results display toggle', () => {
-  it('opens the map Deals tab in List view even after choosing Cards', async () => {
+  it('opens the Map tab in List view even after choosing Cards', async () => {
     const { wrapper, router } = await mountAt('/browse?results=cards&cat=drinks')
     await defined(
       wrapper
         .get('[data-testid="map-navigation"]')
         .findAll('a')
-        .find((link) => link.text() === 'Deals'),
+        .find((link) => link.text() === 'Map'),
     ).trigger('click')
     await flushPromises()
     expect(router.currentRoute.value.query).toMatchObject({ results: 'list', cat: 'drinks' })
@@ -895,12 +895,7 @@ describe('map navigation rail', () => {
           removeEventListener: vi.fn(),
         }))
       const { wrapper, router } = await mountAt('/browse?cat=drinks&view=map&split=1')
-      if (mobile) await wrapper.get('[data-testid="nav-home"]').trigger('click')
-      else {
-        expect(wrapper.find('[data-testid="nav-home"]').exists()).toBe(false)
-        await wrapper.get('[data-testid="nav-toggle"]').trigger('click')
-        await wrapper.get('[data-testid="nav-menu"] a[href^="/deals"]').trigger('click')
-      }
+      await wrapper.get('[data-testid="nav-home"]').trigger('click')
       await flushPromises()
       expect(router.currentRoute.value.query).toMatchObject({
         cat: 'drinks',
@@ -908,10 +903,12 @@ describe('map navigation rail', () => {
         discovery: '1',
       })
       expect(wrapper.find('[data-testid="food-deal-grid"]').exists()).toBe(true)
+      // Desktop's All Deals page has no rail; the phone's bottom bar highlights the tab.
       if (mobile)
         expect(wrapper.get('[data-testid="map-navigation"] a[aria-current="page"]').text()).toBe(
           'All deals',
         )
+      else expect(wrapper.find('[data-testid="map-navigation"]').exists()).toBe(false)
     },
   )
 
@@ -1013,17 +1010,17 @@ describe('map navigation rail', () => {
       rail()
         .findAll('a[aria-current="page"]')
         .map((link) => link.get('span:last-child').text())
-    expect(active()).toEqual(['Deals'])
+    expect(active()).toEqual(['Map'])
     await wrapper.get('[data-testid="panel-collapse"]').trigger('click')
     expect(active()).toEqual([])
     await defined(
       rail()
         .findAll('a')
-        .find((link) => link.text() === 'Deals'),
+        .find((link) => link.text() === 'Map'),
     ).trigger('click')
     await flushPromises()
     expect(wrapper.get('[data-testid="panel-collapse"]').attributes('aria-expanded')).toBe('true')
-    expect(active()).toEqual(['Deals'])
+    expect(active()).toEqual(['Map'])
     for (const [path, label] of [
       ['/saved', 'Saved'],
       ['/me/profile', 'Account'],

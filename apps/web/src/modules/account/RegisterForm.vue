@@ -192,11 +192,3 @@ const register = async () => {
   </form>
 </template>
 
-<style scoped>
-/* Four fields would stack four reserved error lines, so an empty one takes no room; it stays in
-   the page so screen readers still hear the message when it appears. */
-.register-form .auth-field-error:empty {
-  min-height: 0;
-  margin: 0;
-}
-</style>

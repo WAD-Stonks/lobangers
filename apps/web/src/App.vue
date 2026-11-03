@@ -3,6 +3,7 @@ import { AppShell, BApp } from '@broke-oclock/ui'
 import { adminNavigation } from '@web/components/admin/admin-navigation'
 import ConfirmDialog from '@web/components/ConfirmDialog.vue'
 import PageHeader from '@web/components/PageHeader.vue'
+import RouteProgress from '@web/components/RouteProgress.vue'
 import SplashScreen from '@web/components/SplashScreen.vue'
 import { syncThemeColor, useTheme } from '@web/lib/theme'
 import AuthPrompt from '@web/modules/account/AuthPrompt.vue'
@@ -48,6 +49,7 @@ const administration = computed(() =>
 <template>
   <BApp>
     <ConfirmDialog />
+    <RouteProgress />
     <AuthPrompt v-if="layout !== 'canvas'" />
     <!-- The split map/results loading screen is skipped on phones. -->
     <template v-if="layout === 'canvas'">

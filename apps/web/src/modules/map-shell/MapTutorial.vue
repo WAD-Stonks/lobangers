@@ -1,8 +1,11 @@
 <script setup lang="ts">
+import { useCanAddDeal } from '@web/lib/use-can-add-deal'
 import ShellIcon from '@web/modules/map-shell/ShellIcon.vue'
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 
 const props = defineProps<{ step: number; noDeals: boolean }>()
+// Merchants add deals from their dashboard, so the tour does not end on Add a deal for them.
+const canAddDeal = useCanAddDeal()
 const emit = defineEmits<{ close: []; next: []; back: []; addDeal: [] }>()
 const steps = [
   { title: 'Find a deal that fits', body: 'Use Price, Cuisine, Deal type and Expiry to narrow your search. Quick filters sit above the map; Filters opens all options. Apply your choices with Show deals.', target: '[data-testid="filter-sheet"]' },
@@ -91,7 +94,7 @@ onBeforeUnmount(() => {
       <p v-if="noDeals && step > 0 && step < 4" class="map-tutorial__empty">There are no current matching deals to demonstrate. These features appear when you open a deal.</p>
       <footer>
         <button class="lb-btn lb-btn--ghost" type="button" :disabled="step === 0" @click="emit('back')">Back</button>
-        <button v-if="step === steps.length - 1" class="lb-btn" type="button" @click="emit('addDeal')">Add a deal</button>
+        <button v-if="step === steps.length - 1 && canAddDeal" class="lb-btn" type="button" @click="emit('addDeal')">Add a deal</button>
         <button ref="nextButton" class="lb-btn lb-btn--primary" type="button" data-testid="tutorial-next" @click="step === steps.length - 1 ? emit('close') : emit('next')">{{ step === steps.length - 1 ? 'Finish' : 'Next' }}</button>
       </footer>
     </section>

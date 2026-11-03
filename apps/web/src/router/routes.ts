@@ -184,7 +184,8 @@ const routes: RouteRecordRaw[] = [
     path: '/add',
     name: 'submit-deal',
     component: SubmissionForm,
-    meta: { requiresAuth: true },
+    // Merchants add and edit their deals from the merchant dashboard.
+    meta: { requiresAuth: true, roleRedirects: { MERCHANT: '/merchant' } },
   },
   // The form used to live at /submit-deal; keep old links working.
   { path: '/submit-deal', redirect: '/add' },

@@ -38,8 +38,8 @@ describe('splash screen', () => {
     expect(wrapper.find(SPLASH).exists()).toBe(false)
   })
 
-  it('holds for two seconds', () => {
-    expect(SPLASH_DURATION_MS).toBe(2000)
+  it('holds for one second', () => {
+    expect(SPLASH_DURATION_MS).toBe(1000)
   })
 
   it('clears its timer when unmounted early', () => {

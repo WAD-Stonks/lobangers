@@ -47,21 +47,30 @@ const pending = ref<'vote' | 'comment' | 'delete' | 'report' | null>(null)
 const root = ref<HTMLElement | null>(null)
 const commentsHeading = ref<HTMLElement | null>(null)
 const viewAllButton = ref<HTMLButtonElement | null>(null)
-const shownComments = computed(() => props.allComments ? comments.value : comments.value.slice(0, 3))
-// Keep loaded replies beside their parent; replies whose parent is on an older page
-// still display their author context rather than disappearing from the current page.
-const threadedComments = computed(() => {
-  const page = shownComments.value
-  const ids = new Set(page.map(comment => comment.id))
-  const ordered: typeof page = []
-  const append = (comment: typeof page[number]) => {
-    ordered.push(comment)
-    page.filter(reply => reply.parentId === comment.id).forEach(append)
-  }
-  page.filter(comment => !comment.parentId || !ids.has(comment.parentId)).forEach(append)
-  return ordered
+type Comment = (typeof comments.value)[number]
+// Newest first applies to top-level comments only. Each brings its replies, oldest first and
+// depth first, as the server sends them. A reply whose comment is not loaded stands on its own.
+const threads = computed(() => {
+  const items = comments.value
+  const ids = new Set(items.map((comment) => comment.id))
+  const repliesTo = (id: string): Comment[] =>
+    items.filter((reply) => reply.parentId === id).flatMap((reply) => [reply, ...repliesTo(reply.id)])
+  return items
+    .filter((comment) => !comment.parentId || !ids.has(comment.parentId))
+    .map((root) => ({ root, replies: repliesTo(root.id) }))
 })
-const hasMoreComments = computed(() => cursor.value || comments.value.length > 3 || (summary.value?.commentCount ?? 0) > 3)
+const shownThreads = computed(() => (props.allComments ? threads.value : threads.value.slice(0, 3)))
+// More than this many replies fold away under "View N replies".
+const REPLIES_SHOWN = 2
+const openThreads = ref(new Set<string>())
+const repliesFolded = (thread: { root: Comment; replies: Comment[] }) =>
+  thread.replies.length > REPLIES_SHOWN && !openThreads.value.has(thread.root.id)
+const toggleReplies = (id: string) => {
+  const next = new Set(openThreads.value)
+  if (!next.delete(id)) next.add(id)
+  openThreads.value = next
+}
+const hasMoreComments = computed(() => !!cursor.value || threads.value.length > 3)
 let previewScrollTop = 0
 const openComments = () => {
   previewScrollTop = root.value?.closest<HTMLElement>('[data-testid="panel-body"]')?.scrollTop ?? 0
@@ -218,14 +227,19 @@ const commentLimit = formatCount(COMMENT_MAX)
       <div v-else-if="summary" class="deal-community-sign-in"><RouterLink :to="login">Log in to join the conversation</RouterLink><span class="deal-community-help">You can read comments without an account.</span></div>
       <div v-if="summary && !loading && !comments.length" class="deal-community-empty"><strong>No comments yet</strong><p>Be the first to share a tip from your visit.</p></div>
       <ol class="deal-community-comments" aria-label="Comments, newest first">
-        <li v-for="comment in threadedComments" :key="comment.id">
-          <CommunityCommentCard :comment="comment" :logged-in="Boolean(session.data)" :busy="busy" :login="login"
-            :save-edit="body => state.mutate(() => api.community.editComment(comment.id, body), 'Comment edited.')"
-            :send-reply="body => state.mutate(() => api.community.addComment(dealId, body, comment.id), 'Reply posted.')"
-            :toggle-like="() => state.mutate(() => api.community.likeComment(comment.id, !comment.liked), '')"
-            @delete="openDelete(comment.id, $event)" @report="openReport('comment', comment.id, $event)">
-            <fieldset v-if="removeId === comment.id" class="deal-community-delete-confirm" aria-label="Confirm comment deletion"><p>Delete your comment? This cannot be undone.</p><div class="deal-community-actions deal-community-actions--end"><button class="lb-btn" type="button" :disabled="busy" @click="cancelDelete">Cancel</button><button class="lb-btn deal-community-danger" type="button" :disabled="busy" @click="remove(comment.id)">{{ pending === 'delete' ? 'Deleting…' : 'Confirm delete' }}</button></div></fieldset>
-          </CommunityCommentCard>
+        <li v-for="thread in shownThreads" :key="thread.root.id">
+          <template v-for="comment in repliesFolded(thread) ? [thread.root] : [thread.root, ...thread.replies]" :key="comment.id">
+            <CommunityCommentCard :comment="comment" :logged-in="Boolean(session.data)" :busy="busy" :login="login"
+              :save-edit="body => state.mutate(() => api.community.editComment(comment.id, body), 'Comment edited.')"
+              :send-reply="body => state.mutate(() => api.community.addComment(dealId, body, comment.id), 'Reply posted.').then(posted => { if (posted) openThreads = new Set([...openThreads, thread.root.id]); return posted })"
+              :toggle-like="() => state.mutate(() => api.community.likeComment(comment.id, !comment.liked), '')"
+              @delete="openDelete(comment.id, $event)" @report="openReport('comment', comment.id, $event)">
+              <fieldset v-if="removeId === comment.id" class="deal-community-delete-confirm" aria-label="Confirm comment deletion"><p>Delete your comment? This cannot be undone.</p><div class="deal-community-actions deal-community-actions--end"><button class="lb-btn" type="button" :disabled="busy" @click="cancelDelete">Cancel</button><button class="lb-btn deal-community-danger" type="button" :disabled="busy" @click="remove(comment.id)">{{ pending === 'delete' ? 'Deleting…' : 'Confirm delete' }}</button></div></fieldset>
+            </CommunityCommentCard>
+          </template>
+          <button v-if="thread.replies.length > REPLIES_SHOWN" type="button" class="deal-community-text-button deal-community-replies-toggle" :aria-expanded="!repliesFolded(thread)" data-testid="replies-toggle" @click="toggleReplies(thread.root.id)">
+            <ShellIcon :name="repliesFolded(thread) ? 'chevronDown' : 'chevronUp'" :size="16" />{{ repliesFolded(thread) ? `View ${thread.replies.length} replies` : 'Hide replies' }}
+          </button>
         </li>
       </ol>
       <button v-if="!allComments && hasMoreComments" ref="viewAllButton" class="lb-btn lb-btn--block" type="button" :disabled="busy || refreshing || loadingMore" @click="openComments">View all comments<span v-if="summary"> ({{ summary.commentCount }})</span><ShellIcon name="chevronRight" :size="16" /></button>
@@ -322,8 +336,10 @@ const commentLimit = formatCount(COMMENT_MAX)
 .deal-community-sign-in a { display: inline-flex; align-items: center; min-height: 44px; color: var(--coral-deep); font-weight: 600; }
 .deal-community-empty { text-align: center; padding: 24px 12px; border-radius: 12px; background: var(--paper-sunk); font-size: 0.875rem; }
 .deal-community-empty p { margin: 6px 0 0; color: var(--ink-muted); line-height: 1.6; }
-.deal-community-comments { display: grid; gap: 12px; list-style: none; margin: 0; padding: 0; }
-.deal-community-comments > li { min-width: 0; }
+.deal-community-comments { display: grid; gap: 4px; list-style: none; margin: 0; padding: 0; }
+.deal-community-comments > li { display: grid; gap: 0; min-width: 0; }
+.deal-community-replies-toggle { justify-self: start; margin-left: 28px; text-decoration: none; }
+@media (max-width: 480px) { .deal-community-replies-toggle { margin-left: 14px; } }
 .deal-community-comment-heading { display: flex; align-items: start; gap: 10px; }
 .deal-community-avatar { display: grid; place-items: center; flex: none; width: 36px; height: 36px; border-radius: 50%; background: var(--coral-soft); color: var(--coral-deep); font-size: 0.875rem; font-weight: 700; }
 .deal-community-author { display: grid; gap: 2px; min-width: 0; font-size: 0.875rem; overflow-wrap: anywhere; }

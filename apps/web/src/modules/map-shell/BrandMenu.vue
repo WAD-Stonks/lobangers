@@ -16,9 +16,10 @@ import { RouterLink, useRoute, useRouter } from 'vue-router'
 
 const navigationTo = useShellNavigation()
 
-// Logo button that drops down the site menu (it replaces the floating "Log in"). Escape, a
-// click outside and any navigation close it, and focus returns to the button.
-const props = defineProps<{ rail?: boolean; mapTools?: boolean; compact?: boolean }>()
+// Menu button that opens the site menu as a drawer from the left edge, the same on every page
+// (it replaces the floating "Log in"). Escape, the scrim, the close button and any navigation
+// close it, and focus returns to the button.
+defineProps<{ rail?: boolean; mapTools?: boolean; compact?: boolean }>()
 const emit = defineEmits<{ menuChange: [open: boolean] }>()
 const mapPreferences = useMapPreferences()
 const breakpoint = useBreakpoint()
@@ -40,7 +41,7 @@ watch(isOpen, (open) => emit('menuChange', open))
 const closeDrawer = () => { close(); toggleButton.value?.focus() }
 const startTutorial = () => { closeDrawer(); mapPreferences?.startTutorial() }
 const trapDrawer = (event: KeyboardEvent) => {
-  if (!props.rail || event.key !== 'Tab') return
+  if (event.key !== 'Tab') return
   const items = [...(panel.value?.querySelectorAll<HTMLElement>('a[href], button') ?? [])]
     .filter((element) => !element.hasAttribute('disabled'))
   const first = items[0]
@@ -97,13 +98,13 @@ const logOut = () => { close(); return signOut() }
     </div>
 
     <Transition name="shell-fade">
-      <div v-if="rail && isOpen" class="brand-menu__scrim" aria-hidden="true" @click="closeDrawer" />
+      <div v-if="isOpen" class="brand-menu__scrim" aria-hidden="true" @click="closeDrawer" />
     </Transition>
     <Transition name="shell-menu">
       <nav v-if="isOpen" :id="SITE_MENU_ID" ref="panel" class="brand-menu__panel lb-card" aria-label="Site"
-        :role="rail ? 'dialog' : undefined" :aria-modal="rail ? 'true' : undefined" data-testid="nav-menu"
+        role="dialog" aria-modal="true" data-testid="nav-menu"
         @keydown="trapDrawer">
-        <div v-if="rail" class="brand-menu__drawer-head">
+        <div class="brand-menu__drawer-head">
           <RouterLink to="/" aria-label="Lobangers home" @click="closeDrawer"><img :src="logoUrl" alt="Lobangers"
               width="816" height="170" /></RouterLink>
           <button class="lb-ctrl lb-ctrl--flat" type="button" aria-label="Close navigation menu" @click="closeDrawer">
@@ -173,7 +174,7 @@ const logOut = () => { close(); return signOut() }
         </RouterLink>
 
         <ul v-for="group in menuGroups" :key="group.label" class="brand-menu__links" :aria-label="group.label">
-          <li v-if="group.label === 'Contribute'">
+          <li v-if="group.label === 'Contribute' && user?.role !== 'MERCHANT'">
             <RouterLink class="brand-menu__link" :to="navigationTo({ name: 'submit-deal' })" @click="closeDrawer">
               <ShellIcon name="plus" :size="22" />Add a deal
             </RouterLink>
@@ -251,13 +252,6 @@ const logOut = () => { close(); return signOut() }
 .brand-menu--compact .brand-menu__word,
 .brand-menu--compact .brand-menu__count {
   display: none;
-}
-
-/* The compact menu sits at the header's left edge, so its panel opens to the right. */
-.brand-menu--compact .brand-menu__panel {
-  left: 0;
-  right: auto;
-  transform-origin: top left;
 }
 
 .brand-menu {
@@ -442,7 +436,6 @@ const logOut = () => { close(); return signOut() }
   border-radius: var(--radius-pill);
 }
 
-/* biome-ignore lint/style/noDescendingSpecificity: the earlier, more specific rule is a modifier override for a different state of the same element */
 .brand-menu__panel {
   position: absolute;
   top: calc(100% + 10px);
@@ -562,7 +555,7 @@ const logOut = () => { close(); return signOut() }
   height: 24px;
 }
 
-.brand-menu--rail .brand-menu__panel {
+.brand-menu .brand-menu__panel {
   position: fixed;
   inset: 0 auto 0 0;
   z-index: 2;

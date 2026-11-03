@@ -76,19 +76,16 @@ async function accountForm(destination: string) {
   return { wrapper }
 }
 it.each(['account', 'admin'] as const)(
-  'starts %s login with email only and reveals password only after an explicit switch',
+  'starts %s login with password and switches to an email code on request',
   async (context) => {
     const wrapper = mount(SharedSignIn, { props: { context }, attachTo: document.body })
     wrappers.push(wrapper)
     await flushPromises()
     const emailId = context === 'account' ? '#login-email' : '#admin-email'
     const passwordId = context === 'account' ? '#login-password' : '#admin-password'
-    expect(wrapper.find(passwordId).exists()).toBe(false)
-    expect(wrapper.get('[data-testid="otp-send"]').attributes('type')).toBe('submit')
-    await wrapper.get(emailId).setValue('person@example.test')
-    await wrapper.get('[data-testid="use-password"]').trigger('click')
     expect(wrapper.find(passwordId).exists()).toBe(true)
-    expect(document.activeElement).toBe(wrapper.get(passwordId).element)
+    expect(wrapper.find('[data-testid="otp-send"]').exists()).toBe(false)
+    await wrapper.get(emailId).setValue('person@example.test')
     expect(sdk.send).not.toHaveBeenCalled()
     expect(sdk.password).not.toHaveBeenCalled()
     await wrapper.get(passwordId).setValue('synthetic-password')
@@ -100,6 +97,9 @@ it.each(['account', 'admin'] as const)(
     await flushPromises()
     expect(sdk.send).toHaveBeenCalledWith({ email: 'person@example.test', type: 'sign-in' })
     expect(wrapper.find('#sign-in-code').exists()).toBe(true)
+    await wrapper.get('[data-testid="change-email"]').trigger('click')
+    await wrapper.get('[data-testid="use-password"]').trigger('click')
+    expect(document.activeElement).toBe(wrapper.get(passwordId).element)
   },
 )
 
@@ -124,7 +124,7 @@ it('standalone authentication embeds shared login once and returns Google sign-i
   expect(wrapper.findAll('h1')).toHaveLength(1)
   expect(wrapper.find('.auth-card').exists()).toBe(false)
   expect(wrapper.findAll('a').filter((link) => link.text() === 'Create an account')).toHaveLength(1)
-  expect(wrapper.find('#login-password').exists()).toBe(false)
+  expect(wrapper.find('#login-password').exists()).toBe(true)
   await wrapper.get('[data-testid="google-sign-in"]').trigger('click')
   await flushPromises()
   expect(sdk.social).toHaveBeenCalledWith(
@@ -144,7 +144,6 @@ it.each(['account', 'admin'] as const)(
     const emailId = context === 'account' ? '#login-email' : '#admin-email'
     const passwordId = context === 'account' ? '#login-password' : '#admin-password'
     await wrapper.get(emailId).setValue('person@example.test')
-    await wrapper.get('[data-testid="use-password"]').trigger('click')
     await wrapper.get('[data-testid="recovery-open"]').trigger('click')
     await wrapper.get('#recovery-email').setValue('person@example.test')
     await wrapper.get('[data-testid="recovery-request"]').trigger('submit')
@@ -192,7 +191,7 @@ it('embeds shared login in the legacy panel without duplicate headings and with 
   await flushPromises()
   expect(wrapper.findAll('h1')).toHaveLength(1)
   expect(wrapper.find('.auth-card').exists()).toBe(false)
-  expect(wrapper.find('#login-password').exists()).toBe(false)
+  expect(wrapper.find('#login-password').exists()).toBe(true)
   expect(wrapper.findAll('a[href^="/register"]')).toHaveLength(1)
   await wrapper.get('[data-testid="google-sign-in"]').trigger('click')
   await flushPromises()
@@ -209,7 +208,7 @@ it('normal login reuses the shared sign-in with configured providers and a singl
   expect(wrapper.findAll('h1')).toHaveLength(1)
   expect(wrapper.find('main').exists()).toBe(false)
   expect(wrapper.find('[data-testid="google-sign-in"]').exists()).toBe(true)
-  expect(wrapper.find('[data-testid="otp-send"]').exists()).toBe(true)
+  expect(wrapper.find('[data-testid="use-code"]').exists()).toBe(true)
   expect(wrapper.text()).not.toContain('administrator or merchant role')
 })
 it('normal Google preserves same-site destination query/hash and OAuth-error cleanup preserves redirect', async () => {
@@ -240,7 +239,6 @@ it.each(['/saved?tab=all#top', '/submit-deal', 'https://evil.test', '//evil.test
   'normal password follows the current All Deals completion policy for %s',
   async (destination) => {
     const { wrapper, router } = await loginPage(destination)
-    await wrapper.get('[data-testid="use-password"]').trigger('click')
     await wrapper.get('#login-email').setValue('person@example.test')
     await wrapper.get('#login-password').setValue('synthetic-password')
     await wrapper.get('form').trigger('submit')
@@ -251,6 +249,7 @@ it.each(['/saved?tab=all#top', '/submit-deal', 'https://evil.test', '//evil.test
 it('code sign-in is a dedicated step with cooldown, retry, change-email and password return', async () => {
   vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] })
   const { wrapper } = await loginPage('/saved')
+  await wrapper.get('[data-testid="use-code"]').trigger('click')
   await wrapper.get('#login-email').setValue('person@example.test')
   await wrapper.get('form').trigger('submit')
   await flushPromises()
@@ -280,7 +279,6 @@ it('code sign-in is a dedicated step with cooldown, retry, change-email and pass
 })
 it('locks recovery cancel while pending and ignores a result after unmount', async () => {
   const { wrapper } = await loginPage('/saved')
-  await wrapper.get('[data-testid="use-password"]').trigger('click')
   await wrapper.get('[data-testid="recovery-open"]').trigger('click')
   await wrapper.get('#recovery-email').setValue('person@example.test')
   const request = deferred()
@@ -342,6 +340,7 @@ it.each(['disabled', 'unavailable'])(
 it('generic send errors keep the password alternative available and allow a deliberate retry', async () => {
   sdk.send.mockResolvedValueOnce({ error: { status: 400, message: 'private account details' } })
   const { wrapper } = await loginPage('/')
+  await wrapper.get('[data-testid="use-code"]').trigger('click')
   await wrapper.get('#login-email').setValue('person@example.test')
   await wrapper.get('form').trigger('submit')
   await flushPromises()
@@ -356,7 +355,6 @@ it('locks the normal-login mailbox during password sign-in and completes the req
   const pending = deferred()
   sdk.password.mockReturnValue(pending.promise)
   const { wrapper, router } = await loginPage('/saved')
-  await wrapper.get('[data-testid="use-password"]').trigger('click')
   await wrapper.get('#login-email').setValue('person@example.test')
   await wrapper.get('#login-password').setValue('synthetic-password')
   await wrapper.get('form').trigger('submit')
@@ -372,6 +370,7 @@ it('locks the normal-login mailbox during password sign-in and completes the req
 })
 it('characterization: does not emit a code success received after unmount', async () => {
   const { wrapper } = await loginPage('/')
+  await wrapper.get('[data-testid="use-code"]').trigger('click')
   await wrapper.get('#login-email').setValue('person@example.test')
   await wrapper.get('form').trigger('submit')
   await flushPromises()
@@ -389,7 +388,6 @@ it('moves focus to recovery email and back to sign-in email on cancel', async ()
   const wrapper = mount(SharedSignIn, { attachTo: document.body })
   wrappers.push(wrapper)
   await flushPromises()
-  await wrapper.get('[data-testid="use-password"]').trigger('click')
   await wrapper.get('[data-testid="recovery-open"]').trigger('click')
   await flushPromises()
   expect(document.activeElement).toBe(wrapper.get('#recovery-email').element)
@@ -401,6 +399,7 @@ it('moves keyboard focus into the dedicated code step after the pending send unl
   const wrapper = mount(SharedSignIn, { attachTo: document.body })
   wrappers.push(wrapper)
   await flushPromises()
+  await wrapper.get('[data-testid="use-code"]').trigger('click')
   await wrapper.get('#admin-email').setValue('person@example.test')
   await wrapper.get('form').trigger('submit')
   await flushPromises()
