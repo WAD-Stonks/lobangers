@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import type { AuthMethodsResponse } from '@broke-oclock/contracts/api'
+import AuthLobbie from '@web/components/auth/AuthLobbie.vue'
 import PasswordRecovery from '@web/components/auth/PasswordRecovery.vue'
 import '@web/components/auth/auth.css'
 import { consumeOAuthError, safeAuthDestination } from '@web/lib/admin-session'
 import { api } from '@web/lib/api-client'
 import { authClient } from '@web/lib/auth-client'
-import { type LobbieSprite, lobbieSpriteUrl } from '@web/modules/lobbie/sprites'
 import { safeRedirect } from '@web/router/guards'
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 
@@ -42,9 +42,6 @@ const methods = ref<AuthMethodsResponse | null>(null)
 const methodsUnavailable = ref(false)
 const method = ref<'code' | 'password'>('code')
 const passwordMode = computed(() => method.value === 'password' || methodsUnavailable.value || methods.value?.emailOtp === false)
-// Lobbie peeks over the card with his eyes open, and covers them while the password is shown.
-const peekSprites: readonly LobbieSprite[] = ['password-hidden', 'password-shown']
-const peekPose = computed<LobbieSprite>(() => passwordMode.value && showPassword.value ? 'password-shown' : 'password-hidden')
 let generation = 0
 let alive = true
 watch(email, () => { generation++; password.value = ''; code.value = ''; issuedEmail.value = ''; error.value = ''; notice.value = ''; cooldown.value = 0 }, { flush: 'sync' })
@@ -147,13 +144,7 @@ const recovered = () => { method.value = 'password'; recovery.value = false; not
 
 <template>
   <section :aria-labelledby="recovery ? 'recovery-title' : embedded ? undefined : 'sign-in-title'" :aria-label="!recovery && embedded ? title : undefined" class="shared-sign-in" :class="{ 'auth-card': !embedded }">
-    <div v-if="peek" class="auth-lobbie" :data-pose="peekPose" aria-hidden="true">
-      <!-- A second copy shows only the strip above his head, so his antennae can sway on their own. -->
-      <span v-for="sprite in peekSprites" :key="sprite" class="auth-lobbie__sprite" :data-sprite="sprite" :class="{ 'is-active': sprite === peekPose }">
-        <img :src="lobbieSpriteUrl(sprite)" alt="" width="280" height="240" />
-        <img :src="lobbieSpriteUrl(sprite)" alt="" width="280" height="240" class="auth-lobbie__antennae" />
-      </span>
-    </div>
+    <AuthLobbie v-if="peek" :covering="passwordMode && showPassword" />
     <PasswordRecovery v-if="recovery" :heading-level="embedded ? 'h2' : headingLevel" @completed="recovered" @cancel="recovery = false" />
     <div v-else class="auth-flow">
       <header v-if="!embedded" class="auth-header">
@@ -167,7 +158,7 @@ const recovered = () => { method.value = 'password'; recovery.value = false; not
         <form novalidate @submit.prevent="passwordMode ? signIn() : sendCode()" :aria-busy="pending" class="auth-form">
           <div>
             <label :for="emailId" class="form-label">Email</label>
-            <input :id="emailId" ref="emailInput" v-model="email" type="email" autocomplete="username" :placeholder="peek ? 'Enter your email address' : undefined" class="form-control" :disabled="context === 'account' && pending" :aria-invalid="touched && !!emailError" :aria-describedby="touched && emailError ? 'sign-in-email-error' : undefined" required @blur="touched = true" />
+            <input :id="emailId" ref="emailInput" v-model="email" type="email" autocomplete="username" :placeholder="peek ? 'you@example.com' : undefined" class="form-control" :disabled="context === 'account' && pending" :aria-invalid="touched && !!emailError" :aria-describedby="touched && emailError ? 'sign-in-email-error' : undefined" required @blur="touched = true" />
             <p id="sign-in-email-error" class="auth-field-error" aria-live="polite">{{ touched ? emailError : '' }}</p>
           </div>
           <div v-if="passwordMode">

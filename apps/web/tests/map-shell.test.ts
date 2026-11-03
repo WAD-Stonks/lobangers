@@ -66,6 +66,36 @@ afterEach(() => {
   window.localStorage.removeItem(MAP_SIDEBAR_STORAGE_KEY)
 })
 
+describe('Become a merchant', () => {
+  it.each([
+    ['a signed-out visitor', SIGNED_OUT, true],
+    ['a regular account', SIGNED_IN, true],
+    [
+      'a merchant',
+      {
+        ...SIGNED_IN,
+        data: { ...SIGNED_IN.data, user: { ...SIGNED_IN.data.user, role: 'MERCHANT' } },
+      },
+      false,
+    ],
+    [
+      'an admin',
+      {
+        ...SIGNED_IN,
+        data: { ...SIGNED_IN.data, user: { ...SIGNED_IN.data.user, role: 'ADMIN' } },
+      },
+      false,
+    ],
+  ])(
+    'is offered on the All Deals header to %s only when they can request it',
+    async (_, session, offered) => {
+      auth.session.current = session
+      const { wrapper } = await mountAt('/browse?view=list')
+      expect(wrapper.find('[data-testid="become-merchant"]').exists()).toBe(offered)
+    },
+  )
+})
+
 describe('browse panel', () => {
   it('keeps every saved deal visible when the map moves and restores area filtering on Deals', async () => {
     auth.session.current = SIGNED_IN

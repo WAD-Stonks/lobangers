@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { walkMinutesFor } from '@web/modules/browse-map/apply-filters'
 import DealPhoto from '@web/modules/browse-map/DealPhoto.vue'
-import { dealFreshness, formatEnding, formatMoreOutlets } from '@web/modules/browse-map/deal-format'
+import { dealFreshness, formatEnding, formatMoreOutlets, OUTLET_NOT_CONFIRMED } from '@web/modules/browse-map/deal-format'
 import SaveDealButton from '@web/modules/browse-map/SaveDealButton.vue'
 import type { DealRow } from '@web/modules/browse-map/types'
 import type { RouteLocationRaw } from 'vue-router'
@@ -35,6 +35,8 @@ const emit = defineEmits<{ hover: [venueId: string | null] }>()
     <div class="food-deal-card__body">
       <p class="food-deal-card__description">{{ props.row.deal.title }}</p>
       <p class="food-deal-card__restaurant">{{ props.row.venue.name }}</p>
+      <!-- A guessed outlet carries its warning wherever the outlet is named. -->
+      <span v-if="props.row.deal.outletUnconfirmed" class="food-deal-card__unsure" data-testid="outlet-unconfirmed">{{ OUTLET_NOT_CONFIRMED }}</span>
       <span v-if="props.row.outletCount > 1" class="food-deal-card__outlets">
         {{ formatMoreOutlets(props.row.outletCount) }}
       </span>
@@ -166,6 +168,11 @@ const emit = defineEmits<{ hover: [venueId: string | null] }>()
   font-weight: 500;
   color: var(--ink);
   overflow-wrap: anywhere;
+}
+
+.food-deal-card__unsure {
+  font-size: clamp(0.75rem, 4.6cqi, 1.25rem);
+  color: var(--ink-muted);
 }
 
 .food-deal-card__outlets {

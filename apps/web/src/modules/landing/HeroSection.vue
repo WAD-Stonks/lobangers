@@ -104,21 +104,14 @@ watch([featured, selected, () => props.liveState], async () => {
 }, { flush: 'post' })
 const discoveryKey = ref(0)
 const reduced = ref(false)
-// One control pauses the deal rotation and the ambient waterfront loops. Reduced motion starts
-// paused; hovering or focusing the map holds the rotation so a card never changes mid-read.
-const autoplay = ref(true)
+// Reduced motion stops the deal rotation and the ambient waterfront loops; hovering or focusing
+// the map holds the rotation so a card never changes mid-read.
 const hovering = ref(false)
 const focusWithin = ref(false)
-let motionChosen = false
-const ambientPaused = computed(() => reduced.value || !autoplay.value)
-const rotationHeld = computed(() => !autoplay.value || hovering.value || focusWithin.value)
-function toggleMotion() {
-  motionChosen = true
-  autoplay.value = !autoplay.value
-}
-// Focus on the pause control itself must not hold the rotation it just resumed.
+const ambientPaused = computed(() => reduced.value)
+const rotationHeld = computed(() => reduced.value || hovering.value || focusWithin.value)
 const holdsRotation = (target: EventTarget | null) =>
-  target instanceof Element && Boolean(mapArea.value?.contains(target)) && !target.closest('.hero-motion-toggle')
+  target instanceof Element && Boolean(mapArea.value?.contains(target))
 function enterFocus(event: FocusEvent) {
   focusWithin.value = holdsRotation(event.target)
 }
@@ -184,7 +177,6 @@ const outletLocation = computed(() => locationFor(featured.value?.venue))
 let query: MediaQueryList | undefined
 const syncMotion = () => {
   reduced.value = query?.matches ?? false
-  if (!motionChosen) autoplay.value = !reduced.value
 }
 onMounted(() => {
   restartRotation()
@@ -234,11 +226,6 @@ onBeforeUnmount(() => {
         <IllustratedMap hero-pins art-src="/landing/singapore-map-hero-water-extended-1536.webp" :active="selected" @select="discover" />
         <HeroWaterfront :paused="ambientPaused" />
       </div>
-      <button type="button" class="hero-motion-toggle" @click="toggleMotion">
-        <svg v-if="autoplay" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M4 3h3v10H4zM9 3h3v10H9z" fill="currentColor" /></svg>
-        <svg v-else viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M5 3l8 5-8 5z" fill="currentColor" /></svg>
-        <span>{{ autoplay ? 'Pause motion' : 'Play motion' }}</span>
-      </button>
         <div v-if="liveState === 'loading'" ref="preview" class="hero-deal hero-live-card hero-loading-card" :class="{ 'hero-card-docked': !previewPosition }" :style="previewPosition ?? { left: '50%', top: `${previewDockTop}px` }" role="status">
           <span class="visually-hidden">Loading current deals…</span>
           <div class="hero-card-topline" aria-hidden="true">

@@ -79,9 +79,17 @@ withDefaults(defineProps<{ titleId?: string }>(), { titleId: 'auth-page-title' }
 .auth-page__card:has(.auth-lobbie) .auth-page__intro { max-width: 22rem; margin-inline: auto; line-height: 1.6; }
 /* Leading mail and lock icons inside the fields. */
 .auth-page__card:has(.auth-lobbie) #login-email,
-.auth-page__card:has(.auth-lobbie) #login-password { padding-left: 48px; background: no-repeat 16px center / 20px 20px; }
-.auth-page__card:has(.auth-lobbie) #login-email { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236b6b72' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3' y='5' width='18' height='14' rx='2'/%3E%3Cpath d='m3 7 9 6 9-6'/%3E%3C/svg%3E"); }
-.auth-page__card:has(.auth-lobbie) #login-password { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236b6b72' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='5' y='11' width='14' height='10' rx='2'/%3E%3Cpath d='M8 11V7a4 4 0 0 1 8 0v4'/%3E%3Ccircle cx='12' cy='16' r='1'/%3E%3C/svg%3E"); }
+.auth-page__card:has(.auth-lobbie) #login-password,
+.auth-page__card:has(.auth-lobbie) #reg-name,
+.auth-page__card:has(.auth-lobbie) #reg-email,
+.auth-page__card:has(.auth-lobbie) #reg-password,
+.auth-page__card:has(.auth-lobbie) #reg-confirm { padding-left: 48px; background: no-repeat 16px center / 20px 20px; }
+.auth-page__card:has(.auth-lobbie) #reg-name { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236b6b72' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='8' r='4'/%3E%3Cpath d='M4 21a8 8 0 0 1 16 0'/%3E%3C/svg%3E"); }
+.auth-page__card:has(.auth-lobbie) #login-email,
+.auth-page__card:has(.auth-lobbie) #reg-email { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236b6b72' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3' y='5' width='18' height='14' rx='2'/%3E%3Cpath d='m3 7 9 6 9-6'/%3E%3C/svg%3E"); }
+.auth-page__card:has(.auth-lobbie) #login-password,
+.auth-page__card:has(.auth-lobbie) #reg-password,
+.auth-page__card:has(.auth-lobbie) #reg-confirm { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236b6b72' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='5' y='11' width='14' height='10' rx='2'/%3E%3Cpath d='M8 11V7a4 4 0 0 1 8 0v4'/%3E%3Ccircle cx='12' cy='16' r='1'/%3E%3C/svg%3E"); }
 .auth-page__card:has(.auth-lobbie) .auth-back { display: flex; width: fit-content; margin-inline: auto; }
 .auth-page__card:has(.auth-lobbie) .auth-page__switch a { display: inline-flex; align-items: center; min-height: 32px; padding: 2px 12px; border-radius: 999px; background: var(--sunny); color: var(--on-accent); text-decoration: none; }
 .auth-page__card:has(.auth-lobbie) .auth-page__switch a:hover { background: var(--sunny-deep); }

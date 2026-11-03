@@ -363,8 +363,9 @@
   top: 22%;
   width: 40%;
 }
+/* Capped by height as well, so the deal card fits below the copy on short screens. */
 .portal-food-copy h2 {
-  font-size: clamp(50px, 6vw, 96px);
+  font-size: clamp(42px, min(6vw, 8.5vh), 96px);
   line-height: 0.96;
   margin: 25px 0 20px;
 }

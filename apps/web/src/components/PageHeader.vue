@@ -16,6 +16,9 @@ import { RouterLink, useRouter } from 'vue-router'
 // items, same search bar, same phone layout. A change to one header is a change to both.
 // Searching opens All Deals with the results.
 const session = authClient.useSession()
+// Merchants already have access, and staff can't request it, so only visitors and regular
+// accounts are offered it.
+const offerMerchantAccess = computed(() => !session.value.data || session.value.data.user.role === 'USER')
 // The menu shows the saved-deals count, which lives in the map shell everywhere else.
 provideSavedDeals(session)
 const router = useRouter()
@@ -45,7 +48,7 @@ const onSearch = (q: string) =>
     </div>
     <div class="page-header__actions">
       <SquadHeaderButton :compact="bottomNav" />
-      <RouterLink class="page-header__contribute" to="/me/merchant-access">Become a merchant</RouterLink>
+      <RouterLink v-if="offerMerchantAccess" class="page-header__contribute" to="/me/merchant-access" data-testid="become-merchant">Become a merchant</RouterLink>
       <ProfileMenu v-if="session.data" class="page-header__profile" />
       <RouterLink v-else class="page-header__account" to="/login" aria-label="Log in"><ShellIcon name="user" :size="22" /></RouterLink>
     </div>
