@@ -6,11 +6,11 @@ LoBangers helps students in Singapore find discounted food near them. It brings 
 
 ## Live application
 
-The app is hosted on the cloud (Vercel) at:
+https://lobangers.vercel.app
 
-**https://lobangers.vercel.app**
+## Github Repo
 
-Both Vercel projects automatically deploy commits to `main` when their production branch is set to `main` and Git deployments are enabled in the project settings. Other branches, including pull request branches, do not trigger automatic deployments.
+https://github.com/WAD-Stonks/lobangers
 
 ## Test accounts
 
