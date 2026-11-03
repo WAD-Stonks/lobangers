@@ -49,7 +49,7 @@ onBeforeUnmount(() => emit('menuChange', false))
       <RouterLink v-if="isMerchant" v-slot="{ href, navigate }" :to="navigationTo('/merchant')" custom><a :href="href" data-testid="map-merchant-dashboard" :aria-current="isActive(['merchant']) ? 'page' : undefined" @click="openPanel($event, navigate)"><ShellIcon name="store" :size="23" /><span>Dashboard</span></a></RouterLink>
       <RouterLink v-else v-slot="{ href, navigate }" :to="navigationTo('/add')" custom><a :href="href" data-testid="map-share" :aria-current="isActive(['submit-deal']) ? 'page' : undefined" @click="openPanel($event, navigate)"><ShellIcon name="plus" :size="23" /><span>Share</span></a></RouterLink>
     </nav>
-    <RouterLink v-slot="{ href, navigate }" :to="navigationTo('/me/profile')" custom><a :href="href" class="map-navigation__account" :inert="drawerOpen ? true : undefined" :aria-current="isActive(['profile']) ? 'page' : undefined" @click="openPanel($event, navigate)"><span v-if="session.data" class="map-navigation__avatar" aria-hidden="true">{{ initial }}</span><ShellIcon v-else name="user" :size="23" /><span>Account</span></a></RouterLink>
+    <RouterLink v-slot="{ href, navigate }" :to="navigationTo('/me/profile')" custom><a :href="href" class="map-navigation__account" :inert="drawerOpen ? true : undefined" :aria-current="isActive(['profile']) ? 'page' : undefined" @click="openPanel($event, navigate)"><template v-if="bottom"><ShellIcon name="menu" :size="23" /><span>More</span></template><template v-else><span v-if="session.data" class="map-navigation__avatar" aria-hidden="true">{{ initial }}</span><ShellIcon v-else name="user" :size="23" /><span>Account</span></template></a></RouterLink>
   </aside>
 </template>
 

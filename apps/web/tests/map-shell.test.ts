@@ -926,7 +926,9 @@ describe('map navigation rail', () => {
       'map-navigation--bottom',
     )
     expect(wrapper.get('[data-testid="map-navigation"] a[aria-current="page"]').text()).toBe('Map')
-    expect(wrapper.get('.map-navigation__avatar').text()).toBe('S')
+    // The account slot is a More menu on phones, not the avatar.
+    expect(wrapper.get('.map-navigation__account').text()).toBe('More')
+    expect(wrapper.find('.map-navigation__avatar').exists()).toBe(false)
     expect(
       (wrapper.get('[data-testid="map-shell"]').element as HTMLElement).style.getPropertyValue(
         '--bottom-nav-h',
