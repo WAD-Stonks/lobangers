@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import {
+  FLASH_CODE_VALIDITIES,
   FLASH_DROP_DURATIONS,
   FLASH_DROP_MAX_CODES,
   FLASH_DROP_MIN_CODES,
@@ -9,6 +10,7 @@ import ChoiceChips from '@web/modules/merchant/ChoiceChips.vue'
 import type { MerchantFlashDrop } from '@web/modules/merchant/flash-drop-api'
 import {
   bannerPreview,
+  CODE_VALIDITY_LABELS,
   type FlashField,
   type FlashFieldsState,
   type FlashProblem,
@@ -18,8 +20,8 @@ import {
 } from '@web/modules/merchant/flash-drop-rules'
 import { computed } from 'vue'
 
-// The flash part of the deal form: codes, when it starts, how long it lasts and who sees the
-// banner. The flash offer itself is the deal form's own Offer type above. The deal form owns the
+// The flash part of the deal form: codes, when it starts, how long people can claim, how long a
+// claimed code then works, and who sees the banner. The flash offer itself is the deal form's own Offer type above. The deal form owns the
 // state and checks it; this only shows it.
 const props = defineProps<{
   title: string // the deal's title, for the banner preview
@@ -43,6 +45,10 @@ const startChoices = [
   { value: 'LATER' as const, label: 'Pick a time' },
 ]
 const durationChoices = FLASH_DROP_DURATIONS.map((value) => ({ value, label: `${value} min` }))
+const validityChoices = FLASH_CODE_VALIDITIES.map((value) => ({
+  value,
+  label: CODE_VALIDITY_LABELS[value],
+}))
 const radiusChoices = FLASH_DROP_RADII.map((value) => ({ value, label: radiusLabel(value) }))
 
 const changeCodes = (direction: 1 | -1) => {
@@ -138,7 +144,17 @@ const changeCodes = (direction: 1 | -1) => {
       </p>
     </div>
 
-    <ChoiceChips v-model="fields.durationMinutes" name="flash-length" legend="Lasts" :choices="durationChoices" />
+    <ChoiceChips v-model="fields.durationMinutes" name="flash-length" legend="Claiming open for" :choices="durationChoices" />
+    <ChoiceChips
+      v-model="fields.codeValidity"
+      name="flash-codes-valid"
+      legend="Claimed codes can be used for"
+      :choices="validityChoices"
+    />
+    <p class="small text-secondary mt-n2">
+      Counted from when claiming closes, so people have time to get to your counter. Ending the
+      flash deal early stops new claims; codes already claimed keep working.
+    </p>
     <ChoiceChips
       v-model="fields.radiusMetres"
       name="flash-radius"

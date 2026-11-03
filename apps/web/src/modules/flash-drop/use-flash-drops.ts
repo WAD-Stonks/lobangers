@@ -1,5 +1,14 @@
-import type { FlashCode, PublicFlashDrop } from '@broke-oclock/contracts/flash-drops'
+import type {
+  FlashCode,
+  FlashDropChange,
+  PublicFlashDrop,
+} from '@broke-oclock/contracts/flash-drops'
 import { api } from '@web/lib/api-client'
+import {
+  type CloseChannel,
+  coalesce,
+  openMapFlashChannel,
+} from '@web/modules/flash-drop/flash-channel'
 import {
   computed,
   type InjectionKey,
@@ -12,10 +21,13 @@ import {
 } from 'vue'
 
 // Live Flash Drops for the map, banner and deal panel, and the visitor's claimed codes for the
-// menu and My codes. Live drops refresh every 30 s and when the tab comes back; a one-second
-// clock drives every countdown while a drop is running.
+// menu and My codes. A pushed change (a drop going live, being claimed, ending) re-reads them at
+// once; they also refresh every 30 s, which catches scheduled starts and covers a missing or
+// dropped socket, and when the tab comes back. A one-second clock drives every countdown.
 const REFRESH_MS = 30_000
 const TICK_MS = 1000
+// At most one re-read a second however many pushes arrive.
+const PUSH_REFRESH_MS = 1000
 
 type Session = Readonly<Ref<{ data: { user: { id?: string } } | null }>>
 
@@ -27,6 +39,7 @@ export const createFlashDrops = (session: Session) => {
   let latestCodes = 0
   let refreshTimer: ReturnType<typeof setInterval> | null = null
   let tickTimer: ReturnType<typeof setInterval> | null = null
+  let closeChannel: CloseChannel | null = null
 
   const refresh = async () => {
     try {
@@ -67,6 +80,14 @@ export const createFlashDrops = (session: Session) => {
     return code
   }
 
+  const pushedRefresh = coalesce(() => void refresh(), PUSH_REFRESH_MS)
+  const onPushed = (change: FlashDropChange) => {
+    pushedRefresh()
+    // An admin removing a drop cancels its codes, so a held one is re-read too.
+    if (change.kind === 'STOPPED' && codes.value.some((code) => code.dropId === change.dropId))
+      void loadCodes()
+  }
+
   const onVisible = () => {
     if (document.visibilityState === 'visible') void refresh()
   }
@@ -81,6 +102,16 @@ export const createFlashDrops = (session: Session) => {
       now.value = Date.now()
     }, TICK_MS)
     document.addEventListener('visibilitychange', onVisible)
+    // Pushes sent while the socket was down are lost, so a reconnect catches up. The first
+    // connect needs nothing: the refresh above has just run.
+    let connectedBefore = false
+    closeChannel = openMapFlashChannel({
+      onChange: onPushed,
+      onLiveChange: (live) => {
+        if (live && connectedBefore) pushedRefresh()
+        if (live) connectedBefore = true
+      },
+    })
   }
 
   const stop = () => {
@@ -89,6 +120,9 @@ export const createFlashDrops = (session: Session) => {
     refreshTimer = null
     tickTimer = null
     document.removeEventListener('visibilitychange', onVisible)
+    closeChannel?.()
+    closeChannel = null
+    pushedRefresh.cancel()
   }
 
   watch(
@@ -107,8 +141,9 @@ export const createFlashDrops = (session: Session) => {
   const live = computed(() =>
     drops.value.filter((drop) => new Date(drop.endsAt).getTime() > now.value),
   )
+  // Codes outlive claiming: they are good at the counter until they expire.
   const activeCodes = computed(() =>
-    codes.value.filter((code) => code.active && new Date(code.endsAt).getTime() > now.value),
+    codes.value.filter((code) => code.active && new Date(code.expiresAt).getTime() > now.value),
   )
 
   return {

@@ -1,4 +1,5 @@
 import { claimFlashCode } from '@api/modules/flash-drops/public'
+import { publishFlashChange } from '@api/modules/flash-drops/realtime'
 import {
   authenticatedActor,
   createRestHandler,
@@ -21,5 +22,7 @@ export const claimCode = (dependencies: RestDependencies) =>
     const actor = authenticatedActor(requireSession(context))
     const { dropId } = parseRestInput(flashDropParamsSchema, request.params)
     const result = await claimFlashCode(context.db, actor, dropId, new Date())
+    // Codes left went down; a repeat claim returns the same code and changes nothing.
+    if (result.created) await publishFlashChange(result.merchantUserId, { dropId, kind: 'CLAIMED' })
     response.status(result.created ? 201 : 200).json(flashCodeSchema.parse(result.code))
   })

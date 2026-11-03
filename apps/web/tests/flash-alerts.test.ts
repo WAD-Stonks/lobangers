@@ -22,6 +22,7 @@ const live = (id: string, overrides: Partial<PublicFlashDrop> = {}): PublicFlash
   usualPriceCents: 400,
   startsAt: new Date(NOW - 60_000).toISOString(),
   endsAt: new Date(NOW + 30 * 60_000).toISOString(),
+  codesExpireAt: new Date(NOW + 3 * 3_600_000).toISOString(),
   radiusMetres: 500,
   codesLeft: 10,
   codeLimit: 10,

@@ -16,6 +16,18 @@ export const FLASH_DROP_DURATIONS = [15, 30, 60] as const
 export const FLASH_DROP_RADII = [300, 500, 1000] as const
 export const FLASH_DROP_MIN_CODES = 10
 export const FLASH_DROP_MAX_CODES = 200
+// How long a claimed code stays good once claiming closes. The claim window above is only for
+// claiming; people then have this long to get to the counter. END_OF_DAY is 11:59 pm in
+// Singapore on the day claiming closes.
+export const FLASH_CODE_VALIDITIES = [
+  'TWO_HOURS',
+  'END_OF_DAY',
+  'THREE_DAYS',
+  'SEVEN_DAYS',
+] as const
+export const flashCodeValiditySchema = z.enum(FLASH_CODE_VALIDITIES)
+export type FlashCodeValidity = z.infer<typeof flashCodeValiditySchema>
+export const DEFAULT_FLASH_CODE_VALIDITY: FlashCodeValidity = 'END_OF_DAY'
 // A flash deal can be scheduled up to a week ahead, never in the past.
 export const FLASH_DROP_MAX_LEAD_DAYS = 7
 // More codes than this at one stall is flagged for admins, not refused.
@@ -57,6 +69,8 @@ export const publicFlashDropSchema = z.strictObject({
   usualPriceCents: z.number().int().positive().nullable(),
   startsAt: z.iso.datetime(),
   endsAt: z.iso.datetime(),
+  // When codes claimed from this drop stop working at the counter.
+  codesExpireAt: z.iso.datetime(),
   radiusMetres: z.number().int().positive(),
   codesLeft: z.number().int().nonnegative(),
   codeLimit: z.number().int().positive(),
@@ -76,8 +90,11 @@ export const flashCodeSchema = z.strictObject({
   venueName: z.string(),
   ...flashOfferShape,
   claimedAt: z.iso.datetime(),
+  // When claiming closed (or closes), and when the code itself stops working.
   endsAt: z.iso.datetime(),
-  // Codes are shown at the counter until the drop ends.
+  expiresAt: z.iso.datetime(),
+  // A code is good at the counter until it expires, even after claiming closes; only an admin
+  // removing the drop cancels it early.
   active: z.boolean(),
   demo: z.boolean(),
 })
@@ -103,6 +120,7 @@ export const merchantFlashDropBodySchema = z
     // The saved start time, or null to start at the moment the merchant presses Go live.
     startsAt: z.iso.datetime().nullable(),
     durationMinutes: z.union(FLASH_DROP_DURATIONS.map((value) => z.literal(value))),
+    codeValidity: flashCodeValiditySchema.default(DEFAULT_FLASH_CODE_VALIDITY),
     radiusMetres: z.union(FLASH_DROP_RADII.map((value) => z.literal(value))),
     codeLimit: z.number().int().min(FLASH_DROP_MIN_CODES).max(FLASH_DROP_MAX_CODES),
     // The draft's version when editing, so two tabs cannot overwrite each other.
@@ -147,6 +165,9 @@ const flashDropCoreShape = {
   usualPriceCents: z.number().int().positive().nullable(),
   startsAt: z.iso.datetime(),
   endsAt: z.iso.datetime(),
+  // Null for flash deals made before codes outlived the claim window.
+  codeValidity: flashCodeValiditySchema.nullable(),
+  codesExpireAt: z.iso.datetime(),
   radiusMetres: z.number().int().positive(),
   codeLimit: z.number().int().positive(),
   claimedCount: z.number().int().nonnegative(),
@@ -219,6 +240,32 @@ export const adminFlashDropDecisionSchema = z.strictObject({
   version: z.number().int().min(1),
 })
 
+// ----- Live updates -----
+
+// Flash deal changes are pushed over Pusher so the map and the merchant dashboard update at once
+// instead of on the next poll. A push carries no deal data: it only says which drop changed and
+// how, and each browser re-reads through the REST API it already uses. Without Pusher configured
+// both simply keep polling.
+export const FLASH_DROPS_CHANNEL = 'flash-drops'
+export const FLASH_DROP_CHANGED_EVENT = 'changed'
+export const merchantFlashChannelPattern = /^private-merchant-flash-[a-f0-9]{24}$/
+export const merchantFlashChannelFor = (userId: string) => `private-merchant-flash-${userId}`
+export const flashDropChangeSchema = z.strictObject({
+  dropId: dealObjectIdSchema,
+  kind: z.enum(['LIVE', 'CLAIMED', 'ENDED', 'STOPPED']),
+})
+export const flashRealtimeConfigSchema = z.strictObject({
+  pusher: z.strictObject({ key: z.string().min(1), cluster: z.string().min(1) }).nullable(),
+})
+export const merchantFlashRealtimeAuthSchema = z.strictObject({
+  socketId: z.string().regex(/^\d+\.\d+$/, 'Invalid socket'),
+  channel: z.string().regex(merchantFlashChannelPattern, 'Invalid channel'),
+})
+export const merchantFlashRealtimeAuthResponseSchema = z.strictObject({ auth: z.string().min(1) })
+
+export type FlashDropChange = z.infer<typeof flashDropChangeSchema>
+export type FlashRealtimeConfig = z.infer<typeof flashRealtimeConfigSchema>
+export type MerchantFlashRealtimeAuth = z.infer<typeof merchantFlashRealtimeAuthSchema>
 export type PublicFlashDrop = z.infer<typeof publicFlashDropSchema>
 export type ActiveFlashDropsResponse = z.infer<typeof activeFlashDropsResponseSchema>
 export type FlashCode = z.infer<typeof flashCodeSchema>

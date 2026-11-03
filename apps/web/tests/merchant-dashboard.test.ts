@@ -116,6 +116,8 @@ const flashDraft = (overrides: Partial<MerchantFlashDrop> = {}): MerchantFlashDr
   usualPriceCents: 400,
   startsAt: '2099-01-01T10:00:00.000Z',
   endsAt: '2099-01-01T10:30:00.000Z',
+  codeValidity: 'END_OF_DAY',
+  codesExpireAt: '2099-01-01T15:59:59.999Z',
   radiusMetres: 500,
   codeLimit: 40,
   claimedCount: 0,
@@ -430,6 +432,7 @@ describe('merchant dashboard', () => {
       outletId: outlet.id,
       startsAt: null,
       durationMinutes: 30,
+      codeValidity: 'END_OF_DAY',
       radiusMetres: 500,
       codeLimit: 40,
     })
