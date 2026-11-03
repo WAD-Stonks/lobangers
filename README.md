@@ -1,10 +1,20 @@
-# LoBangers
+# Lobangers
 
-**IS216 Web Application Development 2 | G9 Team 2 | Team Stonkers**
+**IS216 Web Application Development 2**
+**G9 Team 2**
 
-LoBangers helps students in Singapore find discounted food near them. It brings scattered food promotions into one map and searchable feed, lets the community submit and verify deals, and gives stall owners their own dashboard for promotions.
+| # | Name | Email ID |
+|---|------|----------|
+| 1 | Allison Margaret Loo Li Houng | allison.loo.2025 |
+| 2 | Ashley Tan Min Yee | ashley.t.2025 |
+| 3 | Damien Law Yong Chung | damien.law.2025 |
+| 4 | Leong Zhi Xin Isaac | isaac.leong.2025 |
+| 5 | Lwin Moe Htet | mh.lwin.2025 |
+| 6 | Wong Kang En | kangen.wong.2025 |
 
-## Live application
+Lobangers helps students in Singapore find discounted food near them. It brings scattered food promotions into one map and searchable feed, lets the community submit and verify deals, and gives stall owners their own dashboard for promotions.
+
+## Hosted application
 
 https://lobangers.vercel.app
 
@@ -20,7 +30,7 @@ https://github.com/WAD-Stonks/lobangers
 | Customer | `damienlaw0601@gmail.com`   | `12345678`                                 |
 | Merchant |                             |                                            |
 
-Sign in at https://lobangers.vercel.app/login.
+Sign in at https://lobangers.vercel.app/sign-in.
 
 ## Technology
 
@@ -66,28 +76,26 @@ Then open:
 You can seed the database with fake data. First register an account in the app at http://localhost:5173/register, then run:
 
 ```sh
-pnpm --dir apps/api run seed:local-demo -- --admin you@example.com --merchant you@example.com
+pnpm --dir apps/api run seed:local-demo 
 ```
 
-Replace `you@example.com` with the email you registered. `--admin` gives that account the Admin role and `--merchant` makes it a merchant who owns a demo stall. Both flags are optional and can be repeated.
-
-### Other useful commands
-
-```sh
-pnpm run db:studio   # Browse the database in Prisma Studio (http://127.0.0.1:5555)
-```
 
 ## 2. Testing the application
 
-### Automated tests
+### Unit testing
+Run the following command in repository root.
+```sh
+pnpm run test:unit
+```
 
-Run these from the repository root.
+### End-to-end testing
+Run the following command in repository root to download the chromium browser. You only need to run this command once.
+```sh
+pnpm exec playwright install chromium
+```
 
-| Command                                         | Purpose                                                        |
-| ----------------------------------------------- | --------------------------------------------------------------------- |
-| `pnpm run lint`                                 | Code style and lint rules (Biome)                                     |
-| `pnpm run test:unit`                            | Unit tests (Vitest)          |
-| `pnpm run test:integration`                     | HTTP, authentication and database tests against a temporary MongoDB |
-| `pnpm exec playwright install chromium`         | One-time download of the browser used by end-to-end tests             |
-| `pnpm run test:e2e`                             | End-to-end tests (Playwright). Ensure application is already running and the above command as been ran.                       |
-| `pnpm run check:all`                            | Everything above, including integration and end-to-end tests          |
+
+Ensure the application is already running. In a separate terminal, run:
+```sh
+pnpm run test:e2e
+```
