@@ -49,9 +49,9 @@ onMounted(reload)
 onUnmounted(fence.dispose)
 </script>
 <template>
- <AdminShell title="Deals operations" :refresh-key="refreshKey" @closing="close" @signed-out="denied('UNAUTHORIZED')" @access-reload="reload">
+ <AdminShell :access="access" title="Deals operations" :refresh-key="refreshKey" @closing="close" @signed-out="denied('UNAUTHORIZED')" @access-reload="reload">
   <p v-if="access === 'loading'" role="status">Checking session…</p>
-  <SharedSignIn v-else-if="access === 'UNAUTHORIZED'" title="Sign in to administer deals" :destination="destination" @signed-in="signedIn" />
+  <SharedSignIn heading-level="h1" v-else-if="access === 'UNAUTHORIZED'" title="Sign in to administer deals" :destination="destination" @signed-in="signedIn" />
   <div v-else-if="access === 'FORBIDDEN'" role="alert"><p>Current administrator access is required.</p><button type="button" class="btn btn-outline-primary" @click="reload">Recheck access</button></div>
   <div v-else-if="access === 'error'" role="alert"><p>Unable to confirm session. Protected deal evidence remains closed.</p><button type="button" class="btn btn-outline-primary" @click="reload">Retry session check</button></div>
   <p v-else-if="access === 'closed'" role="status">Deal operations are closed. Use session controls to recheck access.</p>

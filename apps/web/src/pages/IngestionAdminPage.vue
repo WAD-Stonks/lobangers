@@ -144,7 +144,7 @@ onUnmounted(() => { fence.dispose(); nativeFence.dispose() })
 </script>
 
 <template>
-  <AdminShell @click.capture="logoutStarting" title="Ingestion admin" :refresh-key="sessionRefreshKey" @closing="close" @signed-out="anonymous" @access-reload="reload">
+  <AdminShell :access="access" @click.capture="logoutStarting" title="Ingestion admin" :refresh-key="sessionRefreshKey" @closing="close" @signed-out="anonymous" @access-reload="reload">
   <section aria-label="Ingestion administration">
     <TicketLoading v-if="access === 'loading'" label="Loading ingestion…" />
     <AdminSignIn v-else-if="access === 'unauthorized'" @signed-in="signedIn" />

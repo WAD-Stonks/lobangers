@@ -63,9 +63,9 @@ onUnmounted(fence.dispose)
 </script>
 
 <template>
-  <AdminShell title="Reports &amp; comment moderation" :refresh-key="refreshKey" @closing="close" @signed-out="anonymous" @access-reload="reload">
+  <AdminShell :access="access" title="Reports &amp; comment moderation" :refresh-key="refreshKey" @closing="close" @signed-out="anonymous" @access-reload="reload">
     <p v-if="access === 'loading'" role="status">Checking moderation access…</p>
-    <SharedSignIn v-else-if="access === 'UNAUTHORIZED'" title="Sign in to moderate" :destination="destination" @signed-in="signedIn" />
+    <SharedSignIn heading-level="h1" v-else-if="access === 'UNAUTHORIZED'" title="Sign in to moderate" :destination="destination" @signed-in="signedIn" />
     <div v-else-if="access === 'FORBIDDEN'" role="alert">
       <p>You do not have permission to moderate.</p>
       <button type="button" class="btn btn-outline-primary" @click="reload">Recheck moderation access</button>

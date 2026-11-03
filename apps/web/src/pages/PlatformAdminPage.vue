@@ -99,10 +99,10 @@ async function closeDetails() {
 const workspaceTabs = [{ id: 'accounts', label: 'Directory' }, { id: 'requests', label: 'Merchant requests' }]
 </script>
 <template>
-  <AdminShell @click.capture="s.logoutStarting" title="Accounts" :refresh-key="s.sessionRefreshKey" @closing="s.close" @signed-out="s.anonymous" @access-reload="s.load">
+  <AdminShell :access="s.access" @click.capture="s.logoutStarting" title="Accounts" :refresh-key="s.sessionRefreshKey" @closing="s.close" @signed-out="s.anonymous" @access-reload="s.load">
   <section ref="workspaceRoot" aria-label="Platform administration" class="platform-admin">
     <TicketLoading v-if="s.access === 'loading'" label="Loading accounts…" />
-    <SharedSignIn v-else-if="s.access === 'UNAUTHORIZED'" title="Sign in to manage accounts" destination="/admin/accounts" @signed-in="s.signedIn" />
+    <SharedSignIn heading-level="h1" v-else-if="s.access === 'UNAUTHORIZED'" title="Sign in to manage accounts" destination="/admin/accounts" @signed-in="s.signedIn" />
     <p v-else-if="s.access === 'closed'" role="status">Access is closed. Use the session controls to retry or recheck.</p>
     <p v-else-if="s.access === 'FORBIDDEN'" role="alert">You do not have permission to manage platform accounts.</p>
     <div v-else-if="s.access === 'error'" role="alert">

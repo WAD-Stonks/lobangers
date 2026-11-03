@@ -409,15 +409,13 @@ it('disables child security controls during an existing role mutation', async ()
 it('routes platform administration separately and uses server denial, not a client role', async () => {
   rest.accounts.mockRejectedValueOnce(new ApiClientError('UNAUTHORIZED', 401, 'Sign in required'))
   const wrapper = await open()
-  expect(wrapper.get('h1').text()).toBe('Accounts')
+  expect(wrapper.get('h1').text()).toBe('Sign in to manage accounts')
   expect(wrapper.text()).toContain('Sign in to manage accounts')
   expect(wrapper.find('input[type="password"]').exists()).toBe(true)
   expect(wrapper.find('[data-testid="nav-toggle"]').exists()).toBe(false)
   expect(wrapper.find('[data-testid="nav-menu"] a[href="/admin/accounts"]').exists()).toBe(false)
   expect(wrapper.find('[data-testid="nav-menu"] a[href="/admin/ingestion"]').exists()).toBe(false)
-  expect(wrapper.get('nav[aria-label="Administration"] a[href="/admin/accounts"]').text()).toBe(
-    'Accounts',
-  )
+  expect(wrapper.find('nav[aria-label="Administration"]').exists()).toBe(false)
   expect(rest.requests).not.toHaveBeenCalled()
 })
 

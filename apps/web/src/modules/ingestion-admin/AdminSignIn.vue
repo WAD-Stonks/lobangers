@@ -6,5 +6,5 @@ const emit = defineEmits<{ signedIn: [] }>()
 </script>
 
 <template>
-  <SharedSignIn :title="title" destination="/admin/ingestion" @signed-in="emit('signedIn')" />
+  <SharedSignIn heading-level="h1" :title="title" destination="/admin/ingestion" @signed-in="emit('signedIn')" />
 </template>

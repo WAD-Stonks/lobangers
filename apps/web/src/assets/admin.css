@@ -981,3 +981,41 @@
     min-height: 44px;
   }
 }
+
+/* Access is established before the operational navigation is shown. */
+.admin-shell.admin-shell--auth {
+  display: block;
+}
+.admin-shell--auth .admin-workspace {
+  min-height: 100dvh;
+}
+.admin-shell--auth .admin-auth-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 24px clamp(20px, 4vw, 48px);
+}
+.admin-shell--auth .admin-topbar {
+  justify-content: flex-end;
+}
+.admin-shell--auth .admin-main {
+  width: 100%;
+  max-width: 520px;
+  margin-inline: auto;
+  padding: clamp(24px, 6vh, 64px) 20px 40px;
+}
+.admin-shell--auth .admin-auth-back {
+  display: block;
+  width: fit-content;
+  margin: 24px auto 0;
+}
+.admin-shell--auth .admin-auth-header .admin-wordmark {
+  flex-shrink: 0;
+}
+.admin-shell--auth .admin-auth-header .theme-toggle {
+  width: auto;
+}
+.admin-shell--auth .auth-flow .input-group > .btn {
+  width: auto;
+}

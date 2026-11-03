@@ -85,7 +85,7 @@ onUnmounted(() => { fence.dispose(); nativeFence.dispose() })
 </script>
 
 <template>
-  <AdminShell class="admin-overview" @click.capture="logoutStarting" title="Admin overview" :refresh-key="sessionRefreshKey" @closing="close" @signed-out="anonymous" @access-reload="reload">
+  <AdminShell :access="access" class="admin-overview" @click.capture="logoutStarting" title="Admin overview" :refresh-key="sessionRefreshKey" @closing="close" @signed-out="anonymous" @access-reload="reload">
     <div v-if="access === 'allowed' || access === 'loading'" class="overview-toolbar">
       <div class="overview-introduction">
       <p class="overview-description">Review pending work and track registrations and imports.</p>
@@ -99,7 +99,7 @@ onUnmounted(() => { fence.dispose(); nativeFence.dispose() })
       </button>
     </div>
     <TicketLoading v-if="access === 'loading'" label="Loading admin overview…" />
-    <SharedSignIn v-else-if="access === 'unauthorized'" title="Sign in to view administration" destination="/admin" @signed-in="signedIn" />
+    <SharedSignIn heading-level="h1" v-else-if="access === 'unauthorized'" title="Sign in to view administration" destination="/admin" @signed-in="signedIn" />
     <p v-else-if="access === 'forbidden'" role="alert">You do not have permission to view administration.</p>
     <p v-else-if="access === 'closed'" role="status">Access is closed. Use the session controls to retry or recheck.</p>
     <div v-else-if="access === 'error'" role="alert">
