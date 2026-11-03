@@ -203,6 +203,19 @@ describe('live squad room', () => {
     expect(sync).toHaveBeenCalledTimes(1)
     room.dispose()
   })
+  it('rains a nah spammer on everyone else, one burst per nah up to a handful a message', async () => {
+    sync.mockResolvedValue(reply(1))
+    const { room, channel } = await openWithChannel()
+    const kinds: string[] = []
+    room.onEffect((event) => kinds.push(event.kind))
+    channel.onTaps({ memberId: FRIEND, yays: 0, nahs: 2 })
+    await vi.advanceTimersByTimeAsync(SOCKET_TAP_MS)
+    expect(kinds).toEqual(['NAH', 'NAH'])
+    channel.onTaps({ memberId: FRIEND, yays: 0, nahs: 30 })
+    await vi.advanceTimersByTimeAsync(SOCKET_TAP_MS)
+    expect(kinds.filter((kind) => kind === 'NAH')).toHaveLength(2 + 6)
+    room.dispose()
+  })
 })
 
 describe('withBallot', () => {

@@ -629,17 +629,21 @@
 }
 
 /* ----- Sheets inside the room ----- */
+/* Fixed, so it escapes the room's padded scroll body: the shell panel is transformed, which makes
+   it the containing block, so this covers exactly the panel. On a phone the panel is translated
+   down by --sheet-offset, so the sheet stops at the visible edge rather than off screen. */
 .squad-overlay {
-  position: absolute;
-  inset: 0;
+  position: fixed;
+  inset: 0 0 var(--sheet-offset, 0px);
   z-index: 40;
   display: flex;
   align-items: flex-end;
+  padding: var(--space-3);
 }
 
 .squad-overlay__scrim {
   position: absolute;
-  inset: -100vh 0 0;
+  inset: 0;
   background: rgba(17, 17, 20, 0.5);
   border: 0;
   animation: squad-fade 200ms var(--ease-out) both;
@@ -906,6 +910,19 @@
   }
 }
 
+@keyframes squad-drop-still {
+  from,
+  to {
+    opacity: 0;
+    transform: rotate(var(--fx-rotate));
+  }
+
+  25%,
+  70% {
+    opacity: 1;
+  }
+}
+
 @keyframes squad-fade {
   from {
     opacity: 0;
@@ -922,8 +939,10 @@
     animation: squad-fade 150ms ease both;
   }
 
+  /* No falling: each thumb fades in and out at its own spot across the top of the room. */
   .squad-fx__drop {
-    display: none;
+    top: calc(8% + var(--fx-y, 0.5) * 45%);
+    animation-name: squad-drop-still;
   }
 
   .squad-card:active,

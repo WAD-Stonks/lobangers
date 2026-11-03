@@ -1,4 +1,6 @@
+import { publicImportedImage, publicImportedImageSelect } from '@api/modules/deals/public-images'
 import type { Database } from '@api/modules/platform-admin/transaction'
+import { activeRecord } from '@api/modules/platform-admin/venues'
 import { isAway, isPresent, LOBBY_LIFETIME_MS, tally, voters } from '@api/modules/squad/rules'
 import type { RoomRow, SeatRow, Tx } from '@api/modules/squad/store'
 import type { SquadAvatar, SquadDeal, SquadState } from '@broke-oclock/contracts/squad'
@@ -40,7 +42,14 @@ export const loadDeals = async (
       validUntil: true,
       deletedAt: true,
       reviewStatus: true,
-      images: { select: { url: true }, take: 1 },
+      // A merchant upload leads; otherwise the imported post's hero, as on the map.
+      images: {
+        where: activeRecord,
+        orderBy: { createdAt: 'asc' },
+        select: { url: true },
+        take: 1,
+      },
+      sources: publicImportedImageSelect,
       venues: {
         take: 1,
         select: { venue: { select: { id: true, name: true, latitude: true, longitude: true } } },
@@ -59,7 +68,7 @@ export const loadDeals = async (
         label: labelOf(row),
         category: row.category,
         priceMinor: row.priceMinor ?? null,
-        imageUrl: row.images[0]?.url ?? null,
+        imageUrl: row.images[0]?.url ?? publicImportedImage(row).imageUrl,
         venueId: venue?.id ?? null,
         venueName: venue?.name ?? null,
         lat: venue?.latitude ?? null,
