@@ -58,6 +58,33 @@ const component = async () => {
   expect(m, 'moderation panel exists').not.toBeNull()
   return m?.default
 }
+it('distinguishes a failed queue read from a confirmed empty result and offers retry', async () => {
+  rest.reports.mockRejectedValueOnce(new Error('Synthetic read failure'))
+  const c = await component()
+  if (!c) return
+  const w = mount(c)
+  await flushPromises()
+  expect(w.text()).toContain('Unable to load queue')
+  expect(w.text()).toContain('Queue unavailable')
+  expect(w.text()).not.toContain('Queue clear')
+  expect(w.text()).not.toContain('0 loaded')
+  rest.reports.mockResolvedValueOnce({ items: [], nextCursor: null })
+  await w
+    .findAll('button')
+    .find((button) => button.text() === 'Retry queue')
+    ?.trigger('click')
+  await flushPromises()
+  expect(w.text()).toContain('Queue clear')
+  expect(w.text()).toContain('0 loaded')
+  expect(w.text()).not.toContain('Queue unavailable')
+  rest.reports.mockRejectedValueOnce(new Error('Synthetic filter read failure'))
+  await w.get('#mod-type').setValue('DEAL')
+  await flushPromises()
+  expect(w.text()).toContain('Queue unavailable')
+  expect(w.text()).not.toContain('Queue clear')
+  expect(w.text()).not.toContain('0 loaded')
+  w.unmount()
+})
 it('mounts queue and submits exact selected collection/id/version only once with deliberate confirmation', async () => {
   const c = await component()
   if (!c) return

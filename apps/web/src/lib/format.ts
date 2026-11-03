@@ -4,6 +4,12 @@ const LOCALE = 'en-SG'
 const SINGAPORE_TIME_ZONE = 'Asia/Singapore'
 const DEFAULT_CURRENCY = 'SGD'
 const MINOR_UNITS = 100
+const OFFER_TYPE_LABELS: Record<string, string> = {
+  FIXED_PRICE: 'Fixed price',
+  PERCENT_OFF: 'Percentage off',
+  BUY_ONE_GET_ONE: 'Buy one, get one',
+  OTHER: 'Other offer',
+}
 const KILOMETRE = 1000
 const METRE_ROUNDING = 10
 const MINUTE_SECONDS = 60
@@ -11,6 +17,8 @@ const HOUR_SECONDS = 3600
 const DAY_SECONDS = 86_400
 
 const currencyFormats = new Map<string, Intl.NumberFormat>()
+
+export const formatOfferType = (value: string): string => OFFER_TYPE_LABELS[value] ?? value
 
 const currencyFormat = (currency: string): Intl.NumberFormat => {
   const cached = currencyFormats.get(currency)

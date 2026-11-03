@@ -19,6 +19,7 @@ export const useModeration = (denied: (code: 'UNAUTHORIZED' | 'FORBIDDEN') => vo
     comment = shallowRef<ModerationComment | null>(null)
   const nextCursor = ref<string | null>(null),
     loading = ref(false),
+    queueFailed = ref(false),
     detailLoading = ref(false),
     pending = ref(false),
     error = ref(''),
@@ -58,6 +59,7 @@ export const useModeration = (denied: (code: 'UNAUTHORIZED' | 'FORBIDDEN') => vo
     recovery.close()
     pending.value = false
     loading.value = false
+    queueFailed.value = false
     error.value = ''
     notice.value = ''
     versions.clear()
@@ -88,6 +90,7 @@ export const useModeration = (denied: (code: 'UNAUTHORIZED' | 'FORBIDDEN') => vo
     if (pending.value) return
     const ticket = ++listGeneration
     loading.value = true
+    queueFailed.value = false
     error.value = ''
     if (!more) {
       clear()
@@ -125,8 +128,10 @@ export const useModeration = (denied: (code: 'UNAUTHORIZED' | 'FORBIDDEN') => vo
         error.value = 'Selected evidence changed. Inspect it again.'
       }
     } catch (e) {
-      if (alive && recovery.current() && ticket === listGeneration && !rejectAccess(e))
+      if (alive && recovery.current() && ticket === listGeneration && !rejectAccess(e)) {
+        queueFailed.value = true
         error.value = 'Unable to load queue. Check filters and retry.'
+      }
     } finally {
       if (alive && recovery.current() && ticket === listGeneration) loading.value = false
     }
@@ -282,6 +287,7 @@ export const useModeration = (denied: (code: 'UNAUTHORIZED' | 'FORBIDDEN') => vo
     comment,
     nextCursor,
     loading,
+    queueFailed,
     detailLoading,
     pending,
     error,

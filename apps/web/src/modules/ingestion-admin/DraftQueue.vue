@@ -7,7 +7,7 @@ import AdminStatusBadge from '@web/components/admin/AdminStatusBadge.vue'
 import AdminWorkspace from '@web/components/admin/AdminWorkspace.vue'
 import TicketLoading from '@web/components/TicketLoading.vue'
 import { api } from '@web/lib/api-client'
-import { formatDate, formatMoneyMinor } from '@web/lib/format'
+import { formatDate, formatMoneyMinor, formatOfferType } from '@web/lib/format'
 import DraftEvidence from '@web/modules/ingestion-admin/DraftEvidence.vue'
 import DraftImages from '@web/modules/ingestion-admin/DraftImages.vue'
 import { approvalBlockReason } from '@web/modules/ingestion-admin/draft-validity'
@@ -235,8 +235,9 @@ const setCategory = async () => {
 // Reviewers see the exact stored terms ("1250 minor units · SGD"), led by the formatted price
 // when the currency code is valid: "$12.50 (1250 minor units · SGD)". Never a guessed currency.
 const priceText = (draft: Pick<Draft, 'priceMinor' | 'currency'>) => {
-  const raw = `${draft.priceMinor ?? 'Unknown'} minor units · ${draft.currency ?? 'Unknown currency'}`
-  if (draft.priceMinor === null || draft.priceMinor === undefined || !draft.currency) return raw
+  if (draft.priceMinor === null || draft.priceMinor === undefined) return 'Price not supplied'
+  const raw = `${draft.priceMinor} minor units · ${draft.currency ?? 'Unknown currency'}`
+  if (!draft.currency) return raw
   try {
     return `${formatMoneyMinor(draft.priceMinor, draft.currency)} (${raw})`
   } catch {
@@ -308,7 +309,7 @@ watch([() => props.revision, status], (_value, previous) => {
     <p v-if="!pending && !error && items?.length === 0">No drafts match this status.</p>
     <AdminWorkspace :selected="Boolean(selected)" label="Imported draft records" detail-label="Draft review details" :disabled="busy || venuePending" @close="closeSelection">
       <template #list>
-        <p class="draft-list-heading">{{ items?.length ?? 0 }} drafts loaded</p>
+        <p v-if="!pending && !error" class="draft-list-heading">{{ items?.length ?? 0 }} drafts loaded</p>
         <ul v-if="items?.length" class="draft-records">
           <li v-for="draft in items" :key="draft.id">
             <button type="button" class="draft-record" :class="{ 'is-selected': selectedId === draft.id }" :data-testid="`view-${draft.id}`" :disabled="busy || pending || Boolean(error) || (conflict && selectedId === draft.id)" :aria-current="selectedId === draft.id ? 'true' : undefined" :aria-label="`View details: ${draft.title}`" @click="select(draft)">
@@ -327,9 +328,9 @@ watch([() => props.revision, status], (_value, previous) => {
       <p class="draft-text">{{ selected.description }}</p>
       <DraftImages :key="`${selected.id}:${selected.contentVersion}`" :images="selected.images" :title="selected.title" />
       <dl class="draft-facts">
-        <dt>Offer</dt><dd class="admin-figures">{{ priceText(selected) }} · {{ selected.discountPercent ?? 'Unknown' }}% discount</dd>
+        <dt>Offer</dt><dd class="admin-figures">{{ priceText(selected) }}<template v-if="selected.discountPercent != null"> · {{ selected.discountPercent }}% off</template></dd>
         <dt>Terms</dt><dd class="draft-text">{{ selected.terms ?? 'Not supplied' }}</dd>
-        <dt>Category / offer type</dt><dd>{{ selected.category }} / {{ selected.offerType }}</dd>
+        <dt>Category / offer type</dt><dd>{{ selected.category }} / {{ formatOfferType(selected.offerType) }}</dd>
         <dt>Validity</dt><dd><time v-if="selected.validFrom" :datetime="selected.validFrom">{{ formatDate(selected.validFrom) }}</time><template v-else>Unknown start</template> to <time v-if="selected.validUntil" :datetime="selected.validUntil">{{ formatDate(selected.validUntil) }}</time><template v-else>Unknown end</template></dd>
         <dt>Original validity text</dt><dd>{{ selected.rawValidityText ?? 'Not supplied' }}</dd>
         <dt>Content version</dt><dd>Version {{ selected.contentVersion }}</dd>

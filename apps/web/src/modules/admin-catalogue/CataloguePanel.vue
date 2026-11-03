@@ -54,7 +54,7 @@ onUnmounted(state.dispose)
     <AdminWorkspace :selected="hasDetail" :disabled="pending" label="Catalogue directory" detail-label="Catalogue details" @close="closeDetail">
       <template #list>
         <div ref="directory">
-          <header class="catalogue-list-heading"><h2>{{ kind === 'merchants' ? 'Merchants directory' : 'Outlets directory' }}</h2><span v-if="!loading" class="catalogue-count">{{ items.length }} loaded</span></header>
+          <header class="catalogue-list-heading"><h2>{{ kind === 'merchants' ? 'Merchants directory' : 'Outlets directory' }}</h2><span v-if="!loading && !listError" class="catalogue-count">{{ items.length }} loaded</span></header>
           <TicketLoading v-if="loading" label="Loading catalogue…" />
           <div v-if="listError" role="alert" class="catalogue-list-message">Could not load the directory. <button class="btn btn-outline-primary" type="button" @click="state.load()">Retry directory</button></div>
           <p v-else-if="!loading && !items.length" role="status" class="catalogue-list-message">No catalogue rows to show. Apply filters to load or refresh the directory.</p>

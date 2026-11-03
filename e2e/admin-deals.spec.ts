@@ -144,7 +144,7 @@ for (const width of [320, 768, 1024, 1440])
     await page.setViewportSize({ width, height: 900 })
     await page.goto(base)
     await page.getByTestId('select-deal').click()
-    await expect(page.getByText('OTHER · $12.90', { exact: false })).toBeVisible()
+    await expect(page.getByText('Other offer · $12.90', { exact: false })).toBeVisible()
     await expect(page.locator('img')).toHaveCount(0)
     if (width < 992) {
       await expect(page.getByTestId('select-deal')).toBeHidden()

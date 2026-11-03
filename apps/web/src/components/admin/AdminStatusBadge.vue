@@ -25,6 +25,8 @@ const tone = computed(() => {
 .admin-status-badge {
   display: inline-flex;
   align-items: center;
+  flex-shrink: 0;
+  white-space: nowrap;
   width: fit-content;
   max-width: 100%;
   padding: 4px 10px;

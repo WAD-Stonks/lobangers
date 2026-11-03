@@ -51,7 +51,7 @@ for (const width of [320, 768, 1024, 1440])
       targetType: 'COMMENT',
       targetId: '1123456789abcdef01234567',
       moderationVersion: 4,
-      reason: 'SPAM',
+      reason: 'MISLEADING',
       status: 'OPEN',
       details: '<img src=x> Original evidence',
       reporter: { id, name: 'Synthetic reporter' },
@@ -105,6 +105,14 @@ for (const width of [320, 768, 1024, 1440])
         .getByText('<img src=x> Original evidence', { exact: true }),
     ).toBeVisible()
     await expect(page.locator('img')).toHaveCount(0)
+    const badge = page.locator('.moderation-detail-heading .admin-status-badge')
+    expect(
+      await badge.evaluate((element) => {
+        const range = document.createRange()
+        range.selectNodeContents(element)
+        return range.getClientRects().length
+      }),
+    ).toBe(1)
     await page.getByLabel('Resolution (required)').fill('Reviewed explicit evidence')
     await page.getByLabel('I reviewed this exact target').check()
     await page.getByRole('button', { name: 'Record report decision' }).focus()

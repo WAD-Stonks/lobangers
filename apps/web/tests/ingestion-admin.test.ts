@@ -92,6 +92,31 @@ beforeEach(() => {
   rest.locations.mockResolvedValue({ items: [] })
 })
 
+it('shows a draft count only after a successful read, including retry after failure', async () => {
+  let rejectRead!: (reason: Error) => void
+  rest.queue.mockReturnValueOnce(
+    new Promise((_resolve, reject) => {
+      rejectRead = reject
+    }),
+  )
+  const wrapper = mount(DraftQueue)
+  await flushPromises()
+  expect(wrapper.text()).toContain('Loading drafts')
+  expect(wrapper.text()).not.toContain('0 drafts loaded')
+  rejectRead(new Error('Synthetic unavailable queue'))
+  await flushPromises()
+  expect(wrapper.text()).toContain('Unable to load drafts')
+  expect(wrapper.text()).not.toContain('0 drafts loaded')
+  await wrapper
+    .findAll('button')
+    .find((button) => button.text() === 'Retry drafts')
+    ?.trigger('click')
+  await flushPromises()
+  expect(wrapper.text()).toContain('0 drafts loaded')
+  expect(wrapper.text()).toContain('No drafts match this status')
+  wrapper.unmount()
+})
+
 it('shows a sign-in form when the server denies anonymous access', async () => {
   rest.dashboard.mockRejectedValue(new ApiClientError('UNAUTHORIZED', 401, 'Sign in required'))
   const wrapper = mount(IngestionAdminPage)

@@ -9,7 +9,7 @@ import { computed, nextTick, ref, watch } from 'vue'
 const emit = defineEmits<{ denied: [code: 'UNAUTHORIZED' | 'FORBIDDEN'] }>()
 const {
   mode, targetType, status, state, reason, dealId, reports, comments, report, comment,
-  nextCursor, loading, detailLoading, pending, error, notice, note, confirmed,
+  nextCursor, loading, queueFailed, detailLoading, pending, error, notice, note, confirmed,
   decision, selected, blocked, lockMessage, load, inspect, submit, resetConsent, clearSelection,
 } = useModeration((code) => emit('denied', code))
 const heading = ref<HTMLElement | null>(null)
@@ -53,8 +53,9 @@ const closeDetail = async () => {
     <p v-if="notice" role="status" class="moderation-notice">{{ notice }}</p>
     <AdminWorkspace :selected="hasDetail" :disabled="pending" label="Moderation queue" detail-label="Selected evidence" @close="closeDetail">
       <template #list>
-        <header class="moderation-list-heading"><h2>{{ mode === 'REPORTS' ? 'Report queue' : 'Comment queue' }}</h2><span v-if="!loading">{{ queueCount }} loaded</span></header>
+        <header class="moderation-list-heading"><h2>{{ mode === 'REPORTS' ? 'Report queue' : 'Comment queue' }}</h2><span v-if="!loading && (!queueFailed || queueCount)">{{ queueCount }} loaded</span></header>
         <TicketLoading v-if="loading" label="Loading queue…" />
+        <div v-else-if="queueFailed" class="moderation-empty"><h3>Queue unavailable</h3><button type="button" class="btn btn-outline-primary" :disabled="pending" @click="load(Boolean(queueCount && nextCursor))">Retry queue</button></div>
         <div v-else-if="!queueCount" class="moderation-empty" role="status"><h3>Queue clear</h3><p>No records match these filters.</p></div>
         <ul class="moderation-records">
           <template v-if="mode === 'REPORTS'">
