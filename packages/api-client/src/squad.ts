@@ -3,6 +3,7 @@ import {
   type SquadChoiceInput,
   type SquadCreate,
   type SquadJoin,
+  type SquadRealtimeAuth,
   type SquadVoteInput,
   squadAddDealsSchema,
   squadChoiceSchema,
@@ -10,6 +11,9 @@ import {
   squadCreateSchema,
   squadJoinSchema,
   squadPeekSchema,
+  squadRealtimeAuthResponseSchema,
+  squadRealtimeAuthSchema,
+  squadRealtimeConfigSchema,
   squadStateSchema,
   squadSyncResponseSchema,
   squadVoteSchema,
@@ -18,8 +22,15 @@ import type { AxiosInstance } from 'axios'
 
 const room = (code: string) => `/squad/rooms/${validateInput(squadCodeParamsSchema, { code }).code}`
 
-// Makan Squad rooms: hosting, joining, the lobby controls, voting and the sync heartbeat.
+// Makan Squad rooms: hosting, joining, the lobby controls, voting, the sync heartbeat and the
+// live channel handshake.
 export const createSquadClient = (http: AxiosInstance) => ({
+  realtimeConfig: () => request(http.get('/squad/realtime'), squadRealtimeConfigSchema),
+  realtimeAuth: (input: SquadRealtimeAuth) =>
+    request(
+      http.post('/squad/realtime/auth', validateInput(squadRealtimeAuthSchema, input)),
+      squadRealtimeAuthResponseSchema,
+    ),
   create: (input: SquadCreate) =>
     request(http.post('/squad/rooms', validateInput(squadCreateSchema, input)), squadStateSchema),
   peek: (code: string) => request(http.get(room(code)), squadPeekSchema),

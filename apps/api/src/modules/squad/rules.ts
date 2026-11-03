@@ -1,8 +1,10 @@
 // Pure Makan Squad rules, shared by every room write and the sync heartbeat.
 
-// Members poll about every two seconds; silence for this long means they closed the app or lost
-// signal, and the room stops waiting for their vote.
+// Members send a heartbeat at least every 15 seconds; silence for this long means they closed
+// the app or lost signal, and the room stops waiting for their vote.
 export const AWAY_AFTER_MS = 40_000
+// A heartbeat only rewrites lastSeenAt once it is this old, so polling stays read-only.
+export const SEEN_WRITE_AFTER_MS = 10_000
 // A lobby nobody starts closes itself.
 export const LOBBY_LIFETIME_MS = 30 * 60_000
 // Only this many events are replayed to someone who reconnects.

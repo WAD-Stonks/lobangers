@@ -1,3 +1,4 @@
+import type { Database } from '@api/modules/platform-admin/transaction'
 import {
   choiceOutcome,
   isPresent,
@@ -17,7 +18,8 @@ import {
 
 // Moves a room along after any write or heartbeat: closes a lobby nobody started, skips a deal
 // that ended mid-vote, and decides a round once everyone still around has had their say. Runs
-// a few times so a skip can be followed by the next decision in one go.
+// a few times so a skip can be followed by the next decision in one go. The decision is read
+// first and written separately, so the heartbeat can check it without a transaction.
 
 const MAX_STEPS = 4
 
@@ -31,7 +33,7 @@ export const closeRoom = async (
     where: { id: room.id },
     data: { status: 'CLOSED', closeReason: reason, closedAt: now, openCode: `closed:${room.id}` },
   })
-  await appendEvents(tx, room.id, [{ kind: 'CLOSED' }])
+  await appendEvents(tx, room, [{ kind: 'CLOSED' }])
 }
 
 // The next deal, or the end of the list.
@@ -44,47 +46,66 @@ const advance = (room: RoomRow, events: NewEvent[]) => {
   return { phase: 'OUT_OF_DEALS' as const }
 }
 
-const step = async (tx: Tx, room: RoomRow, seats: readonly SeatRow[], now: Date) => {
-  if (room.status === 'LOBBY' && now.getTime() - room.createdAt.getTime() > LOBBY_LIFETIME_MS) {
-    await closeRoom(tx, room, 'EXPIRED', now)
-    return false
-  }
-  if (room.status !== 'LIVE' || (room.phase !== 'VOTING' && room.phase !== 'DECIDING')) return false
-  if (!seats.some((seat) => isPresent(seat) && !seat.spectator)) {
-    await closeRoom(tx, room, 'EMPTY', now)
-    return false
-  }
+type Reader = Tx | Database
+type Step = { close: 'EXPIRED' | 'EMPTY' } | { data: Record<string, unknown>; events: NewEvent[] }
+
+// What the room should do next, read without writing, or null when it should stay put.
+const plan = async (
+  reader: Reader,
+  room: RoomRow,
+  seats: readonly SeatRow[],
+  now: Date,
+): Promise<Step | null> => {
+  if (room.status === 'LOBBY' && now.getTime() - room.createdAt.getTime() > LOBBY_LIFETIME_MS)
+    return { close: 'EXPIRED' }
+  if (room.status !== 'LIVE' || (room.phase !== 'VOTING' && room.phase !== 'DECIDING')) return null
+  if (!seats.some((seat) => isPresent(seat) && !seat.spectator)) return { close: 'EMPTY' }
   const events: NewEvent[] = []
-  const [deal] = await loadDeals(tx, [room.dealIds[room.dealIndex] ?? ''], now)
-  let data: Record<string, unknown> | null = null
+  const [deal] = await loadDeals(reader, [room.dealIds[room.dealIndex] ?? ''], now)
   if (!deal || deal.ended) {
     events.push({ kind: 'DEAL_ENDED', dealIndex: room.dealIndex })
-    data = advance(room, events)
-  } else {
-    const ballots = await tx.squadVote.findMany({
-      where: { roomId: room.id, dealIndex: room.dealIndex, round: room.round },
-      select: { memberId: true, stance: true, choice: true },
-    })
-    const voterIds = voters(seats, now).map((seat) => seat.id)
-    if (room.phase === 'VOTING') {
-      const outcome = votingOutcome(voterIds, ballots)
-      if (outcome === 'MATCH') {
-        events.push({ kind: 'MATCH', dealIndex: room.dealIndex })
-        data = { phase: 'MATCHED', matchDealId: room.dealIds[room.dealIndex] }
-      } else if (outcome === 'DECIDE') data = { phase: 'DECIDING' }
-    } else {
-      const outcome = choiceOutcome(voterIds, ballots)
-      if (outcome === 'AGAIN') {
-        events.push({ kind: 'REVOTE', dealIndex: room.dealIndex })
-        data = { round: room.round + 1, phase: 'VOTING' }
-      } else if (outcome === 'NEXT') data = advance(room, events)
-    }
+    return { data: advance(room, events), events }
   }
-  if (!data) return false
-  await tx.squadRoom.update({ where: { id: room.id }, data })
-  await appendEvents(tx, room.id, events)
+  const ballots = await reader.squadVote.findMany({
+    where: { roomId: room.id, dealIndex: room.dealIndex, round: room.round },
+    select: { memberId: true, stance: true, choice: true },
+  })
+  const voterIds = voters(seats, now).map((seat) => seat.id)
+  if (room.phase === 'VOTING') {
+    const outcome = votingOutcome(voterIds, ballots)
+    if (outcome === 'MATCH') {
+      events.push({ kind: 'MATCH', dealIndex: room.dealIndex })
+      return { data: { phase: 'MATCHED', matchDealId: room.dealIds[room.dealIndex] }, events }
+    }
+    return outcome === 'DECIDE' ? { data: { phase: 'DECIDING' }, events } : null
+  }
+  const outcome = choiceOutcome(voterIds, ballots)
+  if (outcome === 'AGAIN') {
+    events.push({ kind: 'REVOTE', dealIndex: room.dealIndex })
+    return { data: { round: room.round + 1, phase: 'VOTING' }, events }
+  }
+  return outcome === 'NEXT' ? { data: advance(room, events), events } : null
+}
+
+const step = async (tx: Tx, room: RoomRow, seats: readonly SeatRow[], now: Date) => {
+  const next = await plan(tx, room, seats, now)
+  if (!next) return false
+  if ('close' in next) {
+    await closeRoom(tx, room, next.close, now)
+    return false
+  }
+  await tx.squadRoom.update({ where: { id: room.id }, data: next.data })
+  await appendEvents(tx, room, next.events)
   return true
 }
+
+// Whether a heartbeat has anything to move along; lets sync skip the transaction most times.
+export const needsSettling = async (
+  reader: Reader,
+  room: RoomRow,
+  seats: readonly SeatRow[],
+  now: Date,
+) => (await plan(reader, room, seats, now)) !== null
 
 export const settle = async (
   tx: Tx,
