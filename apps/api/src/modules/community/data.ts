@@ -104,6 +104,23 @@ export const summaryFor = async (
   }
 }
 
+const commentSelect = {
+  id: true,
+  body: true,
+  authorId: true,
+  parentId: true,
+  likedByIds: true,
+  editedAt: true,
+  createdAt: true,
+  author: { select: { name: true } },
+} as const
+// A reply can answer another reply, so a thread loads a level at a time. Threads this deep do
+// not happen in practice; the cap only stops a runaway loop.
+const MAX_REPLY_DEPTH = 20
+
+// Pages run over top-level comments, newest first. Each comes with its whole thread of replies,
+// oldest first so a conversation reads in order. A reply whose comment was deleted or hidden
+// stands as top-level, so it still shows.
 export const listCommunityComments = async (
   database: Database,
   dealId: string,
@@ -112,22 +129,44 @@ export const listCommunityComments = async (
 ) =>
   communityTransaction(database, async (tx) => {
     await publicDeal(tx, dealId)
+    const removed = await tx.comment.findMany({
+      where: { dealId, NOT: visibleComment },
+      select: { id: true },
+    })
     const rows = await tx.comment.findMany({
-      where: { dealId, ...visibleComment, ...(query.cursor ? { id: { lt: query.cursor } } : {}) },
+      where: {
+        dealId,
+        ...visibleComment,
+        OR: [
+          { parentId: null },
+          { parentId: { isSet: false } },
+          { parentId: { in: removed.map((row) => row.id) } },
+        ],
+        ...(query.cursor ? { id: { lt: query.cursor } } : {}),
+      },
       orderBy: { id: 'desc' },
       take: query.limit + 1,
-      select: {
-        id: true,
-        body: true,
-        authorId: true,
-        parentId: true,
-        likedByIds: true,
-        editedAt: true,
-        createdAt: true,
-        author: { select: { name: true } },
-      },
+      select: commentSelect,
     })
-    const page = rows.slice(0, query.limit)
+    const roots = rows.slice(0, query.limit)
+    const replies: typeof roots = []
+    let frontier = roots.map((row) => row.id)
+    for (let depth = 0; frontier.length && depth < MAX_REPLY_DEPTH; depth++) {
+      const level = await tx.comment.findMany({
+        where: { dealId, ...visibleComment, parentId: { in: frontier } },
+        orderBy: { id: 'asc' },
+        select: commentSelect,
+      })
+      replies.push(...level)
+      frontier = level.map((row) => row.id)
+    }
+    // Each top-level comment, then its replies depth first, each level oldest first.
+    const page: typeof roots = []
+    const append = (row: (typeof roots)[number]) => {
+      page.push(row)
+      for (const reply of replies) if (reply.parentId === row.id) append(reply)
+    }
+    for (const root of roots) append(root)
     const parents = await tx.comment.findMany({
       where: { id: { in: page.flatMap((row) => (row.parentId ? [row.parentId] : [])) } },
       select: { id: true, author: { select: { name: true } } },
@@ -146,6 +185,6 @@ export const listCommunityComments = async (
         liked: userId ? (row.likedByIds ?? []).includes(userId) : false,
         editedAt: row.editedAt?.toISOString() ?? null,
       })),
-      nextCursor: rows.length > query.limit ? (page.at(-1)?.id ?? null) : null,
+      nextCursor: rows.length > query.limit ? (roots.at(-1)?.id ?? null) : null,
     }
   })

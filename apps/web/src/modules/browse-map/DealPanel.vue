@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { dealShareDates } from '@broke-oclock/contracts/deal-copy'
 import { DEAL_CUISINE_LABELS, isDealCuisine } from '@broke-oclock/contracts/deal-cuisines'
 import TicketLoading from '@web/components/TicketLoading.vue'
 import { authClient } from '@web/lib/auth-client'
@@ -16,6 +17,7 @@ import {
   offerTypeTag,
   termsList,
 } from '@web/modules/browse-map/deal-format'
+import ShareDealButton from '@web/modules/browse-map/ShareDealButton.vue'
 import type { DealRow } from '@web/modules/browse-map/types'
 import DealCommunity from '@web/modules/community/DealCommunity.vue'
 import FlashClaimCard from '@web/modules/flash-drop/FlashClaimCard.vue'
@@ -262,6 +264,7 @@ const toggleSave = async () => {
         </span>
         {{ isSaved ? 'Saved' : 'Save' }}
       </button>
+      <ShareDealButton :deal-id="selected.deal.id" :venue-id="selected.venue.id" :title="selected.deal.title" :venue-name="selected.venue.name" :dates="dealShareDates(selected.deal.validFrom, selected.deal.validUntil)" :image-url="photos[0]?.url" />
       <a class="lb-btn lb-btn--primary" :href="directionsUrl" target="_blank" rel="noopener noreferrer">
         <ShellIcon name="directions" :size="18" />Get directions
       </a>
@@ -285,9 +288,10 @@ const toggleSave = async () => {
 </template>
 
 <style scoped>
+/* One row always: Save, Share and Get directions never stack. */
 .deal-panel :deep(.panel-frame__actions) {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
   justify-content: flex-end;
 }
@@ -299,10 +303,6 @@ const toggleSave = async () => {
 
 /* Phones: the bar spans the sheet, so Get directions takes the space Save leaves. */
 @media (max-width: 767.98px) {
-  .deal-panel :deep(.panel-frame__actions) {
-    flex-wrap: nowrap;
-  }
-
   .deal-panel :deep(.panel-frame__actions > .lb-btn:last-child) {
     flex: 1 1 auto;
   }
@@ -316,6 +316,12 @@ const toggleSave = async () => {
 .deal-panel:not(.deal-panel--dialog) :deep(.panel-frame__heading) { margin-bottom: -8px; }
 .deal-panel:not(.deal-panel--dialog) .deal-panel__status { margin-bottom: -10px; }
 .deal-panel :deep(.deal-gallery) { border-radius: 0; background: transparent; }
+/* The poster keeps its shape but stops at a height that leaves the deal's details in view, so a
+   tall poster in a wide panel doesn't fill the screen. The popup sizes its own. */
+.deal-panel:not(.deal-panel--dialog) :deep(.deal-gallery) {
+  align-self: center;
+  width: min(100%, calc(min(64dvh, 620px) * var(--frame-ratio)));
+}
 .deal-panel :deep(.deal-photo__img) { object-fit: contain; object-position: center top; }
 
 /* biome-ignore lint/style/noDescendingSpecificity: the earlier, more specific rule is a modifier override for a different state of the same element */

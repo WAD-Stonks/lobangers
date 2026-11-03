@@ -318,6 +318,43 @@ describe('community deal panel (synthetic API fixtures)', () => {
     expect(wrapper.emitted('view-change')).toEqual([[true]])
     expect(wrapper.text()).not.toContain('Load 5 more comments')
   })
+  it('keeps replies under their comment and folds more than two behind a toggle', async () => {
+    const at = (id: string, parentId: string | null, body: string) => ({
+      ...comment,
+      id,
+      body,
+      parentId,
+    })
+    mocks.comments.mockResolvedValue({
+      items: [
+        at('b', null, 'Newer comment'),
+        at('b1', 'b', 'Only reply'),
+        at('a', null, 'Older comment'),
+        at('a1', 'a', 'First reply'),
+        at('a2', 'a', 'Second reply'),
+        at('a3', 'a', 'Third reply'),
+      ],
+      nextCursor: null,
+    })
+    const wrapper = await render()
+    const threads = wrapper.findAll('.deal-community-comments > li')
+    expect(threads).toHaveLength(2)
+    expect(threads[0]?.text()).toContain('Only reply')
+    expect(threads[0]?.find('[data-testid="replies-toggle"]').exists()).toBe(false)
+    expect(threads[1]?.findAll('.comment-card')).toHaveLength(1)
+    const toggle = threads[1]?.get('[data-testid="replies-toggle"]')
+    expect(toggle?.text()).toBe('View 3 replies')
+    expect(toggle?.attributes('aria-expanded')).toBe('false')
+    await toggle?.trigger('click')
+    const opened = wrapper.findAll('.deal-community-comments > li')[1]
+    expect(
+      opened?.findAll('.comment-card').map((card) => card.find('.comment-body, p').text()),
+    ).toHaveLength(4)
+    expect(opened?.text()).toMatch(
+      /Older comment[\s\S]*First reply[\s\S]*Second reply[\s\S]*Third reply/,
+    )
+    expect(opened?.get('[data-testid="replies-toggle"]').text()).toBe('Hide replies')
+  })
   it('loads the dedicated view in batches of five without duplicating rows', async () => {
     mocks.comments
       .mockResolvedValueOnce({ items: [comment], nextCursor: comment.id })

@@ -111,7 +111,7 @@ const postReply = async () => {
 </template>
 
 <style scoped>
-.comment-card { position: relative; display: flex; align-items: flex-start; gap: 14px; padding: 20px; border-radius: 20px; background: var(--paper-white); }
+.comment-card { position: relative; display: flex; align-items: flex-start; gap: 14px; padding: 12px 16px 4px; border-radius: 20px; background: var(--paper-white); }
 .comment-card--reply { margin-left: 28px; }
 .comment-card__avatar { display: grid; place-items: center; flex: none; width: 48px; height: 48px; border-radius: 50%; background: var(--coral-soft); color: var(--coral-deep); font-weight: 700; font-size: 1.125rem; }
 .comment-card__content { flex: 1; min-width: 0; padding-right: 24px; }
@@ -119,11 +119,11 @@ const postReply = async () => {
 .comment-card__author, .comment-card__reply-to { min-width: 0; overflow-wrap: anywhere; }
 .comment-card__heading time, .comment-card__reply-to { color: var(--ink-muted); font-size: .8125rem; }
 .comment-card__you { padding: 1px 8px; border-radius: 999px; background: var(--paper-hover); color: var(--ink-muted); font-size: .75rem; }
-.comment-card__actions { display: flex; flex-wrap: wrap; align-items: center; column-gap: 18px; margin-top: 8px; }
+.comment-card__actions { display: flex; flex-wrap: wrap; align-items: center; column-gap: 18px; margin-top: 2px; }
 .comment-card__actions :is(button,a) { display: inline-flex; align-items: center; gap: 5px; padding: 0; border: 0; background: transparent; color: var(--ink-muted); font: inherit; font-size: .875rem; text-decoration: none; cursor: pointer; min-height: 44px; touch-action: manipulation; transition: color 150ms ease; }
 .comment-card__actions button[aria-pressed=true] { color: var(--coral-deep); font-weight: 700; }
 .comment-card__actions svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linejoin: round; }
-.comment-card__menu { position: absolute; top: 16px; right: 12px; }
+.comment-card__menu { position: absolute; top: 6px; right: 8px; }
 .comment-card__more { border: 0; border-radius: 10px; background: transparent; color: var(--ink-muted); min-width: 44px; min-height: 44px; letter-spacing: 2px; cursor: pointer; touch-action: manipulation; transition: background-color 150ms ease, color 150ms ease; }
 .comment-card__menu-items { position: absolute; right: 0; top: 36px; z-index: 3; display: grid; padding: 5px; min-width: 150px; max-width: calc(100vw - 32px); background: var(--paper-white); border: 1px solid var(--hairline); border-radius: 12px; box-shadow: var(--shadow-card); }
 .comment-card__menu-items button { min-height: 44px; border: 0; border-radius: 8px; padding: 10px; background: transparent; color: var(--ink); font: inherit; text-align: left; cursor: pointer; white-space: nowrap; }
@@ -139,5 +139,5 @@ const postReply = async () => {
 .comment-card__form label { overflow-wrap: anywhere; }
 @media (pointer: coarse) { .comment-card__form textarea { font-size: max(1rem, 1em); } }
 .comment-card__form > div { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
-@media (max-width: 480px) { .comment-card { gap: 10px; padding: 14px; } .comment-card__avatar { width: 36px; height: 36px; } .comment-card--reply { margin-left: 14px; } }
+@media (max-width: 480px) { .comment-card { gap: 10px; padding: 10px 12px 2px; } .comment-card__avatar { width: 36px; height: 36px; } .comment-card--reply { margin-left: 14px; } }
 </style>

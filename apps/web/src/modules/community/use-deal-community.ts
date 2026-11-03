@@ -49,23 +49,29 @@ export const useDealCommunity = (
     summary.value = next
     return differs
   }
+  // Pages count top-level comments, each with its replies; a reply whose comment is gone stands
+  // on its own.
+  const topLevelCount = (items: readonly { id: string; parentId?: string | null }[]) => {
+    const ids = new Set(items.map((item) => item.id))
+    return items.filter((item) => !item.parentId || !ids.has(item.parentId)).length
+  }
   const refresh = async () => {
     const current = generation
     const request = ++readVersion
     refreshing.value = true
     error.value = ''
     try {
-      const loadedCount = allComments.value ? comments.value.length : 0
+      const loadedCount = allComments.value ? topLevelCount(comments.value) : 0
       const visibleCount = allComments.value ? Math.max(5, loadedCount) : 3
       const [nextSummary, page] = await Promise.all([
         api.community.summary(dealId.value),
         api.community.comments(dealId.value, { limit: Math.min(50, visibleCount) }),
       ])
       // Likes and edits should not collapse pages the visitor has already opened.
-      while (page.nextCursor && page.items.length < loadedCount) {
+      while (page.nextCursor && topLevelCount(page.items) < loadedCount) {
         const next = await api.community.comments(dealId.value, {
           cursor: page.nextCursor,
-          limit: Math.min(50, loadedCount - page.items.length),
+          limit: Math.min(50, loadedCount - topLevelCount(page.items)),
         })
         page.items.push(...next.items)
         page.nextCursor = next.nextCursor

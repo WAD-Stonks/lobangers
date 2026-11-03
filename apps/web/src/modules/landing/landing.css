@@ -161,37 +161,6 @@
 .landing-theme:hover {
   background: #20231e0f;
 }
-.landing-menu-toggle {
-  display: none;
-  background: none;
-  border: 0;
-  font-weight: 700;
-  touch-action: manipulation;
-  white-space: nowrap;
-}
-.landing-mobile-menu {
-  position: absolute;
-  top: 88px;
-  right: 0;
-  left: 0;
-  /* Short landscape phones scroll the menu, not the page behind it. */
-  max-height: calc(100svh - 120px);
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  padding: 20px;
-  background: white;
-  box-shadow: var(--shadow-card);
-  border-radius: 24px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-.landing-mobile-menu a {
-  display: flex;
-  align-items: center;
-  min-height: 44px;
-  padding: 8px;
-}
 .landing-eyebrow {
   font-size: 11px;
   letter-spacing: 1.9px;
@@ -1209,16 +1178,10 @@
   .landing-account {
     display: none;
   }
-  /* The account links fold into the menu, so the switch moves over beside its button. */
+  /* The account links fold into the menu, so the switch moves to the end of the bar. */
   .landing-theme {
     margin-left: auto;
     margin-right: 0;
-  }
-  .landing-menu-toggle {
-    display: block;
-    font-size: 12px;
-    min-width: 70px;
-    min-height: 44px;
   }
   .landing-brand img {
     width: 160px;

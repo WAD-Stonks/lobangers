@@ -49,6 +49,8 @@ export const dealPinSchema = z.strictObject({
   imageUrl: z.string().url().nullable().optional(),
   imageAltText: z.string().nullable().optional(),
   // ISO timestamp of the exclusive end, or null when the deal has no known end date.
+  // Only present when the deal states when it starts.
+  validFrom: z.string().datetime().optional(),
   validUntil: z.string().datetime().nullable(),
   rawValidityText: z.string().nullable(),
   // An imported offer with no published end; shown as a limited promotion, never with a date.

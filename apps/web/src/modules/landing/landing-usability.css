@@ -20,17 +20,8 @@
   color: #62695c;
 }
 
-.landing-nav-links,
-.landing-mobile-menu,
-.landing-menu-toggle {
+.landing-nav-links {
   font-size: 16px;
-}
-.landing-menu-toggle,
-.landing-mobile-menu a {
-  min-height: 44px;
-}
-.landing-menu-toggle {
-  padding: 8px 12px;
 }
 .cuisine-intro > p,
 .cuisine-empty p {
