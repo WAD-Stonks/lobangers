@@ -57,6 +57,9 @@ import {
   ingestionOutletAssociationParamsSchema,
   ingestionOutletAssociationRequestSchema,
   ingestionOutletAssociationResponseSchema,
+  ingestionRealtimeAuthResponseSchema,
+  ingestionRealtimeAuthSchema,
+  ingestionRealtimeConfigSchema,
   ingestionReviewRequestSchema,
   ingestionReviewResponseSchema,
   ingestionRunResponseSchema,
@@ -191,6 +194,12 @@ export const createApiClient = (baseURL = '/api') => {
       me: () => request(http.get('/me'), currentUserResponseSchema),
     },
     ingestion: {
+      realtimeConfig: () => request(http.get('/ingestion/realtime'), ingestionRealtimeConfigSchema),
+      realtimeAuth: (input: { socketId: string; channel: 'private-admin-ingestion' }) =>
+        request(
+          http.post('/ingestion/realtime/auth', validateInput(ingestionRealtimeAuthSchema, input)),
+          ingestionRealtimeAuthResponseSchema,
+        ),
       sources: (input: QueryInput<typeof ingestionSourcesQuerySchema> = {}) => {
         const query = validateInput(ingestionSourcesQuerySchema, input)
         return request(

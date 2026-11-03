@@ -3,6 +3,7 @@ import type { AuthenticatedActor } from '@api/modules/account/security-access'
 import { DomainError } from '@api/modules/domain-error'
 import { moneyDigestPostSchema } from '@api/modules/ingestion/parser'
 import { promotionIdentity } from '@api/modules/ingestion/promotion-identity'
+import { publishIngestionProgress } from '@api/modules/ingestion/realtime'
 import type { IngestionRuntime, SourceRuntime } from '@api/modules/ingestion/runtime'
 import { captureEnvelope } from '@api/modules/ingestion/snapshot'
 import {
@@ -477,14 +478,15 @@ const runSource = async (
     throw new DomainError('PRECONDITION_FAILED', 'Ingestion and source reuse approval are required')
   const definition = provider?.source ?? { kind: 'moneydigest' as const, ...MONEYDIGEST_SOURCE }
   const lease: Lease = { ...(await acquireLease(db, runtime.now(), definition, actor)), actor }
+  await publishIngestionProgress(true)
   let fetchedCount = 0
   let createdCount = 0
   let updatedCount = 0
   let failedCount = 0
   let errorCode: string | null = null
   let providerFailed = false
-  const persistProgress = () =>
-    retryWrite(() =>
+  const persistProgress = async () => {
+    await retryWrite(() =>
       db.$transaction(async (tx) => {
         await guardPostLease(tx, runtime, lease)
         await tx.ingestionRun.update({
@@ -493,6 +495,8 @@ const runSource = async (
         })
       }),
     )
+    await publishIngestionProgress()
+  }
   try {
     // Re-fence immediately at the external-request boundary. Persist its actual
     // start so a later process applies cooldown even if this process crashes.
@@ -630,6 +634,7 @@ const runSource = async (
       finishedAt: runtime.now(),
     },
   })
+  await publishIngestionProgress(true)
   return { runId: lease.run.id, status, fetchedCount, createdCount, updatedCount, failedCount }
 }
 

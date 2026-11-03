@@ -42,20 +42,32 @@ afterEach(() => {
   vi.useRealTimers()
 })
 
-it('polls genuine in-flight counters, blocks duplicate submissions and stops after completion', async () => {
+it('refreshes on pushes without polling, blocks duplicate submissions and stops after completion', async () => {
   const response = deferred<IngestionRunResponse>()
   const run = vi.fn(() => response.promise)
   const runs = vi
     .fn()
     .mockResolvedValueOnce({ items: [] })
     .mockResolvedValue({ items: [sourceRun()] })
-  const job = createBackgroundImport({ run, runs })
+  let changed = () => {}
+  const detach = vi.fn()
+  const job = createBackgroundImport({
+    run,
+    runs,
+    subscribe: (listener) => {
+      changed = listener
+      return detach
+    },
+  })
   const request = job.start()
   await flushPromises()
   await job.start()
   expect(run).toHaveBeenCalledTimes(1)
   expect(job.active.value).toBe(true)
-  await vi.advanceTimersByTimeAsync(3_000)
+  await vi.advanceTimersByTimeAsync(60_000)
+  expect(runs).toHaveBeenCalledTimes(1)
+  changed()
+  await flushPromises()
   expect(job.state.runs).toEqual([sourceRun()])
   expect(job.state.result).toBeNull()
   runs.mockResolvedValue({ items: [sourceRun('SUCCEEDED')] })
@@ -97,7 +109,7 @@ it('fences late progress and completion when the identity ends', async () => {
   const job = createBackgroundImport({ run: () => response.promise, runs })
   const request = job.start()
   await flushPromises()
-  await vi.advanceTimersByTimeAsync(3_000)
+  void job.refresh()
   job.reset()
   response.resolve(result)
   read.resolve({ items: [sourceRun()] })

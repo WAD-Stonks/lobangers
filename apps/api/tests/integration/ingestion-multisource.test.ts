@@ -800,3 +800,71 @@ it('persists all three fixed sources through the admin HTTP scrape entry point',
   expect(await db.ingestionRun.count({ where: { status: 'SUCCEEDED' } })).toBe(3)
   for (const list of lists) expect(list).toHaveBeenCalledTimes(1)
 })
+
+it('requires a current admin and trusted origin for the private ingestion progress handshake', async () => {
+  const { setIngestionPublisher } = await import('@api/modules/ingestion/realtime')
+  setIngestionPublisher({
+    trigger: async () => {},
+    authorizeChannel: () => ({ auth: 'synthetic-signed' }),
+  })
+  try {
+    const payload = { socketId: '123.456', channel: 'private-admin-ingestion' }
+    expect(
+      (
+        await fetch(`${baseURL}/api/ingestion/realtime/auth`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Origin: origin },
+          body: JSON.stringify(payload),
+        })
+      ).status,
+    ).toBe(401)
+    expect(
+      (
+        await request('/api/ingestion/realtime/auth', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Cookie: cookie, Origin: origin },
+          body: JSON.stringify(payload),
+        })
+      ).status,
+    ).toBe(200)
+    expect(
+      (
+        await request('/api/ingestion/realtime/auth', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Cookie: cookie, Origin: origin },
+          body: JSON.stringify({ ...payload, channel: 'private-other' }),
+        })
+      ).status,
+    ).toBe(400)
+    expect(
+      (
+        await fetch(`${baseURL}/api/ingestion/realtime/auth`, {
+          method: 'POST',
+          headers: {
+            Cookie: cookie,
+            Origin: 'https://untrusted.example.test',
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(payload),
+        })
+      ).status,
+    ).toBe(403)
+    const admin = await db.user.findFirstOrThrow({ where: { role: 'ADMIN' } })
+    await db.user.update({ where: { id: admin.id }, data: { role: 'USER' } })
+    try {
+      expect(
+        (
+          await request('/api/ingestion/realtime/auth', {
+            method: 'POST',
+            headers: { Cookie: cookie, Origin: origin, 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+          })
+        ).status,
+      ).toBe(403)
+    } finally {
+      await db.user.update({ where: { id: admin.id }, data: { role: 'ADMIN' } })
+    }
+  } finally {
+    setIngestionPublisher(null)
+  }
+})

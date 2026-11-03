@@ -2,6 +2,7 @@ import type { IngestionRunResponse, IngestionRunsResponse } from '@broke-oclock/
 import { onAdminIdentityEnd } from '@web/lib/admin-recovery'
 import { api } from '@web/lib/api-client'
 import { errorCode } from '@web/modules/ingestion-admin/errors'
+import { openImportProgressChannel } from '@web/modules/ingestion-admin/progress-channel'
 import { computed, shallowReactive } from 'vue'
 
 type SourceRun = IngestionRunsResponse['items'][number]
@@ -9,8 +10,8 @@ type Phase = 'idle' | 'running' | 'uncertain' | 'finished' | 'failed'
 type Transport = {
   run: () => Promise<IngestionRunResponse>
   runs: () => Promise<IngestionRunsResponse>
+  subscribe?: (changed: () => void, unavailable: () => void) => () => void
 }
-const POLL_MS = 3_000
 // The server admits work for 90 seconds. A lost response must not immediately
 // enable another submission, including between sequential source runs.
 const RECONCILE_MS = 120_000
@@ -40,6 +41,20 @@ export const createBackgroundImport = (transport: Transport) => {
   let startedAt = 0
   let baseline = new Set<string>()
   let observing = false
+  let unsubscribe: (() => void) | undefined
+  let refreshQueued = false
+  const listen = () => {
+    const ticket = generation
+    unsubscribe ??= transport.subscribe?.(
+      () => {
+        if (ticket === generation) void refresh()
+      },
+      () => {
+        if (ticket !== generation) return
+        state.readError = 'Live progress is unavailable. Use Refresh progress to check activity.'
+      },
+    )
+  }
   const stop = () => {
     clearTimeout(timer)
     timer = undefined
@@ -47,6 +62,9 @@ export const createBackgroundImport = (transport: Transport) => {
   const reset = () => {
     generation++
     stop()
+    unsubscribe?.()
+    unsubscribe = undefined
+    refreshQueued = false
     baseline.clear()
     observing = false
     Object.assign(state, {
@@ -65,13 +83,25 @@ export const createBackgroundImport = (transport: Transport) => {
   }
   const schedule = () => {
     stop()
-    if (active.value)
+    if (!active.value) return
+    // One expiry reconciliation, never a repeating progress poll. Pushes and
+    // reconnects refresh sooner; failed reads require an explicit retry.
+    const expiry = Math.max(
+      startedAt + RECONCILE_MS,
+      ...state.runs.filter(hasLiveLease).map((run) => Date.parse(run.startedAt) + LEASE_WINDOW_MS),
+    )
+    const remaining = expiry - Date.now()
+    if (Number.isFinite(remaining) && remaining > 0)
       timer = setTimeout(() => {
         void refresh()
-      }, POLL_MS)
+      }, remaining)
   }
   const refresh = async () => {
-    if (state.refreshing || state.phase === 'idle') return
+    if (state.phase === 'idle') return
+    if (state.refreshing) {
+      refreshQueued = true
+      return
+    }
     const ticket = generation
     state.refreshing = true
     try {
@@ -101,7 +131,15 @@ export const createBackgroundImport = (transport: Transport) => {
     } finally {
       if (ticket === generation) {
         state.refreshing = false
-        schedule()
+        if (active.value) schedule()
+        else {
+          unsubscribe?.()
+          unsubscribe = undefined
+        }
+        if (refreshQueued) {
+          refreshQueued = false
+          void refresh()
+        }
       }
     }
   }
@@ -111,6 +149,7 @@ export const createBackgroundImport = (transport: Transport) => {
     const ticket = generation
     startedAt = Date.now()
     state.phase = 'running'
+    listen()
     state.message = 'Checking sources before starting…'
     // Snapshot before submission so old runs are never presented as new progress.
     try {
@@ -134,6 +173,8 @@ export const createBackgroundImport = (transport: Transport) => {
       }
       state.phase = 'failed'
       state.message = 'Unable to check recent runs. No new import was submitted.'
+      unsubscribe?.()
+      unsubscribe = undefined
       return
     }
     state.message = 'Import running in the background. You can continue using the admin pages.'
@@ -189,6 +230,7 @@ export const createBackgroundImport = (transport: Transport) => {
     baseline = new Set(runs.filter((run) => !hasLiveLease(run)).map((run) => run.id))
     state.runs = runs.filter(hasLiveLease)
     state.phase = 'running'
+    listen()
     state.message = 'An import is already running. Following its source activity.'
     schedule()
   }
@@ -199,9 +241,10 @@ export const createBackgroundImport = (transport: Transport) => {
 }
 
 // SPA-owned rather than page-owned: changing admin routes never drops the
-// request, progress polling or duplicate-submission guard. No credentials persist.
+// request, progress subscription or duplicate-submission guard. No credentials persist.
 export const backgroundImport = createBackgroundImport({
   run: () => api.ingestion.run(),
   runs: () => api.ingestion.runs({ limit: 20 }),
+  subscribe: openImportProgressChannel,
 })
 onAdminIdentityEnd(backgroundImport.reset)

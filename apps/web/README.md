@@ -41,3 +41,11 @@ The shared account component accepts validated same-site callback paths includin
 Use two-space indentation, single quotes, and semicolons only as needed to match the parent Biome configuration. Feature behavior lives in `src/modules/<module>/`; shared pages and components compose these modules. Tests use synthetic data or disposable fixtures and do not establish production provider acceptance.
 
 References: [Vue quick start](https://vuejs.org/guide/quick-start.html), [Bootstrap with Vite](https://getbootstrap.com/docs/5.3/getting-started/vite/), and [BetterAuth client](https://better-auth.com/docs/concepts/client).
+
+Admin ingestion progress uses the existing Pusher application (`PUSHER_*` API
+settings) on an admin-authorized private channel. Data-free notifications trigger
+fresh admin REST reads after committed progress writes and on subscription or
+reconnection. There is no recurring progress polling. If realtime is unavailable,
+use Refresh progress; one bounded lease-expiry check reconciles uncertain work.
+Navigation within the SPA preserves the request and subscription, but this is not
+a durable background job queue.
