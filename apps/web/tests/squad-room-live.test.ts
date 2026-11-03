@@ -27,9 +27,15 @@ vi.mock('@web/lib/api-client', () => ({
 vi.mock('@web/modules/squad/room-channel', () => ({ openRoomChannel: vi.fn() }))
 
 const { ApiClientError } = await import('@web/lib/api-client')
-const { createSquadRoom, HEARTBEAT_MS, POLL_MS, REFRESH_AFTER_PUSH_MS } = await import(
-  '@web/modules/squad/use-squad-room'
-)
+const {
+  createSquadRoom,
+  HEARTBEAT_MS,
+  LIVE_TAP_BATCH_MS,
+  POLL_MS,
+  REFRESH_AFTER_PUSH_MS,
+  SOCKET_TAP_MS,
+  withBallot,
+} = await import('@web/modules/squad/use-squad-room')
 
 const ME = 'a'.repeat(24)
 const FRIEND = 'b'.repeat(24)
@@ -46,16 +52,17 @@ const reply = (nextSeq: number, events: SquadEvent[] = []) => ({ state, events, 
 const openWithChannel = async () => {
   let handlers: ChannelHandlers | null = null
   const close = vi.fn()
+  const sendTaps = vi.fn(() => true)
   const room = createSquadRoom((_code, next) => {
     handlers = next
-    return { close }
+    return { close, sendTaps }
   })
   const played: number[] = []
   room.onEffect((event) => played.push(event.seq))
   room.open('KOPI')
   await vi.advanceTimersByTimeAsync(0)
   if (!handlers) throw new Error('channel was not opened')
-  return { room, played, close, channel: handlers as ChannelHandlers }
+  return { room, played, close, sendTaps, channel: handlers as ChannelHandlers }
 }
 
 beforeEach(() => {
@@ -131,7 +138,7 @@ describe('live squad room', () => {
     room.tap('YAY')
     while (answers.length > 0) {
       answers.shift()?.()
-      await vi.advanceTimersByTimeAsync(0)
+      await vi.advanceTimersByTimeAsync(300)
     }
     expect(most).toBe(1)
     expect(vote.mock.calls.map(([, batch]) => batch)).toEqual([
@@ -153,5 +160,76 @@ describe('live squad room', () => {
     await vi.advanceTimersByTimeAsync(300)
     expect(room.error.value).toBe('')
     room.dispose()
+  })
+
+  it('shares taps over the socket each tick and sends the API one batch a second', async () => {
+    sync.mockResolvedValue(reply(1))
+    vote.mockResolvedValue(state)
+    const { room, channel, sendTaps } = await openWithChannel()
+    channel.onLiveChange(true)
+    await vi.advanceTimersByTimeAsync(0)
+    for (let index = 0; index < 5; index += 1) room.tap('YAY')
+    room.tap('NAH')
+    await vi.advanceTimersByTimeAsync(SOCKET_TAP_MS)
+    expect(sendTaps).toHaveBeenCalledTimes(1)
+    expect(sendTaps).toHaveBeenLastCalledWith({ memberId: ME, yays: 5, nahs: 1 })
+    expect(vote).not.toHaveBeenCalled()
+    await vi.advanceTimersByTimeAsync(LIVE_TAP_BATCH_MS - SOCKET_TAP_MS)
+    expect(vote).toHaveBeenCalledTimes(1)
+    expect(vote).toHaveBeenLastCalledWith('KOPI', { stance: 'YAY', taps: 5 })
+    await vi.advanceTimersByTimeAsync(LIVE_TAP_BATCH_MS - 1)
+    expect(vote).toHaveBeenCalledTimes(1)
+    await vi.advanceTimersByTimeAsync(1)
+    expect(vote).toHaveBeenLastCalledWith('KOPI', { stance: 'NAH', taps: 1 })
+    room.dispose()
+  })
+
+  it('echoes a spammer as a few staggered effects on everyone else, not on my screen', async () => {
+    sync.mockResolvedValue(reply(1))
+    const { room, channel } = await openWithChannel()
+    const kinds: string[] = []
+    room.onEffect((event) => kinds.push(event.kind))
+    channel.onTaps({ memberId: FRIEND, yays: 20, nahs: 1 })
+    channel.onTaps({ memberId: ME, yays: 4, nahs: 0 })
+    await vi.advanceTimersByTimeAsync(0)
+    expect(kinds).toEqual(['YAY'])
+    await vi.advanceTimersByTimeAsync(SOCKET_TAP_MS / 4)
+    expect(kinds).toEqual(['YAY', 'YAY'])
+    await vi.advanceTimersByTimeAsync(SOCKET_TAP_MS)
+    expect(kinds).toEqual(['YAY', 'YAY', 'YAY', 'NAH'])
+    channel.onTaps({ memberId: FRIEND, yays: 2, nahs: 0 })
+    await vi.advanceTimersByTimeAsync(SOCKET_TAP_MS)
+    expect(kinds).toHaveLength(5)
+    expect(sync).toHaveBeenCalledTimes(1)
+    room.dispose()
+  })
+})
+
+describe('withBallot', () => {
+  const member = (id: string, extra: Record<string, unknown> = {}) => ({
+    id,
+    stance: null,
+    yays: 0,
+    spectator: false,
+    away: false,
+    ...extra,
+  })
+  const voting = {
+    status: 'LIVE',
+    phase: 'VOTING',
+    members: [member(ME, { stance: 'YAY', yays: 2 }), member(FRIEND), member('c'.repeat(24))],
+    tally: { voters: 3, yesPeople: 1, voted: 1, again: 0, next: 0 },
+  } as unknown as SquadState
+
+  it('moves the tally with a pushed ballot, no room read needed', () => {
+    const next = withBallot(voting, { memberId: FRIEND, stance: 'YAY', yays: 7 })
+    expect(next.tally).toMatchObject({ yesPeople: 2, voted: 2 })
+    expect(next.members[1]).toMatchObject({ stance: 'YAY', yays: 7 })
+    expect(voting.tally.yesPeople).toBe(1)
+  })
+
+  it('leaves a room that has moved past voting alone', () => {
+    const deciding = { ...voting, phase: 'DECIDING' } as SquadState
+    expect(withBallot(deciding, { memberId: FRIEND, stance: 'YAY', yays: 1 })).toBe(deciding)
   })
 })

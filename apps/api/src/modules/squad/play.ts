@@ -1,6 +1,7 @@
 import type { AuthenticatedActor } from '@api/modules/account/security-access'
 import { DomainError } from '@api/modules/domain-error'
 import type { Database } from '@api/modules/platform-admin/transaction'
+import { publishBallot, squadRealtimeEnabled } from '@api/modules/squad/realtime'
 import { requireMember } from '@api/modules/squad/rooms'
 import {
   isPresent,
@@ -63,9 +64,9 @@ const markSeen = async (
   return withSeen(seats, seatId, now)
 }
 
-// Adds a burst of taps to the member's ballot in one atomic upsert, with no transaction: spamming
+// Adds a batch of taps to the member's ballot in one atomic upsert, with no transaction: spamming
 // Yay and Nah sends overlapping requests from the same member, and transactions writing the same
-// ballot abort each other. The tally is capped in the same update.
+// ballot abort each other. The tally is capped in the same update. Returns the new ballot.
 const addTaps = async (
   database: Database,
   room: RoomRow,
@@ -79,32 +80,32 @@ const addTaps = async (
       : { $ifNull: [`$${field}`, 0] }
   const yay = input.stance === 'YAY'
   const result = await database.$runCommandRaw({
-    update: 'SquadVote',
-    updates: [
+    findAndModify: 'SquadVote',
+    query: {
+      roomId: { $oid: room.id },
+      memberId: { $oid: memberId },
+      dealIndex: room.dealIndex,
+      round: room.round,
+    },
+    update: [
       {
-        q: {
-          roomId: { $oid: room.id },
-          memberId: { $oid: memberId },
-          dealIndex: room.dealIndex,
-          round: room.round,
+        $set: {
+          stance: { $literal: input.stance },
+          yays: counted('yays', yay ? input.taps : 0),
+          nahs: counted('nahs', yay ? 0 : input.taps),
+          choice: { $ifNull: ['$choice', null] },
+          updatedAt: { $date: now.toISOString() },
         },
-        u: [
-          {
-            $set: {
-              stance: { $literal: input.stance },
-              yays: counted('yays', yay ? input.taps : 0),
-              nahs: counted('nahs', yay ? 0 : input.taps),
-              choice: { $ifNull: ['$choice', null] },
-              updatedAt: { $date: now.toISOString() },
-            },
-          },
-        ],
-        upsert: true,
       },
     ],
+    upsert: true,
+    new: true,
+    fields: { yays: 1 },
   })
-  if (result.ok !== 1 || result.writeErrors)
-    throw new Error(`Squad tap write failed: ${JSON.stringify(result.writeErrors ?? result)}`)
+  const yays = (result.value as { yays?: unknown } | null)?.yays
+  if (result.ok !== 1 || typeof yays !== 'number')
+    throw new Error(`Squad tap write failed: ${JSON.stringify(result)}`)
+  return { memberId, stance: input.stance, yays }
 }
 
 // Moves the room along when it is due, in a transaction only then. Returns the room and seats to
@@ -136,16 +137,20 @@ export const vote = async (
   const seat = requireVoter(requireMember(before, actor.userId))
   if (room.status !== 'LIVE' || room.phase !== 'VOTING')
     throw new DomainError('PRECONDITION_FAILED', 'Voting on this deal has finished')
-  await addTaps(database, room, seat.id, input, now)
-  await emitEvents(
-    database,
-    room,
-    Array.from({ length: Math.min(input.taps, MAX_EFFECTS_PER_SEND) }, () => ({
-      kind: input.stance,
-      memberId: seat.id,
-      dealIndex: room.dealIndex,
-    })),
-  )
+  const ballot = await addTaps(database, room, seat.id, input, now)
+  // With a live channel the tap effects already went browser to browser, so only the new
+  // ballot is pushed. Without one, the effects go in the event log for others to poll.
+  if (squadRealtimeEnabled()) await publishBallot(room.code, ballot)
+  else
+    await emitEvents(
+      database,
+      room,
+      Array.from({ length: Math.min(input.taps, MAX_EFFECTS_PER_SEND) }, () => ({
+        kind: input.stance,
+        memberId: seat.id,
+        dealIndex: room.dealIndex,
+      })),
+    )
   const seen = await markSeen(database, before, seat.id, now)
   const settled = await settleIfDue(database, room, seen, seat.id, now)
   return buildState(database, settled.room, settled.seats, actor.userId, now)

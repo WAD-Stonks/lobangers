@@ -1,6 +1,7 @@
 import type { AppConfig } from '@api/config'
 import {
   SQUAD_PUSH_EVENT,
+  type SquadBallot,
   type SquadEvent,
   type SquadPush,
   squadChannelFor,
@@ -56,6 +57,22 @@ const chunks = <T>(items: readonly T[], size: number): T[][] =>
     items.slice(index * size, (index + 1) * size),
   )
 
+const trigger = (target: SquadPublisher, code: string, data: SquadPush) =>
+  withTimeout(target.trigger(squadChannelFor(code), SQUAD_PUSH_EVENT, data)).catch(
+    (error: unknown) => {
+      console.error('Squad realtime publish failed', {
+        code,
+        events: data.events.length,
+        error: error instanceof Error ? error.message : String(error),
+      })
+    },
+  )
+
+// A tap batch's new ballot, so the others' tallies move without anyone re-reading the room.
+export const publishBallot = async (code: string, ballot: SquadBallot) => {
+  if (publisher) await trigger(publisher, code, { events: [], ballot })
+}
+
 // Never throws: the write already committed, and a lost push only delays the others' view.
 export const publishEvents = async (written: readonly WrittenEvent[]) => {
   const target = publisher
@@ -67,17 +84,5 @@ export const publishEvents = async (written: readonly WrittenEvent[]) => {
       EVENTS_PER_PUSH,
     ).map((events) => ({ code, events })),
   )
-  await Promise.all(
-    pushes.map(({ code, events }) =>
-      withTimeout(target.trigger(squadChannelFor(code), SQUAD_PUSH_EVENT, { events })).catch(
-        (error: unknown) => {
-          console.error('Squad realtime publish failed', {
-            code,
-            events: events.length,
-            error: error instanceof Error ? error.message : String(error),
-          })
-        },
-      ),
-    ),
-  )
+  await Promise.all(pushes.map(({ code, events }) => trigger(target, code, { events })))
 }

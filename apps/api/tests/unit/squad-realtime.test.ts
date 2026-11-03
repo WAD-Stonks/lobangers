@@ -1,5 +1,10 @@
 import { parseConfig } from '@api/config'
-import { publishEvents, type SquadPublisher, setSquadPublisher } from '@api/modules/squad/realtime'
+import {
+  publishBallot,
+  publishEvents,
+  type SquadPublisher,
+  setSquadPublisher,
+} from '@api/modules/squad/realtime'
 import type { SquadEvent } from '@broke-oclock/contracts/squad'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
@@ -81,6 +86,13 @@ describe('publishing room events', () => {
       ['private-squad-KOPI', 'events', { events: [event(1), event(2, 'MATCH')] }],
       ['private-squad-MILO', 'events', { events: [event(7, 'NAH')] }],
     ])
+  })
+
+  it('pushes a tap batch as just the new ballot', async () => {
+    const calls = recorder()
+    const ballot = { memberId: 'a'.repeat(24), stance: 'YAY' as const, yays: 12 }
+    await publishBallot('KOPI', ballot)
+    expect(calls).toEqual([['private-squad-KOPI', 'events', { events: [], ballot }]])
   })
 
   it('splits a long burst so no push passes the size limit', async () => {
