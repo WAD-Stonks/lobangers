@@ -229,3 +229,41 @@ it('preserves modified link clicks and navigates Back to map through the router'
   expect(router.currentRoute.value.path).toBe('/browse')
   wrapper.unmount()
 })
+
+it.each(['loading', 'unauthorized', 'UNAUTHORIZED', 'forbidden', 'FORBIDDEN', 'closed', 'error'])(
+  'keeps operational navigation out of the %s access layer',
+  async (access) => {
+    const wrapper = mount(AdminShell, {
+      props: { access },
+      global: { stubs: { AdminSessionControls: true } },
+      slots: { default: '<h1>Sign in or recover access</h1>' },
+    })
+    expect(wrapper.find('nav[aria-label="Administration"]').exists()).toBe(false)
+    expect(wrapper.find('#admin-sidebar').exists()).toBe(false)
+    expect(wrapper.find('.admin-breadcrumb').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="import-progress"]').exists()).toBe(false)
+    expect(wrapper.get('main').text()).toContain('Sign in or recover access')
+    expect(wrapper.get('.admin-topbar').isVisible()).toBe(
+      !['loading', 'unauthorized', 'UNAUTHORIZED'].includes(access),
+    )
+    wrapper.unmount()
+  },
+)
+
+it('reveals the workspace only after access is confirmed and preserves the session observer', async () => {
+  const wrapper = mount(AdminShell, {
+    props: { access: 'loading' },
+    global: { stubs: { AdminSessionControls: true } },
+  })
+  const observer = wrapper.getComponent({ name: 'AdminSessionControls' }).vm
+  await wrapper.setProps({ access: 'unauthorized' })
+  expect(wrapper.find('#admin-sidebar').exists()).toBe(false)
+  await wrapper.setProps({ access: 'allowed' })
+  expect(wrapper.find('nav[aria-label="Administration"]').exists()).toBe(true)
+  expect(wrapper.get('.admin-topbar').isVisible()).toBe(true)
+  expect(wrapper.getComponent({ name: 'AdminSessionControls' }).vm).toBe(observer)
+  await wrapper.setProps({ access: 'closed' })
+  expect(wrapper.find('#admin-sidebar').exists()).toBe(false)
+  expect(wrapper.getComponent({ name: 'AdminSessionControls' }).vm).toBe(observer)
+  wrapper.unmount()
+})

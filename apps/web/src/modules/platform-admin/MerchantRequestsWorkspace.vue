@@ -1,9 +1,18 @@
 <script setup lang="ts">
+import AdminTaskLink from '@web/components/admin/AdminTaskLink.vue'
 import TicketLoading from '@web/components/TicketLoading.vue'
+import { adminRecordId } from '@web/lib/admin-workflow-links'
 import { formatDateTime } from '@web/lib/format'
 import type { usePlatformAdmin } from '@web/modules/platform-admin/use-platform-admin'
+import { computed } from 'vue'
 
-defineProps<{ s: ReturnType<typeof usePlatformAdmin> }>()
+const props = defineProps<{ s: ReturnType<typeof usePlatformAdmin> }>()
+const applicantHref = computed(() => {
+  const id = adminRecordId(props.s.selectedRequest?.userId)
+  if (!id) return undefined
+  const returnTo = `/admin/accounts?requestStatus=${props.s.requestStatus}#merchant-requests`
+  return `/admin/accounts?${new URLSearchParams({ accountId: id, returnTo })}`
+})
 </script>
 <template>
 <section aria-label="Merchant requests" class="workspace-surface">
@@ -19,6 +28,7 @@ defineProps<{ s: ReturnType<typeof usePlatformAdmin> }>()
         <article v-if="s.selectedRequest" aria-label="Request details" class="border-top pt-3">
           <h3 class="h5">{{ s.selectedRequest.venueName }} / {{ s.selectedRequest.merchantName }}</h3>
           <p>{{ s.selectedRequest.userName }} ({{ s.selectedRequest.userEmail }})</p>
+          <p v-if="applicantHref"><AdminTaskLink data-testid="request-account" :to="applicantHref" :disabled="s.busy">View applicant account</AdminTaskLink></p>
           <p>{{ s.selectedRequest.message }}</p>
           <p>Status: {{ s.selectedRequest.status }} | Version {{ s.selectedRequest.version }} | <time :datetime="s.selectedRequest.createdAt">{{ formatDateTime(s.selectedRequest.createdAt) }}</time></p>
           <p v-if="s.selectedRequest.reviewNote">Review note: {{ s.selectedRequest.reviewNote }}</p>

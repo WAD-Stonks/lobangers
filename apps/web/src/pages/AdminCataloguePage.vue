@@ -55,9 +55,9 @@ onMounted(reload)
 onUnmounted(fence.dispose)
 </script>
 <template>
-  <AdminShell title="Merchants & outlets" :refresh-key="refreshKey" @closing="close" @signed-out="anonymous" @access-reload="reload">
+  <AdminShell :access="access" title="Merchants & outlets" :refresh-key="refreshKey" @closing="close" @signed-out="anonymous" @access-reload="reload">
     <p v-if="access === 'loading'" role="status">Checking catalogue access…</p>
-    <SharedSignIn v-else-if="access === 'UNAUTHORIZED'" title="Sign in to maintain the catalogue" destination="/admin/catalogue" @signed-in="signedIn" />
+    <SharedSignIn heading-level="h1" v-else-if="access === 'UNAUTHORIZED'" title="Sign in to maintain the catalogue" destination="/admin/catalogue" @signed-in="signedIn" />
     <div v-else-if="access === 'FORBIDDEN'" role="alert"><p>You do not have permission to maintain the catalogue.</p><button class="btn btn-outline-primary" type="button" @click="reload">Recheck access</button></div>
     <p v-else-if="access === 'closed'" role="status">Catalogue access is closed. Use the session controls to recheck.</p>
     <div v-else-if="access === 'error'" role="alert"><p>Unable to confirm your session. Catalogue writes remain closed.</p><button class="btn btn-outline-primary" type="button" @click="reload">Retry access</button></div>

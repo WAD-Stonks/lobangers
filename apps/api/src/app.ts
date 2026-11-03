@@ -2,6 +2,7 @@ import { createAuth } from '@api/auth'
 import type { AppConfig } from '@api/config'
 import { apiErrorMiddleware } from '@api/errors'
 import { type AssistantRuntime, createAssistantRuntime } from '@api/modules/assistant/runtime'
+import { configureIngestionRealtime } from '@api/modules/ingestion/realtime'
 import { createIngestionRuntime, type IngestionRuntime } from '@api/modules/ingestion/runtime'
 import { configureSquadRealtime } from '@api/modules/squad/realtime'
 import { createAdminOptionsRouter } from '@api/rest/admin-options'
@@ -22,6 +23,7 @@ export const createApp = (
 ): Express => {
   const auth = createAuth(config)
   configureSquadRealtime(config.pusher)
+  configureIngestionRealtime(config.pusher)
   const app = express()
 
   app.disable('x-powered-by')

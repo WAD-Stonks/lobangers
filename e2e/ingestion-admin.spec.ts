@@ -1,3 +1,4 @@
+import type { AdminDealDetail, AdminDealSummary } from '@broke-oclock/contracts/admin-deals'
 import type {
   IngestionDashboardResponse,
   IngestionDraft,
@@ -5,52 +6,106 @@ import type {
   IngestionRunsResponse,
 } from '@broke-oclock/contracts/ingestion'
 import { expect, type Page, test } from '@playwright/test'
+// biome-ignore lint/style/noRestrictedImports: E2E-only helper; no E2E alias exists in this repository.
+import { openAdminAccount } from './admin-ui'
 
-// Explicitly synthetic browser-boundary responses. These exercise the real SPA/Axios REST client,
-// not live ingestion, provider delivery, database policies, or real account authentication.
+// Synthetic native/HTTP boundaries exercise the original SPA, typed REST client and CSS.
+// They do not establish live provider, database or source permission acceptance.
+const firstId = '111111111111111111111111'
+const secondId = '222222222222222222222222'
+const canonicalDeal = (draft: IngestionDraft): AdminDealDetail => ({
+  id: draft.id,
+  title: draft.title,
+  origin: 'IMPORTED',
+  reviewStatus:
+    draft.reviewStatus === 'APPROVED'
+      ? 'APPROVED'
+      : draft.reviewStatus === 'REJECTED'
+        ? 'REJECTED'
+        : 'PENDING',
+  contentVersion: draft.contentVersion,
+  operationVersion: draft.operationVersion ?? 0,
+  merchantId: draft.merchantId,
+  deletedAt: null,
+  publishedAt: null,
+  validFrom: draft.validFrom,
+  validUntil: draft.validUntil,
+  publication: 'UNPUBLISHED',
+  description: draft.description,
+  terms: draft.terms,
+  category: draft.category,
+  cuisine: null,
+  offerType: 'OTHER',
+  priceMinor: null,
+  currency: 'SGD',
+  discountPercent: null,
+  rawValidityText: draft.rawValidityText,
+  applicability: 'NO_FIXED_LOCATION',
+  submittedById: null,
+  reviewedById: null,
+  reviewedVersion: null,
+  reviewedAt: null,
+  reviewNote: draft.reviewNote,
+  sources: [],
+  images: [],
+  outlets: [],
+  outletCount: 0,
+  selectedVenueIds: [],
+  nextOutletCursor: null,
+  scopeEditable: true,
+  scopeConfirmed: false,
+  blockers: ['Validity needs clarification'],
+  approvalReady: false,
+  publicationReady: false,
+  scopeEvidenceLabel: null,
+})
+const summary = (row: AdminDealDetail): AdminDealSummary => {
+  const {
+    id,
+    title,
+    origin,
+    reviewStatus,
+    contentVersion,
+    operationVersion,
+    merchantId,
+    deletedAt,
+    publishedAt,
+    validFrom,
+    validUntil,
+    publication,
+  } = row
+  return {
+    id,
+    title,
+    origin,
+    reviewStatus,
+    contentVersion,
+    operationVersion,
+    merchantId,
+    deletedAt,
+    publishedAt,
+    validFrom,
+    validUntil,
+    publication,
+  }
+}
 const installSyntheticBoundary = async (page: Page) => {
-  // Synthetic native identity and method presentation, not connected authentication.
-  await page.route('**/api/auth/get-session**', (route) =>
-    route.fulfill({
-      contentType: 'application/json',
-      body: JSON.stringify({
-        user: {
-          id: 'synthetic-admin',
-          name: 'Synthetic operator',
-          email: 'operator@example.test',
-          role: 'USER',
-        },
-        session: {
-          id: 'synthetic-session',
-          userId: 'synthetic-admin',
-          expiresAt: '2099-01-01T00:00:00.000Z',
-        },
-      }),
-    }),
-  )
-  await page.route('**/api/auth-methods', (route) =>
-    route.fulfill({
-      contentType: 'application/json',
-      body: JSON.stringify({
-        password: true,
-        google: false,
-        emailOtp: false,
-        passwordRecovery: false,
-      }),
-    }),
-  )
-
   const state: {
+    native: boolean
+    signOutUnknown: boolean
     access: 'UNAUTHORIZED' | 'FORBIDDEN' | ''
     dashboard: IngestionDashboardResponse
     drafts: IngestionDraft[]
+    runs: IngestionRunsResponse['items']
     draftNextCursor: string | null
     draftPages: Map<string, IngestionDraftsResponse>
+    queueGates: Map<string, Promise<void>>
     requests: { path: string; input: unknown; method: string }[]
     failures: Map<string, string>
     runGate: Promise<void> | undefined
-    accountsForbidden: boolean
   } = {
+    native: true,
+    signOutUnknown: false,
     access: '',
     dashboard: {
       source: {
@@ -63,11 +118,11 @@ const installSyntheticBoundary = async (page: Page) => {
     },
     drafts: [
       {
-        id: '111111111111111111111111',
+        id: firstId,
         title: '<img src=x onerror=alert(1)> Synthetic draft',
         description: '<script>unsafe()</script>',
         terms: 'Synthetic fixture terms',
-        category: 'Food',
+        category: 'FOOD',
         offerType: 'OTHER',
         validFrom: null,
         validUntil: null,
@@ -84,180 +139,188 @@ const installSyntheticBoundary = async (page: Page) => {
         reviewReady: true,
       },
     ],
+    runs: [
+      {
+        id: 'prior-run',
+        sourceName: 'Synthetic prior source',
+        status: 'COMPLETED',
+        startedAt: '2026-01-01T00:00:00Z',
+        finishedAt: '2026-01-01T00:01:00Z',
+        fetchedCount: 5,
+        createdCount: 2,
+        updatedCount: 1,
+        failedCount: 0,
+        errorCode: null,
+      },
+    ],
     draftNextCursor: null,
     draftPages: new Map(),
+    queueGates: new Map(),
     requests: [],
-    failures: new Map<string, string>(),
+    failures: new Map(),
     runGate: undefined,
-    accountsForbidden: false,
   }
+  await page.route('**/api/auth/get-session**', (route) =>
+    route.fulfill({
+      contentType: 'application/json',
+      body: JSON.stringify(
+        state.native
+          ? {
+              user: {
+                id: 'a'.repeat(24),
+                name: 'Synthetic operator',
+                email: 'operator@example.test',
+                role: 'USER',
+              },
+              session: {
+                id: 'synthetic-session',
+                userId: 'a'.repeat(24),
+                expiresAt: '2099-01-01T00:00:00Z',
+              },
+            }
+          : null,
+      ),
+    }),
+  )
+  await page.route('**/api/auth-methods', (route) =>
+    route.fulfill({
+      contentType: 'application/json',
+      body: JSON.stringify({
+        password: true,
+        google: false,
+        emailOtp: false,
+        passwordRecovery: false,
+      }),
+    }),
+  )
+  await page.route('**/api/auth/sign-out', (route) => {
+    if (state.signOutUnknown)
+      return route.fulfill({
+        status: 500,
+        contentType: 'application/json',
+        body: JSON.stringify({ message: 'Synthetic unknown sign-out' }),
+      })
+    state.native = false
+    return route.fulfill({
+      contentType: 'application/json',
+      body: JSON.stringify({ success: true }),
+    })
+  })
+  await page.route('**/api/admin/deals**', async (route) => {
+    const request = route.request(),
+      url = new URL(request.url())
+    state.requests.push({
+      path: 'adminDeals.read',
+      method: request.method(),
+      input: { pathname: url.pathname },
+    })
+    expect(request.method()).toBe('GET')
+    const records = [
+      ...new Map(
+        [...state.drafts, ...[...state.draftPages.values()].flatMap((page) => page.items)].map(
+          (draft) => [draft.id, canonicalDeal(draft)],
+        ),
+      ).values(),
+    ]
+    const detail = records.find((row) => url.pathname === `/api/admin/deals/${row.id}`)
+    await route.fulfill({
+      contentType: 'application/json',
+      status: url.pathname === '/api/admin/deals' || detail ? 200 : 404,
+      body: JSON.stringify(
+        url.pathname === '/api/admin/deals'
+          ? { items: records.map(summary), nextCursor: null }
+          : (detail ?? { error: { code: 'NOT_FOUND', message: 'Synthetic missing deal' } }),
+      ),
+    })
+  })
   await page.route('**/api/ingestion/**', async (route) => {
-    const request = route.request()
-    const url = new URL(request.url())
-    const pathname = url.pathname
-    const method = request.method()
+    const request = route.request(),
+      url = new URL(request.url()),
+      method = request.method()
     const query: Record<string, unknown> = Object.fromEntries(url.searchParams.entries())
     if (query.limit) query.limit = Number(query.limit)
-    const body: Record<string, unknown> = request.postDataJSON?.() ?? {}
-    let path: string
-    let input: Record<string, unknown>
-    let dealId: string | undefined
-    if (
-      method === 'GET' &&
-      (pathname === '/api/ingestion/posts' ||
-        pathname === '/api/ingestion/sources' ||
-        /^\/api\/ingestion\/drafts\/[a-f0-9]{24}\/evidence$/u.test(pathname))
-    ) {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({ items: [], nextCursor: null }),
-      })
-      return
-    }
-    if (pathname === '/api/ingestion/dashboard' && method === 'GET') {
-      path = 'ingestion.dashboard'
-      input = {}
-    } else if (pathname === '/api/ingestion/runs' && method === 'GET') {
-      path = 'ingestion.runs'
-      input = query
-    } else if (pathname === '/api/ingestion/runs' && method === 'POST') {
-      path = 'ingestion.run'
-      input = {}
-    } else if (pathname === '/api/ingestion/drafts' && method === 'GET') {
-      path = 'ingestion.queue'
-      input = query
-    } else if (
-      pathname.startsWith('/api/ingestion/drafts/') &&
-      pathname.endsWith('/review') &&
-      method === 'POST'
-    ) {
-      dealId = pathname.split('/')[4]
-      path = 'ingestion.review'
-      input = { dealId, ...body }
-    } else if (pathname === '/api/ingestion/locations' && method === 'GET') {
-      path = 'ingestion.searchLocations'
-      input = query
-    } else if (pathname === '/api/ingestion/accounts' && method === 'GET') {
-      path = 'ingestion.accounts'
-      input = query
-    } else {
-      await route.fulfill({
-        status: 404,
-        contentType: 'application/json',
-        body: JSON.stringify({ error: { code: 'NOT_FOUND', message: 'Not found' } }),
-      })
-      return
-    }
-    state.requests.push({ path, input, method })
+    const path =
+      url.pathname === '/api/ingestion/dashboard'
+        ? 'ingestion.dashboard'
+        : url.pathname === '/api/ingestion/runs'
+          ? method === 'POST'
+            ? 'ingestion.run'
+            : 'ingestion.runs'
+          : url.pathname === '/api/ingestion/drafts'
+            ? 'ingestion.queue'
+            : url.pathname === '/api/ingestion/locations'
+              ? 'ingestion.searchLocations'
+              : url.pathname === '/api/ingestion/accounts'
+                ? 'ingestion.accounts'
+                : 'ingestion.supportingRead'
+    state.requests.push({ path, method, input: query })
     const fail = state.failures.get(path)
     if (fail) state.failures.delete(path)
-    const denied =
-      state.access || (path === 'ingestion.accounts' && state.accountsForbidden ? 'FORBIDDEN' : '')
-    const code = fail || denied
+    const code = fail || state.access
+    if (path === 'ingestion.queue') await state.queueGates.get(String(query.status))
     if (code) {
-      const status =
-        code === 'UNAUTHORIZED' ? 401 : code === 'FORBIDDEN' ? 403 : code === 'CONFLICT' ? 409 : 500
       await route.fulfill({
-        status,
+        status: code === 'UNAUTHORIZED' ? 401 : code === 'FORBIDDEN' ? 403 : 500,
         contentType: 'application/json',
         body: JSON.stringify({ error: { code, message: 'Synthetic boundary failure' } }),
       })
       return
     }
     let data: unknown
-    switch (path) {
-      case 'ingestion.dashboard':
-        data = state.dashboard
-        break
-      case 'ingestion.runs':
-        data = { items: [] } satisfies IngestionRunsResponse
-        break
-      case 'ingestion.queue': {
-        const status = typeof input.status === 'string' ? input.status : 'PENDING'
-        const cursor = typeof input.cursor === 'string' ? input.cursor : undefined
-        data = (cursor ? state.draftPages.get(cursor) : undefined) ?? {
-          items: state.drafts.filter((draft) => draft.reviewStatus === status),
-          nextCursor: state.draftNextCursor,
-        }
-        break
+    if (path === 'ingestion.dashboard') data = state.dashboard
+    else if (path === 'ingestion.runs') data = { items: state.runs }
+    else if (path === 'ingestion.queue') {
+      const status = typeof query.status === 'string' ? query.status : 'PENDING'
+      data = (typeof query.cursor === 'string'
+        ? state.draftPages.get(query.cursor)
+        : undefined) ?? {
+        items: state.drafts.filter((draft) => draft.reviewStatus === status),
+        nextCursor: state.draftNextCursor,
       }
-      case 'ingestion.review': {
-        expect(method).toBe('POST')
-        const decision = input.decision
-        const reviewStatus = decision === 'APPROVE' ? 'APPROVED' : 'REJECTED'
-        state.drafts = state.drafts.map((draft) => ({ ...draft, reviewStatus }))
-        state.dashboard.counts.pending = 0
-        state.dashboard.counts[reviewStatus === 'APPROVED' ? 'approved' : 'rejected'] = 1
-        data = { id: dealId, reviewStatus }
-        break
+    } else if (path === 'ingestion.run') {
+      await state.runGate
+      const completed = state.runs.find((run) => run.id === 'synthetic-run')
+      data = {
+        runId: 'synthetic-run',
+        status: 'COMPLETED',
+        fetchedCount: completed?.fetchedCount ?? 1,
+        createdCount: completed?.createdCount ?? 1,
+        updatedCount: completed?.updatedCount ?? 0,
+        failedCount: completed?.failedCount ?? 0,
       }
-      case 'ingestion.run':
-        expect(method).toBe('POST')
-        if (state.runGate) await state.runGate
-        data = {
-          runId: 'synthetic-run',
-          status: 'COMPLETED',
-          fetchedCount: 1,
-          createdCount: 1,
-          updatedCount: 0,
-          failedCount: 0,
-        }
-        break
-      case 'ingestion.searchLocations':
-        data = {
-          items: [
-            {
-              searchValue: 'Synthetic plaza',
-              address: '123 FIXTURE ROAD',
-              postalCode: '123456',
-              latitude: 1.3,
-              longitude: 103.8,
-            },
-          ],
-        }
-        break
-      case 'ingestion.accounts':
-        data = {
-          items: [
-            {
-              id: 'aaaaaaaaaaaaaaaaaaaaaaaa',
-              name: 'Synthetic Admin',
-              email: 'synthetic@example.test',
-              role: 'ADMIN',
-              createdAt: '2026-01-01T00:00:00Z',
-            },
-          ],
-          nextCursor: null,
-        }
-        break
-    }
-    await route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify(data),
-    })
+    } else if (path === 'ingestion.searchLocations')
+      data = {
+        items: [
+          {
+            searchValue: 'Synthetic plaza',
+            address: '123 FIXTURE ROAD',
+            postalCode: '123456',
+            latitude: 1.3,
+            longitude: 103.8,
+          },
+        ],
+      }
+    else data = { items: [], nextCursor: null }
+    await route.fulfill({ contentType: 'application/json', body: JSON.stringify(data) })
   })
   return state
 }
+const requestsFor = (fixture: Awaited<ReturnType<typeof installSyntheticBoundary>>, path: string) =>
+  fixture.requests.filter((request) => request.path === path)
 
-test('admin deep link reaches anonymous sign-in while the public menu hides administration', async ({
+test('admin deep link reaches anonymous sign-in while public navigation hides administration', async ({
   page,
 }) => {
   const fixture = await installSyntheticBoundary(page)
   fixture.access = 'UNAUTHORIZED'
-  // This anonymous-navigation case also mounts the public map. Keep its unrelated
-  // reads synthetic rather than falling through to an ambient localhost API.
   await page.route('**/api/deals?**', (route) =>
     route.fulfill({
-      status: 200,
       contentType: 'application/json',
       body: JSON.stringify({ items: [], categories: [] }),
     }),
   )
   await page.route('**/api/account/bookmarks?**', (route) =>
     route.fulfill({
-      status: 200,
       contentType: 'application/json',
       body: JSON.stringify({ items: [], nextCursor: null }),
     }),
@@ -266,14 +329,15 @@ test('admin deep link reaches anonymous sign-in while the public menu hides admi
   await page.getByTestId('nav-toggle').click()
   await expect(page.getByRole('link', { name: 'Ingestion admin', exact: true })).toHaveCount(0)
   await page.goto('/admin/ingestion')
-  await expect(page).toHaveURL('/admin/ingestion')
   await expect(page.getByRole('heading', { name: 'Sign in to review ingestion' })).toBeVisible()
   await expect(page.getByLabel('Email', { exact: true })).toBeVisible()
   await expect(page.getByLabel('Password', { exact: true })).toBeVisible()
-  await expect(page.getByRole('region', { name: 'Source readiness' })).toHaveCount(0)
+  await expect(page.getByRole('region', { name: 'Imported deals', exact: true })).toHaveCount(0)
 })
 
-test('forbidden and recoverable API errors are visibly distinct', async ({ page }) => {
+test('forbidden, dashboard failure and imported queue failure have distinct recovery paths', async ({
+  page,
+}) => {
   const fixture = await installSyntheticBoundary(page)
   fixture.access = 'FORBIDDEN'
   await page.goto('/admin/ingestion')
@@ -283,12 +347,16 @@ test('forbidden and recoverable API errors are visibly distinct', async ({ page 
   fixture.failures.set('ingestion.dashboard', 'INTERNAL_SERVER_ERROR')
   await page.reload()
   await expect(page.getByRole('alert')).toContainText('Unable to load ingestion')
-  await page.getByRole('button', { name: 'Retry dashboard' }).click()
-  await expect(page.getByRole('heading', { name: 'Source readiness' })).toBeVisible()
+  fixture.failures.set('ingestion.queue', 'INTERNAL_SERVER_ERROR')
+  await page.getByRole('button', { name: 'Retry dashboard', exact: true }).click()
+  await expect(page.getByRole('alert')).toContainText('Unable to load imported deals')
+  await expect(page.getByText('0 imported deals loaded')).toHaveCount(0)
+  await page.getByRole('button', { name: 'Retry imported deals', exact: true }).click()
+  await expect(page.getByTestId(`open-imported-${firstId}`)).toBeVisible()
 })
 
 for (const width of [320, 390, 1280]) {
-  test(`synthetic-boundary review journey fits ${width}px and escapes imported content`, async ({
+  test(`readonly import triage fits ${width}px, escapes source text and hands off to Deals`, async ({
     page,
   }, info) => {
     const fixture = await installSyntheticBoundary(page)
@@ -296,348 +364,247 @@ for (const width of [320, 390, 1280]) {
     page.on('pageerror', (error) => errors.push(error.message))
     await page.setViewportSize({ width, height: 850 })
     await page.goto('/admin/ingestion')
+    const queue = page.getByRole('region', { name: 'Imported deals', exact: true })
+    await expect(queue).toContainText('<img src=x onerror=alert(1)> Synthetic draft')
+    await expect(queue).toContainText('Validity needs clarification')
+    await expect(queue.locator('img, script, textarea, input')).toHaveCount(0)
+    await expect(queue.getByRole('button', { name: /approve|reject|save/i })).toHaveCount(0)
+    await page.getByRole('tab', { name: 'Sources & import', exact: true }).click()
     await expect(page.getByRole('button', { name: 'Run ingestion', exact: true })).toBeDisabled()
     await expect(page.getByText('Ingestion is disabled', { exact: true })).toBeVisible()
     await expect(
       page.getByText('Operator reuse attestation is not recorded', { exact: true }),
     ).toBeVisible()
-    const details = page.getByRole('button', { name: /View details:/ })
-    await details.focus()
-    await details.press('Enter')
-    const article = page.getByRole('article')
-    await expect(article).toContainText('<script>unsafe()</script>')
-    await expect(article.locator('script, img')).toHaveCount(0)
-    const source = page.getByRole('link', { name: 'Open original source' })
-    await expect(source).toHaveAttribute('href', 'https://example.test/source/1')
-    await expect(source).toHaveAttribute('rel', 'noopener noreferrer')
-    await expect(source).toHaveAttribute('target', '_blank')
-    await expect(page.getByRole('button', { name: 'Reject draft' })).toBeDisabled()
-    await page
-      .getByLabel('Review note (required)')
-      .fill('Cannot establish dates from this synthetic fixture')
-    await expect(page.getByRole('button', { name: 'Approve draft' })).toBeDisabled()
-    await expect(page.getByText(/Approval requires known validity dates/)).toBeVisible()
-    expect(
-      await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth),
-    ).toBe(false)
+    await page.getByRole('tab', { name: 'Run history', exact: true }).click()
+    const history = page.getByRole('tabpanel', { name: 'Run history', exact: true })
+    await expect(history).toContainText('Synthetic prior source')
+    await expect(history.getByRole('button', { name: 'Run ingestion', exact: true })).toHaveCount(0)
+    await page.getByRole('tab', { name: 'Imported deals', exact: true }).click()
+    const link = page.getByTestId(`open-imported-${firstId}`)
+    const target = new URL((await link.getAttribute('href')) ?? '', page.url())
+    expect(target.pathname).toBe('/admin/deals')
+    expect(target.searchParams.get('dealId')).toBe(firstId)
+    expect(target.searchParams.get('tab')).toBe('content')
+    const returnTo = target.searchParams.get('returnTo')
+    expect(returnTo).toBe(`/admin/ingestion?status=PENDING&draftId=${firstId}#queue-title`)
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
     await page.screenshot({ path: info.outputPath(`ingestion-${width}.png`), fullPage: true })
-    // Rejecting needs its own confirmation tick on top of the note.
-    await expect(page.getByRole('button', { name: 'Reject draft' })).toBeDisabled()
-    await page.getByLabel(/^To reject, I confirm rejecting /).check()
-    await page.getByRole('button', { name: 'Reject draft' }).focus()
-    await page.getByRole('button', { name: 'Reject draft' }).press('Enter')
-    await expect(page.getByRole('status').filter({ hasText: 'Draft rejected' })).toBeVisible()
-    await expect(page.getByText('No drafts match this status.')).toBeVisible()
-    expect(fixture.requests.filter((request) => request.path === 'ingestion.review')).toEqual([
-      {
-        path: 'ingestion.review',
-        method: 'POST',
-        input: {
-          dealId: '111111111111111111111111',
-          expectedContentVersion: 7,
-          expectedOperationVersion: 0,
-          decision: 'REJECT',
-          note: 'Cannot establish dates from this synthetic fixture',
-        },
-      },
-    ])
-    await page.getByLabel('Review status', { exact: true }).selectOption('REJECTED')
-    await expect(page.getByRole('button', { name: /View details:/ })).toBeVisible()
+    await link.focus()
+    await link.press('Enter')
+    await expect(page.getByRole('heading', { name: 'Deals operations', exact: true })).toBeVisible()
+    await expect(page.locator('[name="edit-description"]')).toHaveValue('<script>unsafe()</script>')
+    await expect(page.locator('.deals-directory script, .deals-directory img')).toHaveCount(0)
+    await page.getByRole('link', { name: '← Back to previous task', exact: true }).click()
+    await expect(page).toHaveURL(returnTo ?? '')
+    await expect(page.getByTestId(`open-imported-${firstId}`)).toBeFocused()
+    expect(fixture.requests.filter((request) => request.method !== 'GET')).toEqual([])
     expect(errors).toEqual([])
   })
 }
 
-test('run trigger prevents duplicates and refreshes reads after the synthetic result', async ({
+test('pagination returns from Deals to the original bounded page and focused import', async ({
+  page,
+}) => {
+  const fixture = await installSyntheticBoundary(page)
+  const original = fixture.drafts[0]
+  if (!original) throw new Error('Missing synthetic import')
+  fixture.draftNextCursor = secondId
+  fixture.draftPages.set(secondId, {
+    items: [{ ...original, id: '3'.repeat(24), title: 'Second-page imported meal' }],
+    nextCursor: null,
+  })
+  await page.goto('/admin/ingestion')
+  await page.getByRole('button', { name: 'Load more imported deals', exact: true }).click()
+  const second = page.getByTestId(`open-imported-${'3'.repeat(24)}`)
+  const target = new URL((await second.getAttribute('href')) ?? '', page.url())
+  const back = target.searchParams.get('returnTo')
+  expect(back).toBe(
+    `/admin/ingestion?status=PENDING&draftId=${'3'.repeat(24)}&draftCursor=${secondId}#queue-title`,
+  )
+  await second.click()
+  await expect(
+    page.getByRole('heading', { name: 'Second-page imported meal', exact: true }),
+  ).toBeVisible()
+  const before = requestsFor(fixture, 'ingestion.queue').length
+  await page.getByRole('link', { name: '← Back to previous task', exact: true }).click()
+  await expect(second).toBeFocused()
+  await expect(second).toHaveAttribute('aria-current', 'true')
+  await expect(page.getByTestId(`open-imported-${firstId}`)).toHaveCount(0)
+  expect(requestsFor(fixture, 'ingestion.queue')).toHaveLength(before + 1)
+  expect(requestsFor(fixture, 'ingestion.queue').at(-1)?.input).toEqual({
+    limit: 20,
+    status: 'PENDING',
+    cursor: secondId,
+  })
+  fixture.draftNextCursor = null
+  await page.getByLabel('Review status', { exact: true }).selectOption('REJECTED')
+  await expect(page.getByText('No imported deals match this status.')).toBeVisible()
+  expect(new URL(page.url()).searchParams.has('draftCursor')).toBe(false)
+  expect(new URL(page.url()).searchParams.has('draftId')).toBe(false)
+  expect(fixture.requests.filter((request) => request.method !== 'GET')).toEqual([])
+})
+
+test('queue filter ignores an older denial and a current denial clears retained imports', async ({
+  page,
+}) => {
+  const fixture = await installSyntheticBoundary(page)
+  await page.goto('/admin/ingestion')
+  await expect(page.getByTestId(`open-imported-${firstId}`)).toBeVisible()
+  let release = () => {}
+  fixture.queueGates.set(
+    'APPROVED',
+    new Promise<void>((resolve) => {
+      release = resolve
+    }),
+  )
+  fixture.failures.set('ingestion.queue', 'FORBIDDEN')
+  await page.getByLabel('Review status', { exact: true }).selectOption('APPROVED')
+  await expect
+    .poll(() =>
+      requestsFor(fixture, 'ingestion.queue').some(
+        (request) => (request.input as { status?: string }).status === 'APPROVED',
+      ),
+    )
+    .toBe(true)
+  await page.getByLabel('Review status', { exact: true }).selectOption('REJECTED')
+  await expect(page.getByText('No imported deals match this status.')).toBeVisible()
+  release()
+  await expect(page.getByRole('heading', { name: 'Imported deals', exact: true })).toBeVisible()
+  fixture.failures.set('ingestion.queue', 'FORBIDDEN')
+  await page.getByLabel('Review status', { exact: true }).selectOption('PENDING')
+  await expect(page.getByRole('alert')).toContainText('You do not have permission')
+  await expect(page.getByTestId(`open-imported-${firstId}`)).toHaveCount(0)
+  await expect(page.locator('[aria-label="Ingestion counts"]')).toHaveCount(0)
+})
+
+test('background import shows source progress across admin routes without blocking navigation or duplicating runs', async ({
   page,
 }) => {
   const fixture = await installSyntheticBoundary(page)
   fixture.dashboard.source.enabled = true
   fixture.dashboard.source.reuseApproved = true
-  let release: (() => void) | undefined
-  fixture.runGate = new Promise((resolve) => {
+  let release = () => {}
+  fixture.runGate = new Promise<void>((resolve) => {
     release = resolve
   })
   await page.goto('/admin/ingestion')
+  await page.getByRole('tab', { name: 'Sources & import', exact: true }).click()
   await page.getByRole('button', { name: 'Run ingestion', exact: true }).click()
-  const running = page.getByRole('button', { name: 'Running ingestion…', exact: true })
+  const running = page.getByRole('button', { name: 'Import in progress…', exact: true })
   await expect(running).toBeDisabled()
+  await expect(page.getByRole('tab', { name: 'Imported deals', exact: true })).toBeEnabled()
   await running.dispatchEvent('click')
-  await expect
-    .poll(() => fixture.requests.filter((request) => request.path === 'ingestion.run').length)
-    .toBe(1)
-  release?.()
-  await expect(
-    page.getByRole('status').filter({ hasText: 'Run synthetic-run: COMPLETED' }),
-  ).toBeVisible()
-  await expect
-    .poll(() => fixture.requests.filter((request) => request.path === 'ingestion.dashboard').length)
-    .toBe(2)
-  await expect
-    .poll(() => fixture.requests.filter((request) => request.path === 'ingestion.runs').length)
-    .toBe(2)
-  await expect
-    .poll(() => fixture.requests.filter((request) => request.path === 'ingestion.queue').length)
-    .toBe(2)
-})
-
-test('review API error preserves note and permits a subsequent dated approval', async ({
-  page,
-}) => {
-  const fixture = await installSyntheticBoundary(page)
-  fixture.drafts = fixture.drafts.map((draft) => ({
-    ...draft,
-    validFrom: '2099-01-01T00:00:00Z',
-    validUntil: '2099-12-01T00:00:00Z',
-  }))
-  fixture.failures.set('ingestion.review', 'INTERNAL_SERVER_ERROR')
-  await page.goto('/admin/ingestion')
-  await page.getByRole('button', { name: /View details:/ }).click()
-  await page.getByLabel('Review note (required)').fill('Reviewed synthetic dated offer')
-  await page.getByRole('button', { name: 'Approve draft', exact: true }).click()
-  await expect(page.getByRole('alert')).toContainText('Unable to review draft')
-  await expect(page.getByLabel('Review note (required)')).toHaveValue(
-    'Reviewed synthetic dated offer',
-  )
-  await page.getByRole('button', { name: 'Approve draft', exact: true }).click()
-  await expect(page.getByRole('status').filter({ hasText: 'Draft approved' })).toBeVisible()
-  expect(fixture.requests.filter((request) => request.path === 'ingestion.review')).toHaveLength(2)
-})
-
-test('pagination preserves stale-review conflict until reloading the current draft version', async ({
-  page,
-}) => {
-  const fixture = await installSyntheticBoundary(page)
-  fixture.drafts = fixture.drafts.map((draft) => ({
-    ...draft,
-    validFrom: '2099-01-01T00:00:00Z',
-    validUntil: '2099-12-01T00:00:00Z',
-  }))
-  fixture.draftNextCursor = '222222222222222222222222'
-  fixture.draftPages.set(fixture.draftNextCursor, {
-    items: fixture.drafts.map((draft) => ({
-      ...draft,
-      id: '222222222222222222222222',
-      title: 'Second synthetic draft',
-    })),
-    nextCursor: null,
+  await expect.poll(() => requestsFor(fixture, 'ingestion.run').length).toBe(1)
+  fixture.runs.unshift({
+    id: 'synthetic-run',
+    sourceName: 'Synthetic live source',
+    status: 'RUNNING',
+    startedAt: '2026-11-03T08:00:00Z',
+    finishedAt: null,
+    fetchedCount: 20,
+    createdCount: 3,
+    updatedCount: 1,
+    failedCount: 0,
+    errorCode: null,
   })
-  fixture.failures.set('ingestion.review', 'CONFLICT')
-  await page.goto('/admin/ingestion')
-  await page.getByRole('button', { name: /View details:/ }).click()
-  const note = page.getByLabel('Review note (required)')
-  const approve = page.getByRole('button', { name: 'Approve draft', exact: true })
-  const reject = page.getByRole('button', { name: 'Reject draft', exact: true })
-  await note.fill('Review of version seven')
-  await approve.click()
-  await expect(page.getByRole('alert')).toContainText(
-    'Content changed. Reload the draft before reviewing again.',
+  const progress = page.getByRole('region', { name: 'Import progress', exact: true })
+  await progress.getByRole('button', { name: 'Refresh progress', exact: true }).click()
+  await expect(progress).toContainText('Synthetic live source')
+  await expect(progress).toContainText('Created 3')
+  await page.getByRole('tab', { name: 'Imported deals', exact: true }).click()
+  await page.getByTestId(`open-imported-${firstId}`).click()
+  await expect(page).toHaveURL(/\/admin\/deals\?/)
+  await expect(progress).toContainText('Import in progress')
+  await expect(progress).toContainText('Created 3')
+  fixture.runs[0] = {
+    ...fixture.runs[0],
+    status: 'SUCCEEDED',
+    finishedAt: '2026-11-03T08:01:00Z',
+  } as IngestionRunsResponse['items'][number]
+  release()
+  await expect(progress).toContainText('Import finished')
+  await progress.getByRole('link', { name: 'View run history' }).click()
+  await expect(page).toHaveURL(/\/admin\/ingestion#runs-title/)
+  await expect(page.getByRole('tabpanel', { name: 'Run history', exact: true })).toContainText(
+    'synthetic-run',
   )
-  await page.getByRole('button', { name: 'Load more drafts' }).click()
-  await expect(page.getByRole('heading', { name: 'Second synthetic draft' })).toBeVisible()
-  await expect(page.getByRole('alert')).toContainText(
-    'Content changed. Reload the draft before reviewing again.',
-  )
-  await expect(note).toHaveValue('Review of version seven')
-  await expect(approve).toBeDisabled()
-  await expect(reject).toBeDisabled()
-  await page.getByRole('button', { name: 'View details: Second synthetic draft' }).click()
-  await note.fill('Review of other cached draft')
-  await expect(approve).toBeEnabled()
-  await page.getByTestId('view-111111111111111111111111').click()
-  await note.fill('Another stale review')
-  await expect(page.getByRole('alert')).toContainText(
-    'Content changed. Reload the draft before reviewing again.',
-  )
-  await expect(approve).toBeDisabled()
-  await expect(reject).toBeDisabled()
-  await page
-    .getByRole('article')
-    .locator('form')
-    .filter({ has: page.locator('#review-note') })
-    .dispatchEvent('submit')
-  await reject.dispatchEvent('click')
-  expect(fixture.requests.filter((request) => request.path === 'ingestion.review')).toHaveLength(1)
-
-  fixture.drafts = fixture.drafts.map((draft) => ({
-    ...draft,
-    contentVersion: 8,
-    operationVersion: 1,
-    description: 'Current synthetic content',
-  }))
-  fixture.draftNextCursor = null
-  await page.getByRole('button', { name: 'Reload draft' }).click()
-  await expect(page.getByRole('article')).toContainText('Current synthetic content')
-  await expect(page.getByRole('button', { name: 'Reload draft' })).toHaveCount(0)
-  await expect(note).toHaveValue('')
-  await expect(approve).toBeDisabled()
-  await expect(reject).toBeDisabled()
-  await note.fill('Review of current version eight')
-  await expect(approve).toBeEnabled()
-  await expect(reject).toBeDisabled()
-  await page.getByLabel(/^To reject, I confirm rejecting /).check()
-  await expect(reject).toBeEnabled()
-  await approve.click()
-  await expect(page.getByRole('status').filter({ hasText: 'Draft approved' })).toBeVisible()
-  expect(
-    fixture.requests
-      .filter((request) => request.path === 'ingestion.review')
-      .map((request) => request.input),
-  ).toEqual([
-    {
-      dealId: '111111111111111111111111',
-      expectedContentVersion: 7,
-      expectedOperationVersion: 0,
-      decision: 'APPROVE',
-      note: 'Review of version seven',
-    },
-    {
-      dealId: '111111111111111111111111',
-      expectedContentVersion: 8,
-      expectedOperationVersion: 1,
-      decision: 'APPROVE',
-      note: 'Review of current version eight',
-    },
-  ])
+  await page.getByRole('button', { name: 'Refresh runs', exact: true }).click()
+  await expect(progress).toContainText('Import finished')
+  expect(requestsFor(fixture, 'ingestion.run')).toHaveLength(1)
+  await expect(
+    page
+      .getByRole('tabpanel', { name: 'Run history', exact: true })
+      .getByRole('button', { name: 'Run ingestion', exact: true }),
+  ).toHaveCount(0)
 })
 
-test('reload drops a superseded second-page draft and requires selection of its different-ID replacement', async ({
+test('location lookup remains read-only and account administration is absent from Ingestion', async ({
   page,
 }) => {
   const fixture = await installSyntheticBoundary(page)
-  const source = fixture.drafts[0]
-  if (!source) throw new Error('Missing synthetic draft fixture')
-  const old = {
-    ...source,
-    validFrom: '2099-01-01T00:00:00Z',
-    validUntil: '2099-12-01T00:00:00Z',
-  }
-  const other = { ...old, id: '222222222222222222222222', title: 'First-page draft' }
-  const replacement = {
-    ...old,
-    id: '333333333333333333333333',
-    title: 'Replacement draft',
-    description: 'Revised source evidence',
-    contentVersion: 8,
-    operationVersion: 1,
-  }
-  fixture.drafts = [other]
-  fixture.draftNextCursor = other.id
-  fixture.draftPages.set(other.id, { items: [old], nextCursor: null })
-  fixture.failures.set('ingestion.review', 'CONFLICT')
-  await page.goto('/admin/ingestion')
-  await page.getByRole('button', { name: 'Load more drafts' }).click()
-  await page.getByTestId(`view-${old.id}`).click()
-  await page.getByLabel('Review note (required)').fill('Review of old source revision')
-  await page.getByRole('button', { name: 'Approve draft', exact: true }).click()
-  await expect(page.getByRole('alert')).toContainText('Content changed.')
-  fixture.drafts = [
-    other,
-    {
-      ...old,
-      contentVersion: 8,
-      operationVersion: 1,
-      reviewStatus: 'REJECTED',
-      reviewNote: 'Superseded by source revision',
-    },
-  ]
-  fixture.draftPages.set(other.id, { items: [replacement], nextCursor: null })
-  await page.getByRole('button', { name: 'Reload draft' }).click()
-  await expect(page.getByTestId(`view-${old.id}`)).toHaveCount(0)
-  await expect(page.getByRole('article')).toHaveCount(0)
-  await page.getByRole('button', { name: 'Load more drafts' }).click()
-  await expect(page.getByTestId(`view-${replacement.id}`)).toBeVisible()
-  await expect(page.getByRole('article')).toHaveCount(0)
-  expect(fixture.requests.filter((request) => request.path === 'ingestion.review')).toHaveLength(1)
-  await page.getByTestId(`view-${replacement.id}`).click()
-  const note = page.getByLabel('Review note (required)')
-  const approve = page.getByRole('button', { name: 'Approve draft', exact: true })
-  const reject = page.getByRole('button', { name: 'Reject draft', exact: true })
-  await expect(page.getByRole('article')).toContainText('Revised source evidence')
-  await expect(note).toHaveValue('')
-  await expect(approve).toBeDisabled()
-  await expect(reject).toBeDisabled()
-  await page
-    .getByRole('article')
-    .locator('form')
-    .filter({ has: page.locator('#review-note') })
-    .dispatchEvent('submit')
-  await reject.dispatchEvent('click')
-  expect(fixture.requests.filter((request) => request.path === 'ingestion.review')).toHaveLength(1)
-  await note.fill('Review of replacement source evidence')
-  await approve.click()
-  await expect(page.getByRole('status').filter({ hasText: 'Draft approved' })).toBeVisible()
-  expect(
-    fixture.requests
-      .filter((request) => request.path === 'ingestion.review')
-      .map((request) => request.input),
-  ).toEqual([
-    {
-      dealId: old.id,
-      expectedContentVersion: 7,
-      expectedOperationVersion: 0,
-      decision: 'APPROVE',
-      note: 'Review of old source revision',
-    },
-    {
-      dealId: replacement.id,
-      expectedContentVersion: 8,
-      expectedOperationVersion: 1,
-      decision: 'APPROVE',
-      note: 'Review of replacement source evidence',
-    },
-  ])
-})
-
-test('OneMap candidates and administrator accounts stay read-only', async ({ page }) => {
-  const fixture = await installSyntheticBoundary(page)
-  await page.goto('/admin/ingestion')
+  await page.goto('/admin/ingestion#locations-title')
   await page.getByLabel('Address, building or postal code').fill('fixture plaza')
   await page.getByLabel('Address, building or postal code').press('Enter')
   await expect(page.getByText('123 FIXTURE ROAD', { exact: false })).toBeVisible()
   await expect(page.getByText('Coordinates: 1.3, 103.8')).toBeVisible()
   await expect(page.getByText(/Candidates are not verified merchants or outlets/)).toBeVisible()
-  await expect(page.getByText('Data source: OneMap', { exact: false })).toBeVisible()
-  const licence = page.getByRole('link', { name: 'Singapore Open Data Licence' })
-  await expect(licence).toBeVisible()
-  await expect(licence).toHaveAttribute(
+  await expect(page.getByRole('link', { name: 'Singapore Open Data Licence' })).toHaveAttribute(
     'href',
     'https://www.onemap.gov.sg/legal/opendatalicence.html',
   )
-  expect(
-    fixture.requests.find((request) => request.path === 'ingestion.searchLocations')?.input,
-  ).toEqual({ query: 'fixture plaza' })
-  await page.getByRole('button', { name: 'View accounts (read-only)' }).click()
-  const accounts = page.getByRole('region', { name: 'Accounts', exact: true })
-  await expect(accounts).toContainText('synthetic@example.test')
-  await expect(accounts.locator('input, select')).toHaveCount(0)
-  await expect(accounts.getByRole('button', { name: /delete|change role/i })).toHaveCount(0)
-  fixture.accountsForbidden = true
-  await page.getByRole('button', { name: 'Refresh accounts' }).click()
-  await expect(accounts.getByRole('alert')).toContainText(
-    'Accounts are restricted to administrators',
-  )
-  await expect(accounts).not.toContainText('synthetic@example.test')
-  await expect(page.getByRole('heading', { name: 'Draft review queue' })).toBeVisible()
+  expect(requestsFor(fixture, 'ingestion.searchLocations')[0]?.input).toEqual({
+    query: 'fixture plaza',
+  })
+  await expect(
+    page.getByRole('button', { name: 'View accounts (read-only)', exact: true }),
+  ).toHaveCount(0)
+  expect(requestsFor(fixture, 'ingestion.accounts')).toEqual([])
+  expect(fixture.requests.filter((request) => request.method !== 'GET')).toEqual([])
 })
 
-test('shared sign-in UI rechecks server access after a synthetic auth response', async ({
+test('unknown sign-out closes retained and late queue evidence without replaying work', async ({
+  page,
+}) => {
+  const fixture = await installSyntheticBoundary(page)
+  fixture.signOutUnknown = true
+  fixture.draftNextCursor = secondId
+  await page.goto('/admin/ingestion')
+  await expect(page.getByTestId(`open-imported-${firstId}`)).toBeVisible()
+  let release = () => {}
+  fixture.queueGates.set(
+    'PENDING',
+    new Promise<void>((resolve) => {
+      release = resolve
+    }),
+  )
+  await page.getByRole('button', { name: 'Load more imported deals', exact: true }).click()
+  await openAdminAccount(page)
+  await page.getByTestId('admin-sign-out').click()
+  await expect(page.getByText(/Server sign-out could not be confirmed/)).toBeVisible()
+  release()
+  await expect(page.getByTestId(`open-imported-${firstId}`)).toHaveCount(0)
+  await expect(page.getByRole('heading', { name: 'Imported deals', exact: true })).toHaveCount(0)
+  expect(requestsFor(fixture, 'ingestion.run')).toHaveLength(0)
+  expect(fixture.requests.filter((request) => request.method !== 'GET')).toEqual([])
+})
+
+test('shared sign-in rechecks protected reads after a synthetic auth response', async ({
   page,
 }) => {
   const fixture = await installSyntheticBoundary(page)
   fixture.access = 'UNAUTHORIZED'
   let signIns = 0
   await page.route('**/api/auth/sign-in/email', async (route) => {
-    signIns += 1
-    expect(route.request().method()).toBe('POST')
+    signIns++
     fixture.access = ''
     await route.fulfill({
       contentType: 'application/json',
       body: JSON.stringify({
         user: {
-          id: 'synthetic-admin',
-          name: 'Synthetic Admin',
-          email: 'synthetic@example.test',
-          emailVerified: false,
+          id: 'a'.repeat(24),
+          name: 'Synthetic operator',
+          email: 'operator@example.test',
+          emailVerified: true,
           role: 'ADMIN',
           createdAt: '2026-01-01T00:00:00Z',
           updatedAt: '2026-01-01T00:00:00Z',
@@ -646,14 +613,12 @@ test('shared sign-in UI rechecks server access after a synthetic auth response',
     })
   })
   await page.goto('/admin/ingestion')
-  await page.getByLabel('Email', { exact: true }).fill('synthetic@example.test')
+  await page.getByLabel('Email', { exact: true }).fill('operator@example.test')
   await page.getByLabel('Password', { exact: true }).fill('synthetic-not-a-real-password')
   await page.getByLabel('Password', { exact: true }).press('Enter')
-  await expect(page.getByRole('heading', { name: 'Source readiness' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Imported deals', exact: true })).toBeVisible()
   expect(signIns).toBe(1)
-  expect(fixture.requests.filter((request) => request.path === 'ingestion.dashboard')).toHaveLength(
-    2,
-  )
+  expect(requestsFor(fixture, 'ingestion.dashboard')).toHaveLength(2)
   expect(
     await page.evaluate(() => ({ local: { ...localStorage }, session: { ...sessionStorage } })),
   ).toEqual({ local: {}, session: {} })

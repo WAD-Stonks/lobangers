@@ -7,6 +7,10 @@ import { getIngestionDashboard } from '@api/rest/routers/ingestion/handlers/get-
 import { getIngestionDrafts } from '@api/rest/routers/ingestion/handlers/get-drafts'
 import { getIngestionRuns } from '@api/rest/routers/ingestion/handlers/get-runs'
 import { getIngestionSources } from '@api/rest/routers/ingestion/handlers/get-sources'
+import {
+  ingestionRealtimeAuth,
+  ingestionRealtimeConfig,
+} from '@api/rest/routers/ingestion/handlers/realtime'
 import { postIngestionDraftReview } from '@api/rest/routers/ingestion/handlers/review-draft'
 import { postIngestionRun } from '@api/rest/routers/ingestion/handlers/run-ingestion'
 import { getScheduledIngestionRun } from '@api/rest/routers/ingestion/handlers/run-scheduled-ingestion'
@@ -17,6 +21,10 @@ import { Router } from 'express'
 
 export const createIngestionRouter = (dependencies: RestDependencies): Router => {
   const router = Router()
+  router.get('/realtime', ingestionRealtimeConfig(dependencies))
+  router.all('/realtime', methodNotAllowed('GET'))
+  router.post('/realtime/auth', ingestionRealtimeAuth(dependencies))
+  router.all('/realtime/auth', methodNotAllowed('POST'))
   router.get('/sources', getIngestionSources(dependencies))
   router.post('/sources', postIngestionSource(dependencies))
   router.all('/sources', methodNotAllowed('GET', 'POST'))

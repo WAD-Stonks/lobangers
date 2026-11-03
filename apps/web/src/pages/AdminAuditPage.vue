@@ -1,13 +1,24 @@
 <script setup lang="ts">
 import AdminShell from '@web/components/admin/AdminShell.vue'
+import AdminTaskLink from '@web/components/admin/AdminTaskLink.vue'
 import SharedSignIn from '@web/components/auth/SharedSignIn.vue'
 import { confirmAdminIdentity } from '@web/lib/admin-recovery'
 import { createAdminReadFence } from '@web/lib/admin-session'
+import { adminReturnTo } from '@web/lib/admin-workflow-links'
 import { authClient } from '@web/lib/auth-client'
 import AuditPanel from '@web/modules/platform-admin/AuditPanel.vue'
-import type { AuditDenial } from '@web/modules/platform-admin/use-audit'
-import { onMounted, onUnmounted, ref } from 'vue'
+import type { AuditDenial, AuditInitialFilters } from '@web/modules/platform-admin/use-audit'
+import { computed, inject, onMounted, onUnmounted, ref } from 'vue'
+import { routeLocationKey } from 'vue-router'
 
+const route = inject(routeLocationKey, null)
+const initialFilters = computed<AuditInitialFilters>(() => Object.fromEntries(
+  ['userId', 'actorId', 'action', 'subjectType', 'subjectId', 'from', 'until']
+    .filter(key => route?.query[key] !== undefined)
+    .map(key => [key, route?.query[key]]),
+))
+const returnTo = computed(() => adminReturnTo(route?.query.returnTo))
+const returnLabel = computed(() => returnTo.value?.startsWith('/admin/accounts?accountId=') ? 'Back to account' : 'Back to previous task')
 const access = ref<'loading' | 'allowed' | 'closed' | 'error' | AuditDenial>('loading')
 const refreshKey = ref(0)
 const fence = createAdminReadFence()
@@ -38,9 +49,9 @@ onUnmounted(fence.dispose)
 </script>
 
 <template>
-  <AdminShell title="Audit investigation" :refresh-key="refreshKey" @closing="close" @signed-out="anonymous" @access-reload="reload">
+  <AdminShell :access="access" title="Audit investigation" :refresh-key="refreshKey" @closing="close" @signed-out="anonymous" @access-reload="reload">
     <p v-if="access === 'loading'" role="status">Checking audit access…</p>
-    <SharedSignIn v-else-if="access === 'UNAUTHORIZED'" title="Sign in to view audit history" destination="/admin/audit" @signed-in="signedIn" />
+    <SharedSignIn heading-level="h1" v-else-if="access === 'UNAUTHORIZED'" title="Sign in to view audit history" destination="/admin/audit" @signed-in="signedIn" />
     <div v-else-if="access === 'FORBIDDEN'" role="alert">
       <p>You do not have permission to view audit history.</p>
       <button type="button" class="btn btn-outline-primary" @click="reload">Recheck audit access</button>
@@ -50,6 +61,9 @@ onUnmounted(fence.dispose)
       <p>Unable to confirm your session. Audit history remains closed.</p>
       <button type="button" class="btn btn-outline-primary" @click="reload">Retry audit access</button>
     </div>
-    <AuditPanel v-else :access-key="refreshKey" @denied="denied" />
+    <template v-else>
+      <p v-if="returnTo" class="mb-3"><AdminTaskLink :to="returnTo">{{ returnLabel }}</AdminTaskLink></p>
+      <AuditPanel :access-key="refreshKey" :initial-filters="initialFilters" @denied="denied" />
+    </template>
   </AdminShell>
 </template>

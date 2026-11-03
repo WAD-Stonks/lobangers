@@ -262,14 +262,16 @@ for (const width of [320, 390, 768, 1024, 1440]) {
       await expect(page.locator('.admin-topbar')).toHaveCSS('position', 'sticky')
       await expect(
         page
-          .locator('.admin-content .card:visible, .admin-content .workspace-surface:visible')
+          .locator(
+            '.admin-content .card:visible, .admin-content .workspace-surface:visible, .admin-content .admin-record-workspace-list:visible',
+          )
           .first(),
       ).toBeVisible()
       const styles = await page.evaluate(() => {
         const heading = document.querySelector('.admin-shell h1')
         const activeLink = document.querySelector('.admin-navigation [aria-current="page"]')
         const card = document.querySelector(
-          '.admin-content .card, .admin-content .workspace-surface',
+          '.admin-content .card, .admin-content .workspace-surface, .admin-content .admin-record-workspace-list',
         )
         if (!heading || !activeLink || !card) throw new Error('Admin surfaces missing')
         return {
@@ -292,14 +294,14 @@ for (const width of [320, 390, 768, 1024, 1440]) {
       })
       expect(styles).toEqual({
         font: expect.stringContaining('-apple-system'),
-        accent: 'rgb(243, 203, 69)',
-        navFill: 'rgb(241, 242, 244)',
+        accent: 'rgb(255, 218, 69)',
+        navFill: 'rgb(255, 249, 230)',
         navWeight: '650',
         // Overview, Deals, Flash drops, Catalogue, Moderation, Accounts, Ingestion, Audit.
         navRows: 8,
         surface: 'rgb(255, 255, 255)',
-        canvas: path === '/admin' ? 'rgb(247, 248, 250)' : 'rgb(248, 249, 251)',
-        radius: path === '/admin' ? '14px' : '8px',
+        canvas: 'rgb(252, 251, 248)',
+        radius: '20px',
         fits: true,
         viewport: width,
       })
@@ -314,10 +316,13 @@ for (const width of [320, 390, 768, 1024, 1440]) {
     await page.getByTestId('admin-sign-out').click()
     const signIn = page.getByRole('region', { name: 'Sign in to review ingestion' })
     await expect(signIn).toBeVisible()
+    await expect(page.locator('#admin-sidebar')).toHaveCount(0)
+    await expect(page.locator('.admin-breadcrumb')).toHaveCount(0)
+    await expect(page.locator('.admin-topbar')).toBeHidden()
     await expect(page.getByTestId('admin-sign-out')).toHaveCount(0)
     const submit = signIn.getByRole('button', { name: 'Sign in', exact: true })
-    await expect(submit).toHaveCSS('background-color', 'rgb(243, 203, 69)')
-    await expect(submit).toHaveCSS('color', 'rgb(32, 36, 43)')
+    await expect(submit).toHaveCSS('background-color', 'rgb(255, 218, 69)')
+    await expect(submit).toHaveCSS('color', 'rgb(27, 27, 31)')
     await page.getByLabel('Email', { exact: true }).focus()
     await page.keyboard.press('Tab')
     await expect(page.getByLabel('Password', { exact: true })).toBeFocused()
@@ -408,3 +413,41 @@ for (const width of [320, 390]) {
     ).toBe(true)
   })
 }
+
+test('dark admin dropdown indicators remain distinguishable from their controls', async ({
+  page,
+}) => {
+  await boundary(page)
+  await page.goto('/admin')
+  await page.getByRole('switch', { name: 'Dark mode', exact: true }).click()
+  await page.goto('/admin/ingestion')
+  const select = page.getByLabel('Review status', { exact: true })
+  await expect(select).toBeVisible()
+  const contrast = await select.evaluate((element) => {
+    const style = getComputedStyle(element)
+    const svg = decodeURIComponent(style.backgroundImage)
+    const stroke = svg.match(/stroke=['"](#[0-9a-f]{6})['"]/i)?.[1]
+    if (!stroke) return 0
+    const foreground = [1, 3, 5].map((offset) =>
+      Number.parseInt(stroke.slice(offset, offset + 2), 16),
+    )
+    const background = style.backgroundColor
+      .match(/[0-9.]+/g)
+      ?.slice(0, 3)
+      .map(Number)
+    if (!background) return 0
+    const luminance = (channels: number[]) =>
+      channels.reduce((value, channel, index) => {
+        const srgb = channel / 255
+        const linear = srgb <= 0.04045 ? srgb / 12.92 : ((srgb + 0.055) / 1.055) ** 2.4
+        return value + linear * ([0.2126, 0.7152, 0.0722][index] ?? 0)
+      }, 0)
+    const foregroundLuminance = luminance(foreground)
+    const backgroundLuminance = luminance(background)
+    return (
+      (Math.max(foregroundLuminance, backgroundLuminance) + 0.05) /
+      (Math.min(foregroundLuminance, backgroundLuminance) + 0.05)
+    )
+  })
+  expect(contrast).toBeGreaterThanOrEqual(3)
+})

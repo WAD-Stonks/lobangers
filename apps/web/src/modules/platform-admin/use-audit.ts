@@ -19,6 +19,9 @@ const emptyFilters = () => ({
   from: '',
   until: '',
 })
+export type AuditInitialFilters = Partial<Record<keyof ReturnType<typeof emptyFilters>, unknown>>
+const filterValidation =
+  'Check the selected filters and choose both dates, with an end after the start and a range of at most 90 days. A record ID also requires its subject type.'
 
 export const useAudit = (list: AuditList, denied: (code: AuditDenial) => void = () => {}) => {
   const filters = reactive(emptyFilters())
@@ -74,11 +77,23 @@ export const useAudit = (list: AuditList, denied: (code: AuditDenial) => void = 
     const input = Object.fromEntries(Object.entries(filters).filter(([, value]) => value !== ''))
     const parsed = platformAuditQuerySchema.safeParse({ ...input, limit: 25 })
     if (!parsed.success) {
-      validation.value =
-        'Check IDs and supply both UTC dates, with a positive interval of at most 90 days. A subject ID also requires its type.'
+      validation.value = filterValidation
       return
     }
     validation.value = ''
+    active = parsed.data
+    await load()
+  }
+  const initialize = async (input: AuditInitialFilters = {}) => {
+    close('ready')
+    for (const key of Object.keys(filters) as (keyof typeof filters)[]) {
+      if (typeof input[key] === 'string') filters[key] = input[key]
+    }
+    const parsed = platformAuditQuerySchema.safeParse({ ...input, limit: 25 })
+    if (!parsed.success) {
+      validation.value = filterValidation
+      return
+    }
     active = parsed.data
     await load()
   }
@@ -99,6 +114,7 @@ export const useAudit = (list: AuditList, denied: (code: AuditDenial) => void = 
     loading,
     validation,
     load,
+    initialize,
     apply,
     reset,
     retry,

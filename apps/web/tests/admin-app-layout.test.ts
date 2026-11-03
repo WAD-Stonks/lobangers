@@ -126,7 +126,7 @@ it.each(['/not-real', '/admin/not-real', '/admin/accounts/not-real'])(
   },
 )
 
-// Characterization: all seven original admin page components own their real shell/main.
+// Anonymous direct entries retain one auth main, without operational navigation.
 it.each([
   ['/admin', 'Admin overview'],
   ['/admin/deals', 'Deals operations'],
@@ -136,7 +136,7 @@ it.each([
   ['/admin/ingestion', 'Ingestion admin'],
   ['/admin/audit', 'Audit investigation'],
   ['/admin/accounts/?requestStatus=PENDING#merchant-requests', 'Accounts'],
-])('preserves the real admin page shell at %s', async (path, title) => {
+])('shows the standalone auth layer at %s (%s)', async (path) => {
   const router = createRouter({ history: createMemoryHistory(), routes })
   await router.push(path)
   const wrapper = mount(App, {
@@ -155,7 +155,9 @@ it.each([
     expect(wrapper.findComponent(AdminShell).exists()).toBe(true)
     expect(wrapper.find('.admin-layout').exists()).toBe(true)
     expect(wrapper.findAll('main')).toHaveLength(1)
-    expect(wrapper.get('main').get('h1').text()).toBe(title)
+    expect(wrapper.find('#admin-sidebar').exists()).toBe(false)
+    expect(wrapper.find('.admin-heading').exists()).toBe(false)
+    expect(wrapper.get('.admin-topbar').isVisible()).toBe(false)
     expect(wrapper.findComponent(AppShell).exists()).toBe(false)
     expect(wrapper.find('[data-testid="consumer-header"]').exists()).toBe(false)
     expect(wrapper.findComponent(NotFoundPage).exists()).toBe(false)

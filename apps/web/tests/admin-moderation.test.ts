@@ -1,5 +1,6 @@
 import { flushPromises, mount } from '@vue/test-utils'
 import { beforeEach, expect, it, vi } from 'vitest'
+import { createMemoryHistory, createRouter } from 'vue-router'
 
 const rest = vi.hoisted(() => ({
   reports: vi.fn(),
@@ -58,6 +59,33 @@ const component = async () => {
   expect(m, 'moderation panel exists').not.toBeNull()
   return m?.default
 }
+it('distinguishes a failed queue read from a confirmed empty result and offers retry', async () => {
+  rest.reports.mockRejectedValueOnce(new Error('Synthetic read failure'))
+  const c = await component()
+  if (!c) return
+  const w = mount(c)
+  await flushPromises()
+  expect(w.text()).toContain('Unable to load queue')
+  expect(w.text()).toContain('Queue unavailable')
+  expect(w.text()).not.toContain('Queue clear')
+  expect(w.text()).not.toContain('0 loaded')
+  rest.reports.mockResolvedValueOnce({ items: [], nextCursor: null })
+  await w
+    .findAll('button')
+    .find((button) => button.text() === 'Retry queue')
+    ?.trigger('click')
+  await flushPromises()
+  expect(w.text()).toContain('Queue clear')
+  expect(w.text()).toContain('0 loaded')
+  expect(w.text()).not.toContain('Queue unavailable')
+  rest.reports.mockRejectedValueOnce(new Error('Synthetic filter read failure'))
+  await w.get('#mod-type').setValue('DEAL')
+  await flushPromises()
+  expect(w.text()).toContain('Queue unavailable')
+  expect(w.text()).not.toContain('Queue clear')
+  expect(w.text()).not.toContain('0 loaded')
+  w.unmount()
+})
 it('mounts queue and submits exact selected collection/id/version only once with deliberate confirmation', async () => {
   const c = await component()
   if (!c) return
@@ -234,5 +262,248 @@ it('retains mounted CONFLICT lock for exact collection/type/id until newer moder
     expect(rest.resolve.mock.calls[2]?.[2].expectedVersion).toBe(5)
   } finally {
     w.unmount()
+  }
+})
+
+it('focuses selected evidence and clears consent when returning to the queue', async () => {
+  const Panel = await component()
+  if (!Panel) return
+  const wrapper = mount(Panel, { attachTo: document.body })
+  try {
+    await flushPromises()
+    await wrapper.get('[data-testid="inspect-report"]').trigger('click')
+    await flushPromises()
+    expect(document.activeElement).toBe(
+      wrapper.get('[data-testid="moderation-detail-heading"]').element,
+    )
+    expect(
+      wrapper.find('.admin-record-workspace-detail [data-testid="decision-form"]').exists(),
+    ).toBe(true)
+    await wrapper.get('[name="note"]').setValue('Unsubmitted review')
+    await wrapper.get('[name="confirmed"]').setValue(true)
+    await wrapper.get('.admin-workspace-back').trigger('click')
+    expect(wrapper.find('[name="note"]').exists()).toBe(false)
+    expect(document.activeElement).toBe(wrapper.get('[data-testid="inspect-report"]').element)
+    await wrapper.get('[data-testid="inspect-report"]').trigger('click')
+    await flushPromises()
+    expect(wrapper.get<HTMLTextAreaElement>('[name="note"]').element.value).toBe('')
+    expect(wrapper.get<HTMLInputElement>('[name="confirmed"]').element.checked).toBe(false)
+    expect(rest.resolve).not.toHaveBeenCalled()
+  } finally {
+    wrapper.unmount()
+  }
+})
+
+it('keeps a pending decision visible and cannot close it through Back to results', async () => {
+  const Panel = await component()
+  if (!Panel) return
+  let release!: (value: typeof row) => void
+  rest.resolve.mockImplementationOnce(
+    () =>
+      new Promise((resolve) => {
+        release = resolve
+      }),
+  )
+  const wrapper = mount(Panel)
+  try {
+    await flushPromises()
+    await wrapper.get('[data-testid="inspect-report"]').trigger('click')
+    await flushPromises()
+    await wrapper.get('[name="note"]').setValue('Reviewed evidence')
+    await wrapper.get('[name="confirmed"]').setValue(true)
+    await wrapper.get('[data-testid="decision-form"]').trigger('submit')
+    expect(wrapper.get('.admin-workspace-back').attributes('disabled')).toBeDefined()
+    await wrapper.get('.admin-workspace-back').trigger('click')
+    expect(wrapper.find('[data-testid="decision-form"]').exists()).toBe(true)
+    expect(rest.resolve).toHaveBeenCalledTimes(1)
+    release({ ...row, status: 'RESOLVED', moderationVersion: 5 })
+    await flushPromises()
+    expect(wrapper.get('.admin-workspace-back').attributes('disabled')).toBeUndefined()
+  } finally {
+    wrapper.unmount()
+  }
+})
+
+const relatedDeal = {
+  id: '2123456789abcdef01234567',
+  title: 'Exact reported deal',
+  deletedAt: null,
+  publishedAt: '2026-01-01T00:00:00Z',
+  reviewStatus: 'APPROVED',
+  contentVersion: 3,
+  reviewedVersion: 3,
+  applicability: 'ALL_MERCHANT_OUTLETS',
+}
+const reportedComment = {
+  id: row.targetId,
+  dealId: relatedDeal.id,
+  body: 'Exact reported comment',
+  author: { id, name: 'Synthetic author' },
+  createdAt: row.createdAt,
+  deletedAt: null,
+  hiddenAt: null,
+  state: 'VISIBLE',
+  moderationVersion: 11,
+  deal: relatedDeal,
+}
+const routablePanel = async (path: string) => {
+  const Panel = await component()
+  if (!Panel) throw new Error('Moderation panel unavailable')
+  const router = createRouter({
+    history: createMemoryHistory(),
+    routes: [{ path: '/admin/moderation', component: Panel }],
+  })
+  await router.push(path)
+  const wrapper = mount(Panel, { global: { plugins: [router] } })
+  await flushPromises()
+  return { wrapper, router }
+}
+it('opens the exact report from its URL even outside the current queue and links its exact deal with return context', async () => {
+  rest.reports.mockResolvedValue({ items: [], nextCursor: null })
+  rest.report.mockResolvedValue({
+    ...row,
+    targetType: 'DEAL',
+    targetId: relatedDeal.id,
+    deal: relatedDeal,
+  })
+  const { wrapper } = await routablePanel(`/admin/moderation?reportId=${id}&collection=DEAL`)
+  try {
+    expect(rest.report).toHaveBeenCalledWith('DEAL', id)
+    expect(wrapper.get('[data-testid="moderation-detail-heading"]').text()).toContain('report')
+    const href = new URL(
+      wrapper.get('[data-testid="open-reported-deal"]').attributes('href') ?? '',
+      'http://example.test',
+    )
+    expect(href.pathname).toBe('/admin/deals')
+    expect(href.searchParams.get('dealId')).toBe(relatedDeal.id)
+    expect(href.searchParams.get('tab')).toBe('review')
+    expect(href.searchParams.get('returnTo')).toBe(
+      `/admin/moderation?reportId=${id}&collection=DEAL`,
+    )
+    expect(rest.resolve).not.toHaveBeenCalled()
+    expect(rest.visibility).not.toHaveBeenCalled()
+  } finally {
+    wrapper.unmount()
+  }
+})
+it('reads a reported comment afresh and keeps comment visibility separate from report resolution', async () => {
+  const evidence = {
+    ...row,
+    deal: relatedDeal,
+    comment: { ...reportedComment, moderationVersion: 2 },
+  }
+  rest.report.mockResolvedValue(evidence)
+  rest.reports.mockResolvedValue({ items: [evidence], nextCursor: null })
+  rest.comment.mockResolvedValue(reportedComment)
+  rest.visibility.mockResolvedValue({
+    ...reportedComment,
+    state: 'HIDDEN',
+    hiddenAt: row.createdAt,
+    moderationVersion: 12,
+  })
+  const { wrapper, router } = await routablePanel(
+    `/admin/moderation?reportId=${id}&collection=COMMENT`,
+  )
+  try {
+    await wrapper.get('[name="note"]').setValue('Unsubmitted report decision')
+    await wrapper.get('[name="confirmed"]').setValue(true)
+    await wrapper.get('[data-testid="open-reported-comment"]').trigger('click')
+    await flushPromises()
+    expect(rest.comment).toHaveBeenCalledWith(row.targetId)
+    expect(router.currentRoute.value.query).toMatchObject({
+      commentId: row.targetId,
+      reportId: id,
+      collection: 'COMMENT',
+    })
+    expect(wrapper.get('[data-testid="moderation-detail-heading"]').text()).toBe('Review comment')
+    expect(wrapper.get<HTMLTextAreaElement>('[name="note"]').element.value).toBe('')
+    expect(wrapper.get<HTMLInputElement>('[name="confirmed"]').element.checked).toBe(false)
+    expect(rest.visibility).not.toHaveBeenCalled()
+    expect(rest.resolve).not.toHaveBeenCalled()
+    await wrapper.get('[name="note"]').setValue('Reviewed the current comment')
+    await wrapper.get('[name="confirmed"]').setValue(true)
+    await wrapper.get('[data-testid="decision-form"]').trigger('submit')
+    await flushPromises()
+    expect(rest.visibility).toHaveBeenCalledWith(row.targetId, {
+      expectedVersion: 11,
+      visibility: 'HIDDEN',
+      note: 'Reviewed the current comment',
+      confirmed: true,
+    })
+    expect(rest.resolve).not.toHaveBeenCalled()
+    await wrapper.get('[data-testid="back-to-report"]').trigger('click')
+    await flushPromises()
+    expect(router.currentRoute.value.query.commentId).toBeUndefined()
+    expect(rest.report).toHaveBeenCalledTimes(2)
+    expect(wrapper.get('[data-testid="moderation-detail-heading"]').text()).toContain('report')
+    expect(wrapper.get<HTMLTextAreaElement>('[name="note"]').element.value).toBe('')
+    expect(wrapper.get<HTMLInputElement>('[name="confirmed"]').element.checked).toBe(false)
+    expect(rest.resolve).not.toHaveBeenCalled()
+  } finally {
+    wrapper.unmount()
+  }
+})
+it('queues a route target change until a captured report mutation settles, without transferring confirmation', async () => {
+  rest.comment.mockResolvedValue(reportedComment)
+  let release!: (value: typeof row) => void
+  rest.resolve.mockImplementationOnce(
+    () =>
+      new Promise((resolve) => {
+        release = resolve
+      }),
+  )
+  const { wrapper, router } = await routablePanel(
+    `/admin/moderation?reportId=${id}&collection=COMMENT`,
+  )
+  try {
+    await wrapper.get('[name="note"]').setValue('Reviewed report')
+    await wrapper.get('[name="confirmed"]').setValue(true)
+    await wrapper.get('[data-testid="decision-form"]').trigger('submit')
+    await router.push(`/admin/moderation?commentId=${row.targetId}`)
+    await flushPromises()
+    expect(rest.comment).not.toHaveBeenCalled()
+    expect(wrapper.get('[data-testid="moderation-detail-heading"]').text()).toContain('report')
+    expect(wrapper.get('[data-testid="decision-form"]').text()).toContain('Saving')
+    release({ ...row, status: 'RESOLVED', moderationVersion: 5 })
+    await flushPromises()
+    expect(rest.resolve).toHaveBeenCalledTimes(1)
+    expect(rest.comment).toHaveBeenCalledWith(row.targetId)
+    expect(wrapper.get('[data-testid="moderation-detail-heading"]').text()).toBe('Review comment')
+    expect(wrapper.get<HTMLTextAreaElement>('[name="note"]').element.value).toBe('')
+    expect(wrapper.get<HTMLInputElement>('[name="confirmed"]').element.checked).toBe(false)
+    expect(rest.visibility).not.toHaveBeenCalled()
+  } finally {
+    wrapper.unmount()
+  }
+})
+it('closes protected linked evidence when the fresh comment read is forbidden', async () => {
+  rest.comment.mockRejectedValue({ code: 'FORBIDDEN' })
+  const { wrapper } = await routablePanel(
+    `/admin/moderation?commentId=${row.targetId}&reportId=${id}&collection=COMMENT`,
+  )
+  try {
+    expect(wrapper.emitted('denied')).toEqual([['FORBIDDEN']])
+    expect(wrapper.find('[data-testid="decision-form"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="open-reported-deal"]').exists()).toBe(false)
+    expect(rest.resolve).not.toHaveBeenCalled()
+    expect(rest.visibility).not.toHaveBeenCalled()
+  } finally {
+    wrapper.unmount()
+  }
+})
+it.each([
+  '/admin/moderation?reportId=invalid&collection=COMMENT',
+  `/admin/moderation?reportId=${id}&collection=INVALID`,
+  '/admin/moderation?commentId=invalid',
+])('ignores invalid record route parameters without attempting a detail read: %s', async (path) => {
+  const { wrapper } = await routablePanel(path)
+  try {
+    expect(rest.report).not.toHaveBeenCalled()
+    expect(rest.comment).not.toHaveBeenCalled()
+    expect(wrapper.find('[data-testid="decision-form"]').exists()).toBe(false)
+    expect(rest.resolve).not.toHaveBeenCalled()
+    expect(rest.visibility).not.toHaveBeenCalled()
+  } finally {
+    wrapper.unmount()
   }
 })

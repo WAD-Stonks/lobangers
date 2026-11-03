@@ -18,17 +18,6 @@ const overview = ref<AdminOverviewResponse | null>(null)
 const sessionRefreshKey = ref(0)
 const runsExpanded = ref(false)
 const readinessExpanded = ref(false)
-const attentionItems = computed(() => {
-  if (!overview.value) return []
-  const counts = overview.value.counts
-  return [
-    { count: counts.failedImportedPosts, label: 'Imported posts need investigation', href: '/admin/ingestion#failed-posts', action: 'Investigate posts' },
-    { count: counts.pendingMerchantRequests, label: 'Merchant requests await a decision', href: '/admin/accounts?requestStatus=PENDING#merchant-requests', action: 'Review requests' },
-    { count: counts.pendingImportedDrafts, label: 'Imported drafts await review', href: '/admin/ingestion?status=PENDING#queue-title', action: 'Review drafts' },
-    { count: counts.pendingFlashDrops, label: 'Flash deals scheduled to start', href: '/admin/flash-drops?view=scheduled', action: 'See scheduled flash deals' },
-    { count: counts.liveFlashDrops, label: 'Flash deals live now', href: '/admin/flash-drops?view=live', action: 'Watch live flash deals' },
-  ].filter(item => item.count > 0)
-})
 const quickActions = [
   { href: '/admin/deals', label: 'Manage deals', description: 'Review and correct deal listings.', icon: 'deals' },
   { href: '/admin/flash-drops', label: 'Flash deals', description: 'Watch live flash deals and remove any that break the rules.', icon: 'flash' },
@@ -96,7 +85,7 @@ onUnmounted(() => { fence.dispose(); nativeFence.dispose() })
 </script>
 
 <template>
-  <AdminShell class="admin-overview" @click.capture="logoutStarting" title="Admin overview" :refresh-key="sessionRefreshKey" @closing="close" @signed-out="anonymous" @access-reload="reload">
+  <AdminShell :access="access" class="admin-overview" @click.capture="logoutStarting" title="Admin overview" :refresh-key="sessionRefreshKey" @closing="close" @signed-out="anonymous" @access-reload="reload">
     <div v-if="access === 'allowed' || access === 'loading'" class="overview-toolbar">
       <div class="overview-introduction">
       <p class="overview-description">Review pending work and track registrations and imports.</p>
@@ -110,7 +99,7 @@ onUnmounted(() => { fence.dispose(); nativeFence.dispose() })
       </button>
     </div>
     <TicketLoading v-if="access === 'loading'" label="Loading admin overview…" />
-    <SharedSignIn v-else-if="access === 'unauthorized'" title="Sign in to view administration" destination="/admin" @signed-in="signedIn" />
+    <SharedSignIn heading-level="h1" v-else-if="access === 'unauthorized'" title="Sign in to view administration" destination="/admin" @signed-in="signedIn" />
     <p v-else-if="access === 'forbidden'" role="alert">You do not have permission to view administration.</p>
     <p v-else-if="access === 'closed'" role="status">Access is closed. Use the session controls to retry or recheck.</p>
     <div v-else-if="access === 'error'" role="alert">
@@ -124,23 +113,17 @@ onUnmounted(() => { fence.dispose(); nativeFence.dispose() })
         <ul class="overview-summary">
           <li class="card"><a class="overview-summary-link" href="/admin/accounts?requestStatus=PENDING#merchant-requests"><span class="overview-metric-label"><span>Pending merchant requests: </span><span class="overview-metric-icon"><AdminIcon name="accounts" /></span></span><strong>{{ overview.counts.pendingMerchantRequests }}</strong><span class="overview-card-hint">Review merchant access →</span></a></li>
           <li class="card"><a class="overview-summary-link" href="/admin/ingestion?status=PENDING#queue-title"><span class="overview-metric-label"><span>Pending imported drafts: </span><span class="overview-metric-icon"><AdminIcon name="deals" /></span></span><strong>{{ overview.counts.pendingImportedDrafts }}</strong><span class="overview-card-hint">Review imported deals →</span></a></li>
-          <li class="card overview-summary-static"><span class="overview-metric-label"><span>Failed imported posts: </span><span class="overview-metric-icon overview-metric-icon--neutral"><AdminIcon name="ingestion" /></span></span><strong>{{ overview.counts.failedImportedPosts }}</strong><span class="overview-card-hint">Stored posts requiring investigation</span></li>
+          <li class="card"><a class="overview-summary-link" href="/admin/ingestion#failed-posts"><span class="overview-metric-label"><span>Failed imported posts: </span><span class="overview-metric-icon overview-metric-icon--neutral"><AdminIcon name="ingestion" /></span></span><strong>{{ overview.counts.failedImportedPosts }}</strong><span class="overview-card-hint">Investigate failed posts →</span></a></li>
           <li class="card"><a class="overview-summary-link" href="/admin/flash-drops?view=scheduled"><span class="overview-metric-label"><span>Flash deals scheduled: </span><span class="overview-metric-icon overview-metric-icon--flash"><AdminIcon name="flash" /></span></span><strong>{{ overview.counts.pendingFlashDrops }}</strong><span class="overview-card-hint">See scheduled flash deals →</span></a></li>
         </ul>
         <p class="small mb-0">Failures count imported posts, not ingestion runs.</p>
       </section>
       <UserRegistrationAnalytics class="overview-registrations" @denied="protectedSectionDenied" />
       <div class="overview-next-steps">
-        <section class="card overview-attention" aria-labelledby="attention-title">
-          <h2 id="attention-title">Attention needed</h2>
-          <p class="small text-secondary">Open work in the current snapshot.</p>
-          <ul v-if="attentionItems.length" class="overview-attention-list">
-            <li v-for="item in attentionItems" :key="item.href">
-              <div><strong>{{ item.count }}</strong> {{ item.label }}</div>
-              <a :href="item.href">{{ item.action }} →</a>
-            </li>
-          </ul>
-          <p v-else class="overview-queue-clear mb-0">No pending merchant requests, imported drafts, flash drops or failed imported posts in this snapshot.</p>
+        <section v-if="overview.counts.liveFlashDrops > 0" class="card overview-attention" aria-labelledby="attention-title">
+          <h2 id="attention-title">Live now</h2>
+          <p class="mb-3">{{ overview.counts.liveFlashDrops }} Flash deals live now</p>
+          <a class="btn btn-outline-primary" href="/admin/flash-drops?view=live">Watch live flash deals →</a>
         </section>
         <nav class="card overview-shortcuts" aria-labelledby="quick-actions-title">
           <h2 id="quick-actions-title">Quick actions</h2>
@@ -151,10 +134,11 @@ onUnmounted(() => { fence.dispose(); nativeFence.dispose() })
           </ul>
         </nav>
       </div>
-      <section class="card overview-import-chart" aria-labelledby="import-chart-title">
+      <RecentAdminActivity class="overview-activity" @denied="protectedSectionDenied" />
+      <details class="card overview-import-chart" aria-labelledby="import-chart-title">
+        <summary><h2 id="import-chart-title">Latest import runs</h2><span>Expand import performance</span></summary>
         <div class="overview-chart-heading">
           <div>
-            <h2 id="import-chart-title">Latest import runs</h2>
             <p class="small text-secondary mb-0">Created, updated and failed post counts from up to 10 recent runs, newest first. This is a run comparison, not a daily trend.</p>
           </div>
           <label v-if="overview.recentRuns.length" class="overview-chart-filter">Show results
@@ -183,7 +167,7 @@ onUnmounted(() => { fence.dispose(); nativeFence.dispose() })
             </li>
           </ol>
         </template>
-      </section>
+      </details>
       <section class="card admin-runs-panel" aria-labelledby="overview-runs-title">
         <header class="overview-collapse-heading">
           <h2 id="overview-runs-title" class="h4">Recent ingestion runs</h2>
@@ -212,7 +196,6 @@ onUnmounted(() => { fence.dispose(); nativeFence.dispose() })
         </section>
         </div>
       </section>
-      <RecentAdminActivity class="overview-activity" @denied="protectedSectionDenied" />
       <section class="card admin-readiness" aria-labelledby="readiness-title">
         <header class="overview-collapse-heading">
           <h2 id="readiness-title" class="h4">Configuration readiness</h2>
@@ -243,7 +226,7 @@ onUnmounted(() => { fence.dispose(); nativeFence.dispose() })
 <style scoped>
 .admin-overview {
   --admin-bg: var(--admin-overview-bg);
-  --overview-radius: 14px;
+  --overview-radius: 20px;
 }
 .admin-overview :deep(.admin-heading) { margin-bottom: 12px; }
 .overview-toolbar {
@@ -259,7 +242,7 @@ onUnmounted(() => { fence.dispose(); nativeFence.dispose() })
 .overview-refresh-symbol { font-size: 20px; line-height: 1; }
 .admin-overview-panels.overview-panels {
   grid-template-columns: minmax(0, 1.65fr) minmax(300px, 1fr);
-  grid-template-areas: "work work" "registrations next" "chart chart" "runs runs" "activity activity" "readiness readiness";
+  grid-template-areas: "work work" "registrations next" "activity activity" "chart chart" "runs runs" "readiness readiness";
   gap: 24px;
 }
 .overview-panels :where(.card) {
@@ -318,6 +301,10 @@ onUnmounted(() => { fence.dispose(); nativeFence.dispose() })
 .overview-shortcut-copy { min-width: 0; }
 .overview-shortcut-copy > span { display: block; margin-top: 3px; color: var(--admin-muted); font-size: 12px; }
 .overview-import-chart { grid-area: chart; }
+.overview-import-chart > summary { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px; list-style-position: inside; }
+.overview-import-chart > summary h2 { margin: 0; }
+.overview-import-chart > summary span { color: var(--admin-muted); font-size: 13px; }
+.overview-import-chart[open] > summary { margin-bottom: 20px; }
 .overview-chart-heading { display: flex; flex-wrap: wrap; gap: 16px; justify-content: space-between; }
 .overview-chart-heading > div { flex: 1 1 300px; }
 .overview-chart-filter { display: grid; align-content: start; gap: 6px; min-width: 150px; color: var(--admin-muted); font-size: 12px; }
@@ -401,7 +388,7 @@ onUnmounted(() => { fence.dispose(); nativeFence.dispose() })
 @media (max-width: 1199.98px) {
   .admin-overview-panels.overview-panels {
     grid-template-columns: minmax(0, 1fr);
-    grid-template-areas: "work" "registrations" "next" "chart" "runs" "activity" "readiness";
+    grid-template-areas: "work" "next" "registrations" "activity" "chart" "runs" "readiness";
   }
   .overview-next-steps { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .overview-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -414,8 +401,8 @@ onUnmounted(() => { fence.dispose(); nativeFence.dispose() })
 }
 @media (max-width: 767.98px) {
   .overview-next-steps { grid-template-columns: minmax(0, 1fr); }
-  .overview-summary { grid-template-columns: minmax(0, 1fr); }
-  .overview-metric-label { flex-wrap: nowrap; }
+  .overview-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .overview-metric-label { flex-wrap: wrap-reverse; }
   .overview-panels > :where(.card), .overview-next-steps > :where(.card) { padding: 20px; }
 }
 @media (max-width: 575.98px) {
