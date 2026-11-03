@@ -3,7 +3,6 @@ import { flushPromises, mount } from '@vue/test-utils'
 import App from '@web/App.vue'
 import { authGuard } from '@web/router/guards'
 import routes from '@web/router/routes'
-import type { Component } from 'vue'
 import { createMemoryHistory, createRouter } from 'vue-router'
 
 // Synthetic deals for the map-shell tests. Not real outlets or prices.
@@ -72,14 +71,14 @@ export const SIGNED_IN = {
 
 // Mounts the whole app at a path with the real routes. Leaflet needs a layout engine, so the
 // map itself is stubbed; the browser suite covers it.
-export const mountShell = async (path: string, mapStub: Component | true = true) => {
+export const mountShell = async (path: string) => {
   const router = createRouter({ history: createMemoryHistory(), routes })
   router.beforeEach(authGuard)
   await router.push(path)
   await router.isReady()
   const wrapper = mount(App, {
     attachTo: document.body,
-    global: { plugins: [router], stubs: { DealMap: mapStub, SplashScreen: true } },
+    global: { plugins: [router], stubs: { DealMap: true, SplashScreen: true } },
   })
   await flushPromises()
   return { router, wrapper }

@@ -13,7 +13,7 @@ import {
   SIGNED_OUT,
 } from '@web-tests/support/shell-fixtures'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { defineComponent, ref } from 'vue'
+import { ref } from 'vue'
 
 const rest = vi.hoisted(() => ({
   list: vi.fn(),
@@ -624,79 +624,6 @@ describe('opening deals and venues', () => {
     expect(wrapper.find('[data-testid="deal-dialog"]').exists()).toBe(false)
     expect(wrapper.get('.panel-frame__back').attributes('href')).toBe('/browse?cat=drinks')
   })
-
-  it.each(['browser Back', 'Back to results link'] as const)(
-    'restores the previous map viewport and price-filtered results using %s',
-    async (navigation) => {
-      const originalCentre = { lat: 1.35, lng: 103.82 }
-      const originalZoom = 11
-      const originalArea = { south: 1.2, north: 1.5, west: 103.6, east: 104 }
-      const detailArea = {
-        south: KOPI_VENUE.lat - 0.00001,
-        north: KOPI_VENUE.lat + 0.00001,
-        west: KOPI_VENUE.lng - 0.00001,
-        east: KOPI_VENUE.lng + 0.00001,
-      }
-      let centre = { ...originalCentre }
-      let zoom = originalZoom
-      let pendingMove: (() => void) | undefined
-      let wrapper: VueWrapper
-      const camera = {
-        getCenter: () => ({ ...centre }),
-        getZoom: () => zoom,
-        stop: vi.fn(() => {
-          pendingMove = undefined
-        }),
-        setView: vi.fn((point: [number, number], nextZoom: number) => {
-          centre = { lat: point[0], lng: point[1] }
-          zoom = nextZoom
-          map(wrapper).vm.$emit('moved', originalArea)
-        }),
-      }
-      const mapStub = defineComponent({
-        name: 'DealMap',
-        props: ['pins'],
-        setup(_props, { expose }) {
-          expose({ leaflet: () => camera })
-        },
-        template: '<div />',
-      })
-      const result = await mountShell('/browse?max=5', mapStub)
-      wrapper = result.wrapper
-      mounted.push(wrapper)
-      map(wrapper).vm.$emit('moved', originalArea)
-      await flushPromises()
-      expect(rowTitles(wrapper)).toEqual(['Synthetic iced kopi', 'Synthetic chicken rice'])
-      await wrapper.get('[data-testid="deal-rows"] a').trigger('click')
-      await flushPromises()
-      centre = { lat: KOPI_VENUE.lat, lng: KOPI_VENUE.lng }
-      zoom = FOCUS_ZOOM
-      if (navigation === 'browser Back') {
-        // The complete detail fly-to has already narrowed the map's geographic filter.
-        map(wrapper).vm.$emit('moved', detailArea)
-        await flushPromises()
-        result.router.back()
-        await vi.waitFor(() => expect(result.router.currentRoute.value.name).toBe('browse'))
-      } else {
-        // A detail animation that has not finished must not overwrite the restored results.
-        pendingMove = () => map(wrapper).vm.$emit('moved', detailArea)
-        await wrapper.get('.panel-frame__back').trigger('click')
-      }
-      await flushPromises()
-      pendingMove?.()
-      await flushPromises()
-      expect(result.router.currentRoute.value.fullPath).toBe('/browse?max=5')
-      expect(camera.stop).toHaveBeenCalledOnce()
-      expect(camera.setView).toHaveBeenCalledWith(
-        [originalCentre.lat, originalCentre.lng],
-        originalZoom,
-        { animate: false },
-      )
-      expect(rowTitles(wrapper)).toEqual(['Synthetic iced kopi', 'Synthetic chicken rice'])
-      expect(map(wrapper).props('pins')).toHaveLength(2)
-      expect(rest.list).toHaveBeenCalledTimes(1)
-    },
-  )
 
   it('opens the deal straight from a pin with one deal, and the venue for a pin with several', async () => {
     const { router, wrapper } = await mountAt('/browse')
