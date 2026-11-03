@@ -236,6 +236,8 @@ async function installBoundary(page: Page) {
       else if (url.pathname === '/api/ingestion/posts') {
         expect(Object.fromEntries(url.searchParams)).toEqual({ status: 'FAILED', limit: '20' })
         data = postsPageSchema.parse({ items: [], nextCursor: null })
+      } else if (url.pathname === '/api/account/bookmarks')
+        data = { items: [], nextCursor: null }
       } else if (url.pathname === `/api/ingestion/drafts/${draft.id}/evidence`) {
         expect(Object.fromEntries(url.searchParams)).toEqual({ limit: '20' })
         data = evidencePageSchema.parse({ items: [], nextCursor: null })

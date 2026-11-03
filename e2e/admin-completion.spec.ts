@@ -141,6 +141,7 @@ async function boundary(page: Page) {
         '/api/admin/merchant-requests',
         '/api/admin/audit',
         '/api/ingestion/drafts',
+        '/api/account/bookmarks',
       ].includes(url.pathname)
     )
       body = { items: [], nextCursor: null }
