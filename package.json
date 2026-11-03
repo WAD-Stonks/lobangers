@@ -33,6 +33,7 @@
     "check:all": "pnpm run check && pnpm run test:integration && pnpm run test:e2e",
     "db:local": "node --import tsx scripts/mongo.ts",
     "typecheck:tools": "tsc --project tsconfig.tools.json --noEmit",
+    "audit": "pnpm audit --audit-level=high",
     "test:packages": "vitest run --config vitest.packages.config.ts",
     "test:tooling": "node --test scripts/tests/*.test.mjs",
     "build:vercel:api": "pnpm run db:generate && node --import tsx scripts/build-vercel-api.ts"

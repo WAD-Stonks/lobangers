@@ -26,9 +26,21 @@ test('pnpm owns dependency management with one isolated workspace lockfile', () 
   assert.match(workspace, /hoist: false/)
   assert.match(workspace, /ignoreScripts: true/)
   assert.match(workspace, /effect: 3\.21\.0/)
+  assert.match(workspace, /ignoreGhsas:[\s\S]*- GHSA-ggr8-5vv4-36mx/)
+  assert.equal(manifest.scripts.audit, 'pnpm audit --audit-level=high')
   assert.equal(manifest.overrides, undefined)
   assert.equal(manifest.trustedDependencies, undefined)
   assert.equal(manifest.workspaces, undefined)
+})
+
+test('pnpm resolves exactly the documented audit exception', () => {
+  const result = spawnSync('pnpm', ['config', 'get', 'auditConfig', '--json'], {
+    cwd: fileURLToPath(root),
+    encoding: 'utf8',
+    timeout: 30_000,
+  })
+  assert.equal(result.status, 0, result.stderr)
+  assert.deepEqual(JSON.parse(result.stdout), { ignoreGhsas: ['GHSA-ggr8-5vv4-36mx'] })
 })
 
 test('cold frozen Node tooling works with all install hooks disabled', () => {
