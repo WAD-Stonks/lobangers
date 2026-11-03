@@ -2,6 +2,7 @@
 import type { AccountVenue, MyMerchantRequest } from '@broke-oclock/contracts/account'
 import AppSelect from '@web/components/AppSelect.vue'
 import { withLeading } from '@web/components/select-options'
+import TicketLoading from '@web/components/TicketLoading.vue'
 import { api } from '@web/lib/api-client'
 import { focusFirstInvalid } from '@web/lib/form-focus'
 import { errorCode } from '@web/modules/ingestion-admin/errors'
@@ -12,9 +13,10 @@ import { useRouter } from 'vue-router'
 const search = ref('')
 const venues = ref<AccountVenue[]>([])
 const venueId = ref('')
+const searching = ref(false)
 const venueOptions = computed(() =>
   withLeading(
-    { value: '', label: 'Choose a stall' },
+    { value: '', label: searching.value && venues.value.length === 0 ? 'Loading stalls…' : 'Choose a stall' },
     venues.value.map((venue) => ({ value: venue.id, label: `${venue.name} (${venue.merchantName})` })),
   ),
 )
@@ -22,11 +24,10 @@ const message = ref('')
 const myRequests = ref<MyMerchantRequest[]>([])
 const requestsCursor = ref<string | null>(null)
 const loadingMoreRequests = ref(false)
-const refreshingRequests = ref(false)
+const refreshingRequests = ref(true)
 const submitting = ref(false)
 const successMessage = ref('')
 const errorMessage = ref('')
-const searching = ref(false)
 const attempted = ref(false) // inline errors only appear after the first Send
 const formEl = ref<HTMLFormElement | null>(null)
 
@@ -216,7 +217,8 @@ const goBack = () => {
     </form>
 
     <h2 class="h4 mb-3">Your requests</h2>
-    <p v-if="myRequests.length === 0" class="text-secondary">No requests yet.</p>
+    <TicketLoading v-if="refreshingRequests && myRequests.length === 0" label="Loading your requests…" />
+    <p v-else-if="myRequests.length === 0" class="text-secondary">No requests yet.</p>
     <ul v-else class="list-unstyled d-grid gap-2">
       <li v-for="item in myRequests" :key="item.id" class="card card-body">
         <div class="d-flex justify-content-between align-items-start gap-2">
