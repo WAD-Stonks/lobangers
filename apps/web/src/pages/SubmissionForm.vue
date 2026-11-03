@@ -15,7 +15,9 @@ import {
   searchStalls,
   submitDeal,
 } from '@web/modules/add-deal/add-deal-api'
+import ShellIcon from '@web/modules/map-shell/ShellIcon.vue'
 import { computed, nextTick, ref } from 'vue'
+import { useRouter } from 'vue-router'
 
 // ----- Dropdown choices -----
 const categoryLabels: Record<string, string> = {
@@ -232,10 +234,17 @@ const clearForm = () => {
   if (photoInput.value) photoInput.value.value = ''
   errors.value = {}
 }
+
+const router = useRouter()
+const goBack = () => {
+  if (router.options.history.state.back) router.back()
+  else void router.push('/deals')
+}
 </script>
 
 <template>
   <section class="container py-4 submit-deal">
+    <button type="button" class="submit-deal__back" @click="goBack"><ShellIcon name="back" :size="16" />Back</button>
     <h1 class="h2 mb-2">Add a deal</h1>
     <p class="text-secondary">
       Found a food deal? Share it here. An admin checks every deal before it appears on the map.
@@ -530,6 +539,30 @@ const clearForm = () => {
 /* Keep the form a comfortable reading width on wide screens. */
 .submit-deal {
   max-width: 720px;
+}
+
+.submit-deal__back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: var(--hit, 44px);
+  margin-bottom: 8px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font: 700 0.875rem / 1 var(--font-sans);
+  color: var(--ink-muted);
+  cursor: pointer;
+}
+
+.submit-deal__back:hover {
+  color: var(--ink);
+}
+
+.submit-deal__back:focus-visible {
+  outline: 3px solid var(--focus-ring, var(--sunny-ring));
+  outline-offset: 3px;
+  border-radius: 4px;
 }
 
 /* Long stall names and addresses wrap instead of pushing the Add/Remove button off a phone. */
