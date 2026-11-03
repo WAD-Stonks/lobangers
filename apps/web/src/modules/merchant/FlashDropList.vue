@@ -38,8 +38,8 @@ const claimedPercent = (drop: MerchantFlashDrop) =>
 </script>
 
 <template>
-  <p v-if="drops.length === 0" class="text-secondary">{{ empty }}</p>
-  <ul v-else class="list-unstyled d-grid gap-3 mb-4">
+  <p v-if="drops.length === 0" class="text-secondary small mb-2">{{ empty }}</p>
+  <ul v-else class="list-unstyled d-grid gap-3 mb-2">
     <li
       v-for="drop in drops"
       :key="drop.id"
@@ -49,7 +49,7 @@ const claimedPercent = (drop: MerchantFlashDrop) =>
     >
       <div class="d-flex justify-content-between align-items-start gap-2">
         <div class="d-flex flex-wrap align-items-center gap-2 title-row">
-          <h3 class="h5 mb-0 title">{{ drop.dealTitle }}</h3>
+          <h4 class="h5 mb-0 title">{{ drop.dealTitle }}</h4>
           <FakeBadge v-if="drop.demo" />
         </div>
         <span class="badge" :class="badgeClass[drop.status]">{{ STATUS_LABELS[drop.status] }}</span>

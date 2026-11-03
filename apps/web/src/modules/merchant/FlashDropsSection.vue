@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import TicketLoading from '@web/components/TicketLoading.vue'
 import { useConfirm } from '@web/lib/use-confirm'
+import DealSection from '@web/modules/merchant/DealSection.vue'
 import FlashDropList from '@web/modules/merchant/FlashDropList.vue'
 import {
   deleteFlashDrop,
@@ -163,43 +164,43 @@ onBeforeUnmount(() => clearInterval(timer))
 </script>
 
 <template>
-  <section class="mb-4" aria-labelledby="flash-drops-title">
-    <div class="d-flex flex-wrap justify-content-between align-items-baseline gap-2 mb-3">
-      <h2 id="flash-drops-title" class="h4 mb-0">Flash deals</h2>
-      <span class="small text-secondary">Short, limited-code deals that pop up on the map</span>
-    </div>
-
+  <!-- One dropdown for all flash deals, with Drafts, Live and scheduled, and Past inside. -->
+  <DealSection title="Flash deals" :count="drops.length">
+    <p class="small text-secondary">Short, limited-code deals that pop up on the map.</p>
     <p v-if="errorMessage" class="alert alert-danger" role="alert">{{ errorMessage }}</p>
     <p v-if="successMessage" class="alert alert-success" role="status">{{ successMessage }}</p>
 
     <TicketLoading v-if="loading" class="text-secondary" label="Loading your flash deals…" />
     <template v-else>
-      <h3 class="h6 text-uppercase text-secondary mb-2">Drafts</h3>
-      <FlashDropList
-        :drops="drafts"
-        :busy-id="busyId"
-        :now="now"
-        empty="No drafts. Use “Save as flash deal” in the deal form to make one."
-        @edit="emit('edit', $event)"
-        @go-live="goLive"
-        @remove="remove"
-      />
-      <h3 class="h6 text-uppercase text-secondary mb-2">Live and scheduled</h3>
-      <FlashDropList
-        :drops="running"
-        :busy-id="busyId"
-        :now="now"
-        empty="Nothing live right now."
-        @end="endNow"
-      />
-      <h3 class="h6 text-uppercase text-secondary mb-2">Past flash deals</h3>
-      <FlashDropList
-        :drops="past"
-        :busy-id="busyId"
-        :now="now"
-        empty="No past flash deals yet."
-        @remove="remove"
-      />
+      <DealSection title="Drafts" :count="drafts.length" level="h3">
+        <FlashDropList
+          :drops="drafts"
+          :busy-id="busyId"
+          :now="now"
+          empty="No drafts. Use “Save as flash deal” in the deal form to make one."
+          @edit="emit('edit', $event)"
+          @go-live="goLive"
+          @remove="remove"
+        />
+      </DealSection>
+      <DealSection title="Live and scheduled" :count="running.length" level="h3">
+        <FlashDropList
+          :drops="running"
+          :busy-id="busyId"
+          :now="now"
+          empty="Nothing live right now."
+          @end="endNow"
+        />
+      </DealSection>
+      <DealSection title="Past" :count="past.length" level="h3" :default-open="false">
+        <FlashDropList
+          :drops="past"
+          :busy-id="busyId"
+          :now="now"
+          empty="No past flash deals yet."
+          @remove="remove"
+        />
+      </DealSection>
     </template>
-  </section>
+  </DealSection>
 </template>
