@@ -196,7 +196,9 @@ onBeforeUnmount(() => {
   .deal-dialog:not(.deal-dialog--stacked):not(:has(.deal-panel--no-image)) .deal-dialog__content :deep(.deal-panel__media .deal-gallery) {
     position: absolute;
     inset: 0;
+    width: auto;
     height: 100%;
+    aspect-ratio: auto;
   }
 
   .deal-dialog:not(.deal-dialog--stacked):not(:has(.deal-panel--no-image)) .deal-dialog__content :deep(.deal-panel__media .deal-photo__img) {
@@ -216,7 +218,7 @@ onBeforeUnmount(() => {
   .deal-dialog:not(.deal-dialog--stacked):not(:has(.deal-panel--no-image)) .deal-dialog__content :deep(.deal-panel__headline) {
     grid-column: 2;
     grid-row: 3;
-    margin: 0;
+    margin: var(--space-1) 0 0;
   }
 
   .deal-dialog:not(.deal-dialog--stacked):not(:has(.deal-panel--no-image)) .deal-dialog__content :deep(.deal-panel__tags) {
@@ -288,12 +290,14 @@ onBeforeUnmount(() => {
   line-height: 1.2;
 }
 
-/* Fit portrait posters inside the popup instead of sizing them to its full width. */
+/* The frame keeps the photo's shape, as wide as the popup allows until it reaches the height cap,
+   so short landscape photos don't leave a gap below and portrait posters still fit on screen. */
 .deal-dialog__content :deep(.deal-gallery) {
+  --gallery-max-height: min(62dvh, 660px);
+  align-self: center;
+  width: min(100%, calc(var(--gallery-max-height) * var(--frame-ratio)));
   background: transparent;
   border-radius: 0;
-  height: min(62dvh, 660px);
-  aspect-ratio: auto;
 }
 
 .deal-dialog__content :deep(.deal-photo__img) {
@@ -303,7 +307,7 @@ onBeforeUnmount(() => {
 
 @media (max-width: 991.98px) {
   .deal-dialog__content :deep(.deal-gallery) {
-    height: min(52dvh, 520px);
+    --gallery-max-height: min(52dvh, 520px);
   }
 }
 
