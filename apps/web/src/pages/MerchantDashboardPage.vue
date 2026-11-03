@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { DEAL_CUISINE_LABELS } from '@broke-oclock/contracts/deal-cuisines'
+import ConfirmDialog from '@web/components/ConfirmDialog.vue'
 import TicketLoading from '@web/components/TicketLoading.vue'
 import { focusFirstInvalid } from '@web/lib/form-focus'
 import { formatDate, formatMoneyMinor } from '@web/lib/format'
+import { useConfirm } from '@web/lib/use-confirm'
 import { useUnsavedChanges } from '@web/lib/use-unsaved-changes'
 import FlashDealFields from '@web/modules/merchant/FlashDealFields.vue'
 import FlashDropsSection from '@web/modules/merchant/FlashDropsSection.vue'
@@ -38,6 +40,9 @@ import {
   updateDeal,
 } from '@web/modules/merchant/merchant-api'
 import { computed, nextTick, onMounted, ref } from 'vue'
+
+// The app's own confirm dialog, in place of the browser's.
+const { ask } = useConfirm()
 
 const outlets = ref<MerchantOutlet[]>([])
 const deals = ref<MerchantDeal[]>([])
@@ -502,7 +507,12 @@ const flashOffer = computed(() => {
 
 // ----- Ending a deal early -----
 const confirmEndDeal = async (deal: MerchantDeal) => {
-  if (!window.confirm(`End "${deal.title}" now? Customers will stop seeing it.`)) return
+  const confirmed = await ask({
+    title: 'End this deal?',
+    body: `"${deal.title}" will stop showing to customers now. It stays in Ended deals.`,
+    confirmLabel: 'End deal',
+  })
+  if (!confirmed) return
   errorMessage.value = ''
   successMessage.value = ''
   try {
@@ -517,8 +527,12 @@ const confirmEndDeal = async (deal: MerchantDeal) => {
 // ----- Deleting a scheduled or ended deal -----
 // It leaves the map and this page. Live deals are ended instead, so they stay in Ended deals.
 const confirmDeleteDeal = async (deal: MerchantDeal) => {
-  if (!window.confirm(`Delete "${deal.title}"? It will be removed from the map and from this page.`))
-    return
+  const confirmed = await ask({
+    title: 'Delete this deal?',
+    body: `"${deal.title}" will be removed from the map and from this page.`,
+    confirmLabel: 'Delete deal',
+  })
+  if (!confirmed) return
   errorMessage.value = ''
   successMessage.value = ''
   try {
@@ -539,6 +553,7 @@ onMounted(loadDashboard)
 
 <template>
   <section class="container py-4 merchant-dashboard">
+    <ConfirmDialog />
     <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
       <h1 class="h2 mb-0">Merchant dashboard</h1>
       <div v-if="!loading && outlets.length > 0" class="d-flex flex-wrap gap-2">

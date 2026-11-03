@@ -75,8 +75,17 @@ const dropContentOf = (input: MerchantFlashDropBody, window: { startsAt: Date; e
   codeLimit: input.codeLimit,
 })
 
-const projectOne = async (tx: AccessTransaction, row: DropRow, now: Date) =>
-  toMerchantDrop(row, await loadContext(tx, [row]), now)
+// Builds the response once the transaction has committed: the deal, outlet and merchant names
+// are plain reads, and keeping them out keeps the transaction short on a slow connection.
+const projectOne = async (database: Database, row: DropRow, now: Date) =>
+  toMerchantDrop(row, await loadContext(database, [row]), now)
+
+// Runs the write, then projects the row it returns.
+const writeThenProject = async (
+  database: Database,
+  now: Date,
+  work: (tx: AccessTransaction) => Promise<DropRow>,
+) => projectOne(database, await accessTransaction(database, work), now)
 
 export const listMerchantFlashDrops = async (
   database: Database,
@@ -108,9 +117,8 @@ export const createMerchantFlashDrop = (
   input: MerchantFlashDropBody,
   now: Date,
 ): Promise<MerchantFlashDrop> =>
-  accessTransaction(database, async (tx) => {
-    await requireMerchant(tx, actor.userId)
-    await requireMerchantStall(tx, actor, input.outletId)
+  writeThenProject(database, now, async (tx) => {
+    // createFlashDeal checks the merchant's role and grant for the outlet.
     const window = draftWindow(input, now)
     const dealId = await createFlashDeal(tx, actor, input, input.outletId, now)
     const row = await tx.flashDrop.create({
@@ -122,7 +130,7 @@ export const createMerchantFlashDrop = (
       },
       select: dropSelect,
     })
-    return projectOne(tx, row, now)
+    return row
   })
 
 const findOwnDrop = async (tx: AccessTransaction, userId: string, dropId: string) => {
@@ -144,13 +152,12 @@ export const updateMerchantFlashDrop = (
   input: MerchantFlashDropBody,
   now: Date,
 ): Promise<MerchantFlashDrop> =>
-  accessTransaction(database, async (tx) => {
+  writeThenProject(database, now, async (tx) => {
     const current = await findOwnDrop(tx, actor.userId, dropId)
     if (!isDraft(current.status))
       throw new DomainError('PRECONDITION_FAILED', 'Only a draft flash deal can be edited')
     if (input.version !== undefined && input.version !== current.version) throw conflict()
-    await requireMerchantStall(tx, actor, current.venueId)
-    if (input.outletId !== current.venueId) await requireMerchantStall(tx, actor, input.outletId)
+    // updateFlashDeal checks the grant for both the old and the new outlet.
     const window = draftWindow(input, now)
     await updateFlashDeal(tx, actor, current.dealId, input, input.outletId, now)
     const result = await tx.flashDrop.updateMany({
@@ -165,7 +172,7 @@ export const updateMerchantFlashDrop = (
       },
     })
     if (result.count !== 1) throw conflict()
-    return projectOne(tx, await findOwnDrop(tx, actor.userId, dropId), now)
+    return findOwnDrop(tx, actor.userId, dropId)
   })
 
 // Go live: the draft shows on the map from its start time (straight away for "when I press Go
@@ -179,7 +186,7 @@ export const goLiveMerchantFlashDrop = (
   version: number,
   now: Date,
 ): Promise<MerchantFlashDrop> =>
-  accessTransaction(database, async (tx) => {
+  writeThenProject(database, now, async (tx) => {
     const current = await findOwnDrop(tx, actor.userId, dropId)
     if (!isDraft(current.status))
       throw new DomainError('PRECONDITION_FAILED', 'This flash deal has already gone live')
@@ -204,7 +211,7 @@ export const goLiveMerchantFlashDrop = (
       where: { id: current.dealId },
       data: { publishedAt: now, validFrom: window.startsAt, validUntil: window.endsAt },
     })
-    return projectOne(tx, await findOwnDrop(tx, actor.userId, dropId), now)
+    return findOwnDrop(tx, actor.userId, dropId)
   })
 
 // Deletes a draft or a past flash deal. A draft was never public and nobody claimed it, so it goes
@@ -243,12 +250,12 @@ export const endMerchantFlashDrop = (
   version: number,
   now: Date,
 ): Promise<MerchantFlashDrop> =>
-  accessTransaction(database, async (tx) => {
+  writeThenProject(database, now, async (tx) => {
     const current = await findOwnDrop(tx, actor.userId, dropId)
     const shown = displayStatus(current, now)
     if (shown === 'DRAFT')
       throw new DomainError('PRECONDITION_FAILED', 'A draft has not gone live; delete it instead')
-    if (!['SCHEDULED', 'LIVE'].includes(shown)) return projectOne(tx, current, now)
+    if (!['SCHEDULED', 'LIVE'].includes(shown)) return current
     if (current.version !== version) throw conflict()
     await requireMerchantStall(tx, actor, current.venueId)
     const result = await tx.flashDrop.updateMany({
@@ -258,5 +265,5 @@ export const endMerchantFlashDrop = (
     if (result.count !== 1) throw conflict()
     // Its deal leaves the map with it.
     await tx.deal.updateMany({ where: { id: current.dealId }, data: { validUntil: now } })
-    return projectOne(tx, await findOwnDrop(tx, actor.userId, dropId), now)
+    return findOwnDrop(tx, actor.userId, dropId)
   })

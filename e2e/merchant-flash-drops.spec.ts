@@ -154,11 +154,21 @@ const signInAsMerchant = async (page: Page, drafts: MerchantFlashDrop[] = []) =>
     }
     return json({ error: { code: 'NOT_FOUND', message: 'Not found' } }, 404)
   })
-  // Go live, Delete draft and End now ask for confirmation.
-  page.on('dialog', (dialog) => dialog.accept())
+  // Go live, Delete and End now ask in the app's own dialog, never the browser's.
+  page.on('dialog', () => {
+    throw new Error('The browser confirm should not be used')
+  })
   await page.goto('/merchant')
   await expect(page.getByRole('heading', { name: 'Merchant dashboard' })).toBeVisible()
   return state
+}
+
+// Confirms the app's own dialog, checking its title first.
+const confirmDialog = async (page: Page, title: string) => {
+  const dialog = page.getByRole('alertdialog')
+  await expect(dialog.getByRole('heading', { name: title })).toBeVisible()
+  await dialog.getByTestId('confirm-dialog-confirm').click()
+  await expect(dialog).toHaveCount(0)
 }
 
 const dropCard = (page: Page, text: string) =>
@@ -225,16 +235,19 @@ test('save a flash deal as a draft, send it live and end it early', async ({ pag
   })
 
   await draft.getByRole('button', { name: /Go live/ }).click()
+  await confirmDialog(page, 'Send this flash deal live?')
   await expect(page.getByRole('status')).toContainText('is live now')
   await expect(draft.locator('.badge')).toHaveText('Live')
   await expect(draft).toContainText('0 of 40 claimed')
 
   await draft.getByRole('button', { name: /End now/ }).click()
+  await confirmDialog(page, 'End this flash deal?')
   await expect(draft.locator('.badge')).toHaveText('Ended')
   await expect(page.getByRole('status')).toContainText('has ended')
 
   // A past flash deal can be deleted from the history.
   await draft.getByRole('button', { name: /Delete/ }).click()
+  await confirmDialog(page, 'Delete this flash deal?')
   await expect(page.getByRole('status')).toContainText('was deleted from your past flash deals')
   await expect(draft).toHaveCount(0)
 })
@@ -263,6 +276,13 @@ test('edit a draft in the deal form, then delete it', async ({ page }) => {
   })
 
   await edited.getByRole('button', { name: /Delete draft/ }).click()
+  // Escape keeps the draft; confirming deletes it.
+  await expect(page.getByRole('alertdialog')).toBeVisible()
+  await page.keyboard.press('Escape')
+  await expect(page.getByRole('alertdialog')).toHaveCount(0)
+  await expect(edited).toHaveCount(1)
+  await edited.getByRole('button', { name: /Delete draft/ }).click()
+  await confirmDialog(page, 'Delete this draft?')
   await expect(page.getByRole('status')).toContainText('was deleted')
   await expect(edited).toHaveCount(0)
 })

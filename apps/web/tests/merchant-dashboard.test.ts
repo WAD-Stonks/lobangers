@@ -192,8 +192,8 @@ describe('merchant dashboard', () => {
     expect(wrapper.get('li img').attributes('src')).toBe(savedPhoto.url)
   })
 
-  it('ends a live deal, and deletes scheduled and ended ones', async () => {
-    vi.spyOn(window, 'confirm').mockReturnValue(true)
+  it('ends a live deal, and deletes scheduled and ended ones after a themed confirm', async () => {
+    const confirmSpy = vi.spyOn(window, 'confirm')
     merchantApi.deleteDeal.mockResolvedValue(undefined)
     merchantApi.endDeal.mockImplementation(async (id: string) =>
       deal({ id, title: 'Synthetic live', endedAt: '2026-11-03T00:00:00.000Z' }),
@@ -217,7 +217,26 @@ describe('merchant dashboard', () => {
     expect(labels('Synthetic scheduled')).toEqual(['Edit', 'Delete'])
     expect(labels('Synthetic ended')).toEqual(['Run it again', 'Delete'])
 
+    // The app's own dialog asks first, never the browser's. Cancel changes nothing.
     await card('Synthetic scheduled').findAll('button')[1]?.trigger('click')
+    await flushPromises()
+    const dialog = () => document.querySelector('[data-testid="confirm-dialog"]')
+    // Clicks a button in the confirm dialog, which is teleported to <body>.
+    const press = (selector: string) => {
+      const found = document.querySelector<HTMLButtonElement>(selector)
+      if (!found) throw new Error(`No ${selector} in the confirm dialog`)
+      found.click()
+    }
+    expect(dialog()?.textContent).toContain('Delete this deal?')
+    expect(dialog()?.textContent).toContain('"Synthetic scheduled" will be removed from the map')
+    press('.confirm-dialog__button--cancel')
+    await flushPromises()
+    expect(dialog()).toBeNull()
+    expect(merchantApi.deleteDeal).not.toHaveBeenCalled()
+
+    await card('Synthetic scheduled').findAll('button')[1]?.trigger('click')
+    await flushPromises()
+    press('[data-testid="confirm-dialog-confirm"]')
     await flushPromises()
     expect(merchantApi.deleteDeal).toHaveBeenCalledWith('2'.repeat(24))
     expect(
@@ -227,8 +246,12 @@ describe('merchant dashboard', () => {
 
     await card('Synthetic live').findAll('button')[1]?.trigger('click')
     await flushPromises()
+    expect(dialog()?.textContent).toContain('End this deal?')
+    press('[data-testid="confirm-dialog-confirm"]')
+    await flushPromises()
     expect(merchantApi.endDeal).toHaveBeenCalledWith('1'.repeat(24))
     expect(merchantApi.deleteDeal).toHaveBeenCalledTimes(1)
+    expect(confirmSpy).not.toHaveBeenCalled()
   })
 
   it('saves a new deal without a photo, since the photo is optional', async () => {

@@ -15,6 +15,10 @@ export const fencePlatformAccess = async (tx: AccessTransaction) => {
     update: { version: { increment: 1 } },
   })
 }
+// A write checks the role, grants, outlets and records one query at a time, each a round trip
+// to the hosted database; Prisma's default 5 s limit is too tight on a slow connection (P2028).
+const ACCESS_TRANSACTION_OPTIONS = { maxWait: 10_000, timeout: 20_000 } as const
+
 export const accessTransaction = async <T>(
   db: Database,
   work: (tx: AccessTransaction) => Promise<T>,
@@ -23,7 +27,7 @@ export const accessTransaction = async <T>(
     return await db.$transaction(async (tx) => {
       await fencePlatformAccess(tx)
       return work(tx)
-    })
+    }, ACCESS_TRANSACTION_OPTIONS)
   } catch (error) {
     if (
       typeof error === 'object' &&

@@ -254,7 +254,7 @@ export const createMerchantDeal = async (
 ): Promise<MerchantDeal> => {
   const { userId } = actor
   rejectPastEnd(input, now)
-  return accessTransaction(database, async (tx) => {
+  const dealId = await accessTransaction(database, async (tx) => {
     const { merchantId, grantIds } = await authorizeOutlets(tx, actor, input.outletIds)
     const deal = await tx.deal.create({
       data: {
@@ -272,13 +272,18 @@ export const createMerchantDeal = async (
       select: { id: true },
     })
     if (input.photoKey) await claimPhoto(tx, userId, deal.id, input.photoKey)
-    const created = await tx.deal.findUniqueOrThrow({
-      where: { id: deal.id },
-      select: merchantDealSelect,
-    })
-    return toMerchantDeal(created, now)
+    return deal.id
   })
+  return readMerchantDeal(database, dealId, now)
 }
+
+// Reads a deal back for the response once its write has committed, which keeps the
+// transaction short on a slow connection.
+const readMerchantDeal = async (database: Database, dealId: string, now: Date) =>
+  toMerchantDeal(
+    await database.deal.findUniqueOrThrow({ where: { id: dealId }, select: merchantDealSelect }),
+    now,
+  )
 
 const findOwnDeal = async (tx: AccessTransaction, userId: string, dealId: string) => {
   // Non-merchants are refused outright, before anything about the deal is looked up.
@@ -301,7 +306,7 @@ export const updateMerchantDeal = async (
 ): Promise<MerchantDeal> => {
   const { userId } = actor
   rejectPastEnd(input, now)
-  return accessTransaction(database, async (tx) => {
+  await accessTransaction(database, async (tx) => {
     const deal = await findOwnDeal(tx, userId, dealId)
     if (hasEnded(deal, now))
       throw new DomainError('PRECONDITION_FAILED', 'Ended deals cannot be edited')
@@ -314,7 +319,7 @@ export const updateMerchantDeal = async (
     const version = deal.contentVersion + 1
     await changePhoto(tx, userId, dealId, deal.images[0], input.photoKey, now)
     await tx.dealVenue.deleteMany({ where: { dealId } })
-    const updated = await tx.deal.update({
+    await tx.deal.update({
       where: { id: dealId },
       data: {
         ...contentOf(input),
@@ -325,10 +330,10 @@ export const updateMerchantDeal = async (
         },
         venues: { create: input.outletIds.map((venueId) => ({ venueId })) },
       },
-      select: merchantDealSelect,
+      select: { id: true },
     })
-    return toMerchantDeal(updated, now)
   })
+  return readMerchantDeal(database, dealId, now)
 }
 
 export const endMerchantDeal = async (

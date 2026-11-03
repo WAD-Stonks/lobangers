@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import TicketLoading from '@web/components/TicketLoading.vue'
+import { useConfirm } from '@web/lib/use-confirm'
 import FlashDropList from '@web/modules/merchant/FlashDropList.vue'
 import {
   deleteFlashDrop,
@@ -19,6 +20,9 @@ const emit = defineEmits<{ edit: [drop: MerchantFlashDrop] }>()
 
 // How often the "min left" text and the statuses refresh.
 const TICK_MS = 4000
+
+// The dashboard mounts the app's confirm dialog; these ask through it.
+const { ask } = useConfirm()
 
 const drops = ref<MerchantFlashDrop[]>([])
 const loading = ref(true)
@@ -79,9 +83,15 @@ const act = async (drop: MerchantFlashDrop, work: () => Promise<string>, failure
   }
 }
 
-const goLive = (drop: MerchantFlashDrop) => {
+const goLive = async (drop: MerchantFlashDrop) => {
   const when = drop.startsOnGoLive ? 'now' : whenText(drop.startsAt, new Date()).toLowerCase()
-  if (!window.confirm(`Send “${drop.dealTitle}” live? Everyone on LoBangers is told when it starts (${when}).`)) return
+  const confirmed = await ask({
+    title: 'Send this flash deal live?',
+    body: `“${drop.dealTitle}” starts ${when}. Everyone on LoBangers is told when it starts.`,
+    confirmLabel: 'Go live',
+    tone: 'primary',
+  })
+  if (!confirmed) return
   return act(
     drop,
     async () => {
@@ -96,12 +106,22 @@ const goLive = (drop: MerchantFlashDrop) => {
 }
 
 // Deletes a draft, or takes a past flash deal out of the merchant's history.
-const remove = (drop: MerchantFlashDrop) => {
+const remove = async (drop: MerchantFlashDrop) => {
   const draft = drop.status === 'DRAFT'
-  const question = draft
-    ? `Delete the draft “${drop.dealTitle}”? This cannot be undone.`
-    : `Delete “${drop.dealTitle}” from your past flash deals? Codes people claimed stay valid.`
-  if (!window.confirm(question)) return
+  const confirmed = await ask(
+    draft
+      ? {
+          title: 'Delete this draft?',
+          body: `The draft “${drop.dealTitle}” will be deleted. This cannot be undone.`,
+          confirmLabel: 'Delete draft',
+        }
+      : {
+          title: 'Delete this flash deal?',
+          body: `“${drop.dealTitle}” will be removed from your past flash deals. Codes people claimed stay valid.`,
+          confirmLabel: 'Delete',
+        },
+  )
+  if (!confirmed) return
   return act(
     drop,
     async () => {
@@ -115,8 +135,13 @@ const remove = (drop: MerchantFlashDrop) => {
   )
 }
 
-const endNow = (drop: MerchantFlashDrop) => {
-  if (!window.confirm(`End the flash deal “${drop.dealTitle}” now? People will stop seeing it.`)) return
+const endNow = async (drop: MerchantFlashDrop) => {
+  const confirmed = await ask({
+    title: 'End this flash deal?',
+    body: `“${drop.dealTitle}” ends now and people will stop seeing it.`,
+    confirmLabel: 'End now',
+  })
+  if (!confirmed) return
   return act(
     drop,
     async () => {
