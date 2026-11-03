@@ -75,7 +75,7 @@ export const useAudit = (list: AuditList, denied: (code: AuditDenial) => void = 
     const parsed = platformAuditQuerySchema.safeParse({ ...input, limit: 25 })
     if (!parsed.success) {
       validation.value =
-        'Check IDs and supply both UTC dates, with a positive interval of at most 90 days. A subject ID also requires its type.'
+        'Check the selected filters and choose both dates, with an end after the start and a range of at most 90 days. A record ID also requires its subject type.'
       return
     }
     validation.value = ''

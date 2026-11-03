@@ -315,7 +315,11 @@ for (const width of [320, 390, 1280]) {
       await page.getByTestId('outlet-association').dispatchEvent('submit')
       await page.getByTestId('associate-outlet').dispatchEvent('click')
       await page
-        .getByRole('button', { name: 'View details: Synthetic other draft', exact: true })
+        .getByRole('button', {
+          name: 'View details: Synthetic other draft',
+          exact: true,
+          includeHidden: true,
+        })
         .dispatchEvent('click')
       for (const control of [
         page.getByLabel('Existing outlet', { exact: true }),

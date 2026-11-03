@@ -341,9 +341,12 @@ for (const width of [320, 768, 1024, 1440]) {
     const citations = page.getByRole('region', { name: 'Immutable source evidence', exact: true })
     await expect(citations.getByText('No citations on this page.', { exact: true })).toBeVisible()
     await expect(citations.getByRole('alert')).toHaveCount(0)
+    await page.getByRole('tab', { name: 'Failed posts', exact: true }).click()
     await expect(page.getByRole('region', { name: 'Failed post investigation' })).toContainText(
       'No posts on this page. A bounded page can exclude unsupported sources.',
     )
+    await page.getByRole('tab', { name: 'Review drafts', exact: true }).click()
+    await expect(citations).toBeVisible()
     const evidence = page.getByRole('region', { name: 'Imported image evidence' })
     await painted(evidence.getByRole('img', { name: deal.imageAltText ?? '', exact: true }))
     await painted(evidence.getByRole('img', { name: 'Synthetic archive GIF', exact: true }))

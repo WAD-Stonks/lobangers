@@ -3,11 +3,13 @@ import { BButton } from '@broke-oclock/ui'
 import TicketLoading from '@web/components/TicketLoading.vue'
 import { formatDateTime } from '@web/lib/format'
 import { usePostInvestigation } from '@web/modules/ingestion-admin/use-post-investigation'
-import { toRef } from 'vue'
+import { onBeforeUnmount, toRef, watch } from 'vue'
 
 const props = defineProps<{ postId: string }>()
-const emit = defineEmits<{ denied: [code: string] }>()
+const emit = defineEmits<{ denied: [code: string]; busy: [value: boolean] }>()
 const { detail, pending, busy, error, note, confirmed, mode, result, unknown, canRecover, load, recover, recoveryId, reconcile } = usePostInvestigation(toRef(props, 'postId'), code => emit('denied', code))
+watch(busy, value => emit('busy', value), { immediate: true, flush: 'sync' })
+onBeforeUnmount(() => emit('busy', false))
 </script>
 
 <template>

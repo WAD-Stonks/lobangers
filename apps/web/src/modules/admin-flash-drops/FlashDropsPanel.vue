@@ -29,10 +29,11 @@ const { view, items, counts, status, updatedAt, selected, choices, activeDecisio
 const tabRefs = ref<HTMLButtonElement[]>([])
 const detailRef = ref<HTMLElement | null>(null)
 const hasDemo = computed(() => items.value.some((drop) => drop.demo))
-const countFor = (target: FlashDropView) => counts.value[target]
+const countsAvailable = computed(() => status.value === 'ready' || (status.value === 'loading' && updatedAt.value !== null))
+const countFor = (target: FlashDropView) => countsAvailable.value ? counts.value[target] : '—'
 const metrics = computed(() => [
   { view: 'review' as const, label: 'Waiting for review', icon: 'flash', tone: '', count: counts.value.review, hint: 'Approve before the start time', arrow: true },
-  { view: 'live' as const, label: 'Live now', icon: 'live', tone: 'live', count: counts.value.live, hint: `${counts.value.claimedToday} codes claimed today`, arrow: false },
+  { view: 'live' as const, label: 'Live now', icon: 'live', tone: 'live', count: counts.value.live, hint: countsAvailable.value ? `${counts.value.claimedToday} codes claimed today` : 'Checking claimed codes…', arrow: false },
   { view: 'ended' as const, label: 'Ended, sent back or stopped', icon: 'audit', tone: 'neutral', count: counts.value.ended, hint: 'Last 7 days', arrow: false },
 ])
 const showView = (target: FlashDropView) => {
@@ -75,11 +76,11 @@ onUnmounted(state.dispose)
     </div>
     <p v-if="hasDemo" class="fd-notice"><b>Fake deals.</b> Drops tagged “Fake deal” are demo data made to show the review flow.</p>
     <p v-if="notice" class="fd-notice fd-success" role="status">{{ notice }}</p>
-    <ul class="fd-metrics" aria-label="Flash drop summary">
+    <ul class="fd-metrics" aria-label="Flash drop summary" :aria-busy="status === 'loading'">
       <li v-for="metric in metrics" :key="metric.view">
-        <button type="button" class="fd-metric" :data-current="view === metric.view" :aria-controls="'flash-queue'" @click="showView(metric.view)">
+        <button type="button" class="fd-metric" :data-current="view === metric.view" :aria-controls="'flash-queue'" :disabled="!countsAvailable || pending" @click="showView(metric.view)">
           <span class="fd-metric-label"><span>{{ metric.label }}</span><span class="fd-metric-icon" :class="metric.tone && `fd-metric-icon--${metric.tone}`"><AdminIcon :name="metric.icon" /></span></span>
-          <strong>{{ metric.count }}</strong>
+          <strong>{{ countsAvailable ? metric.count : '—' }}</strong>
           <span class="fd-metric-hint">{{ metric.hint }}<span v-if="metric.arrow" aria-hidden="true"> →</span></span>
         </button>
       </li>

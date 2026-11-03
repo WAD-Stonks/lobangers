@@ -2,6 +2,8 @@
 import type { IngestionDashboardResponse, IngestionRunResponse } from '@broke-oclock/contracts/ingestion'
 import { BButton } from '@broke-oclock/ui'
 import AdminShell from '@web/components/admin/AdminShell.vue'
+import AdminStatusBadge from '@web/components/admin/AdminStatusBadge.vue'
+import AdminWorkspaceTabs from '@web/components/admin/AdminWorkspaceTabs.vue'
 import TicketLoading from '@web/components/TicketLoading.vue'
 import { confirmAdminIdentity } from '@web/lib/admin-recovery'
 import { createAdminReadFence } from '@web/lib/admin-session'
@@ -15,8 +17,8 @@ import FailedPosts from '@web/modules/ingestion-admin/FailedPosts.vue'
 import IngestionRuns from '@web/modules/ingestion-admin/IngestionRuns.vue'
 import LocationSearch from '@web/modules/ingestion-admin/LocationSearch.vue'
 import SourcesPanel from '@web/modules/ingestion-admin/SourcesPanel.vue'
-import { inject, onMounted, onUnmounted, ref, watch } from 'vue'
-import { routeLocationKey } from 'vue-router'
+import { computed, inject, onMounted, onUnmounted, ref, watch } from 'vue'
+import { routeLocationKey, routerKey } from 'vue-router'
 
 const access = ref('loading')
 const dashboard = ref<IngestionDashboardResponse | null>(null)
@@ -31,9 +33,48 @@ const logoutStarting = (event: Event) => { if ((event.target as Element)?.closes
 const sessionRefreshKey = ref(0)
 const panelKey = ref(0)
 const route = inject(routeLocationKey, null)
+const router = inject(routerKey, null)
+const workspaceTabs = [
+  { id: 'drafts', label: 'Review drafts' },
+  { id: 'failed', label: 'Failed posts' },
+  { id: 'runs', label: 'Run history' },
+  { id: 'settings', label: 'Sources & tools' },
+] as const
+type Workspace = typeof workspaceTabs[number]['id']
+const workspaceForHash = (hash: string | undefined): Workspace => {
+  if (hash === '#failed-posts') return 'failed'
+  if (hash === '#runs-title' || hash === '#source-title') return 'runs'
+  if (['#sources-title', '#locations-title', '#accounts-title'].includes(hash ?? '')) return 'settings'
+  return 'drafts'
+}
+const workspace = ref<Workspace>(workspaceForHash(route?.hash))
+const panelBusy = ref({ drafts: false, failed: false, sources: false })
+const workspaceBusy = computed(() => runPending.value || Object.values(panelBusy.value).some(Boolean))
+const setPanelBusy = (panel: keyof typeof panelBusy.value, value: boolean) => {
+  panelBusy.value = { ...panelBusy.value, [panel]: value }
+}
+const workspaceHashes: Record<Workspace, string> = {
+  drafts: '#queue-title', failed: '#failed-posts', runs: '#runs-title', settings: '#sources-title',
+}
+const chooseWorkspace = (value: string) => {
+  if (workspaceBusy.value || value === workspace.value || !workspaceTabs.some(tab => tab.id === value)) return
+  workspace.value = value as Workspace
+  if (router && route) void router.replace({ query: route.query, hash: workspaceHashes[workspace.value] })
+}
+let routeChangeQueued = false
 const filter = (value: unknown): 'PENDING' | 'APPROVED' | 'REJECTED' => value === 'APPROVED' || value === 'REJECTED' ? value : 'PENDING'
 const initialStatus = ref(filter(route?.query.status))
-watch(() => route?.query.status, value => { initialStatus.value = filter(value); panelKey.value++ }, { flush: 'sync' })
+const applyRouteWorkspace = () => {
+  const nextStatus = filter(route?.query.status)
+  if (nextStatus !== initialStatus.value) initialStatus.value = nextStatus
+  workspace.value = workspaceForHash(route?.hash)
+  routeChangeQueued = false
+}
+watch(() => [route?.hash, route?.query.status], () => {
+  if (workspaceBusy.value) routeChangeQueued = true
+  else applyRouteWorkspace()
+}, { flush: 'sync' })
+watch(workspaceBusy, pending => { if (!pending && routeChangeQueued) applyRouteWorkspace() }, { flush: 'sync' })
 const close = () => {
   fence.invalidate()
   operationFence.invalidate()
@@ -42,6 +83,7 @@ const close = () => {
   runResult.value = null
   runError.value = ''
   runPending.value = false
+  panelBusy.value = { drafts: false, failed: false, sources: false }
   revision.value++
   panelKey.value++
 }
@@ -123,30 +165,62 @@ onUnmounted(() => { fence.dispose(); operationFence.dispose(); nativeFence.dispo
       <BButton data-testid="retry-dashboard" @click="reload">Retry dashboard</BButton>
     </div>
     <template v-else-if="dashboard">
-      <section class="card p-4 mb-4" aria-labelledby="source-title">
-        <h2 id="source-title" class="h4">Source readiness</h2>
-        <p class="fw-semibold">{{ dashboard.source.name }}</p>
-        <ul>
-          <li>{{ dashboard.source.enabled ? 'Ingestion is enabled' : 'Ingestion is disabled' }}</li>
-          <li>{{ dashboard.source.reuseApproved ? 'Operator reuse attestation is recorded, not publisher permission' : 'Operator reuse attestation is not recorded' }}</li>
-          <li>{{ dashboard.source.onemapConfigured ? 'OneMap is configured' : 'OneMap is not configured' }}</li>
-        </ul>
-        <BButton data-testid="run-ingestion" variant="primary" :disabled="runPending || !dashboard.source.enabled || !dashboard.source.reuseApproved" @click="run">{{ runPending ? 'Running ingestion…' : 'Run ingestion' }}</BButton>
-        <p v-if="runError" role="alert" class="text-danger mt-3 mb-0">{{ runError }}</p>
-        <p v-if="runResult" role="status" class="mt-3 mb-0">Run {{ runResult.runId }}: {{ runResult.status }}. Fetched {{ runResult.fetchedCount }}, created {{ runResult.createdCount }}, updated {{ runResult.updatedCount }}, failed {{ runResult.failedCount }}.</p>
-      </section>
-      <dl aria-label="Ingestion counts" class="admin-counts row g-3 mb-4">
-        <div v-for="(count, status) in dashboard.counts" :key="status" class="col-6 col-md-3">
-          <div class="card p-3"><dd class="h2 mb-1">{{ count }}</dd><dt class="text-capitalize">{{ status }}</dt></div>
-        </div>
+      <header class="ingestion-introduction">
+        <div><p class="admin-eyebrow">Import workspace</p><p>Review imported deals, investigate failed posts and maintain your sources.</p></div>
+        <AdminStatusBadge :status="dashboard.source.enabled ? 'ACTIVE' : 'PAUSED'" :label="dashboard.source.enabled ? 'Imports enabled' : 'Imports paused'" />
+      </header>
+      <dl aria-label="Ingestion counts" class="ingestion-counts">
+        <div v-for="(count, status) in dashboard.counts" :key="status"><dd>{{ count }}</dd><dt class="text-capitalize">{{ status }}</dt></div>
       </dl>
-      <DraftQueue :key="panelKey" :initial-status="initialStatus" :revision="revision" @changed="refresh" @denied="denied" />
-      <FailedPosts :key="`posts-${panelKey}`" @denied="denied" />
-      <IngestionRuns :revision="revision" @denied="denied" />
-      <LocationSearch :configured="dashboard.source.onemapConfigured" @denied="denied" />
-      <SourcesPanel @changed="refresh" @denied="denied" />
-      <AccountsPanel @denied="denied" />
+      <AdminWorkspaceTabs :model-value="workspace" :tabs="workspaceTabs" id-prefix="ingestion-workspace" label="Ingestion workspace" :disabled="workspaceBusy" @update:model-value="chooseWorkspace" />
+      <p v-if="workspaceBusy" class="ingestion-pending" role="status">Finish the current operation before switching workspaces.</p>
+      <!-- Keep protected controllers mounted: switching tasks must retain captured versions and unknown-result locks. -->
+      <div id="ingestion-workspace-panel-drafts" role="tabpanel" aria-labelledby="ingestion-workspace-tab-drafts" :hidden="workspace !== 'drafts'" :inert="workspace !== 'drafts' ? true : undefined">
+        <DraftQueue :key="panelKey" :initial-status="initialStatus" :revision="revision" @changed="refresh" @denied="denied" @busy="setPanelBusy('drafts', $event)" />
+      </div>
+      <div id="ingestion-workspace-panel-failed" role="tabpanel" aria-labelledby="ingestion-workspace-tab-failed" :hidden="workspace !== 'failed'" :inert="workspace !== 'failed' ? true : undefined">
+        <FailedPosts :key="`posts-${panelKey}`" @denied="denied" @busy="setPanelBusy('failed', $event)" />
+      </div>
+      <div id="ingestion-workspace-panel-runs" role="tabpanel" aria-labelledby="ingestion-workspace-tab-runs" :hidden="workspace !== 'runs'" :inert="workspace !== 'runs' ? true : undefined">
+        <section class="card p-4 mb-4 ingestion-source" aria-labelledby="source-title">
+          <div class="ingestion-source-heading"><div><h2 id="source-title">Source readiness</h2><p class="mb-0">{{ dashboard.source.name }}</p></div><BButton data-testid="run-ingestion" variant="primary" :disabled="workspaceBusy || !dashboard.source.enabled || !dashboard.source.reuseApproved" @click="run">{{ runPending ? 'Running ingestion…' : 'Run ingestion' }}</BButton></div>
+          <ul class="ingestion-readiness">
+            <li>{{ dashboard.source.enabled ? 'Ingestion is enabled' : 'Ingestion is disabled' }}</li>
+            <li>{{ dashboard.source.reuseApproved ? 'Operator reuse attestation is recorded, not publisher permission' : 'Operator reuse attestation is not recorded' }}</li>
+            <li>{{ dashboard.source.onemapConfigured ? 'OneMap is configured' : 'OneMap is not configured' }}</li>
+          </ul>
+          <p v-if="runError" role="alert" class="text-danger mt-3 mb-0">{{ runError }}</p>
+          <p v-if="runResult" role="status" class="mt-3 mb-0">Run {{ runResult.runId }}: {{ runResult.status }}. Fetched {{ runResult.fetchedCount }}, created {{ runResult.createdCount }}, updated {{ runResult.updatedCount }}, failed {{ runResult.failedCount }}.</p>
+        </section>
+        <IngestionRuns :revision="revision" @denied="denied" />
+      </div>
+      <div id="ingestion-workspace-panel-settings" role="tabpanel" aria-labelledby="ingestion-workspace-tab-settings" :hidden="workspace !== 'settings'" :inert="workspace !== 'settings' ? true : undefined">
+        <SourcesPanel @changed="refresh" @denied="denied" @busy="setPanelBusy('sources', $event)" />
+        <details class="ingestion-tools" :open="['#locations-title', '#accounts-title'].includes(route?.hash ?? '')"><summary>Location lookup & read-only accounts</summary><p class="text-secondary">Supporting tools for investigation. Location candidates do not verify or attach outlets.</p><LocationSearch :configured="dashboard.source.onemapConfigured" @denied="denied" /><AccountsPanel @denied="denied" /></details>
+      </div>
     </template>
   </section>
   </AdminShell>
 </template>
+
+<style scoped>
+.ingestion-introduction { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 20px; }
+.ingestion-introduction p { margin: 0; }
+.ingestion-introduction .admin-eyebrow { color: var(--admin-muted); font-size: .75rem; margin-bottom: 6px; }
+.ingestion-counts { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin: 0 0 24px; }
+.ingestion-counts > div { padding: 16px 20px; border: 1px solid var(--admin-border); border-radius: 14px; background: var(--admin-surface); }
+.ingestion-counts dd { font-size: 1.75rem; font-weight: 750; font-variant-numeric: tabular-nums; line-height: 1.2; margin: 0 0 6px; }
+.ingestion-counts dt { color: var(--admin-muted); font-size: .8125rem; font-weight: 500; }
+.ingestion-pending { color: var(--admin-muted); margin-block: 12px; }
+.ingestion-source-heading { display: flex; flex-wrap: wrap; align-items: start; justify-content: space-between; gap: 16px; }
+.ingestion-readiness { display: flex; flex-wrap: wrap; gap: 10px 24px; padding-left: 18px; margin: 20px 0 0; color: var(--admin-muted); }
+.ingestion-tools { border: 1px solid var(--admin-border); border-radius: 16px; background: var(--admin-surface); padding: 20px; }
+.ingestion-tools > summary { cursor: pointer; font-weight: 650; padding-block: 4px; }
+.ingestion-tools > p { margin-top: 16px; }
+@media (max-width: 767px) {
+ .ingestion-introduction { align-items: start; flex-direction: column; }
+ .ingestion-counts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+ .ingestion-counts > div { padding: 14px 16px; }
+ .ingestion-source-heading .btn { width: 100%; }
+}
+</style>

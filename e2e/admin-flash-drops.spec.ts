@@ -285,15 +285,15 @@ test('a stale version shows a conflict alert with Refresh', async ({ page }) => 
   await expect(page.getByTestId('flash-drop-record')).toHaveCount(2)
 })
 
-test('overview card and attention row link to the flash drops page', async ({ page }) => {
+test('overview review card and live-work link open the flash drops page', async ({ page }) => {
   await boundary(page)
   await page.goto('/admin')
   const card = page.locator('.overview-summary a[href="/admin/flash-drops"]')
   await expect(card).toContainText('Flash drops to review')
   await expect(card).toContainText('2')
   const attention = page.locator('.overview-attention')
-  await expect(attention).toContainText('2 Flash drops waiting for review')
   await expect(attention).toContainText('1 Flash drops live now')
+  await expect(attention).not.toContainText('Flash drops waiting for review')
   await attention.getByRole('link', { name: 'Watch live drops →' }).click()
   await expect(page).toHaveURL('/admin/flash-drops?view=live')
   await expect(tab(page, /Live \(1\)/)).toHaveAttribute('aria-selected', 'true')

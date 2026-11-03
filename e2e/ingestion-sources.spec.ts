@@ -141,9 +141,11 @@ for (const width of [320, 768, 1024, 1440]) {
     const state = await installBoundary(page)
     await page.goto('/admin/ingestion')
     await expect(page.getByRole('heading', { name: 'Ingestion admin', exact: true })).toBeVisible()
+    await page.getByRole('tab', { name: 'Failed posts', exact: true }).click()
     await expect(page.getByRole('region', { name: 'Failed post investigation' })).toContainText(
       'No posts on this page. A bounded page can exclude unsupported sources.',
     )
+    await page.getByRole('tab', { name: 'Sources & tools', exact: true }).click()
     const panel = page.locator('section[aria-labelledby="sources-title"]')
     await expect(panel.getByRole('heading', { name: 'Telegram sources' })).toBeVisible()
     await panel.getByRole('button', { name: 'View sources', exact: true }).click()

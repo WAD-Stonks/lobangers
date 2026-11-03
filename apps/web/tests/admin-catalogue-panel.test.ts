@@ -147,3 +147,72 @@ it('retains an unknown merchant creation when another create form is opened', as
     w.unmount()
   }
 })
+
+it('opens the editor in the inspector, focuses it and returns to the same directory record', async () => {
+  const { default: Panel } = await import('@web/modules/admin-catalogue/CataloguePanel.vue')
+  const wrapper = mount(Panel, { attachTo: document.body })
+  try {
+    await flushPromises()
+    await wrapper.get('[data-open-row="Synthetic mounted merchant"]').trigger('click')
+    await flushPromises()
+    const heading = wrapper.get('[data-testid="catalogue-detail-heading"]')
+    expect(heading.text()).toBe(row.name)
+    expect(document.activeElement).toBe(heading.element)
+    expect(wrapper.find('.admin-record-workspace-detail .catalogue-editor').exists()).toBe(true)
+    expect(wrapper.find('.admin-record-workspace-list .catalogue-editor').exists()).toBe(false)
+    await clickButton(wrapper, '← Back to results')
+    expect(wrapper.find('[name="merchantName"]').exists()).toBe(false)
+    expect(document.activeElement).toBe(
+      wrapper.get('[data-open-row="Synthetic mounted merchant"]').element,
+    )
+  } finally {
+    wrapper.unmount()
+  }
+})
+
+it('fences a late detail when returning to the directory before the read finishes', async () => {
+  const { default: Panel } = await import('@web/modules/admin-catalogue/CataloguePanel.vue')
+  let release!: (value: typeof row) => void
+  rest.merchant.mockImplementationOnce(
+    () =>
+      new Promise((resolve) => {
+        release = resolve
+      }),
+  )
+  const wrapper = mount(Panel)
+  try {
+    await flushPromises()
+    await wrapper.get('[data-open-row="Synthetic mounted merchant"]').trigger('click')
+    await clickButton(wrapper, '← Back to results')
+    release(row)
+    await flushPromises()
+    expect(wrapper.find('[name="merchantName"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="catalogue-detail-heading"]').exists()).toBe(false)
+  } finally {
+    wrapper.unmount()
+  }
+})
+
+it('keeps unknown-result locks after closing and reopening the inspector', async () => {
+  const { default: Panel } = await import('@web/modules/admin-catalogue/CataloguePanel.vue')
+  rest.patchMerchant.mockRejectedValueOnce(new Error('Synthetic unknown result'))
+  const wrapper = mount(Panel)
+  try {
+    await flushPromises()
+    await wrapper.get('[data-open-row="Synthetic mounted merchant"]').trigger('click')
+    await flushPromises()
+    await wrapper.get('[name="merchantName"]').setValue('Corrected name')
+    await wrapper.get('[name="note"]').setValue('Reviewed correction')
+    await wrapper.get('[name="confirmed"]').setValue(true)
+    await wrapper.get('form:has([name="merchantName"])').trigger('submit')
+    await flushPromises()
+    await clickButton(wrapper, '← Back to results')
+    await wrapper.get('[data-open-row="Synthetic mounted merchant"]').trigger('click')
+    await flushPromises()
+    expect(wrapper.get('fieldset').attributes('disabled')).toBeDefined()
+    expect(wrapper.text()).toContain('outcome could not be confirmed')
+    expect(rest.patchMerchant).toHaveBeenCalledTimes(1)
+  } finally {
+    wrapper.unmount()
+  }
+})

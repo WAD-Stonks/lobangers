@@ -142,7 +142,7 @@ const destinations = [
     name: 'Deals',
     path: '/admin/deals',
     heading: 'Deals operations',
-    content: 'No deals match these filters.',
+    content: 'No matching deals',
     api: '/api/admin/deals',
   },
   {
@@ -170,7 +170,7 @@ const destinations = [
     name: 'Ingestion',
     path: '/admin/ingestion',
     heading: 'Ingestion admin',
-    content: 'Source readiness',
+    content: 'Draft review queue',
     api: '/api/ingestion/dashboard',
   },
   {

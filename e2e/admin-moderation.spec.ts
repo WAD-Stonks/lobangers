@@ -99,7 +99,11 @@ for (const width of [320, 768, 1024, 1440])
     await page.goto(base)
     await expect(page.getByRole('heading', { name: 'Reports & comment moderation' })).toBeVisible()
     await page.getByRole('button', { name: 'Inspect report' }).click()
-    await expect(page.getByText('<img src=x> Original evidence', { exact: true })).toBeVisible()
+    await expect(
+      page
+        .getByRole('region', { name: 'Selected evidence', exact: true })
+        .getByText('<img src=x> Original evidence', { exact: true }),
+    ).toBeVisible()
     await expect(page.locator('img')).toHaveCount(0)
     await page.getByLabel('Resolution (required)').fill('Reviewed explicit evidence')
     await page.getByLabel('I reviewed this exact target').check()

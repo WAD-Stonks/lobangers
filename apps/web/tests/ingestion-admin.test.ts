@@ -1047,3 +1047,76 @@ it('does not restore ingestion after a newer child permission denial closes a pe
   expect(w.find('[aria-label="Ingestion counts"]').exists()).toBe(false)
   w.unmount()
 })
+
+it('switches task panels without discarding a selected draft, its note or captured versions', async () => {
+  rest.queue.mockResolvedValue({ items: [draft], nextCursor: null })
+  const wrapper = mount(IngestionAdminPage)
+  await flushPromises()
+  expect(wrapper.get('#ingestion-workspace-tab-drafts').attributes('aria-selected')).toBe('true')
+  expect(wrapper.get('#ingestion-workspace-panel-failed').attributes('hidden')).toBeDefined()
+  await wrapper.get('[data-testid="view-draft-1"]').trigger('click')
+  await wrapper.get('#review-note').setValue('Retain the current review context')
+  await wrapper.get('#ingestion-workspace-tab-failed').trigger('click')
+  expect(wrapper.get('#ingestion-workspace-panel-drafts').attributes('hidden')).toBeDefined()
+  expect(wrapper.get('#ingestion-workspace-panel-drafts').attributes('inert')).toBeDefined()
+  expect(wrapper.get('#ingestion-workspace-panel-failed').attributes('hidden')).toBeUndefined()
+  await wrapper.get('#ingestion-workspace-tab-drafts').trigger('click')
+  expect(wrapper.get('#review-note').element).toHaveProperty(
+    'value',
+    'Retain the current review context',
+  )
+  expect(wrapper.get('[data-testid="view-draft-1"]').attributes('aria-current')).toBe('true')
+  expect(rest.queue).toHaveBeenCalledTimes(1)
+  wrapper.unmount()
+})
+
+it('keeps task navigation and Back disabled while a captured draft review is pending', async () => {
+  rest.queue.mockResolvedValue({
+    items: [{ ...draft, validFrom: '2099-01-01T00:00:00Z', validUntil: '2099-12-01T00:00:00Z' }],
+    nextCursor: null,
+  })
+  let release!: (value: unknown) => void
+  rest.review.mockImplementation(
+    () =>
+      new Promise((resolve) => {
+        release = resolve
+      }),
+  )
+  const wrapper = mount(IngestionAdminPage)
+  await flushPromises()
+  await wrapper.get('[data-testid="view-draft-1"]').trigger('click')
+  await wrapper.get('#review-note').setValue('Reviewed this exact version')
+  await wrapper.get('.draft-decision').trigger('submit')
+  expect(wrapper.get('#ingestion-workspace-tab-failed').attributes('disabled')).toBeDefined()
+  expect(wrapper.get('.admin-workspace-back').attributes('disabled')).toBeDefined()
+  await wrapper.get('#ingestion-workspace-tab-failed').trigger('click')
+  expect(wrapper.get('#ingestion-workspace-tab-drafts').attributes('aria-selected')).toBe('true')
+  expect(rest.review).toHaveBeenCalledTimes(1)
+  release({ id: draft.id, reviewStatus: 'APPROVED' })
+  await flushPromises()
+  expect(wrapper.get('#ingestion-workspace-tab-failed').attributes('disabled')).toBeUndefined()
+  expect(rest.review).toHaveBeenCalledTimes(1)
+  wrapper.unmount()
+})
+
+it('opens overview deep links in the matching task and preserves the requested review status', async () => {
+  const { createMemoryHistory, createRouter } = await import('vue-router')
+  const router = createRouter({
+    history: createMemoryHistory(),
+    routes: [{ path: '/admin/ingestion', component: IngestionAdminPage }],
+  })
+  await router.push('/admin/ingestion?status=APPROVED#failed-posts')
+  const wrapper = mount(IngestionAdminPage, { global: { plugins: [router] } })
+  await flushPromises()
+  expect(wrapper.get('#ingestion-workspace-tab-failed').attributes('aria-selected')).toBe('true')
+  expect(rest.queue).toHaveBeenLastCalledWith({ limit: 20, status: 'APPROVED' })
+  await wrapper.get('#ingestion-workspace-tab-runs').trigger('click')
+  await flushPromises()
+  expect(router.currentRoute.value.hash).toBe('#runs-title')
+  expect(wrapper.get('#ingestion-workspace-panel-runs').attributes('hidden')).toBeUndefined()
+  await router.push('/admin/ingestion?status=REJECTED#queue-title')
+  await flushPromises()
+  expect(wrapper.get('#ingestion-workspace-tab-drafts').attributes('aria-selected')).toBe('true')
+  expect(rest.queue).toHaveBeenLastCalledWith({ limit: 20, status: 'REJECTED' })
+  wrapper.unmount()
+})

@@ -284,7 +284,7 @@ test('forbidden and recoverable API errors are visibly distinct', async ({ page 
   await page.reload()
   await expect(page.getByRole('alert')).toContainText('Unable to load ingestion')
   await page.getByRole('button', { name: 'Retry dashboard' }).click()
-  await expect(page.getByRole('heading', { name: 'Source readiness' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Draft review queue' })).toBeVisible()
 })
 
 for (const width of [320, 390, 1280]) {
@@ -296,11 +296,13 @@ for (const width of [320, 390, 1280]) {
     page.on('pageerror', (error) => errors.push(error.message))
     await page.setViewportSize({ width, height: 850 })
     await page.goto('/admin/ingestion')
+    await page.getByRole('tab', { name: 'Run history', exact: true }).click()
     await expect(page.getByRole('button', { name: 'Run ingestion', exact: true })).toBeDisabled()
     await expect(page.getByText('Ingestion is disabled', { exact: true })).toBeVisible()
     await expect(
       page.getByText('Operator reuse attestation is not recorded', { exact: true }),
     ).toBeVisible()
+    await page.getByRole('tab', { name: 'Review drafts', exact: true }).click()
     const details = page.getByRole('button', { name: /View details:/ })
     await details.focus()
     await details.press('Enter')
@@ -358,9 +360,11 @@ test('run trigger prevents duplicates and refreshes reads after the synthetic re
     release = resolve
   })
   await page.goto('/admin/ingestion')
+  await page.getByRole('tab', { name: 'Run history', exact: true }).click()
   await page.getByRole('button', { name: 'Run ingestion', exact: true }).click()
   const running = page.getByRole('button', { name: 'Running ingestion…', exact: true })
   await expect(running).toBeDisabled()
+  await expect(page.getByRole('tab', { name: 'Review drafts', exact: true })).toBeDisabled()
   await running.dispatchEvent('click')
   await expect
     .poll(() => fixture.requests.filter((request) => request.path === 'ingestion.run').length)
@@ -433,7 +437,9 @@ test('pagination preserves stale-review conflict until reloading the current dra
     'Content changed. Reload the draft before reviewing again.',
   )
   await page.getByRole('button', { name: 'Load more drafts' }).click()
-  await expect(page.getByRole('heading', { name: 'Second synthetic draft' })).toBeVisible()
+  await expect(
+    page.getByRole('button', { name: 'View details: Second synthetic draft', exact: true }),
+  ).toBeVisible()
   await expect(page.getByRole('alert')).toContainText(
     'Content changed. Reload the draft before reviewing again.',
   )
@@ -591,6 +597,8 @@ test('reload drops a superseded second-page draft and requires selection of its 
 test('OneMap candidates and administrator accounts stay read-only', async ({ page }) => {
   const fixture = await installSyntheticBoundary(page)
   await page.goto('/admin/ingestion')
+  await page.getByRole('tab', { name: 'Sources & tools', exact: true }).click()
+  await page.locator('summary').filter({ hasText: 'Location lookup & read-only accounts' }).click()
   await page.getByLabel('Address, building or postal code').fill('fixture plaza')
   await page.getByLabel('Address, building or postal code').press('Enter')
   await expect(page.getByText('123 FIXTURE ROAD', { exact: false })).toBeVisible()
@@ -617,6 +625,7 @@ test('OneMap candidates and administrator accounts stay read-only', async ({ pag
     'Accounts are restricted to administrators',
   )
   await expect(accounts).not.toContainText('synthetic@example.test')
+  await page.getByRole('tab', { name: 'Review drafts', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'Draft review queue' })).toBeVisible()
 })
 
@@ -649,7 +658,7 @@ test('shared sign-in UI rechecks server access after a synthetic auth response',
   await page.getByLabel('Email', { exact: true }).fill('synthetic@example.test')
   await page.getByLabel('Password', { exact: true }).fill('synthetic-not-a-real-password')
   await page.getByLabel('Password', { exact: true }).press('Enter')
-  await expect(page.getByRole('heading', { name: 'Source readiness' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Draft review queue' })).toBeVisible()
   expect(signIns).toBe(1)
   expect(fixture.requests.filter((request) => request.path === 'ingestion.dashboard')).toHaveLength(
     2,

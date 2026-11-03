@@ -236,3 +236,62 @@ it('retains mounted CONFLICT lock for exact collection/type/id until newer moder
     w.unmount()
   }
 })
+
+it('focuses selected evidence and clears consent when returning to the queue', async () => {
+  const Panel = await component()
+  if (!Panel) return
+  const wrapper = mount(Panel, { attachTo: document.body })
+  try {
+    await flushPromises()
+    await wrapper.get('[data-testid="inspect-report"]').trigger('click')
+    await flushPromises()
+    expect(document.activeElement).toBe(
+      wrapper.get('[data-testid="moderation-detail-heading"]').element,
+    )
+    expect(
+      wrapper.find('.admin-record-workspace-detail [data-testid="decision-form"]').exists(),
+    ).toBe(true)
+    await wrapper.get('[name="note"]').setValue('Unsubmitted review')
+    await wrapper.get('[name="confirmed"]').setValue(true)
+    await wrapper.get('.admin-workspace-back').trigger('click')
+    expect(wrapper.find('[name="note"]').exists()).toBe(false)
+    expect(document.activeElement).toBe(wrapper.get('[data-testid="inspect-report"]').element)
+    await wrapper.get('[data-testid="inspect-report"]').trigger('click')
+    await flushPromises()
+    expect(wrapper.get<HTMLTextAreaElement>('[name="note"]').element.value).toBe('')
+    expect(wrapper.get<HTMLInputElement>('[name="confirmed"]').element.checked).toBe(false)
+    expect(rest.resolve).not.toHaveBeenCalled()
+  } finally {
+    wrapper.unmount()
+  }
+})
+
+it('keeps a pending decision visible and cannot close it through Back to results', async () => {
+  const Panel = await component()
+  if (!Panel) return
+  let release!: (value: typeof row) => void
+  rest.resolve.mockImplementationOnce(
+    () =>
+      new Promise((resolve) => {
+        release = resolve
+      }),
+  )
+  const wrapper = mount(Panel)
+  try {
+    await flushPromises()
+    await wrapper.get('[data-testid="inspect-report"]').trigger('click')
+    await flushPromises()
+    await wrapper.get('[name="note"]').setValue('Reviewed evidence')
+    await wrapper.get('[name="confirmed"]').setValue(true)
+    await wrapper.get('[data-testid="decision-form"]').trigger('submit')
+    expect(wrapper.get('.admin-workspace-back').attributes('disabled')).toBeDefined()
+    await wrapper.get('.admin-workspace-back').trigger('click')
+    expect(wrapper.find('[data-testid="decision-form"]').exists()).toBe(true)
+    expect(rest.resolve).toHaveBeenCalledTimes(1)
+    release({ ...row, status: 'RESOLVED', moderationVersion: 5 })
+    await flushPromises()
+    expect(wrapper.get('.admin-workspace-back').attributes('disabled')).toBeUndefined()
+  } finally {
+    wrapper.unmount()
+  }
+})

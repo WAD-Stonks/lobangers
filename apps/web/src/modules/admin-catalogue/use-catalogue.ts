@@ -56,6 +56,9 @@ export const useCatalogue = (
     locked.value = true
     message.value = ''
   }
+  const clearSelection = () => {
+    if (!pending.value) clearTarget()
+  }
   const close = () => {
     clearTarget()
     listGeneration++
@@ -292,6 +295,7 @@ export const useCatalogue = (
     select,
     start,
     write,
+    clearSelection,
     close,
     dispose,
   }

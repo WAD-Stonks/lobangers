@@ -3,11 +3,12 @@ import { type IngestionSource, ingestionAddSourceRequestSchema } from '@broke-oc
 import { BButton } from '@broke-oclock/ui'
 import { api } from '@web/lib/api-client'
 import { errorCode } from '@web/modules/ingestion-admin/errors'
-import { onUnmounted, ref } from 'vue'
+import { onUnmounted, ref, watch } from 'vue'
 
-const emit = defineEmits<{ denied: [code: string]; changed: [] }>()
+const emit = defineEmits<{ denied: [code: string]; changed: []; busy: [value: boolean] }>()
 const items = ref<IngestionSource[] | null>(null)
 const pending = ref(false)
+watch(pending, value => emit('busy', value), { immediate: true, flush: 'sync' })
 const nextCursor = ref<string | null>(null)
 const error = ref('')
 const notice = ref('')
@@ -16,7 +17,7 @@ const previewUrl = ref('')
 const invalidFields = ref<string[]>([])
 const confirmedIds = ref<string[]>([])
 let active = true
-onUnmounted(() => { active = false })
+onUnmounted(() => { active = false; emit('busy', false) })
 const fail = (failure: unknown) => {
   const code = errorCode(failure)
   if (code === 'UNAUTHORIZED' || code === 'FORBIDDEN') {

@@ -46,6 +46,9 @@ export const useModeration = (denied: (code: 'UNAUTHORIZED' | 'FORBIDDEN') => vo
     detailLoading.value = false
     resetConsent()
   }
+  const clearSelection = () => {
+    if (!pending.value) clear()
+  }
   const close = () => {
     listGeneration++
     clear()
@@ -293,5 +296,6 @@ export const useModeration = (denied: (code: 'UNAUTHORIZED' | 'FORBIDDEN') => vo
     inspect,
     submit,
     resetConsent,
+    clearSelection,
   }
 }

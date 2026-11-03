@@ -70,7 +70,7 @@ test.beforeAll(async () => {
         transformIndexHtml: {
           order: 'pre',
           handler: () =>
-            `<!doctype html><html><head><title>Synthetic deals operations</title><meta name="viewport" content="width=device-width, initial-scale=1"></head><body><main id="fixture"></main><script type="module">import {createApp,h} from 'vue';import Panel from '/src/modules/admin-deals/DealsPanel.vue';import {createAdminDealsClient} from '/@fs/${clientPath}';import {api} from '/src/lib/api-client';import '@broke-oclock/ui/styles.css';import '/src/assets/main.css';import '/src/assets/bootstrap-theme.css';createApp({render:()=>h(Panel,{client:createAdminDealsClient(api.http)})}).mount('#fixture')</script></body></html>`,
+            `<!doctype html><html class="app-palette"><head><title>Synthetic deals operations</title><meta name="viewport" content="width=device-width, initial-scale=1"></head><body><div id="fixture"></div><script type="module">import {createApp,h} from 'vue';import Panel from '/src/modules/admin-deals/DealsPanel.vue';import {createAdminDealsClient} from '/@fs/${clientPath}';import {api} from '/src/lib/api-client';import '@broke-oclock/ui/styles.css';import '/src/assets/main.css';import '/src/assets/bootstrap-theme.css';import '/src/assets/admin.css';createApp({render:()=>h('div',{class:'admin-shell',style:'display:block'},[h('main',{class:'admin-main'},[h(Panel,{client:createAdminDealsClient(api.http)})])])}).mount('#fixture')</script></body></html>`,
         },
       },
     ],
@@ -146,6 +146,20 @@ for (const width of [320, 768, 1024, 1440])
     await page.getByTestId('select-deal').click()
     await expect(page.getByText('OTHER · $12.90', { exact: false })).toBeVisible()
     await expect(page.locator('img')).toHaveCount(0)
+    if (width < 992) {
+      await expect(page.getByTestId('select-deal')).toBeHidden()
+      await expect(page.getByRole('searchbox', { name: 'Search deals' })).toBeHidden()
+      await page.getByRole('button', { name: 'Back to results' }).click()
+      await expect(page.getByTestId('select-deal')).toBeVisible()
+      await expect(page.getByTestId('select-deal')).toBeFocused()
+      await expect(page.getByRole('searchbox', { name: 'Search deals' })).toBeVisible()
+      await page.getByTestId('select-deal').click()
+    }
+    await page.getByRole('tab', { name: 'Evidence', exact: true }).click()
+    await expect(page.getByRole('heading', { name: 'Supporting evidence' })).toBeVisible()
+    await expect(page.locator('[name="edit-title"]')).toBeHidden()
+    await page.getByRole('tab', { name: 'Content', exact: true }).click()
+    await expect(page.locator('[name="edit-priceMinor"]')).toHaveValue('12.90')
     await page.locator('[name="edit-title"]').fill('Corrected meal')
     const note = page.locator('[name="note"]'),
       confirm = page.locator('[name="confirm"]'),

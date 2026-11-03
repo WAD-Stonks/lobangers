@@ -98,6 +98,34 @@ describe('flash drop formatting', () => {
 })
 
 describe('FlashDropsPanel', () => {
+  it('does not present unknown counts as zero or allow switching queues before the first read', async () => {
+    let release!: (value: AdminFlashDropsResponse) => void
+    const client = makeClient()
+    client.list.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          release = resolve
+        }),
+    )
+    const wrapper = mount(FlashDropsPanel, { props: { client } })
+    await flushPromises()
+    expect(wrapper.get('.fd-metrics').attributes('aria-busy')).toBe('true')
+    expect(wrapper.findAll('.fd-metric strong').map((count) => count.text())).toEqual([
+      '—',
+      '—',
+      '—',
+    ])
+    await wrapper.findAll('.fd-metric')[1]?.trigger('click')
+    expect(client.list).toHaveBeenCalledTimes(1)
+    release(page([]))
+    await flushPromises()
+    expect(wrapper.findAll('.fd-metric strong').map((count) => count.text())).toEqual([
+      '2',
+      '1',
+      '4',
+    ])
+    wrapper.unmount()
+  })
   it('lists the review queue with counts, fake tags and the first drop selected', async () => {
     const { wrapper, client } = await open()
     expect(client.list).toHaveBeenCalledWith('review')

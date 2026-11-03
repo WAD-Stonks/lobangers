@@ -262,14 +262,16 @@ for (const width of [320, 390, 768, 1024, 1440]) {
       await expect(page.locator('.admin-topbar')).toHaveCSS('position', 'sticky')
       await expect(
         page
-          .locator('.admin-content .card:visible, .admin-content .workspace-surface:visible')
+          .locator(
+            '.admin-content .card:visible, .admin-content .workspace-surface:visible, .admin-content .admin-record-workspace-list:visible',
+          )
           .first(),
       ).toBeVisible()
       const styles = await page.evaluate(() => {
         const heading = document.querySelector('.admin-shell h1')
         const activeLink = document.querySelector('.admin-navigation [aria-current="page"]')
         const card = document.querySelector(
-          '.admin-content .card, .admin-content .workspace-surface',
+          '.admin-content .card, .admin-content .workspace-surface, .admin-content .admin-record-workspace-list',
         )
         if (!heading || !activeLink || !card) throw new Error('Admin surfaces missing')
         return {
@@ -292,14 +294,14 @@ for (const width of [320, 390, 768, 1024, 1440]) {
       })
       expect(styles).toEqual({
         font: expect.stringContaining('-apple-system'),
-        accent: 'rgb(243, 203, 69)',
-        navFill: 'rgb(241, 242, 244)',
+        accent: 'rgb(255, 218, 69)',
+        navFill: 'rgb(255, 249, 230)',
         navWeight: '650',
         // Overview, Deals, Flash drops, Catalogue, Moderation, Accounts, Ingestion, Audit.
         navRows: 8,
         surface: 'rgb(255, 255, 255)',
-        canvas: path === '/admin' ? 'rgb(247, 248, 250)' : 'rgb(248, 249, 251)',
-        radius: path === '/admin' ? '14px' : '8px',
+        canvas: 'rgb(252, 251, 248)',
+        radius: '20px',
         fits: true,
         viewport: width,
       })
@@ -316,8 +318,8 @@ for (const width of [320, 390, 768, 1024, 1440]) {
     await expect(signIn).toBeVisible()
     await expect(page.getByTestId('admin-sign-out')).toHaveCount(0)
     const submit = signIn.getByRole('button', { name: 'Sign in', exact: true })
-    await expect(submit).toHaveCSS('background-color', 'rgb(243, 203, 69)')
-    await expect(submit).toHaveCSS('color', 'rgb(32, 36, 43)')
+    await expect(submit).toHaveCSS('background-color', 'rgb(255, 218, 69)')
+    await expect(submit).toHaveCSS('color', 'rgb(27, 27, 31)')
     await page.getByLabel('Email', { exact: true }).focus()
     await page.keyboard.press('Tab')
     await expect(page.getByLabel('Password', { exact: true })).toBeFocused()
