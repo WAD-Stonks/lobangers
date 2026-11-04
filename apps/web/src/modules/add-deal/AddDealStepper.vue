@@ -3,13 +3,17 @@ import { ADD_DEAL_STEPS } from '@web/modules/add-deal/add-deal-steps'
 import ShellIcon from '@web/modules/map-shell/ShellIcon.vue'
 
 // The numbered progress bar above the form. Steps already passed can be reopened; later ones
-// open only through Next, which checks the current step first.
-const props = defineProps<{ current: number; reached: number }>()
+// open only through Next, which checks the current step first. `labels` renames the steps (the
+// merchant dashboard's deal form calls its second step Outlets).
+const props = withDefaults(
+  defineProps<{ current: number; reached: number; labels?: readonly string[]; navLabel?: string }>(),
+  { labels: () => ADD_DEAL_STEPS.map((step) => step.label), navLabel: 'Add a deal steps' },
+)
 const emit = defineEmits<{ go: [step: number] }>()
 </script>
 
 <template>
-  <nav class="add-deal-stepper" aria-label="Add a deal steps">
+  <nav class="add-deal-stepper" :aria-label="navLabel">
     <ol class="add-deal-stepper__list" :style="{ '--progress': props.current / (ADD_DEAL_STEPS.length - 1) }">
       <li
         v-for="(step, index) in ADD_DEAL_STEPS"
@@ -30,7 +34,7 @@ const emit = defineEmits<{ go: [step: number] }>()
             <template v-else>{{ index + 1 }}</template>
           </span>
           <span class="add-deal-stepper__label">
-            <span class="visually-hidden">Step {{ index + 1 }}: </span>{{ step.label }}<span v-if="index < current" class="visually-hidden"> (done)</span>
+            <span class="visually-hidden">Step {{ index + 1 }}: </span>{{ labels[index] ?? step.label }}<span v-if="index < current" class="visually-hidden"> (done)</span>
           </span>
         </button>
       </li>

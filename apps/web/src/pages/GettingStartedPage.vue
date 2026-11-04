@@ -45,7 +45,7 @@ const shownFeatures = computed(() =>
 
 <template>
   <section aria-labelledby="setup-title">
-    <RouterLink class="link-secondary d-inline-block mb-4" to="/">← Back home</RouterLink>
+    <RouterLink class="link-secondary setup-back mb-3" to="/">← Back home</RouterLink>
     <h1 id="setup-title" class="h2 mb-3">Getting started</h1>
     <p class="text-secondary setup-copy">
       LoBangers brings nearby food promotions, recent community experiences and group planning

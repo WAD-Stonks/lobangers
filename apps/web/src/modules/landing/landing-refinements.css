@@ -882,23 +882,25 @@
   }
 }
 
-/* Reserve a separate row for story controls above the mobile headings. */
+/* Reserve a separate row for story controls above the mobile headings. The two buttons sit side
+   by side on one line each; their labels never wrap inside the button. */
 @media (max-width: 800px) {
   .lobangers-landing .story-topline > .story-top-actions {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    width: 50%;
+    display: flex;
+    flex-wrap: nowrap;
+    width: auto;
     margin-left: auto;
     gap: 6px;
   }
   .lobangers-landing .story-top-actions > .story-playback-toggle,
   .lobangers-landing .cinematic-story .story-top-actions > a {
-    min-width: 0;
+    flex: none;
+    gap: 6px;
     min-height: 44px;
-    padding: 8px;
-    font-size: 14px;
-    line-height: 1.35;
-    white-space: normal;
+    padding: 8px 12px;
+    font-size: 13px;
+    line-height: 1.2;
+    white-space: nowrap;
     text-align: center;
   }
   .lobangers-landing .cinematic-story:not(.story-reduced) .story-copy,

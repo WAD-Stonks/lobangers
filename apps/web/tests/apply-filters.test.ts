@@ -89,6 +89,14 @@ describe('deal-level filters', () => {
     expect(filterDeals(ALL, { ...base, ending: 'today' }, ctx)).toEqual([LAKSA])
     expect(filterDeals(ALL, { ...base, ending: 'week' }, ctx)).toEqual([LAKSA, SET])
   })
+
+  it('keeps only deals the community reports as still on when verified only is set', () => {
+    const verified = { ...SET, votes: { alive: 3, dead: 0 } }
+    const disputed = { ...LAKSA, votes: { alive: 3, dead: 1 } }
+    const deals = [KOPI, disputed, verified]
+    expect(filterDeals(deals, { ...base, verifiedOnly: true }, ctx)).toEqual([verified])
+    expect(filterDeals(deals, base, ctx)).toEqual(deals)
+  })
 })
 
 describe('venue-level filters', () => {

@@ -26,6 +26,7 @@ export const FILTER_QUERY_KEYS = [
   'type',
   'walk',
   'when',
+  'verified',
 ] as const
 
 export const SPLIT_QUERY_KEY = 'split'
@@ -90,6 +91,7 @@ export const filtersFromQuery = (query: LocationQuery): BrowseFilters => {
     ),
     walkMinutes: parseWalk(first(query.walk)),
     ending: ENDING_VALUES.includes(when) ? when : defaults.ending,
+    verifiedOnly: ['1', 'true'].includes(first(query.verified)),
   }
 }
 
@@ -111,6 +113,7 @@ export const filtersToQuery = (filters: BrowseFilters): Record<string, string> =
     : {}),
   ...(filters.walkMinutes === null ? {} : { walk: String(filters.walkMinutes) }),
   ...(filters.ending === 'any' ? {} : { when: filters.ending }),
+  ...(filters.verifiedOnly ? { verified: '1' } : {}),
 })
 
 // The current query with its filter keys replaced; view, sort and anything else survive.

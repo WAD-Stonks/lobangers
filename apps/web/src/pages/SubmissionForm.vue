@@ -7,10 +7,11 @@ import { focusFirstInvalid } from '@web/lib/form-focus'
 import { useUnsavedChanges } from '@web/lib/use-unsaved-changes'
 import AddDealStepper from '@web/modules/add-deal/AddDealStepper.vue'
 import AddDealTip from '@web/modules/add-deal/AddDealTip.vue'
+import PhotoDropzone from '@web/modules/add-deal/PhotoDropzone.vue'
+import '@web/modules/add-deal/add-deal-form.css'
 import {
   errorMessageFor,
   MAX_PHOTO_BYTES,
-  type OfferType,
   PHOTO_TYPES,
   type Stall,
   searchStalls,
@@ -27,6 +28,7 @@ import {
   LAST_STEP,
   toNewDeal,
 } from '@web/modules/add-deal/add-deal-steps'
+import { OFFER_TILES as OFFERS } from '@web/modules/add-deal/offer-tiles'
 import ShellIcon, { type ShellIconName } from '@web/modules/map-shell/ShellIcon.vue'
 
 const StallMapPicker = defineAsyncComponent(() => import('@web/modules/add-deal/StallMapPicker.vue'))
@@ -47,12 +49,6 @@ const cuisineLabels: Record<string, string> = {
   ...DEAL_CUISINE_LABELS,
   NONE: 'No specific cuisine (e.g. drinks, desserts)',
 }
-const OFFERS: readonly { value: OfferType; label: string; icon: ShellIconName }[] = [
-  { value: 'BUY_ONE_GET_ONE', label: '1-for-1', icon: 'gift' },
-  { value: 'PERCENT_OFF', label: 'Discount', icon: 'percent' },
-  { value: 'FIXED_PRICE', label: 'Fixed price', icon: 'tag' },
-  { value: 'OTHER', label: 'Others', icon: 'more' },
-]
 const categoryOptions = withLeading({ value: '', label: 'Choose a category' }, optionsFromLabels(categoryLabels))
 const cuisineOptions = withLeading({ value: '', label: 'Choose a cuisine' }, optionsFromLabels(cuisineLabels))
 
@@ -295,7 +291,7 @@ const sendDeal = async () => {
 }
 
 // Empties every field and goes back to the first step, so the user can add another deal.
-const photoInput = ref<HTMLInputElement | null>(null)
+const photoInput = ref<InstanceType<typeof PhotoDropzone> | null>(null)
 const clearForm = () => {
   form.value = emptyDealForm()
   chosenStalls.value = []
@@ -303,7 +299,7 @@ const clearForm = () => {
   stallSearch.value = ''
   photo.value = null
   photoPreview.value = ''
-  if (photoInput.value) photoInput.value.value = ''
+  photoInput.value?.clear()
   errors.value = {}
   step.value = 0
   reached.value = 0
@@ -472,19 +468,19 @@ const goBack = () => {
           <div class="add-deal__field">
             <label for="deal-photo" class="form-label">Photo of the deal <span class="add-deal__required" aria-hidden="true">*</span></label>
             <p id="deal-photo-help" class="add-deal__hint">JPEG, PNG or WebP, up to 4 MB. A photo of the poster or menu works best.</p>
-            <input
+            <PhotoDropzone
               id="deal-photo"
               ref="photoInput"
               name="photo"
-              type="file"
-              accept="image/jpeg,image/png,image/webp"
-              class="form-control"
+              :has-photo="Boolean(photoPreview)"
               :class="{ 'is-invalid': errors.photo }"
               v-bind="invalidAttrs('photo')"
               :aria-describedby="errors.photo ? 'error-photo' : 'deal-photo-help'"
               @change="choosePhoto"
             />
-            <div id="error-photo" class="invalid-feedback">{{ errors.photo }}</div>
+            <!-- The input sits inside the drop zone, so the error is shown here rather than by
+                 Bootstrap's "after an invalid input" rule. -->
+            <div id="error-photo" class="invalid-feedback" :class="{ 'd-block': errors.photo }">{{ errors.photo }}</div>
             <img v-if="photoPreview" :src="photoPreview" alt="Your chosen deal" width="480" height="320" class="add-deal__preview" />
           </div>
         </section>
@@ -649,386 +645,3 @@ const goBack = () => {
     </div>
   </section>
 </template>
-
-<style scoped>
-.add-deal {
-  box-sizing: border-box;
-  width: 100%;
-  max-width: 920px;
-  margin: 0 auto;
-  padding: clamp(16px, 4vw, 32px) clamp(16px, 4vw, 24px) 48px;
-}
-
-/* ----- Header ----- */
-.add-deal__hero {
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 16px;
-  margin-bottom: 24px;
-}
-.add-deal__back {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  min-height: var(--hit, 44px);
-  margin-bottom: 4px;
-  padding: 0;
-  border: 0;
-  background: transparent;
-  font: 700 0.875rem / 1 var(--font-sans);
-  color: var(--ink-muted);
-  cursor: pointer;
-}
-.add-deal__back:hover {
-  color: var(--ink);
-}
-.add-deal__title {
-  margin: 0 0 8px;
-  font-size: clamp(2rem, 6vw, 2.75rem);
-  font-weight: 800;
-  letter-spacing: -0.02em;
-}
-.add-deal__intro {
-  flex: 1;
-  min-width: 0;
-}
-.add-deal__lede {
-  margin: 0;
-  color: var(--ink-muted);
-  font-size: 1rem;
-}
-
-/* ----- Panel ----- */
-.add-deal__panel {
-  display: grid;
-  gap: 24px;
-  padding: clamp(20px, 4vw, 36px);
-  background: var(--paper-white);
-  border: 1px solid var(--hairline);
-  border-radius: 28px;
-  box-shadow: 0 2px 8px rgb(27 27 31 / 0.05);
-}
-.add-deal__alert {
-  margin: 0;
-  padding: 12px 16px;
-  color: var(--coral-deep);
-  font-weight: 600;
-  background: var(--coral-soft);
-  border-radius: 14px;
-}
-.add-deal__form {
-  display: grid;
-  gap: 24px;
-}
-.add-deal__card {
-  display: grid;
-  gap: 18px;
-  padding: clamp(18px, 4vw, 28px);
-  background: var(--paper-white);
-  border: 1px solid var(--hairline);
-  border-radius: 24px;
-}
-.add-deal__step-title {
-  display: inline-flex;
-  justify-self: start;
-  align-items: center;
-  gap: 10px;
-  margin: 0;
-  padding: 6px 18px 6px 6px;
-  font-size: 1.125rem;
-  font-weight: 750;
-  background: var(--sunny-wash);
-  border-radius: 999px;
-}
-.add-deal__step-title:focus-visible {
-  outline: 3px solid var(--sunny-ring);
-  outline-offset: 2px;
-}
-.add-deal__step-icon {
-  display: grid;
-  place-items: center;
-  width: 36px;
-  height: 36px;
-  color: var(--on-accent);
-  background: var(--sunny);
-  border-radius: 50%;
-}
-
-/* ----- Fields ----- */
-.add-deal__field {
-  display: grid;
-  gap: 2px;
-  min-width: 0;
-  margin: 0;
-  padding: 0;
-  border: 0;
-}
-.add-deal__field .form-label,
-.add-deal__field legend {
-  margin-bottom: 6px;
-  font-weight: 700;
-}
-.add-deal__required {
-  color: var(--coral-deep);
-}
-.add-deal__hint {
-  margin: 0;
-  color: var(--ink-muted);
-  font-size: 0.875rem;
-}
-.add-deal__pair {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 18px;
-}
-.add-deal__short {
-  max-width: 260px;
-}
-.add-deal__counted {
-  position: relative;
-}
-.add-deal__counted textarea {
-  padding-bottom: 28px;
-}
-.add-deal__count {
-  position: absolute;
-  right: 14px;
-  bottom: 8px;
-  color: var(--ink-muted);
-  font-size: 0.8125rem;
-  pointer-events: none;
-}
-.add-deal__error {
-  min-height: 0;
-  margin: 4px 0 0;
-  color: var(--coral-deep);
-  font-size: 0.875rem;
-}
-.add-deal__error:empty {
-  margin: 0;
-}
-
-/* Offer type: four chips that work as radio buttons. */
-.add-deal__offers {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 12px;
-}
-.add-deal__offer {
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  min-height: 56px;
-  padding: 8px 12px;
-  font-weight: 700;
-  text-align: center;
-  background: var(--paper-white);
-  border: 1.5px solid var(--hairline-strong, var(--hairline));
-  border-radius: 16px;
-  cursor: pointer;
-  transition:
-    background-color 150ms ease,
-    border-color 150ms ease;
-}
-.add-deal__offer.is-chosen {
-  background: var(--sunny-wash);
-  border-color: var(--sunny-deep);
-  box-shadow: 0 0 0 3px var(--sunny-soft);
-}
-.is-invalid-group .add-deal__offer {
-  border-color: var(--coral-deep);
-}
-.add-deal__offer-input {
-  position: absolute;
-  inset: 0;
-  margin: 0;
-  opacity: 0;
-  cursor: pointer;
-}
-.add-deal__offer:has(.add-deal__offer-input:focus-visible) {
-  outline: 3px solid var(--sunny-ring);
-  outline-offset: 2px;
-}
-@media (hover: hover) and (pointer: fine) {
-  .add-deal__offer:hover {
-    background: var(--paper-hover);
-  }
-  .add-deal__offer.is-chosen:hover {
-    background: var(--sunny-wash);
-  }
-}
-
-.add-deal__preview {
-  max-width: 100%;
-  height: auto;
-  max-height: 240px;
-  margin-top: 12px;
-  border-radius: 14px;
-  object-fit: cover;
-}
-
-/* ----- Location ----- */
-.add-deal__search {
-  display: flex;
-  gap: 10px;
-}
-.add-deal__search .form-control {
-  flex: 1;
-  min-width: 0;
-}
-.add-deal__search .lb-btn {
-  flex: none;
-  gap: 6px;
-}
-.add-deal__stalls {
-  display: grid;
-  gap: 8px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-.add-deal__stalls li {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 10px 12px 10px 16px;
-  border: 1px solid var(--hairline);
-  border-radius: 16px;
-}
-.add-deal__chosen-title {
-  margin: 0 0 6px;
-  font-size: 1rem;
-  font-weight: 700;
-}
-.add-deal__stalls--chosen li {
-  background: var(--sunny-wash);
-  border-color: transparent;
-}
-/* Long stall names and addresses wrap instead of pushing the button off a phone. */
-.add-deal__stall-text {
-  display: grid;
-  flex: 1;
-  min-width: 0;
-  overflow-wrap: anywhere;
-}
-.add-deal__stall-text span {
-  color: var(--ink-muted);
-  font-size: 0.875rem;
-}
-.add-deal__remove {
-  color: var(--coral-deep);
-}
-.add-deal__missing {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px 12px;
-}
-.add-deal__missing .lb-btn {
-  gap: 6px;
-}
-
-/* ----- Review ----- */
-.add-deal__review {
-  display: grid;
-  grid-template-columns: minmax(0, 200px) minmax(0, 1fr);
-  gap: 20px;
-  align-items: start;
-}
-.add-deal__review:not(:has(.add-deal__review-photo)) {
-  grid-template-columns: minmax(0, 1fr);
-}
-.add-deal__review-photo {
-  width: 100%;
-  max-height: 260px;
-  margin: 0;
-  object-fit: contain;
-  background: var(--paper-sunk);
-}
-.add-deal__review-groups {
-  display: grid;
-  gap: 12px;
-}
-.add-deal__review-group {
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
-  padding: 14px 16px;
-  background: var(--paper-sunk);
-  border-radius: 16px;
-}
-.add-deal__review-group dl {
-  display: grid;
-  flex: 1;
-  gap: 8px;
-  min-width: 0;
-  margin: 0;
-}
-.add-deal__review-group dl > div {
-  display: grid;
-  grid-template-columns: 96px minmax(0, 1fr);
-  gap: 12px;
-}
-.add-deal__review-group dt {
-  color: var(--ink-muted);
-  font-weight: 600;
-}
-.add-deal__review-group dd {
-  margin: 0;
-  overflow-wrap: anywhere;
-  white-space: pre-line;
-}
-.add-deal__edit {
-  flex: none;
-  min-height: 44px;
-  padding: 0 4px;
-  color: var(--ink);
-  font-weight: 700;
-  text-decoration: underline;
-  text-underline-offset: 3px;
-  background: none;
-  border: 0;
-  cursor: pointer;
-}
-
-/* ----- Step buttons ----- */
-.add-deal__nav {
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-}
-.add-deal__nav .lb-btn {
-  gap: 8px;
-  touch-action: manipulation;
-}
-
-@media (max-width: 640px) {
-  .add-deal__pair,
-  .add-deal__review {
-    grid-template-columns: minmax(0, 1fr);
-  }
-  .add-deal__offers {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-  .add-deal__review-group dl > div {
-    grid-template-columns: minmax(0, 1fr);
-    gap: 2px;
-  }
-}
-
-/* A full-width Next is easier to hit with a thumb on a phone. */
-@media (max-width: 480px) {
-  .add-deal__nav .lb-btn--primary {
-    flex: 1;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .add-deal__offer {
-    transition: none;
-  }
-}
-</style>

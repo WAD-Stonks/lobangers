@@ -7,6 +7,12 @@ import { focusFirstInvalid } from '@web/lib/form-focus'
 import { formatDate, formatMoneyMinor } from '@web/lib/format'
 import { useConfirm } from '@web/lib/use-confirm'
 import { useUnsavedChanges } from '@web/lib/use-unsaved-changes'
+import '@web/modules/add-deal/add-deal-form.css'
+import AddDealStepper from '@web/modules/add-deal/AddDealStepper.vue'
+import { DESCRIPTION_MAX } from '@web/modules/add-deal/add-deal-steps'
+import { OFFER_TILES } from '@web/modules/add-deal/offer-tiles'
+import PhotoDropzone from '@web/modules/add-deal/PhotoDropzone.vue'
+import ShellIcon from '@web/modules/map-shell/ShellIcon.vue'
 import DealSection from '@web/modules/merchant/DealSection.vue'
 import FlashDealFields from '@web/modules/merchant/FlashDealFields.vue'
 import FlashDropsSection from '@web/modules/merchant/FlashDropsSection.vue'
@@ -17,6 +23,7 @@ import {
   saveFlashDraft,
 } from '@web/modules/merchant/flash-drop-api'
 import {
+  bannerPreview,
   blankFlashFields,
   type FlashFieldsState,
   type FlashProblem,
@@ -69,7 +76,6 @@ const flashMode = ref(false)
 const editingFlash = ref<MerchantFlashDrop | null>(null)
 const flashFields = ref<FlashFieldsState>(blankFlashFields())
 const flashProblem = ref<FlashProblem | null>(null)
-const flashFieldsEl = ref<HTMLElement | null>(null)
 const formError = ref('')
 // One message per field, e.g. fieldErrors.title = 'Please give the deal a title.'
 const fieldErrors = ref<Record<string, string>>({})
@@ -94,7 +100,7 @@ const form = ref(emptyForm())
 // A newly chosen photo. It is only uploaded when the deal is saved.
 const newPhoto = ref<File | null>(null)
 const newPhotoPreview = ref('') // a temporary link to the chosen image, for the <img> preview
-const photoInput = ref<HTMLInputElement | null>(null)
+const photoInput = ref<InstanceType<typeof PhotoDropzone> | null>(null)
 // The form as it was opened, so Cancel and leaving the page only warn when something changed.
 const openedAs = ref('')
 const snapshot = () =>
@@ -109,6 +115,48 @@ const invalidAttrs = (field: string) =>
   fieldErrors.value[field]
     ? { 'aria-invalid': 'true' as const, 'aria-describedby': `error-${field}` }
     : {}
+
+// ----- Steps -----
+// The same four steps as the visitor's Add a deal form, so both read alike: details, where it
+// runs, when it runs, then a review. Each step checks only its own fields before the next one
+// opens; saving checks them all and opens the first step with a problem.
+const STEP_FIELDS: readonly (readonly string[])[] = [
+  ['title', 'description', 'category', 'cuisine', 'discountPercent', 'priceDollars', 'photo'],
+  ['outletIds'],
+  ['endDate'],
+  [],
+]
+const LAST_STEP = STEP_FIELDS.length - 1
+const TIMING_STEP = 2
+const step = ref(0)
+// The furthest step opened so far; the stepper reopens any of these.
+const reached = ref(0)
+const stepHeadings = ref<HTMLElement[]>([])
+const stepLabels = computed(() => [
+  'Deal details',
+  'Outlets',
+  flashMode.value ? 'Flash timing' : 'Validity',
+  'Review',
+])
+const nextLabel = computed(() => stepLabels.value[step.value + 1] ?? '')
+const stepOf = (field: string) => STEP_FIELDS.findIndex((fields) => fields.includes(field))
+
+// A new deal starts at the first step; an existing or copied one is already filled in, so
+// every step can be opened straight away.
+const startSteps = (prefilled: boolean) => {
+  step.value = 0
+  reached.value = prefilled ? LAST_STEP : 0
+}
+
+// Opens a step and moves focus to its heading, so keyboard and screen reader users land on it.
+const go = async (target: number) => {
+  step.value = target
+  reached.value = Math.max(reached.value, target)
+  formError.value = ''
+  await nextTick()
+  stepHeadings.value[target]?.focus()
+  formEl.value?.scrollIntoView?.({ block: 'start' })
+}
 
 const offerLabels: Record<OfferType, string> = {
   BUY_ONE_GET_ONE: '1-for-1',
@@ -133,7 +181,6 @@ const cuisineLabels: Record<string, string> = {
 
 const categoryOptions = withLeading({ value: '', label: 'Choose a category' }, optionsFromLabels(categoryLabels))
 const cuisineOptions = withLeading({ value: '', label: 'Choose a cuisine' }, optionsFromLabels(cuisineLabels))
-const offerOptions = optionsFromLabels(offerLabels)
 
 // ----- Deal status -----
 // Today's date as 'YYYY-MM-DD' in the merchant's own time zone, so it can be compared with
@@ -205,7 +252,7 @@ const loadDashboard = async () => {
 const clearNewPhoto = () => {
   newPhoto.value = null
   newPhotoPreview.value = ''
-  if (photoInput.value) photoInput.value.value = '' // clear the file box
+  photoInput.value?.clear() // empty the file box
 }
 
 const choosePhoto = (event: Event) => {
@@ -255,6 +302,7 @@ const openCreateForm = async () => {
   if (outlets.value.length === 1) form.value.outletIds = outlets.value.map((outlet) => outlet.id)
   editingId.value = null
   copiedFrom.value = null
+  startSteps(false)
   formError.value = ''
   fieldErrors.value = {}
   successMessage.value = ''
@@ -296,6 +344,7 @@ const openRunAgainForm = async (deal: MerchantDeal) => {
   }
   editingId.value = null
   copiedFrom.value = deal.title
+  startSteps(true)
   formError.value = ''
   fieldErrors.value = {}
   successMessage.value = ''
@@ -312,6 +361,7 @@ const openEditForm = async (deal: MerchantDeal) => {
   form.value = formFrom(deal)
   editingId.value = deal.id
   copiedFrom.value = null
+  startSteps(true)
   formError.value = ''
   fieldErrors.value = {}
   successMessage.value = ''
@@ -343,6 +393,7 @@ const openFlashDraftForm = async (drop: MerchantFlashDrop) => {
   flashMode.value = true
   editingFlash.value = drop
   flashFields.value = flashFieldsFromDrop(drop)
+  startSteps(true)
   flashProblem.value = null
   formError.value = ''
   fieldErrors.value = {}
@@ -353,14 +404,13 @@ const openFlashDraftForm = async (drop: MerchantFlashDrop) => {
   nextTick(() => formEl.value?.scrollIntoView?.({ block: 'start' }))
 }
 
-// The first press of "Save as flash deal" shows the flash fields; the next one saves.
+// "Save as flash deal" on the review turns the deal into a flash deal and opens its timing
+// step, where the flash fields replace the dates; the next press on the review saves it.
 const showFlashFields = async () => {
   flashMode.value = true
   // A flash deal runs at one outlet; keep the first one ticked.
   form.value.outletIds = form.value.outletIds.slice(0, 1)
-  await nextTick()
-  flashFieldsEl.value?.scrollIntoView?.({ block: 'start' })
-  document.getElementById('flash-price')?.focus({ preventScroll: true })
+  await go(TIMING_STEP)
 }
 
 const backToNormalDeal = () => {
@@ -377,6 +427,93 @@ const closeForm = () => {
 const cancelForm = async () => {
   if (await confirmDiscard()) closeForm()
 }
+
+// Shows one step's problems and focuses the first, opening that step if it isn't showing.
+const flagStep = async (target: number, problems: Record<string, string>) => {
+  if (step.value !== target) await go(target)
+  fieldErrors.value = problems
+  formError.value = 'Please fix the highlighted fields.'
+  await nextTick()
+  focusFirstInvalid(formEl.value?.querySelector(`[data-step="${target}"]`))
+}
+
+const problemsIn = (problems: Record<string, string>, target: number) =>
+  Object.fromEntries(Object.entries(problems).filter(([field]) => stepOf(field) === target))
+
+// The flash fields (start, length, usual price) belong to the timing step.
+const checkFlashTiming = () => {
+  const offer = flashOffer.value
+  flashProblem.value = flashFieldsProblem(
+    flashFields.value,
+    { offerType: offer.offerType, priceCents: offer.flashPriceCents },
+    new Date(),
+  )
+  return flashProblem.value !== null
+}
+
+// Saving checks every step and opens the first one with a problem.
+const flagFirstProblem = (problems: Record<string, string>, flashTimingBad: boolean) => {
+  const steps = Object.keys(problems).map(stepOf).filter((index) => index >= 0)
+  if (flashTimingBad) steps.push(TIMING_STEP)
+  const target = Math.min(...steps)
+  return flagStep(target, problemsIn(problems, target))
+}
+
+const next = async () => {
+  const problems = problemsIn(checkForm(), step.value)
+  const flashTimingBad = step.value === TIMING_STEP && flashMode.value && checkFlashTiming()
+  if (Object.keys(problems).length > 0 || flashTimingBad) return flagStep(step.value, problems)
+  fieldErrors.value = {}
+  await go(step.value + 1)
+}
+
+const back = () => (step.value === 0 ? cancelForm() : go(step.value - 1))
+
+// ----- Review -----
+const offerSummary = computed(() => {
+  const f = form.value
+  if (f.offerType === 'PERCENT_OFF' && f.discountPercent !== '') return `${f.discountPercent}% off`
+  if (f.offerType === 'FIXED_PRICE' && f.priceDollars !== '')
+    return `${flashMode.value ? 'Flash price' : 'Fixed price'}, ${formatMoneyMinor(Math.round(Number(f.priceDollars) * 100))}`
+  return OFFER_TILES.find((offer) => offer.value === f.offerType)?.label ?? ''
+})
+const review = computed(() => {
+  const f = form.value
+  const runs = `${f.startDate ? formatDate(f.startDate) : 'From today'} to ${f.endDate ? formatDate(f.endDate) : 'no end date'}`
+  return [
+    {
+      step: 0,
+      rows: [
+        ['Title', f.title.trim()],
+        ['Description', f.description.trim()],
+        ['Category', categoryLabels[f.category] ?? ''],
+        ['Cuisine', cuisineLabels[f.cuisine] ?? ''],
+        ['Offer', offerSummary.value],
+      ],
+    },
+    {
+      step: 1,
+      rows: [
+        [
+          f.outletIds.length === 1 ? 'Outlet' : 'Outlets',
+          outlets.value
+            .filter((outlet) => f.outletIds.includes(outlet.id))
+            .map((outlet) => outlet.name)
+            .join(', '),
+        ],
+      ],
+    },
+    {
+      step: TIMING_STEP,
+      rows: [
+        flashMode.value
+          ? ['Flash', bannerPreview(flashFields.value, f.title, flashOffer.value)]
+          : ['Runs', runs],
+        ['Terms', f.terms.trim()],
+      ],
+    },
+  ]
+})
 
 // Returns a message for every field that has a problem; an empty object means the form is fine.
 const checkForm = () => {
@@ -407,13 +544,9 @@ const checkForm = () => {
 const saveDeal = async () => {
   if (saving.value) return
   formError.value = ''
-  fieldErrors.value = checkForm()
-  if (Object.keys(fieldErrors.value).length > 0) {
-    formError.value = 'Please fix the highlighted fields.'
-    await nextTick()
-    focusFirstInvalid(formEl.value)
-    return
-  }
+  const problems = checkForm()
+  if (Object.keys(problems).length > 0) return flagFirstProblem(problems, false)
+  fieldErrors.value = {}
 
   const f = form.value
   // Only send a discount or price when the offer type uses it.
@@ -458,20 +591,13 @@ const saveDeal = async () => {
 const saveFlash = async () => {
   if (saving.value) return
   formError.value = ''
-  fieldErrors.value = checkForm()
+  const problems = checkForm()
+  const flashTimingBad = checkFlashTiming()
+  if (Object.keys(problems).length > 0 || flashTimingBad)
+    return flagFirstProblem(problems, flashTimingBad)
+  fieldErrors.value = {}
   const f = form.value
   const offer = flashOffer.value
-  flashProblem.value = flashFieldsProblem(
-    flashFields.value,
-    { offerType: offer.offerType, priceCents: offer.flashPriceCents },
-    new Date(),
-  )
-  if (Object.keys(fieldErrors.value).length > 0 || flashProblem.value) {
-    formError.value = 'Please fix the highlighted fields.'
-    await nextTick()
-    focusFirstInvalid(formEl.value)
-    return
-  }
 
   saving.value = true
   try {
@@ -509,7 +635,11 @@ const saveFlash = async () => {
   }
 }
 
-const submitForm = () => (flashMode.value ? saveFlash() : saveDeal())
+// Enter in a field moves on a step; on the review it saves.
+const submitForm = () => {
+  if (step.value < LAST_STEP) return next()
+  return flashMode.value ? saveFlash() : saveDeal()
+}
 
 const formTitle = computed(() => {
   if (flashMode.value) return editingFlash.value ? 'Edit flash deal draft' : 'New flash deal'
@@ -602,122 +732,120 @@ onMounted(loadDashboard)
         <RouterLink to="/me/merchant-access">Request another outlet</RouterLink>
       </p>
 
-      <!-- Create / edit form -->
+      <!-- Create / edit form: the same steps and look as the visitor's Add a deal form
+           (AddDealStepper, add-deal-form.css). Every step stays in the form, so moving between
+           them keeps what was typed. -->
       <form
         v-if="showForm"
         ref="formEl"
-        class="card card-body mb-4 deal-form"
+        class="add-deal__panel add-deal__form mb-4 deal-form"
         novalidate
         @submit.prevent="submitForm"
       >
-        <h2 class="h4 mb-3">{{ formTitle }}</h2>
-        <p v-if="copiedFrom" class="small text-secondary">
-          Copied from "{{ copiedFrom }}". Check the dates and outlets, and add a photo if you want
-          one, before saving.
-        </p>
-
-        <div class="mb-3">
-        <label for="deal-title" class="form-label">Title</label>
-        <input
-          id="deal-title"
-          v-model="form.title"
-          name="title"
-          autocomplete="off"
-          class="form-control"
-          :class="{ 'is-invalid': fieldErrors.title }"
-          v-bind="invalidAttrs('title')"
-          maxlength="120"
-        />
-        <div id="error-title" class="invalid-feedback">{{ fieldErrors.title }}</div>
+        <div class="deal-form__head">
+          <h2 class="deal-form__title">{{ formTitle }}</h2>
+          <p v-if="copiedFrom" class="add-deal__hint">
+            Copied from "{{ copiedFrom }}". Check the dates and outlets, and add a photo if you want
+            one, before saving.
+          </p>
         </div>
 
-        <div class="mb-3">
-        <label for="deal-description" class="form-label">Description</label>
-        <textarea
-          id="deal-description"
-          v-model="form.description"
-          name="description"
-          autocomplete="off"
-          class="form-control"
-          :class="{ 'is-invalid': fieldErrors.description }"
-          v-bind="invalidAttrs('description')"
-          rows="3"
-          maxlength="1000"
-        ></textarea>
-        <div id="error-description" class="invalid-feedback">{{ fieldErrors.description }}</div>
-        </div>
+        <AddDealStepper :current="step" :reached="reached" :labels="stepLabels" nav-label="Deal steps" @go="go" />
 
-        <div class="row g-3 mb-3">
-          <div class="col-sm-6">
-            <label for="deal-category" class="form-label">Category</label>
-            <AppSelect
-              id="deal-category"
-              v-model="form.category"
-              name="category"
-              class="form-select"
-              :class="{ 'is-invalid': fieldErrors.category }"
-              v-bind="invalidAttrs('category')"
-              :options="categoryOptions"
-            />
-            <div id="error-category" class="invalid-feedback">{{ fieldErrors.category }}</div>
-          </div>
-          <div class="col-sm-6">
-            <label for="deal-cuisine" class="form-label">Cuisine</label>
-            <AppSelect
-              id="deal-cuisine"
-              v-model="form.cuisine"
-              name="cuisine"
-              class="form-select"
-              :class="{ 'is-invalid': fieldErrors.cuisine }"
-              v-bind="invalidAttrs('cuisine')"
-              :options="cuisineOptions"
-            />
-            <div id="error-cuisine" class="invalid-feedback">{{ fieldErrors.cuisine }}</div>
-          </div>
-        </div>
+        <!-- 1. Deal details -->
+        <section v-show="step === 0" class="add-deal__card" data-step="0" aria-labelledby="deal-form-step-0">
+          <h3 id="deal-form-step-0" :ref="(el) => { if (el) stepHeadings[0] = el as HTMLElement }" class="add-deal__step-title" tabindex="-1">
+            <span class="add-deal__step-icon" aria-hidden="true"><ShellIcon name="ticket" :size="20" /></span>Deal details
+          </h3>
+          <p class="add-deal__hint">Fields marked <span aria-hidden="true">*</span><span class="visually-hidden">with a star</span> are required.</p>
 
-        <fieldset
-          class="mb-3"
-          :aria-invalid="fieldErrors.outletIds ? 'true' : undefined"
-          :aria-describedby="fieldErrors.outletIds ? 'error-outletIds' : undefined"
-        >
-          <legend class="form-label fs-6">
-            {{ flashMode ? 'Which outlet is this flash deal at? (one only)' : 'Which outlets is this deal at?' }}
-          </legend>
-          <div v-for="outlet in outlets" :key="outlet.id" class="form-check">
+          <div class="add-deal__field">
+            <label for="deal-title" class="form-label">Title <span class="add-deal__required" aria-hidden="true">*</span></label>
             <input
-              :id="`outlet-${outlet.id}`"
-              v-model="form.outletIds"
-              name="outletIds"
-              :value="outlet.id"
-              type="checkbox"
-              class="form-check-input"
-              :class="{ 'is-invalid': fieldErrors.outletIds }"
+              id="deal-title"
+              v-model="form.title"
+              name="title"
+              autocomplete="off"
+              class="form-control"
+              :class="{ 'is-invalid': fieldErrors.title }"
+              v-bind="invalidAttrs('title')"
+              aria-required="true"
+              maxlength="120"
+              placeholder="e.g. 1-for-1 Nanban chicken bites"
             />
-            <label :for="`outlet-${outlet.id}`" class="form-check-label text-break">
-              {{ outlet.name }} <span class="text-secondary small">({{ outlet.address }})</span>
-            </label>
+            <div id="error-title" class="invalid-feedback">{{ fieldErrors.title }}</div>
           </div>
-          <div id="error-outletIds" class="invalid-feedback" :class="{ 'd-block': fieldErrors.outletIds }">
-            {{ fieldErrors.outletIds }}
-          </div>
-        </fieldset>
 
-        <div class="row g-3 mb-3">
-          <div class="col-sm-6">
-            <label for="deal-offer" class="form-label">{{ flashMode ? 'Flash offer' : 'Offer type' }}</label>
-            <AppSelect
-              id="deal-offer"
-              :model-value="form.offerType"
-              name="offerType"
-              class="form-select"
-              :options="offerOptions"
-              @update:model-value="form.offerType = $event as OfferType"
-            />
+          <div class="add-deal__field">
+            <label for="deal-description" class="form-label">Description <span class="add-deal__required" aria-hidden="true">*</span></label>
+            <div class="add-deal__counted">
+              <textarea
+                id="deal-description"
+                v-model="form.description"
+                name="description"
+                autocomplete="off"
+                class="form-control"
+                :class="{ 'is-invalid': fieldErrors.description }"
+                v-bind="invalidAttrs('description')"
+                aria-required="true"
+                rows="3"
+                :maxlength="DESCRIPTION_MAX"
+                placeholder="Briefly describe the deal…"
+              ></textarea>
+              <span class="add-deal__count" aria-hidden="true">{{ form.description.length }} / {{ DESCRIPTION_MAX }}</span>
+            </div>
+            <div id="error-description" class="invalid-feedback">{{ fieldErrors.description }}</div>
           </div>
-          <!-- Only show the box the chosen offer type needs -->
-          <div v-if="form.offerType === 'PERCENT_OFF'" class="col-sm-6">
-            <label for="deal-discount" class="form-label">Discount (%)</label>
+
+          <div class="add-deal__pair">
+            <div class="add-deal__field">
+              <label for="deal-category" class="form-label">Category <span class="add-deal__required" aria-hidden="true">*</span></label>
+              <AppSelect
+                id="deal-category"
+                v-model="form.category"
+                name="category"
+                class="form-select"
+                :class="{ 'is-invalid': fieldErrors.category }"
+                v-bind="invalidAttrs('category')"
+                :options="categoryOptions"
+              />
+              <div id="error-category" class="invalid-feedback">{{ fieldErrors.category }}</div>
+            </div>
+            <div class="add-deal__field">
+              <label for="deal-cuisine" class="form-label">Cuisine <span class="add-deal__required" aria-hidden="true">*</span></label>
+              <AppSelect
+                id="deal-cuisine"
+                v-model="form.cuisine"
+                name="cuisine"
+                class="form-select"
+                :class="{ 'is-invalid': fieldErrors.cuisine }"
+                v-bind="invalidAttrs('cuisine')"
+                :options="cuisineOptions"
+              />
+              <div id="error-cuisine" class="invalid-feedback">{{ fieldErrors.cuisine }}</div>
+            </div>
+          </div>
+
+          <fieldset class="add-deal__field">
+            <legend class="form-label">{{ flashMode ? 'Flash offer' : 'Offer type' }} <span class="add-deal__required" aria-hidden="true">*</span></legend>
+            <div class="add-deal__offers" role="radiogroup" :aria-label="flashMode ? 'Flash offer' : 'Offer type'">
+              <label v-for="offer in OFFER_TILES" :key="offer.value" class="add-deal__offer" :class="{ 'is-chosen': form.offerType === offer.value }">
+                <input
+                  v-model="form.offerType"
+                  class="add-deal__offer-input"
+                  type="radio"
+                  name="offerType"
+                  :value="offer.value"
+                  :data-testid="`merchant-offer-${offer.value}`"
+                />
+                <ShellIcon :name="offer.icon" :size="20" />{{ offer.label }}
+              </label>
+            </div>
+          </fieldset>
+
+          <!-- Only the box the chosen offer type needs. -->
+          <div v-if="form.offerType === 'PERCENT_OFF'" class="add-deal__field add-deal__short">
+            <label for="deal-discount" class="form-label">Discount (%) <span class="add-deal__required" aria-hidden="true">*</span></label>
             <input
               id="deal-discount"
               v-model.number="form.discountPercent"
@@ -731,12 +859,10 @@ onMounted(loadDashboard)
               :class="{ 'is-invalid': fieldErrors.discountPercent }"
               v-bind="invalidAttrs('discountPercent')"
             />
-            <div id="error-discountPercent" class="invalid-feedback">
-              {{ fieldErrors.discountPercent }}
-            </div>
+            <div id="error-discountPercent" class="invalid-feedback">{{ fieldErrors.discountPercent }}</div>
           </div>
-          <div v-if="form.offerType === 'FIXED_PRICE'" class="col-sm-6">
-            <label for="deal-price" class="form-label">{{ flashMode ? 'Flash price ($)' : 'Deal price ($)' }}</label>
+          <div v-if="form.offerType === 'FIXED_PRICE'" class="add-deal__field add-deal__short">
+            <label for="deal-price" class="form-label">{{ flashMode ? 'Flash price ($)' : 'Deal price ($)' }} <span class="add-deal__required" aria-hidden="true">*</span></label>
             <input
               id="deal-price"
               v-model.number="form.priceDollars"
@@ -750,127 +876,191 @@ onMounted(loadDashboard)
               :class="{ 'is-invalid': fieldErrors.priceDollars }"
               v-bind="invalidAttrs('priceDollars')"
             />
-            <div id="error-priceDollars" class="invalid-feedback">
-              {{ fieldErrors.priceDollars }}
+            <div id="error-priceDollars" class="invalid-feedback">{{ fieldErrors.priceDollars }}</div>
+          </div>
+
+          <div class="add-deal__field">
+            <label for="deal-photo" class="form-label">{{ shownPhoto ? 'Replace the photo' : 'Photo of the deal' }} <span class="add-deal__hint">(optional)</span></label>
+            <p id="deal-photo-help" class="add-deal__hint">JPEG, PNG or WebP, up to 4 MB. A photo of the poster or menu works best.</p>
+            <PhotoDropzone
+              id="deal-photo"
+              ref="photoInput"
+              name="photo"
+              :has-photo="Boolean(shownPhoto)"
+              :class="{ 'is-invalid': fieldErrors.photo }"
+              v-bind="invalidAttrs('photo')"
+              :aria-describedby="fieldErrors.photo ? 'error-photo' : 'deal-photo-help'"
+              @change="choosePhoto"
+            />
+            <!-- The input sits inside the drop zone, so the error is shown here rather than by
+                 Bootstrap's "after an invalid input" rule. -->
+            <div id="error-photo" class="invalid-feedback" :class="{ 'd-block': fieldErrors.photo }">{{ fieldErrors.photo }}</div>
+            <div v-if="shownPhoto" class="deal-form__photo">
+              <img :src="shownPhoto" alt="Your deal, as customers will see it" width="480" height="320" class="add-deal__preview" />
+              <button type="button" class="lb-btn add-deal__remove" @click="removePhoto">Remove photo</button>
             </div>
           </div>
-        </div>
+        </section>
 
-        <!-- A flash deal has its own start time and length instead of dates. -->
-        <div v-if="!flashMode" class="row g-3 mb-3">
-          <div class="col-sm-6">
-            <label for="deal-start" class="form-label">Start date (optional)</label>
-            <input
-              id="deal-start"
-              v-model="form.startDate"
-              name="startDate"
-              type="date"
-              class="form-control"
+        <!-- 2. Outlets -->
+        <section v-show="step === 1" class="add-deal__card" data-step="1" aria-labelledby="deal-form-step-1">
+          <h3 id="deal-form-step-1" :ref="(el) => { if (el) stepHeadings[1] = el as HTMLElement }" class="add-deal__step-title" tabindex="-1">
+            <span class="add-deal__step-icon" aria-hidden="true"><ShellIcon name="pin" :size="20" /></span>Outlets
+          </h3>
+          <fieldset
+            class="add-deal__field"
+            :aria-invalid="fieldErrors.outletIds ? 'true' : undefined"
+            :aria-describedby="fieldErrors.outletIds ? 'error-outletIds' : undefined"
+          >
+            <legend class="form-label">
+              {{ flashMode ? 'Which outlet is this flash deal at? (one only)' : 'Which outlets is this deal at?' }}
+              <span class="add-deal__required" aria-hidden="true">*</span>
+            </legend>
+            <ul class="add-deal__stalls deal-form__outlets">
+              <li v-for="outlet in outlets" :key="outlet.id" :class="{ 'is-chosen': form.outletIds.includes(outlet.id) }">
+                <input
+                  :id="`outlet-${outlet.id}`"
+                  v-model="form.outletIds"
+                  name="outletIds"
+                  :value="outlet.id"
+                  type="checkbox"
+                  class="form-check-input deal-form__outlet-check"
+                  :class="{ 'is-invalid': fieldErrors.outletIds }"
+                />
+                <label :for="`outlet-${outlet.id}`" class="add-deal__stall-text deal-form__outlet-label">
+                  <strong>{{ outlet.name }}</strong><span>{{ outlet.address }}</span>
+                </label>
+              </li>
+            </ul>
+            <p id="error-outletIds" class="add-deal__error" aria-live="polite">{{ fieldErrors.outletIds }}</p>
+          </fieldset>
+        </section>
+
+        <!-- 3. Validity. A flash deal has its own start time and length instead of dates. -->
+        <section v-show="step === 2" class="add-deal__card" data-step="2" aria-labelledby="deal-form-step-2">
+          <h3 id="deal-form-step-2" :ref="(el) => { if (el) stepHeadings[2] = el as HTMLElement }" class="add-deal__step-title" tabindex="-1">
+            <span class="add-deal__step-icon" aria-hidden="true"><ShellIcon name="calendar" :size="20" /></span>{{ stepLabels[2] }}
+          </h3>
+          <div v-if="flashMode" class="flash-holder">
+            <FlashDealFields
+              v-model="flashFields"
+              :title="form.title"
+              :offer="flashOffer"
+              :problem="flashProblem"
             />
-          </div>
-          <div class="col-sm-6">
-            <label for="deal-end" class="form-label">Last day (optional)</label>
-            <input
-              id="deal-end"
-              v-model="form.endDate"
-              name="endDate"
-              type="date"
-              class="form-control"
-              :class="{ 'is-invalid': fieldErrors.endDate }"
-              v-bind="invalidAttrs('endDate')"
-            />
-            <div id="error-endDate" class="invalid-feedback">{{ fieldErrors.endDate }}</div>
-          </div>
-        </div>
-
-        <label for="deal-terms" class="form-label">Terms &amp; conditions (optional)</label>
-        <textarea
-          id="deal-terms"
-          v-model="form.terms"
-          name="terms"
-          autocomplete="off"
-          class="form-control mb-3"
-          rows="3"
-          maxlength="1000"
-          placeholder="One condition per line, e.g. Dine-in only…"
-        ></textarea>
-
-        <div class="mb-3">
-          <label for="deal-photo" class="form-label">
-            {{ shownPhoto ? 'Replace the photo' : 'Photo' }} (optional: JPEG, PNG or WebP, up to
-            4 MB)
-          </label>
-          <input
-            id="deal-photo"
-            ref="photoInput"
-            name="photo"
-            type="file"
-            accept="image/jpeg,image/png,image/webp"
-            class="form-control"
-            :class="{ 'is-invalid': fieldErrors.photo }"
-            v-bind="invalidAttrs('photo')"
-            @change="choosePhoto"
-          />
-          <div id="error-photo" class="invalid-feedback">{{ fieldErrors.photo }}</div>
-          <div v-if="shownPhoto" class="d-flex flex-wrap align-items-end gap-2 mt-3">
-            <img
-              :src="shownPhoto"
-              alt="Your deal, as customers will see it"
-              width="480"
-              height="320"
-              class="photo-preview"
-            />
-            <button type="button" class="btn btn-sm btn-outline-danger" @click="removePhoto">
-              Remove photo
-            </button>
-          </div>
-        </div>
-
-        <div v-if="flashMode" ref="flashFieldsEl" class="flash-holder">
-          <FlashDealFields
-            v-model="flashFields"
-            :title="form.title"
-            :offer="flashOffer"
-            :problem="flashProblem"
-          />
-        </div>
-
-        <!-- Always mounted so the summary or a save error is announced. -->
-        <div role="alert">
-          <p v-if="formError" class="text-danger">{{ formError }}</p>
-        </div>
-
-        <div class="d-flex flex-wrap gap-2">
-          <!-- An ordinary deal goes live when saved; a flash deal is saved as a draft. -->
-          <template v-if="!flashMode">
-            <button type="submit" class="btn btn-primary" :disabled="saving">
-              {{ saving ? 'Saving…' : 'Save deal' }}
-            </button>
-            <button
-              v-if="editingId === null"
-              type="button"
-              class="btn btn-dark"
-              :disabled="saving"
-              @click="showFlashFields"
-            >
-              Save as flash deal
-            </button>
-          </template>
-          <template v-else>
-            <button type="submit" class="btn btn-dark" :disabled="saving">
-              {{ saving ? 'Saving…' : editingFlash ? 'Save draft' : 'Save as flash deal' }}
-            </button>
             <button
               v-if="editingFlash === null"
               type="button"
-              class="btn btn-outline-primary"
+              class="add-deal__edit"
               :disabled="saving"
               @click="backToNormalDeal"
             >
               Make it an ordinary deal
             </button>
-          </template>
-          <button type="button" class="btn btn-outline-secondary" @click="cancelForm">Cancel</button>
+          </div>
+          <div v-if="!flashMode" class="add-deal__pair">
+            <div class="add-deal__field">
+              <label for="deal-start" class="form-label">Start date <span class="add-deal__hint">(optional)</span></label>
+              <input id="deal-start" v-model="form.startDate" name="startDate" type="date" class="form-control" />
+            </div>
+            <div class="add-deal__field">
+              <label for="deal-end" class="form-label">Last day <span class="add-deal__hint">(optional)</span></label>
+              <input
+                id="deal-end"
+                v-model="form.endDate"
+                name="endDate"
+                type="date"
+                class="form-control"
+                :class="{ 'is-invalid': fieldErrors.endDate }"
+                v-bind="invalidAttrs('endDate')"
+              />
+              <div id="error-endDate" class="invalid-feedback">{{ fieldErrors.endDate }}</div>
+            </div>
+          </div>
+          <div class="add-deal__field">
+            <label for="deal-terms" class="form-label">Terms &amp; conditions <span class="add-deal__hint">(optional)</span></label>
+            <textarea
+              id="deal-terms"
+              v-model="form.terms"
+              name="terms"
+              autocomplete="off"
+              class="form-control"
+              rows="4"
+              maxlength="1000"
+              placeholder="One condition per line, e.g. Dine-in only…"
+            ></textarea>
+          </div>
+        </section>
+
+        <!-- 4. Review -->
+        <section v-show="step === 3" class="add-deal__card" data-step="3" aria-labelledby="deal-form-step-3">
+          <h3 id="deal-form-step-3" :ref="(el) => { if (el) stepHeadings[3] = el as HTMLElement }" class="add-deal__step-title" tabindex="-1">
+            <span class="add-deal__step-icon" aria-hidden="true"><ShellIcon name="check" :size="20" /></span>Review
+          </h3>
+          <p class="add-deal__hint">
+            {{ flashMode ? 'Check everything looks right, then save the flash deal as a draft. It goes live when you press Go live.' : 'Check everything looks right, then save. The deal goes live straight away.' }}
+          </p>
+          <div class="add-deal__review">
+            <img v-if="shownPhoto" :src="shownPhoto" alt="Your deal, as customers will see it" width="480" height="320" class="add-deal__preview add-deal__review-photo" />
+            <div class="add-deal__review-groups">
+              <div v-for="group in review" :key="group.step" class="add-deal__review-group">
+                <dl>
+                  <div v-for="[term, value] in group.rows" :key="term">
+                    <dt>{{ term }}</dt>
+                    <dd>{{ value || '—' }}</dd>
+                  </div>
+                </dl>
+                <button type="button" class="add-deal__edit" :data-testid="`merchant-review-edit-${group.step}`" @click="go(group.step)">
+                  Edit<span class="visually-hidden"> {{ stepLabels[group.step] }}</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Always mounted so the summary or a save error is announced. -->
+        <div role="alert">
+          <p v-if="formError" class="add-deal__alert">{{ formError }}</p>
+        </div>
+
+        <div class="add-deal__nav">
+          <button type="button" class="lb-btn" data-testid="deal-form-back" @click="back">
+            <ShellIcon name="back" :size="18" />{{ step === 0 ? 'Cancel' : 'Back' }}
+          </button>
+          <button v-if="step < LAST_STEP" type="submit" class="lb-btn lb-btn--primary" data-testid="deal-form-next">
+            Next: {{ nextLabel }}<ShellIcon name="arrowRight" :size="18" />
+          </button>
+          <div v-else class="deal-form__actions">
+            <!-- An ordinary deal goes live when saved; a flash deal is saved as a draft. -->
+            <template v-if="!flashMode">
+              <button
+                v-if="editingId === null"
+                type="button"
+                class="lb-btn"
+                :disabled="saving"
+                @click="showFlashFields"
+              >
+                Save as flash deal
+              </button>
+              <button type="submit" class="lb-btn lb-btn--primary" :disabled="saving">
+                {{ saving ? 'Saving…' : 'Save deal' }}
+              </button>
+            </template>
+            <template v-else>
+              <button
+                v-if="editingFlash === null"
+                type="button"
+                class="lb-btn"
+                :disabled="saving"
+                @click="backToNormalDeal"
+              >
+                Make it an ordinary deal
+              </button>
+              <button type="submit" class="lb-btn lb-btn--primary" :disabled="saving">
+                {{ saving ? 'Saving…' : editingFlash ? 'Save draft' : 'Save as flash deal' }}
+              </button>
+            </template>
+          </div>
         </div>
       </form>
 
@@ -969,12 +1159,79 @@ onMounted(loadDashboard)
   scroll-margin-top: 80px;
 }
 
-.photo-preview {
-  max-width: 100%;
-  height: auto;
-  max-height: 240px;
-  border-radius: 8px;
-  object-fit: cover;
+/* The deal form uses the Add a deal look (add-deal-form.css); these few pieces are its own. */
+.deal-form__head {
+  display: grid;
+  gap: 6px;
+}
+
+.deal-form__title {
+  margin: 0;
+  font-size: clamp(1.5rem, 4vw, 2rem);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.deal-form__photo {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px;
+}
+
+/* Outlets as tiles like the chosen stalls; a ticked one takes the same sunny wash. */
+.deal-form__outlets li {
+  position: relative;
+  padding: 12px 16px;
+  cursor: pointer;
+}
+
+.deal-form__outlets li.is-chosen {
+  background: var(--sunny-wash);
+  border-color: var(--sunny-deep);
+}
+
+.deal-form__outlet-check {
+  position: relative;
+  z-index: 1;
+  flex: none;
+  margin: 0;
+}
+
+/* The whole tile is the label's click target; the checkbox sits above it and takes its own clicks. */
+.deal-form__outlet-label {
+  cursor: pointer;
+}
+
+.deal-form__outlet-label::after {
+  position: absolute;
+  inset: 0;
+  content: '';
+}
+
+.deal-form__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+/* On a phone, Back and Next share a row like the visitor's form; the review's save buttons
+   stack full width under Back, with the main one on top. */
+@media (max-width: 480px) {
+  .deal-form .add-deal__nav {
+    flex-wrap: wrap;
+  }
+
+  .deal-form__actions {
+    flex: 1 1 100%;
+    flex-direction: column-reverse;
+    order: -1;
+  }
+
+  .deal-form__actions .lb-btn {
+    width: 100%;
+  }
 }
 
 .btn {

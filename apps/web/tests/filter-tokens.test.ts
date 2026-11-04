@@ -17,6 +17,7 @@ describe('active filter tokens', () => {
       offerTypes: ['BUY_ONE_GET_ONE'] as const,
       walkMinutes: 10,
       ending: 'today' as const,
+      verifiedOnly: true,
       validNow: false,
     }
     const tokens = activeFilterTokens(filters)
@@ -29,6 +30,7 @@ describe('active filter tokens', () => {
       '1-for-1',
       'Within 10 min',
       'Expiry today',
+      'Verified only',
       'Including expired',
     ])
     const fastFood = tokens.find((token) => token.label === 'Fast food')
@@ -36,6 +38,7 @@ describe('active filter tokens', () => {
     expect(tokens.find((token) => token.label === 'Japanese')?.next.cuisines).toEqual([])
     expect(tokens[0]?.next.q).toBe('')
     expect(tokens.at(-1)?.next.validNow).toBe(true)
+    expect(tokens.find((token) => token.label === 'Verified only')?.next.verifiedOnly).toBe(false)
     expect(filters.categories).toEqual(['FOOD', 'FAST_FOOD'])
   })
 })

@@ -26,6 +26,7 @@ describe('filter query', () => {
       offerTypes: ['PERCENT_OFF', 'BUY_ONE_GET_ONE'] as const,
       walkMinutes: 10,
       ending: 'week' as const,
+      verifiedOnly: true,
     }
     const query = filtersToQuery(filters)
     expect(query).toEqual({
@@ -38,6 +39,7 @@ describe('filter query', () => {
       type: 'percent,1for1',
       walk: '10',
       when: 'week',
+      verified: '1',
     })
     expect(filtersFromQuery(query as Record<string, string>)).toEqual(filters)
   })
