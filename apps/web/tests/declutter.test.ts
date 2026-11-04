@@ -1,4 +1,4 @@
-import { declutter } from '@web/modules/browse-map/declutter'
+import { clusterPins, declutter, pinBox } from '@web/modules/browse-map/declutter'
 import type { PinGroup } from '@web/modules/browse-map/map-tiers'
 import type { Coordinates } from '@web/modules/browse-map/types'
 import { makeDeal } from '@web-tests/support/shell-fixtures'
@@ -111,5 +111,66 @@ describe('declutter', () => {
 
     expect(placed.find((item) => item.kind === 'near')?.offset).toEqual({ x: 0, y: 0 })
     expect(placed.find((item) => item.label === 'Outram')?.offset).not.toEqual({ x: 0, y: 0 })
+  })
+
+  it('keeps a pill off the deal pins shown beside it', () => {
+    const pin = pinBox({ deals: [makeDeal({})] }, { x: 0, y: 0 })
+    const placed = declutter([group('Bugis', 0, -30, 3)], project, [pin])
+    const bugis = placed[0]
+
+    expect(bugis?.compact).toBe(true)
+    expect(bugis?.offset).not.toEqual({ x: 0, y: 0 })
+  })
+
+  it('leaves a pill alone when the pins are well clear of it', () => {
+    const pin = pinBox({ deals: [makeDeal({})] }, { x: 400, y: 0 })
+    const [bugis] = declutter([group('Bugis', 0, 0, 3)], project, [pin])
+
+    expect(bugis?.compact).toBe(false)
+    expect(bugis?.offset).toEqual({ x: 0, y: 0 })
+  })
+})
+
+const outlet = (id: string, x: number, y: number, deals = 1) => ({
+  id,
+  name: id,
+  lat: -y,
+  lng: x,
+  deals: Array.from({ length: deals }, () => makeDeal({})),
+})
+
+describe('clusterPins', () => {
+  it('keeps pins that do not touch as pins', () => {
+    const layout = clusterPins([outlet('a', 0, 0), outlet('b', 400, 0)], project)
+
+    expect(layout.pins.map((pin) => pin.id)).toEqual(['a', 'b'])
+    expect(layout.stacks).toEqual([])
+  })
+
+  it('stacks pins whose ovals would overlap, on the busiest outlet', () => {
+    const layout = clusterPins([outlet('a', 0, 0), outlet('b', 60, 10, 3)], project)
+
+    expect(layout.pins).toEqual([])
+    expect(layout.stacks).toHaveLength(1)
+    expect(layout.stacks[0]).toMatchObject({ kind: 'stack', compact: true, dealCount: 4 })
+    expect(layout.stacks[0]?.centre).toEqual({ lat: -10, lng: 60 })
+    expect(layout.stacks[0]?.venues.map((venue) => venue.id)).toEqual(['b', 'a'])
+  })
+
+  it('stacks pins that overlap even when well apart sideways, since the ovals are wide', () => {
+    const layout = clusterPins([outlet('a', 0, 0), outlet('b', 110, 0)], project)
+
+    expect(layout.stacks).toHaveLength(1)
+  })
+
+  it('leaves a pin clear of a stack once the stacked pins shrink to a dot', () => {
+    const layout = clusterPins(
+      [outlet('a', 0, 0, 2), outlet('b', 20, 0), outlet('c', 0, 120)],
+      project,
+    )
+
+    expect(layout.stacks).toHaveLength(1)
+    expect(layout.pins.map((pin) => pin.id)).toEqual(['c'])
+    expect(layout.boxes).toHaveLength(2)
   })
 })

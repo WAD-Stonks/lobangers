@@ -5,31 +5,38 @@ import { type Ref, ref, watch } from 'vue'
 
 export type VenueLoadState = 'loading' | 'ready' | 'not-found' | 'error'
 
-// Loads the venue for the current route, showing a cached copy at once when there is one.
-// Only the latest venue's answer is applied, so fast tab or pin changes never show a stale one.
-export function useVenueDetail(venueId: Readonly<Ref<string>>) {
+const failureState = (failure: unknown): VenueLoadState => {
+  const code = failure instanceof ApiClientError ? failure.code : null
+  return code === 'NOT_FOUND' || code === 'BAD_REQUEST' ? 'not-found' : 'error'
+}
+
+// Loads the outlets for the current route (one venue, or every outlet in one building), showing
+// cached copies at once when they are all there. Outlets that fail are left out as long as one
+// loads. Only the latest route's answer is applied, so fast tab or pin changes never show a
+// stale one.
+export function useVenueDetails(venueIds: Readonly<Ref<readonly string[]>>) {
   const state = ref<VenueLoadState>('loading')
-  const detail = ref<VenueDetailResponse | null>(null)
+  const details = ref<readonly VenueDetailResponse[]>([])
   let latestRequest = 0
 
   const load = async () => {
     const request = ++latestRequest
-    const cached = cachedVenueDetail(venueId.value)
-    detail.value = cached
-    state.value = cached ? 'ready' : 'loading'
-    try {
-      const data = await fetchVenueDetail(venueId.value)
-      if (request !== latestRequest) return
-      detail.value = data
-      state.value = 'ready'
-    } catch (failure) {
-      if (request !== latestRequest) return
-      const code = failure instanceof ApiClientError ? failure.code : null
-      detail.value = null
-      state.value = code === 'NOT_FOUND' || code === 'BAD_REQUEST' ? 'not-found' : 'error'
-    }
+    const ids = venueIds.value
+    const cached = ids.map(cachedVenueDetail)
+    const allCached = cached.every((detail) => detail !== null)
+    details.value = allCached ? (cached as VenueDetailResponse[]) : []
+    state.value = allCached && ids.length > 0 ? 'ready' : 'loading'
+    const results = await Promise.allSettled(ids.map(fetchVenueDetail))
+    if (request !== latestRequest) return
+    const loaded = results.flatMap((result) =>
+      result.status === 'fulfilled' ? [result.value] : [],
+    )
+    const failed = results.find((result) => result.status === 'rejected')
+    details.value = loaded
+    if (loaded.length > 0) state.value = 'ready'
+    else state.value = failed ? failureState(failed.reason) : 'not-found'
   }
 
-  watch(venueId, () => void load(), { immediate: true })
-  return { state, detail, reload: load }
+  watch(venueIds, () => void load(), { immediate: true })
+  return { state, details, reload: load }
 }

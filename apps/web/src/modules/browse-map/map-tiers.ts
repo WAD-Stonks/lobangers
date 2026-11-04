@@ -7,7 +7,9 @@ import type { Coordinates, VenuePin } from '@web/modules/browse-map/types'
 // are the point, so they stay real pins whenever they are big enough to read. Everything
 // farther away is summed up once per neighbourhood, or once per region at island view.
 export type MapTier = 'region' | 'area' | 'street'
-export type GroupKind = 'near' | 'area' | 'region'
+// A stack is a few outlets whose pins would overlap on screen (declutter.ts), not a place name;
+// a place is a stack that never comes apart, even at the closest zoom: one building, a mall.
+export type GroupKind = 'near' | 'area' | 'region' | 'stack' | 'place'
 
 export type PinGroup = {
   readonly key: string
@@ -26,6 +28,9 @@ export type LayerPlan = {
 }
 
 export const NEAR_YOU_LABEL = 'Near you'
+// The one count shown for the whole island at country or world scale.
+export const ISLAND_LABEL = 'Singapore'
+export const ISLAND_GROUP_KEY = `region:${ISLAND_LABEL}`
 // About a ten-minute walk.
 export const WALK_RADIUS_METRES = 800
 export const AREA_FROM_ZOOM = 13
@@ -96,7 +101,7 @@ export const planMapLayers = ({ pins, zoom, user, selectedVenueId }: PlanInput):
       tier,
       loose: selected,
       groups: rest.length
-        ? [{ ...makeGroup('region', 'Singapore', rest, SINGAPORE_CENTER), compact: true }]
+        ? [{ ...makeGroup('region', ISLAND_LABEL, rest, SINGAPORE_CENTER), compact: true }]
         : [],
     }
   }

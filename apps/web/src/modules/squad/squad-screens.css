@@ -56,16 +56,17 @@
   font-weight: 300;
 }
 
+/* The app's orange, so "Join a room" reads as a link to act on. */
 .squad-intro__link {
   font-weight: 300;
-  color: var(--squad-highlight);
+  color: var(--coral-deep);
   text-decoration: underline;
   text-decoration-thickness: 1px;
   text-underline-offset: 3px;
 }
 
 .squad-intro__link:hover {
-  color: var(--squad-highlight-hover);
+  color: var(--coral);
 }
 
 /* Doubled class: squad.css sets the base title after this sheet is imported. */

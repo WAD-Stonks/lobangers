@@ -33,7 +33,7 @@ import ShellHeader from '@web/modules/map-shell/ShellHeader.vue'
 import ShellIcon from '@web/modules/map-shell/ShellIcon.vue'
 import ShellPanel from '@web/modules/map-shell/ShellPanel.vue'
 import ShellToast from '@web/modules/map-shell/ShellToast.vue'
-import { browseLocation, dealLocation, panelSnapFor, shellQuery, venueLocation } from '@web/modules/map-shell/shell-routes'
+import { browseLocation, dealLocation, panelSnapFor, placeLocation, shellQuery, venueLocation } from '@web/modules/map-shell/shell-routes'
 import { provideShellState } from '@web/modules/map-shell/shell-state'
 import { useBreakpoint, useFinePointer, usePrefersReducedMotion } from '@web/modules/map-shell/use-breakpoint'
 import { provideSavedDeals } from '@web/modules/map-shell/use-saved-deals'
@@ -41,6 +41,7 @@ import { SHEET_EXPANDED, SHEET_FULL, useShellLayout } from '@web/modules/map-she
 import { provideToastQueue } from '@web/modules/map-shell/use-toast'
 import { SHEET_CONTROL_KEY } from '@web/modules/squad/sheet-control'
 import { provideSquadRoom } from '@web/modules/squad/use-squad-room'
+import { readPlaceIds } from '@web/modules/venues-feed/place'
 import { pendingNavigationFor } from '@web/router/pending-navigation'
 import type L from 'leaflet'
 import { computed, nextTick, onBeforeUnmount, onMounted, provide, ref, shallowRef, watch } from 'vue'
@@ -82,7 +83,7 @@ const isLobbie = computed(() => route.name === 'lobbie')
 // Makan Squad screens are dark, so the sheet around them (and its grip) goes dark too.
 const isSquadPanel = computed(() => String(route.name ?? '').startsWith('squad'))
 const dealsExperience = computed(
-  () => ['browse', 'saved', 'deal', 'venue'].includes(String(route.name)) && route.query.discovery === '1',
+  () => ['browse', 'saved', 'deal', 'venue', 'place'].includes(String(route.name)) && route.query.discovery === '1',
 )
 // The shell has two layouts: the All Deals page (deal browsing in list view) and the map
 // workspace, with the navigation rail and the panel on the left, for everything else.
@@ -99,7 +100,7 @@ watch(dealDialogOpen, (open) => {
 const listBackground = computed(() => dealsPage.value && (isBrowse.value || dealDialogOpen.value))
 const closeDealDialog = () => router.replace(browseLocation(route.query))
 const wide = computed(() => dealsPage.value ||
-  (['browse', 'saved', 'deal', 'venue'].includes(String(route.name)) && shell.cardMode.value),
+  (['browse', 'saved', 'deal', 'venue', 'place'].includes(String(route.name)) && shell.cardMode.value),
 )
 const mapOnly = computed(() => !authPrompt.value && isBrowse.value && dealsExperience.value && shell.view.value === 'map' && !shell.split.value)
 const collapsed = computed(() => !authPrompt.value && panelHidden.value && breakpoint.value === 'desktop')
@@ -186,7 +187,11 @@ const selectedVenueId = computed(() => {
   if (route.name === 'deal') return selected.value?.venue.id ?? null
   return route.name === 'venue' ? String(route.params.venueId ?? '') : null
 })
-const selectedPin = computed(() => (selectedVenueId.value ? shell.findVenuePin(selectedVenueId.value) : null))
+// A place (one building's outlets) has no single selected pin; the map marks its stack instead
+// and centres on its first outlet.
+const placeVenueIds = computed(() => (route.name === 'place' ? readPlaceIds(route.params.venueIds) : []))
+const focusVenueId = computed(() => selectedVenueId.value ?? placeVenueIds.value[0] ?? null)
+const selectedPin = computed(() => (focusVenueId.value ? shell.findVenuePin(focusVenueId.value) : null))
 const lobbiePins = computed(() => (isLobbie.value ? lobbie.resultPins.value : []))
 const mapFramed = computed(() => lobbiePins.value.length > 0)
 // On a phone the Lobbie chat opens at full height, which leaves only a sliver of map above it.
@@ -348,6 +353,14 @@ const openVenue = (venueId: string) => {
   void router.push(
     pin.deals.length === 1 && only ? dealLocation(resultsQuery.value, only.id, venueId) : venueLocation(resultsQuery.value, venueId),
   )
+}
+
+const openPlace = (venueIds: string[]) => {
+  if (inSquad.value) {
+    toast.show(`You're in Room ${squad.code.value}. Leave the room to open other deals.`)
+    return
+  }
+  void router.push(placeLocation(resultsQuery.value, venueIds))
 }
 
 // On the All Deals page Lobbie lives in a floating window behind the "Ask Lobbie" button in the
@@ -529,10 +542,12 @@ onBeforeUnmount(() => document.documentElement.classList.remove('is-canvas'))
         :user-position="shell.position.value"
         :user-accuracy-metres="shell.accuracyMetres.value"
         :selected-venue-id="selectedVenueId"
+        :place-venue-ids="placeVenueIds"
         :hovered-venue-id="shell.hoveredVenueId.value"
         :hover-enabled="finePointer"
         :reduced-motion="reducedMotion"
         @select="openVenue"
+        @place="openPlace"
         @hover="shell.setHovered"
         @moved="updateMapArea"
         @ready="leaflet = $event"

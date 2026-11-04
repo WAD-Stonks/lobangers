@@ -1,19 +1,10 @@
 <script setup lang="ts">
 import 'leaflet/dist/leaflet.css'
-import 'leaflet.markercluster/dist/MarkerCluster.css'
-import 'leaflet.markercluster/dist/MarkerCluster.Default.css'
-import L from 'leaflet'
-import 'leaflet.markercluster'
 import { useTheme } from '@web/lib/theme'
 import type { AreaBounds } from '@web/modules/browse-map/apply-filters'
 import { readCartoApiKey, resolveBasemap } from '@web/modules/browse-map/basemap'
-import {
-  createGroupIcon,
-  createStackIcon,
-  describeGroup,
-  stackRadiusFor,
-} from '@web/modules/browse-map/cluster-icon'
-import { declutter, type PlacedGroup } from '@web/modules/browse-map/declutter'
+import { createGroupIcon, describeGroup } from '@web/modules/browse-map/cluster-icon'
+import { clusterPins, declutter, type PlacedGroup, pinBox } from '@web/modules/browse-map/declutter'
 import { distanceMetres } from '@web/modules/browse-map/distance'
 import {
   FLY_DURATION_S,
@@ -28,20 +19,20 @@ import {
   USER_DOT_SIZE_PX,
   USER_DOT_Z_OFFSET,
 } from '@web/modules/browse-map/map-config'
+import L from 'leaflet'
 import '@web/modules/browse-map/food-sprite.css'
 import {
-  AREA_FROM_ZOOM,
-  NEAR_PINS_FROM_ZOOM,
+  ISLAND_GROUP_KEY,
   OPEN_GROUP_MAX_ZOOM,
   planMapLayers,
   REGIONS_FROM_ZOOM,
-  STREET_FROM_ZOOM,
 } from '@web/modules/browse-map/map-tiers'
 import { SINGAPORE_BOUNDS, toBoundsTuple } from '@web/modules/browse-map/singapore-bounds'
 import { mountStations, type StationLayer } from '@web/modules/browse-map/station-layer'
 import type { Coordinates, VenuePin } from '@web/modules/browse-map/types'
 import { createVenuePinIcon, type PinState } from '@web/modules/browse-map/venue-pin'
 import { type Ambient, mountAmbient } from '@web/modules/map-ambient/ambient-layer'
+import { sharedBuilding } from '@web/modules/venues-feed/place'
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 
 export type MapOffset = { readonly x: number; readonly y: number }
@@ -57,6 +48,8 @@ const props = withDefaults(
     userPosition?: Coordinates | null
     userAccuracyMetres?: number | null
     selectedVenueId?: string | null
+    // The outlets of an open place panel (one building); their stack shows as selected.
+    placeVenueIds?: readonly string[]
     hoveredVenueId?: string | null
     hoverEnabled?: boolean
     reducedMotion?: boolean
@@ -71,6 +64,7 @@ const props = withDefaults(
     userPosition: null,
     userAccuracyMetres: null,
     selectedVenueId: null,
+    placeVenueIds: () => [],
     hoveredVenueId: null,
     hoverEnabled: true,
     reducedMotion: false,
@@ -79,6 +73,8 @@ const props = withDefaults(
 )
 const emit = defineEmits<{
   select: [id: string]
+  // A stack whose outlets share one spot (a mall) even at the closest zoom.
+  place: [ids: string[]]
   hover: [id: string | null]
   moved: [area: AreaBounds]
   // The Leaflet map is ready; feature layers (Flash Drop, Makan Squad, Hungry Nearby) mount on it.
@@ -89,11 +85,11 @@ const container = ref<HTMLDivElement | null>(null)
 let map: L.Map | null = null
 let tileLayer: L.TileLayer | null = null
 const { theme } = useTheme()
-let pinLayer: L.MarkerClusterGroup | null = null
+let pinLayer: L.LayerGroup | null = null
 let groupLayer: L.LayerGroup | null = null
-let selectedLayer: L.LayerGroup | null = null
 let planKey = ''
 const SETTLED_CLASS = 'is-settled'
+const SELECTED_CLASS = 'is-selected'
 const FRAME_MARGIN_PX = 48
 const FRAME_MAX_ZOOM = 16
 let shownPins = new Set<string>()
@@ -141,81 +137,143 @@ const syncPins = (pins: readonly VenuePin[]) => {
   replan(true)
 }
 
-// Tapping a group zooms far enough to break it into the next tier down, and no further.
-const openZoomFor = (group: PlacedGroup): number => {
-  // The island-wide count opens onto the regions, not past them.
-  if (group.compact) return REGIONS_FROM_ZOOM
-  if (group.kind === 'region') return AREA_FROM_ZOOM
-  return group.kind === 'near' ? NEAR_PINS_FROM_ZOOM : STREET_FROM_ZOOM
+// A group opened from the map: its outlets show as pins from the zoom it opened at, even below
+// street level, until the visitor zooms back out past that zoom.
+let opened: { readonly ids: ReadonlySet<string>; readonly zoom: number } | null = null
+
+const projectAt = (zoom: number) => (point: Coordinates) =>
+  map ? map.project([point.lat, point.lng], zoom) : L.point(0, 0)
+
+// A stack opens at the first zoom where its outlets come apart. Ones that never do share a
+// building, so the panel lists that place's deals instead of zooming any further.
+const openStack = (group: PlacedGroup) => {
+  if (!map) return
+  const from = map.getZoom()
+  const zooms = Array.from({ length: MAX_ZOOM - from }, (_, index) => from + index + 1)
+  const split = zooms.find((zoom) => {
+    const layout = clusterPins(group.venues, projectAt(zoom))
+    return layout.pins.length + layout.stacks.length > 1
+  })
+  if (split === undefined) {
+    emit('place', group.venues.map((venue) => venue.id))
+    return
+  }
+  const bounds = L.latLngBounds(group.venues.map((venue) => L.latLng(venue.lat, venue.lng)))
+  map.flyTo(centreFor(bounds.getCenter(), split), split, { animate: !props.reducedMotion, duration: FLY_DURATION_S })
 }
+
+// A stack whose outlets still overlap at the closest zoom is one building: a mall.
+const isOneSpot = (venues: readonly VenuePin[]) => {
+  const layout = clusterPins(venues, projectAt(MAX_ZOOM))
+  return layout.pins.length + layout.stacks.length === 1
+}
+
+const asPlace = (group: PlacedGroup): PlacedGroup =>
+  group.kind === 'stack' && isOneSpot(group.venues)
+    ? {
+        ...group,
+        kind: 'place',
+        key: group.key.replace(/^stack:/, 'place:'),
+        label: sharedBuilding(group.venues.map((venue) => venue.name)) ?? 'one building',
+      }
+    : group
 
 const openGroup = (group: PlacedGroup) => {
   if (!map) return
+  if (group.kind === 'place') {
+    emit('place', group.venues.map((venue) => venue.id))
+    return
+  }
+  if (group.kind === 'stack') {
+    openStack(group)
+    return
+  }
   const bounds = L.latLngBounds(group.venues.map((venue) => L.latLng(venue.lat, venue.lng)))
+  // The island-wide count opens onto the regions, not past them.
+  if (group.key === ISLAND_GROUP_KEY) {
+    const zoom = Math.max(REGIONS_FROM_ZOOM, map.getZoom() + 1)
+    map.flyTo(centreFor(bounds.getCenter(), zoom), zoom, { animate: !props.reducedMotion, duration: FLY_DURATION_S })
+    return
+  }
+  // Every other group zooms just far enough to show all of its deals at once, never past street
+  // level; a single outlet or a tight cluster stops there instead of diving to the closest zoom.
   const { top, right, bottom, left } = props.viewPadding
   const fitted = map.getBoundsZoom(bounds, false, L.point(left + right + 80, top + bottom + 80))
-  const zoom = Math.min(Math.max(fitted, openZoomFor(group), map.getZoom() + 1), OPEN_GROUP_MAX_ZOOM)
-  const centre = group.kind === 'near' ? L.latLng(group.centre.lat, group.centre.lng) : bounds.getCenter()
-  map.flyTo(centreFor(centre, zoom), zoom, { animate: !props.reducedMotion, duration: FLY_DURATION_S })
+  const zoom = Math.min(fitted, OPEN_GROUP_MAX_ZOOM)
+  opened = { ids: new Set(group.venues.map((venue) => venue.id)), zoom }
+  map.flyTo(centreFor(bounds.getCenter(), zoom), zoom, { animate: !props.reducedMotion, duration: FLY_DURATION_S })
+  // Flying to the zoom already shown fires no zoomend, so redraw the opened pins now.
+  replan()
 }
+
+// What a pill shows and where it sits; when only this changes (a count, the compact form or a
+// nudge at a new zoom) the pill is redrawn in place without its entrance.
+const groupLook = (group: PlacedGroup) =>
+  `${group.dealCount}:${group.compact}:${group.offset.x},${group.offset.y}`
 
 const keyOf = (loose: readonly VenuePin[], groups: readonly PlacedGroup[]) =>
   [
     loose.map((pin) => pin.id).join(','),
-    groups.map((group) => `${group.key}:${group.dealCount}:${group.compact}`).join(','),
+    groups.map((group) => `${group.key}:${groupLook(group)}`).join(','),
   ].join('|')
 
 // Redraws pins and groups for the current zoom, visitor and selection. Skipped when nothing
 // would change, so panning and same-tier zooms stay cheap.
 const replan = (force = false) => {
-  if (!map || !pinLayer || !groupLayer || !selectedLayer) return
+  if (!map || !pinLayer || !groupLayer) return
   const zoom = map.getZoom()
-  const plan = props.framed
+  const openIds = opened?.ids
+  const openPins = openIds ? props.pins.filter((pin) => openIds.has(pin.id)) : []
+  const planned = props.framed
     ? { loose: props.pins, groups: [] }
     : planMapLayers({
-        pins: props.pins,
+        pins: openIds ? props.pins.filter((pin) => !openIds.has(pin.id)) : props.pins,
         zoom,
         user: props.userPosition,
         selectedVenueId: props.selectedVenueId,
       })
-  const projector = map
-  const groups = declutter(plan.groups, (point) => projector.project([point.lat, point.lng], zoom))
-  const key = `${props.framed}|${props.selectedVenueId ?? ''}|${keyOf(plan.loose, groups)}`
+  const plan = props.framed ? planned : { ...planned, loose: [...planned.loose, ...openPins] }
+  const project = projectAt(zoom)
+  // The open outlet is always its own pin, drawn above the rest; the others stack where they
+  // would overlap, and the groups keep clear of all of them.
+  const selected = plan.loose.filter((pin) => pin.id === props.selectedVenueId)
+  const layout = clusterPins(
+    plan.loose.filter((pin) => pin.id !== props.selectedVenueId),
+    project,
+  )
+  const obstacles = [...layout.boxes, ...selected.map((pin) => pinBox(pin, project(pin)))]
+  const groups = [...layout.stacks.map(asPlace), ...declutter(plan.groups, project, obstacles)]
+  const shown = [...selected, ...layout.pins]
+  const place = props.placeVenueIds.join(',')
+  const key = `${props.framed}|${props.selectedVenueId ?? ''}|${place}|${keyOf(shown, groups)}`
   if (!force && key === planKey) return
   planKey = key
-  syncLoosePins(pinLayer, selectedLayer, plan.loose, force)
+  syncLoosePins(pinLayer, shown, force)
   syncGroups(groupLayer, groups)
 }
 
 // Pins and pills that stay on the map keep their elements, so a zoom never blinks them out and
 // replays their entrance; only ones that newly appear animate in.
-const syncLoosePins = (
-  layer: L.MarkerClusterGroup,
-  selected: L.LayerGroup,
-  loose: readonly VenuePin[],
-  rebuilt: boolean,
-) => {
-  const selectedId = loose.some((pin) => pin.id === props.selectedVenueId) ? props.selectedVenueId : null
-  const selectedMarker = selectedId ? markers.get(selectedId)?.marker : undefined
-  const wanted = new Set(loose.map((pin) => pin.id).filter((id) => id !== selectedId))
-  // A marker lives in one layer at a time: let go of the old selection before it rejoins the
-  // stacks, and take the new one out of the stacks before it moves here.
-  if (rebuilt || !selectedMarker || !selected.hasLayer(selectedMarker)) selected.clearLayers()
+const syncLoosePins = (layer: L.LayerGroup, loose: readonly VenuePin[], rebuilt: boolean) => {
+  const wanted = new Set(loose.map((pin) => pin.id))
   if (rebuilt) {
     layer.clearLayers()
     shownPins = new Set()
   }
-  const leaving = [...shownPins].filter((id) => !wanted.has(id))
-  const arriving = [...wanted].filter((id) => !shownPins.has(id))
-  layer.removeLayers(leaving.flatMap((id) => markers.get(id)?.marker ?? []))
-  layer.addLayers(arriving.flatMap((id) => markers.get(id)?.marker ?? []))
+  for (const id of shownPins) {
+    const marker = markers.get(id)?.marker
+    if (!wanted.has(id) && marker) layer.removeLayer(marker)
+  }
+  for (const id of wanted) {
+    const marker = markers.get(id)?.marker
+    if (!shownPins.has(id) && marker) layer.addLayer(marker)
+  }
   shownPins = wanted
-  if (selectedMarker && !selected.hasLayer(selectedMarker)) selected.addLayer(selectedMarker)
 }
 
-// What a pill shows; when only this changes (a count, or the compact form at a new zoom) the
-// pill is redrawn in place without its entrance.
-const groupLook = (group: PlacedGroup) => `${group.dealCount}:${group.compact}`
+// The stack holding the open place's outlets is drawn as selected, like an open outlet's pin.
+const isOpenPlace = (group: PlacedGroup) =>
+  (group.kind === 'stack' || group.kind === 'place') && group.venues.some((venue) => props.placeVenueIds.includes(venue.id))
 
 const syncGroups = (layer: L.LayerGroup, groups: readonly PlacedGroup[]) => {
   const next = new Map(groups.map((group) => [group.key, group]))
@@ -233,6 +291,7 @@ const syncGroups = (layer: L.LayerGroup, groups: readonly PlacedGroup[]) => {
           // Read the latest group at click time: a kept pill's venues can change underneath it.
           .on('click', () => openGroup(groupMarkers.get(key)?.group ?? group))
           .addTo(layer)
+        marker.getElement()?.classList.toggle(SELECTED_CLASS, isOpenPlace(group))
         return [key, { marker, group }]
       }
       kept.marker.setLatLng([group.centre.lat, group.centre.lng])
@@ -242,6 +301,7 @@ const syncGroups = (layer: L.LayerGroup, groups: readonly PlacedGroup[]) => {
         element?.classList.add(SETTLED_CLASS)
         element?.setAttribute('title', describeGroup(group))
       }
+      kept.marker.getElement()?.classList.toggle(SELECTED_CLASS, isOpenPlace(group))
       return [key, { marker: kept.marker, group }]
     }),
   )
@@ -366,19 +426,16 @@ onMounted(() => {
     maxNativeZoom: basemap.maxNativeZoom,
   }).addTo(map)
   stations = mountStations(map)
-  pinLayer = L.markerClusterGroup({
-    animate: !props.reducedMotion,
-    maxClusterRadius: stackRadiusFor,
-    showCoverageOnHover: false,
-    iconCreateFunction: (stack) => createStackIcon(stack.getChildCount()),
-  }).addTo(map)
+  pinLayer = L.layerGroup().addTo(map)
   groupLayer = L.layerGroup().addTo(map)
-  selectedLayer = L.layerGroup().addTo(map)
   userLayer = L.layerGroup().addTo(map)
   ambient = mountAmbient(map, { reducedMotion: props.reducedMotion })
   // Update once the viewport settles after panning, zooming or locating.
   map.on('moveend', publishArea)
-  map.on('zoomend', () => replan())
+  map.on('zoomend', () => {
+    if (opened && map && map.getZoom() < opened.zoom) opened = null
+    replan()
+  })
   syncPins(props.pins)
   syncUserPosition(props.userPosition, props.userAccuracyMetres)
   if (props.framed) frameAll(props.pins)
@@ -397,7 +454,7 @@ watch(
   },
 )
 watch(
-  () => [props.selectedVenueId, props.hoveredVenueId] as const,
+  () => [props.selectedVenueId, props.hoveredVenueId, props.placeVenueIds] as const,
   () => {
     syncPinStates()
     replan()
@@ -432,8 +489,8 @@ onBeforeUnmount(() => {
   tileLayer = null
   pinLayer = null
   groupLayer = null
-  selectedLayer = null
   planKey = ''
+  opened = null
   shownPins = new Set()
   groupMarkers = new Map()
   userLayer = null
@@ -624,9 +681,24 @@ defineExpose({
 /* Other pins stay at full strength while a deal is open, so the next one is easy to find; the
    selected pin stands out by size, lift and glow instead. */
 
+/* A screen of looping foods is tiring to scan, so a pin's food holds still until the pin is
+   hovered or open. */
+.deal-map :deep(.deal-map-pin .food-sprite) {
+  animation-play-state: paused;
+}
+
+.deal-map :deep(.deal-map-pin.is-hot .food-sprite),
+.deal-map :deep(.deal-map-pin.is-selected .food-sprite) {
+  animation-play-state: running;
+}
+
 @media (hover: hover) and (pointer: fine) {
   .deal-map :deep(.deal-map-pin:hover .deal-map-pin__stack) {
     transform: translate(-50%, calc(-100% + 5.5px)) translateY(-3px);
+  }
+
+  .deal-map :deep(.deal-map-pin:hover .food-sprite) {
+    animation-play-state: running;
   }
 }
 
@@ -640,7 +712,7 @@ defineExpose({
     0 8px 20px rgba(27, 27, 31, 0.26);
 }
 
-/* Groups: the same dark oval as a pin, holding up to three of the group's foods, the area name
+/* Groups: the same dark oval as a pin, holding the group's most common food, the area name
    and "n deals · from $x". "Near you" is sky blue like the visitor's dot; regions are a size up;
    a crowded group shrinks to one food and a count. The icon is a zero-size anchor, so the oval
    centres itself on the point. */
@@ -705,6 +777,38 @@ defineExpose({
   }
 }
 
+/* The stack of an open place (one building's outlets) is coral, like an open outlet's pin. */
+.deal-map :deep(.deal-map-cluster.is-selected .deal-map-cluster__chip) {
+  color: var(--on-ink);
+  background: var(--coral);
+}
+
+/* A mall is drawn as an outlet's pin (cluster-icon.ts) with a building before its deal count.
+   Its colours are the pin's inverted, a light oval outlined in the pin's dark, so a building
+   full of shops stands apart from one outlet. With no food standing out of it, it needs no room
+   above the oval. Open or hovered from the list, it turns coral like any pin. */
+.deal-map :deep(.deal-map-pin__building) {
+  flex: none;
+  width: 20px;
+  height: 20px;
+}
+
+.deal-map :deep(.deal-map-pin--place .deal-map-pin__bubble) {
+  margin-top: 0;
+  padding-left: 12px;
+  color: var(--pin-fill);
+  background: var(--pin-text);
+  box-shadow:
+    inset 0 0 0 2px var(--pin-fill),
+    0 8px 20px rgba(27, 27, 31, 0.26);
+}
+
+.deal-map :deep(.deal-map-pin--place.is-hot .deal-map-pin__bubble),
+.deal-map :deep(.deal-map-pin--place.is-selected .deal-map-pin__bubble) {
+  color: var(--pin-text);
+  box-shadow: 0 8px 20px rgba(27, 27, 31, 0.26);
+}
+
 /* Foods overlap a little, like a hand of cards, so three still fit in a short oval. */
 .deal-map :deep(.deal-map-cluster__fan) {
   display: flex;
@@ -755,53 +859,13 @@ defineExpose({
   color: inherit;
 }
 
-/* Outlets sharing one spot (a food court) before they spread out at the closest zoom. */
-.deal-map :deep(.deal-map-stack) {
-  background: transparent;
-  border: 0;
-}
-
-.deal-map :deep(.deal-map-stack__chip) {
-  position: absolute;
-  left: 0;
-  top: 0;
-  padding: 7px 11px;
-  white-space: nowrap;
-  font-family: var(--font-display);
-  font-size: var(--text-xs);
-  font-weight: 600;
-  line-height: 1.35;
-  color: var(--on-ink);
-  background: var(--ink-strong);
-  border: 2px solid var(--paper-white);
-  border-radius: var(--radius-pill);
-  box-shadow: var(--shadow-pill);
-  transform: translate(-50%, -50%);
-  transition:
-    transform 160ms ease-out,
-    background-color 150ms ease;
-  cursor: pointer;
-}
-
-@media (hover: hover) and (pointer: fine) {
-  .deal-map :deep(.deal-map-stack__chip:hover) {
-    background: var(--ink-strong-hover);
-  }
-}
-
-.deal-map :deep(.deal-map-stack__chip:active) {
-  transform: translate(-50%, -50%) scale(0.97);
-}
-
-/* Group and stack markers are zero-size anchors, so the browser's outline has nothing to draw
-   around; the ring goes on the pill itself, as it does on a pin's bubble. */
-.deal-map :deep(.deal-map-cluster:focus-visible),
-.deal-map :deep(.deal-map-stack:focus-visible) {
+/* Group markers are zero-size anchors, so the browser's outline has nothing to draw around; the
+   ring goes on the pill itself, as it does on a pin's bubble. */
+.deal-map :deep(.deal-map-cluster:focus-visible) {
   outline: none;
 }
 
-.deal-map :deep(.deal-map-cluster:focus-visible .deal-map-cluster__chip),
-.deal-map :deep(.deal-map-stack:focus-visible .deal-map-stack__chip) {
+.deal-map :deep(.deal-map-cluster:focus-visible .deal-map-cluster__chip) {
   box-shadow:
     0 0 0 3px var(--sunny-ring),
     var(--shadow-pill);
@@ -851,7 +915,10 @@ defineExpose({
   place-items: center;
   width: 22px;
   height: 22px;
+  /* Landmarks, not content: quiet enough that the deals read first. */
+  opacity: 0.55;
   transform: translate(-50%, -50%);
+  transition: opacity 120ms ease-out;
   cursor: default;
 }
 
@@ -891,6 +958,10 @@ defineExpose({
 }
 
 @media (hover: hover) and (pointer: fine) {
+  .deal-map :deep(.deal-map-station__mark:hover) {
+    opacity: 1;
+  }
+
   .deal-map :deep(.deal-map-station__mark:hover .deal-map-station__dot) {
     transform: scale(1.3);
   }

@@ -54,9 +54,18 @@ export const venueLocation = (query: LocationQuery, venueId: string): RouteLocat
   query: shellQuery(query),
 })
 
+export const placeLocation = (
+  query: LocationQuery,
+  venueIds: readonly string[],
+): RouteLocationRaw => ({
+  name: 'place',
+  params: { venueIds: venueIds.join(',') },
+  query: shellQuery(query),
+})
+
 // Only deal browsing has an All Deals list. Every other panel (account prompts, Squad, codes,
 // Lobbie) opens beside the map, even when its entry link carries the list's view.
-const LIST_PANELS: readonly string[] = ['browse', 'saved', 'deal', 'venue']
+const LIST_PANELS: readonly string[] = ['browse', 'saved', 'deal', 'venue', 'place']
 
 export const routeView = (route: {
   readonly name?: RouteRecordNameGeneric | null

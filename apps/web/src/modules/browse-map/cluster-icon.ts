@@ -1,26 +1,27 @@
 import type { PlacedGroup } from '@web/modules/browse-map/declutter'
 import type { FoodKind } from '@web/modules/browse-map/food-kind'
 import { createFoodSprite } from '@web/modules/browse-map/food-sprite'
+import { DEAL_PIN_CLASS } from '@web/modules/browse-map/map-config'
 import { pinBadgeText, pinFoodKind } from '@web/modules/browse-map/venue-pin'
 import L from 'leaflet'
 
-// A group is the same dark oval as a pin, holding up to three of its foods, its neighbourhood or
-// region and "n deals · from $x"; "Near you" is sky blue to match the visitor's dot. Several
-// foods side by side inside the oval tell a group apart from one outlet. Styled in DealMap.vue.
-export const CLUSTER_CLASS = 'deal-map-cluster'
-// Outlets in the same building (a mall's food court) stack into one chip; neighbouring shops
-// stay separate pins even when they overlap a little.
-export const STACK_CLASS = 'deal-map-stack'
-const SAME_SPOT_METRES = 30
-const MIN_STACK_RADIUS_PX = 8
-const MAX_STACK_RADIUS_PX = 40
-// Web Mercator ground resolution at zoom 0 at Singapore's latitude (1.3° N).
-const METRES_PER_PX_AT_ZOOM_0 = 156_543.03 * Math.cos((1.3 * Math.PI) / 180)
+const SVG_NAMESPACE = 'http://www.w3.org/2000/svg'
+// A building: the tower, its lower wing, the ground line and three rows of windows.
+const BUILDING_PATHS = [
+  'M4 21V5a1 1 0 0 1 1-1h9a1 1 0 0 1 1 1v16',
+  'M15 9h4a1 1 0 0 1 1 1v11',
+  'M2.5 21h19',
+  'M8 8h3',
+  'M8 12h3',
+  'M8 16h3',
+]
 
-export const stackRadiusFor = (zoom: number): number => {
-  const radius = Math.round(SAME_SPOT_METRES / (METRES_PER_PX_AT_ZOOM_0 / 2 ** zoom))
-  return Math.min(MAX_STACK_RADIUS_PX, Math.max(MIN_STACK_RADIUS_PX, radius))
-}
+// A group is the same dark oval as a pin, holding its most common food, its neighbourhood or
+// region and "n deals · from $x"; "Near you" is sky blue to match the visitor's dot. One food
+// keeps a screen of groups calm; the name and count tell it apart from one outlet. Every
+// cluster without room for a name (a crowded group, the island-wide count, a stack of
+// overlapping pins) is the same compact dot: one food and its deal count. Styled in DealMap.vue.
+export const CLUSTER_CLASS = 'deal-map-cluster'
 
 const span = (className: string, text: string): HTMLSpanElement => {
   const element = document.createElement('span')
@@ -31,12 +32,17 @@ const span = (className: string, text: string): HTMLSpanElement => {
 
 const deals = (count: number) => `${count} ${count === 1 ? 'deal' : 'deals'}`
 
-export const describeGroup = (group: PlacedGroup): string =>
-  group.kind === 'near'
-    ? `${deals(group.dealCount)} within a 10-minute walk`
-    : `${deals(group.dealCount)} in ${group.label}`
+const DESCRIBE: Record<PlacedGroup['kind'], (group: PlacedGroup) => string> = {
+  near: (group) => `${deals(group.dealCount)} within a 10-minute walk`,
+  area: (group) => `${deals(group.dealCount)} in ${group.label}`,
+  region: (group) => `${deals(group.dealCount)} in ${group.label}`,
+  stack: (group) => `${deals(group.dealCount)} at ${group.venues.length} places close together`,
+  place: (group) => `${deals(group.dealCount)} at ${group.venues.length} shops in ${group.label}`,
+}
 
-const MAX_GROUP_FOODS = 3
+export const describeGroup = (group: PlacedGroup): string => DESCRIBE[group.kind](group)
+
+const MAX_GROUP_FOODS = 1
 
 // The group's most common foods, most common first, without repeats.
 export const groupFoods = (
@@ -60,7 +66,46 @@ export const groupMeta = (group: Pick<PlacedGroup, 'venues' | 'dealCount'>): str
 
 // Built from DOM nodes; the name and count are set as text, never HTML. The icon is a
 // zero-size anchor so the oval can centre itself on the point whatever its width.
+const createBuilding = (): SVGSVGElement => {
+  const svg = document.createElementNS(SVG_NAMESPACE, 'svg')
+  svg.setAttribute('class', `${DEAL_PIN_CLASS}__building`)
+  svg.setAttribute('viewBox', '0 0 24 24')
+  svg.setAttribute('fill', 'none')
+  svg.setAttribute('stroke', 'currentColor')
+  svg.setAttribute('stroke-width', '2.2')
+  svg.setAttribute('stroke-linecap', 'round')
+  svg.setAttribute('stroke-linejoin', 'round')
+  svg.setAttribute('aria-hidden', 'true')
+  for (const d of BUILDING_PATHS) {
+    const path = document.createElementNS(SVG_NAMESPACE, 'path')
+    path.setAttribute('d', d)
+    svg.append(path)
+  }
+  return svg
+}
+
+// A mall is drawn as an outlet's pin (venue-pin.ts), so it reads as a place to go rather than
+// a count to open: an oval holding a building and "n deals", on a stem down to a dot on the
+// building's exact spot. No food: a mall has many, and the building says what it is. It takes the pin's classes,
+// so it is hovered, focused and opened (coral) like a pin; `--place` inverts its colours.
+const createPlaceMarker = (group: PlacedGroup): HTMLElement => {
+  const part = (name: string, text?: string) => span(`${DEAL_PIN_CLASS}__${name}`, text ?? '')
+  const bubble = part('bubble')
+  bubble.append(createBuilding(), part('badge', deals(group.dealCount)))
+  const root = part('stack')
+  root.setAttribute('aria-label', describeGroup(group))
+  root.append(bubble, part('stem'), part('dot'))
+  return root
+}
+
 export const createGroupIcon = (group: PlacedGroup): L.DivIcon => {
+  if (group.kind === 'place')
+    return L.divIcon({
+      className: `${CLUSTER_CLASS} ${DEAL_PIN_CLASS} ${DEAL_PIN_CLASS}--place`,
+      html: createPlaceMarker(group),
+      iconSize: [0, 0],
+      iconAnchor: [0, 0],
+    })
   const chip = document.createElement('div')
   chip.className = [
     `${CLUSTER_CLASS}__chip`,
@@ -69,7 +114,7 @@ export const createGroupIcon = (group: PlacedGroup): L.DivIcon => {
   ].join(' ')
   chip.setAttribute('aria-label', describeGroup(group))
   const fan = span(`${CLUSTER_CLASS}__fan`, '')
-  for (const kind of groupFoods(group, group.compact ? 1 : MAX_GROUP_FOODS))
+  for (const kind of groupFoods(group))
     fan.append(createFoodSprite(kind, { animated: false, phase: 0 }))
   if (fan.childElementCount > 0) chip.append(fan)
   if (group.compact) {
@@ -83,9 +128,4 @@ export const createGroupIcon = (group: PlacedGroup): L.DivIcon => {
   // A negative anchor draws the pill `offset` px away from the group's point.
   const anchor: L.PointTuple = [-group.offset.x || 0, -group.offset.y || 0]
   return L.divIcon({ className: CLUSTER_CLASS, html: chip, iconSize: [0, 0], iconAnchor: anchor })
-}
-
-export const createStackIcon = (outletCount: number): L.DivIcon => {
-  const chip = span(`${STACK_CLASS}__chip`, `${outletCount} places`)
-  return L.divIcon({ className: STACK_CLASS, html: chip, iconSize: [0, 0] })
 }

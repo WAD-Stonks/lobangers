@@ -4,16 +4,19 @@ import DealRowList from '@web/modules/browse-map/DealRowList.vue'
 import FoodDealGrid from '@web/modules/browse-map/FoodDealGrid.vue'
 import type { DealRow } from '@web/modules/browse-map/types'
 import PanelFrame from '@web/modules/map-shell/PanelFrame.vue'
-import { browseLocation, dealLocation } from '@web/modules/map-shell/shell-routes'
+import { browseLocation, dealLocation, venueLocation } from '@web/modules/map-shell/shell-routes'
 import { useShell } from '@web/modules/map-shell/shell-state'
 import { endedLabel, initials, offerLabel } from '@web/modules/venues-feed/deal-format'
-import { useVenueDetail } from '@web/modules/venues-feed/use-venue-detail'
+import { placeAddress, placeName, readPlaceIds } from '@web/modules/venues-feed/place'
+import { useVenueDetails } from '@web/modules/venues-feed/use-venue-detail'
 import { toVenueDealRows } from '@web/modules/venues-feed/venue-deal-rows'
 import { computed, ref, watch } from 'vue'
 import { type LocationQueryValue, RouterLink, useRoute, useRouter } from 'vue-router'
 
 // An outlet over the map: its live deals (each links to the deal panel), past deals and
-// details, in three tabs. The map keeps the outlet's pin selected while this is open.
+// details, in three tabs. The map keeps the outlet's pin selected while this is open. A place
+// (several outlets in one building, opened from a stack on the map) is the same panel under
+// the building's name, listing every outlet's deals together.
 type VenueTab = 'now' | 'past' | 'about'
 
 const TABS: readonly { value: VenueTab; label: string }[] = [
@@ -34,28 +37,43 @@ const readTab = (value: LocationQueryValue | LocationQueryValue[] | undefined): 
   TABS.find((item) => item.value === value)?.value ?? DEFAULT_TAB
 const tab = ref<VenueTab>(readTab(route.query.tab))
 
-const venueId = computed(() => String(route.params.venueId ?? ''))
-const { state, detail, reload: load } = useVenueDetail(venueId)
+const isPlace = computed(() => route.name === 'place')
+const venueIds = computed<readonly string[]>(() =>
+  isPlace.value ? readPlaceIds(route.params.venueIds) : [String(route.params.venueId ?? '')],
+)
+const venueId = computed(() => venueIds.value.join(','))
+const { state, details, reload: load } = useVenueDetails(venueIds)
+const venues = computed(() => details.value.map((item) => item.venue))
+const detail = computed(() => details.value[0] ?? null)
+const noun = computed(() => (isPlace.value ? 'place' : 'venue'))
 const backTo = computed(() => browseLocation(route.query))
 const title = computed(() => {
-  if (detail.value) return detail.value.venue.name
-  return state.value === 'not-found' ? 'Venue not found' : state.value === 'error' ? 'Unable to load this venue' : 'Loading venue…'
+  if (detail.value) return isPlace.value ? placeName(venues.value) : detail.value.venue.name
+  if (state.value === 'not-found') return isPlace.value ? 'Place not found' : 'Venue not found'
+  return state.value === 'error' ? `Unable to load this ${noun.value}` : `Loading ${noun.value}…`
 })
-const address = computed(() => {
-  const venue = detail.value?.venue
-  if (!venue) return ''
-  return venue.postalCode ? `${venue.address}, Singapore ${venue.postalCode}` : venue.address
-})
+const address = computed(() => placeAddress(venues.value))
+const logo = computed(() => initials(isPlace.value ? title.value : (detail.value?.venue.merchantName ?? '')))
 
-// Same cards as the browse list, reusing the map's loaded copy of each deal when it has one.
+// Same cards as the browse list, reusing the map's loaded copy of each deal when it has one. A
+// deal that several outlets here run is listed once, at the first of them.
 const rows = computed(() => {
-  const venue = detail.value?.venue
-  if (!venue) return []
-  return toVenueDealRows(venue, detail.value?.deals ?? [], {
-    deals: shell.deals.value,
-    pin: shell.findVenuePin(venue.id),
-    position: shell.position.value,
-  })
+  const seen = new Set<string>()
+  return details.value
+    .flatMap((item) =>
+      toVenueDealRows(item.venue, item.deals, {
+        deals: shell.deals.value,
+        pin: shell.findVenuePin(item.venue.id),
+        position: shell.position.value,
+      }),
+    )
+    .filter((row) => !seen.has(row.deal.id) && seen.add(row.deal.id))
+})
+const pastDeals = computed(() => {
+  const seen = new Set<string>()
+  return details.value
+    .flatMap((item) => item.pastDeals)
+    .filter((deal) => !seen.has(deal.id) && seen.add(deal.id))
 })
 const toDeal = (row: DealRow) => dealLocation(route.query, row.deal.id, row.venue.id)
 
@@ -95,7 +113,7 @@ watch(venueId, () => {
     <TicketLoading v-if="state === 'loading'" class="lb-meta" label="Loading venue…" />
 
     <div v-else-if="state === 'not-found'" class="lb-state" role="alert">
-      <p class="lb-state__body">This venue does not exist or is no longer listed.</p>
+      <p class="lb-state__body">This {{ noun }} does not exist or is no longer listed.</p>
       <RouterLink class="lb-btn lb-btn--ink" :to="backTo">See other deals</RouterLink>
     </div>
 
@@ -106,11 +124,11 @@ watch(venueId, () => {
 
     <template v-else-if="detail">
       <div class="venue-panel__intro">
-        <span class="venue-panel__logo" aria-hidden="true">{{ initials(detail.venue.merchantName) }}</span>
+        <span class="venue-panel__logo" aria-hidden="true">{{ logo }}</span>
         <span class="lb-meta lb-text-wrap">{{ address }}</span>
       </div>
 
-      <div class="lb-tabs" role="tablist" aria-label="Venue sections" @keydown="onTabKeydown">
+      <div class="lb-tabs" role="tablist" :aria-label="isPlace ? 'Place sections' : 'Venue sections'" @keydown="onTabKeydown">
         <button v-for="item in TABS" :id="`venue-tab-${item.value}`" :key="item.value" type="button" role="tab"
           class="lb-tab" :aria-selected="tab === item.value" :tabindex="tab === item.value ? 0 : -1"
           aria-controls="venue-tabpanel" @click="selectTab(item.value)">
@@ -120,16 +138,16 @@ watch(venueId, () => {
 
       <div id="venue-tabpanel" role="tabpanel" :aria-labelledby="`venue-tab-${tab}`">
         <template v-if="tab === 'now'">
-          <p v-if="rows.length === 0" class="lb-meta">No ongoing deals at this venue right now.</p>
+          <p v-if="rows.length === 0" class="lb-meta">No ongoing deals at this {{ noun }} right now.</p>
           <!-- On the map a venue's deals are a list, like the map's results; All Deals keeps cards. -->
           <DealRowList v-else-if="shell.view.value === 'map'" :rows="rows" :to="toDeal" test-id="venue-deals" />
           <FoodDealGrid v-else :rows="rows" :to="toDeal" two-column />
         </template>
 
         <template v-else-if="tab === 'past'">
-          <p v-if="detail.pastDeals.length === 0" class="lb-meta">No past deals at this venue yet.</p>
+          <p v-if="pastDeals.length === 0" class="lb-meta">No past deals at this {{ noun }} yet.</p>
           <ul v-else class="venue-panel__past" aria-label="Past deals">
-            <li v-for="deal in detail.pastDeals" :key="deal.id" data-testid="venue-past-deal">
+            <li v-for="deal in pastDeals" :key="deal.id" data-testid="venue-past-deal">
               <span class="venue-panel__past-text">
                 <strong class="lb-text-wrap">{{ deal.title }}</strong>
                 <span class="lb-meta">{{ endedLabel(deal) }}</span>
@@ -147,6 +165,16 @@ watch(venueId, () => {
           <div v-if="detail.venue.area">
             <dt class="lb-meta">Area</dt>
             <dd>{{ detail.venue.area }}</dd>
+          </div>
+          <div v-if="isPlace">
+            <dt class="lb-meta">Outlets here</dt>
+            <dd>
+              <ul class="venue-panel__outlets">
+                <li v-for="venue in venues" :key="venue.id">
+                  <RouterLink class="lb-text-wrap" :to="venueLocation(route.query, venue.id)">{{ venue.name }}</RouterLink>
+                </li>
+              </ul>
+            </dd>
           </div>
         </dl>
       </div>
@@ -207,5 +235,18 @@ watch(venueId, () => {
 .venue-panel__about dd {
   margin: 2px 0 0;
   font-weight: 600;
+}
+
+.venue-panel__outlets {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.venue-panel__outlets a {
+  color: inherit;
 }
 </style>

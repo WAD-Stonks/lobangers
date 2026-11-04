@@ -72,6 +72,13 @@ const routes: RouteRecordRaw[] = [
         meta: { panelLabel: 'Venue' },
       },
       {
+        // Several outlets in one building, opened from a stack on the map.
+        path: '/places/:venueIds',
+        name: 'place',
+        component: VenuePanel,
+        meta: { panelLabel: 'Place' },
+      },
+      {
         path: '/ask-lobbie',
         name: 'lobbie',
         component: LobbiePanel,
