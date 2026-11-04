@@ -20,6 +20,7 @@ vi.mock('@web/modules/add-deal/add-deal-api', async (importOriginal) => ({
 
 const router = vi.hoisted(() => ({
   push: vi.fn(),
+  replace: vi.fn(),
   back: vi.fn(),
   options: { history: { state: {} } },
 }))
@@ -342,7 +343,10 @@ describe('add a deal form', () => {
     })
     expect(photo).toBeInstanceOf(File)
     expect(wrapper.find('.popup-stub').exists()).toBe(false)
-    expect(router.push).toHaveBeenCalledWith({ path: '/me/submissions', query: { submitted: '1' } })
+    expect(router.replace).toHaveBeenCalledWith({
+      path: '/me/submissions',
+      query: { submitted: '1' },
+    })
     expect(wrapper.get('#deal-title').element).toHaveProperty('value', '')
     expect(wrapper.find('.add-deal__preview').exists()).toBe(false)
     expect(stepShown(wrapper)).toContain('Deal Details')
@@ -361,6 +365,6 @@ describe('add a deal form', () => {
     )
     expect(wrapper.get('#deal-title').element).toHaveProperty('value', '  1-for-1 chicken rice  ')
     expect(wrapper.get('button[type="submit"]').element).toHaveProperty('disabled', false)
-    expect(router.push).not.toHaveBeenCalled()
+    expect(router.replace).not.toHaveBeenCalled()
   })
 })

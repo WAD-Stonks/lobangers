@@ -1,7 +1,12 @@
+import {
+  type AuthenticatedActor,
+  requireActiveSessionWrite,
+} from '@api/modules/account/security-access'
 import { catalogueVenueSelect } from '@api/modules/deals/catalogue-select'
 import { isPickableStall } from '@api/modules/deals/community-stalls'
 import { dayOf, endAfterDay, startOfDay } from '@api/modules/deals/deal-dates'
 import { DomainError } from '@api/modules/domain-error'
+import { accessTransaction } from '@api/modules/platform-admin/transaction'
 import { activeRecord } from '@api/modules/platform-admin/venues'
 import type { SubmitDealBody } from '@broke-oclock/contracts/deal-forms'
 import type { db } from '@broke-oclock/db'
@@ -80,3 +85,25 @@ export const submitCommunityDeal = async (
     throw error
   }
 }
+
+export const deletePendingSubmission = async (
+  database: Database,
+  actor: AuthenticatedActor,
+  dealId: string,
+  now: Date,
+): Promise<void> =>
+  accessTransaction(database, async (tx) => {
+    await requireActiveSessionWrite(tx, actor)
+    const owned = { id: dealId, submittedById: actor.userId, ...activeRecord }
+    const deleted = await tx.deal.updateMany({
+      where: { ...owned, reviewStatus: 'PENDING' },
+      data: { deletedAt: now },
+    })
+    if (deleted.count === 1) return
+    const deal = await tx.deal.findFirst({ where: owned, select: { id: true } })
+    if (!deal) throw new DomainError('NOT_FOUND', 'This submission was not found')
+    throw new DomainError(
+      'PRECONDITION_FAILED',
+      'Only a deal that is still pending review can be deleted',
+    )
+  })

@@ -708,6 +708,79 @@ describe('community deal submission', () => {
     expect((await call(member, 'POST', '/deals', { ...body, terms: '  ' })).status).toBe(400)
     expect((await call(member, 'PUT', '/deals', body)).status).toBe(405)
   })
+
+  it('lists every detail of a submission, including its stalls and photo', async () => {
+    const [a, b] = await selectableStalls('Details', 2)
+    const file = await photo(member.id)
+    const created = await call(member, 'POST', '/deals', submission([a.id, b.id], file.key))
+
+    const mine = await call(member, 'GET', '/account/submissions')
+    const listed = mine.body.items.find((item: { id: string }) => item.id === created.body.id)
+    expect(listed).toMatchObject({
+      title: '50% off kopi',
+      description: 'Half-price kopi all day.',
+      category: 'DRINKS',
+      cuisine: null,
+      offerType: 'PERCENT_OFF',
+      discountPercent: 50,
+      priceCents: null,
+      startDate: '2026-11-01',
+      endDate: '2099-11-30',
+      terms: 'Takeaway only',
+      photoUrl: 'https://synthetic.example.test/photo.webp',
+      reviewStatus: 'PENDING',
+    })
+    expect(ids(listed.stalls).sort()).toEqual([a.id, b.id].sort())
+    expect(listed.stalls[0]).toEqual({
+      id: expect.any(String),
+      name: expect.any(String),
+      address: expect.any(String),
+    })
+  })
+
+  it('deletes only the member’s own submission while it is still pending', async () => {
+    const [stall] = await selectableStalls('Delete', 1)
+    const pending = await call(
+      member,
+      'POST',
+      '/deals',
+      submission([stall.id], (await photo(member.id)).key),
+    )
+    const reviewed = await call(
+      member,
+      'POST',
+      '/deals',
+      submission([stall.id], (await photo(member.id)).key),
+    )
+    await db.deal.update({ where: { id: reviewed.body.id }, data: { reviewStatus: 'APPROVED' } })
+    const path = (id: string) => `/account/submissions/${id}`
+
+    expect((await call(null, 'DELETE', path(pending.body.id))).status).toBe(401)
+    expect(
+      (await call(member, 'DELETE', path(pending.body.id), undefined, 'https://evil.example'))
+        .status,
+    ).toBe(403)
+    expect((await call(merchant, 'DELETE', path(pending.body.id))).status).toBe(404)
+    const approved = await call(member, 'DELETE', path(reviewed.body.id))
+    expect(approved.status).toBe(412)
+    expect(approved.body.error.message).toBe(
+      'Only a deal that is still pending review can be deleted',
+    )
+    expect((await call(member, 'GET', path(pending.body.id))).status).toBe(405)
+
+    const deleted = await call(member, 'DELETE', path(pending.body.id))
+    expect(deleted).toEqual({ status: 200, body: { deleted: true } })
+    expect(
+      (await db.deal.findUniqueOrThrow({ where: { id: pending.body.id } })).deletedAt,
+    ).not.toBeNull()
+    expect(
+      (await db.deal.findUniqueOrThrow({ where: { id: reviewed.body.id } })).deletedAt,
+    ).toBeNull()
+    expect((await call(member, 'DELETE', path(pending.body.id))).status).toBe(404)
+    const listed = ids((await call(member, 'GET', '/account/submissions')).body.items)
+    expect(listed).not.toContain(pending.body.id)
+    expect(listed).toContain(reviewed.body.id)
+  })
 })
 
 describe('stalls for a community deal', () => {

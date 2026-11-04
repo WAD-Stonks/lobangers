@@ -18,6 +18,8 @@ import {
   bookmarksResponseSchema,
   createMerchantRequestBodySchema,
   myMerchantRequestsResponseSchema,
+  submissionDeletedSchema,
+  submissionParamsSchema,
   submissionsResponseSchema,
 } from '@broke-oclock/contracts/account'
 import {
@@ -388,6 +390,10 @@ export const createApiClient = (baseURL = '/api') => {
           http.get('/account/submissions', { params: query }),
           submissionsResponseSchema,
         )
+      },
+      deleteSubmission: (dealId: string) => {
+        const { dealId: id } = validateInput(submissionParamsSchema, { dealId })
+        return request(http.delete(`/account/submissions/${id}`), submissionDeletedSchema)
       },
       venues: (input: QueryInput<typeof accountVenuesQuerySchema> = {}) => {
         const query = validateInput(accountVenuesQuerySchema, input)

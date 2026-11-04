@@ -1,3 +1,4 @@
+import { offerTypeSchema } from '@contracts/deals'
 import {
   merchantRequestStatusSchema,
   platformObjectIdSchema,
@@ -39,15 +40,32 @@ export const bookmarkSchema = z.object({
 })
 export const bookmarksResponseSchema = platformPageSchema(bookmarkSchema)
 
+export const submissionStallSchema = z.object({
+  id: platformObjectIdSchema,
+  name: z.string(),
+  address: z.string(),
+})
 export const submissionSchema = z.object({
   id: platformObjectIdSchema,
   title: z.string(),
+  description: z.string(),
   category: z.string(),
+  cuisine: z.string().nullable(),
+  offerType: offerTypeSchema,
+  discountPercent: z.number().int().nullable(),
+  priceCents: z.number().int().nullable(),
+  startDate: z.string().nullable(),
+  endDate: z.string().nullable(),
+  terms: z.string().nullable(),
+  photoUrl: z.string().nullable(),
+  stalls: z.array(submissionStallSchema),
   reviewStatus: z.enum(['PENDING', 'APPROVED', 'REJECTED', 'HIDDEN']),
   reviewNote: z.string().nullable(),
   createdAt: z.string().datetime(),
 })
 export const submissionsResponseSchema = platformPageSchema(submissionSchema)
+export const submissionParamsSchema = z.strictObject({ dealId: platformObjectIdSchema })
+export const submissionDeletedSchema = z.object({ deleted: z.literal(true) })
 
 export const accountVenuesQuerySchema = z.strictObject({
   search: z.string().trim().max(100).optional(),
@@ -73,6 +91,7 @@ export type AccountProfile = z.infer<typeof accountProfileSchema>
 export type BookmarkState = z.infer<typeof bookmarkStateSchema>
 export type Bookmark = z.infer<typeof bookmarkSchema>
 export type Submission = z.infer<typeof submissionSchema>
+export type SubmissionStall = z.infer<typeof submissionStallSchema>
 export type AccountVenue = z.infer<typeof platformVenueSchema>
 export type CreateMerchantRequestBody = z.input<typeof createMerchantRequestBodySchema>
 export type MyMerchantRequest = z.infer<typeof myMerchantRequestSchema>

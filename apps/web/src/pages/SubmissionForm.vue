@@ -280,7 +280,7 @@ const sendDeal = async () => {
     submitting.value = false
   }
   clearForm()
-  await router.push({ path: '/me/submissions', query: { submitted: '1' } })
+  await router.replace({ path: '/me/submissions', query: { submitted: '1' } })
 }
 
 // Empties every field and goes back to the first step, so the user can add another deal.
