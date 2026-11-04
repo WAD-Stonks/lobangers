@@ -2,7 +2,6 @@
 import { ASSISTANT_MESSAGE_MAX_CHARS } from '@broke-oclock/contracts/assistant'
 import DealRowList from '@web/modules/browse-map/DealRowList.vue'
 import type { DealRow } from '@web/modules/browse-map/types'
-import { filterTokens } from '@web/modules/lobbie/filter-labels'
 import LobbieWindowFrame from '@web/modules/lobbie/LobbieWindowFrame.vue'
 import { lobbieSpriteUrl, PRELOAD_SPRITES } from '@web/modules/lobbie/sprites'
 import { LOBBIE_SUGGESTIONS, useLobbieChat } from '@web/modules/lobbie/use-lobbie-chat'
@@ -33,7 +32,6 @@ let refocus = false
 const backTo = computed(() => browseLocation(route.query))
 const showSuggestions = computed(() => !chat.entries.value.some((entry) => entry.role === 'user'))
 const canSend = computed(() => draft.value.trim().length > 0 && !chat.pending.value)
-const activeTokens = computed(() => filterTokens(chat.activeFilters.value))
 
 onMounted(() => {
   for (const sprite of PRELOAD_SPRITES) new Image().src = lobbieSpriteUrl(sprite)
@@ -164,29 +162,6 @@ watch(
 
     <template #actions>
       <div class="lobbie__bottom">
-      <fieldset v-if="activeTokens.length > 0" class="lobbie__active" data-testid="lobbie-active-filters">
-        <legend class="visually-hidden">Filters Lobbie is using</legend>
-        <button
-          v-for="token in activeTokens"
-          :key="token.key"
-          type="button"
-          class="lobbie__chip"
-          :disabled="chat.pending.value"
-          :aria-label="`Remove filter ${token.label}`"
-          @click="chat.removeFilter(token)"
-        >
-          <span class="lb-text-wrap">{{ token.label }}</span><ShellIcon name="close" :size="14" :stroke-width="2.4" />
-        </button>
-        <button
-          type="button"
-          class="lobbie__chip lobbie__chip--clear"
-          :disabled="chat.pending.value"
-          data-testid="lobbie-clear-filters"
-          @click="chat.clearFilters"
-        >
-          Clear all
-        </button>
-      </fieldset>
       <form class="lobbie__composer" data-testid="lobbie-composer" @submit.prevent="submit">
         <label class="visually-hidden" :for="inputId">Message Lobbie</label>
         <input
@@ -386,53 +361,6 @@ watch(
   grid-column: 1 / -1;
   gap: var(--space-2);
   min-width: 0;
-}
-
-.lobbie__active {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  min-width: 0;
-  margin: 0;
-  padding: 0;
-  border: 0;
-}
-
-.lobbie__chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  max-width: 100%;
-  min-height: var(--hit);
-  padding: 0 8px 0 12px;
-  font: 600 0.75rem / 1.2 var(--font-sans);
-  color: var(--ink);
-  background: var(--paper);
-  border: 1px solid var(--hairline);
-  border-radius: var(--radius-pill);
-  cursor: pointer;
-  transition: background-color 150ms ease;
-}
-
-.lobbie__chip:hover:not(:disabled) {
-  background: var(--tag-end-bg);
-}
-
-.lobbie__chip--clear {
-  padding: 0 10px;
-  color: var(--coral-deep);
-  background: transparent;
-  border-color: transparent;
-}
-
-.lobbie__chip:disabled {
-  cursor: progress;
-  opacity: 0.6;
-}
-
-.lobbie__chip:focus-visible {
-  outline: 3px solid var(--sunny-ring);
-  outline-offset: 2px;
 }
 
 .lobbie__composer {

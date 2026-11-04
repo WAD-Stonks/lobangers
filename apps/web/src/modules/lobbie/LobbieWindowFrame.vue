@@ -128,4 +128,27 @@ onBeforeUnmount(() => resizes?.disconnect())
   padding: 12px 16px 16px;
   border-top: 1px solid var(--hairline);
 }
+
+/* Phones: a slimmer header and edges leave more of the screen for the conversation. */
+@media (max-width: 599.98px) {
+  .lobbie-window {
+    border-radius: 22px;
+  }
+
+  .lobbie-window__header {
+    padding: 10px 10px 10px 16px;
+  }
+
+  .lobbie-window__subtitle {
+    display: none;
+  }
+
+  .lobbie-window__body {
+    padding: 14px;
+  }
+
+  .lobbie-window__actions {
+    padding: 10px 12px 12px;
+  }
+}
 </style>
