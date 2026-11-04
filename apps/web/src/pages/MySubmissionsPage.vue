@@ -517,7 +517,7 @@ onMounted(() => {
 </style>
 
 <style>
-.submission-modal {
+.modal.submission-modal {
   --bs-modal-zindex: 1110;
 }
 </style>
