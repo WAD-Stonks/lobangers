@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import AuthLobbie from '@web/components/auth/AuthLobbie.vue'
+import GoogleSignUp from '@web/components/auth/GoogleSignUp.vue'
 import '@web/components/auth/auth.css'
 import { authClient } from '@web/lib/auth-client'
 import { focusFirstInvalid } from '@web/lib/form-focus'
@@ -8,7 +9,8 @@ import { RouterLink } from 'vue-router'
 
 // `peek` is the standalone sign-up card: Lobbie over its edge, example and rule hints in the
 // fields (never a repeat of the label), and the page's own link to log in instead of this form's.
-withDefaults(defineProps<{ peek?: boolean }>(), { peek: false })
+// `destination` is where Google sends the visitor once the account exists.
+withDefaults(defineProps<{ peek?: boolean; destination?: string }>(), { peek: false, destination: '/deals' })
 const emit = defineEmits<{ registered: [needsVerification: boolean] }>()
 
 const form = reactive({ name: '', email: '', password: '', confirm: '' })
@@ -185,6 +187,7 @@ const register = async () => {
       <button type="submit" class="btn auth-primary" :disabled="pending">
         {{ pending ? 'Creating account…' : 'Sign up' }}
       </button>
+      <GoogleSignUp :destination="destination" :disabled="pending" />
     </div>
     <p v-if="!peek" class="text-secondary small mt-3 mb-0">
       Already have an account? <RouterLink :to="{ name: 'login' }">Log in</RouterLink>

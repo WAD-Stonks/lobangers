@@ -1,4 +1,4 @@
-import { authGuard, safeRedirect } from '@web/router/guards'
+import { afterLoginPath, authGuard, safeRedirect } from '@web/router/guards'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { RouteLocationNormalized } from 'vue-router'
 
@@ -90,5 +90,16 @@ describe('safeRedirect', () => {
     expect(safeRedirect('https://evil.example')).toBe('/')
     expect(safeRedirect('/\\evil.example')).toBe('/')
     expect(safeRedirect(undefined)).toBe('/')
+  })
+})
+
+describe('afterLoginPath', () => {
+  it('returns Squad invites to the room and everything else to All Deals', () => {
+    expect(afterLoginPath('/squad/join?code=KOPI')).toBe('/squad/join?code=KOPI')
+    expect(afterLoginPath('/squad/KOPI')).toBe('/squad/KOPI')
+    expect(afterLoginPath('/saved')).toBe('/deals')
+    expect(afterLoginPath('/squadron')).toBe('/deals')
+    expect(afterLoginPath('//evil.example/squad/KOPI')).toBe('/deals')
+    expect(afterLoginPath(undefined)).toBe('/deals')
   })
 })

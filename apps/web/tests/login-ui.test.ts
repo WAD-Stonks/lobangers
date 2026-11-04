@@ -246,6 +246,26 @@ it.each(['/saved?tab=all#top', '/submit-deal', 'https://evil.test', '//evil.test
     expect(router.currentRoute.value.fullPath).toBe('/deals')
   },
 )
+it.each(['/squad/join?code=KOPI', '/squad/KOPI'])(
+  'password sign-in from a Squad invite returns to %s',
+  async (destination) => {
+    const { wrapper, router } = await loginPage(destination)
+    await wrapper.get('#login-email').setValue('person@example.test')
+    await wrapper.get('#login-password').setValue('synthetic-password')
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+    expect(router.currentRoute.value.fullPath).toBe(destination)
+  },
+)
+it('Google sign-in from a Squad invite returns to the invite', async () => {
+  const { wrapper } = await loginPage('/squad/join?code=KOPI')
+  await wrapper.get('[data-testid="google-sign-in"]').trigger('click')
+  await flushPromises()
+  const callback = new URL('/squad/join?code=KOPI', window.location.origin).href
+  expect(sdk.social).toHaveBeenCalledWith(
+    expect.objectContaining({ callbackURL: callback, newUserCallbackURL: callback }),
+  )
+})
 it('code sign-in is a dedicated step with cooldown, retry, change-email and password return', async () => {
   vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] })
   const { wrapper } = await loginPage('/saved')

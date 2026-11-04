@@ -114,14 +114,50 @@
 }
 
 .squad-room__notice,
-.squad-left,
-.squad-alone {
+.squad-left {
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
   padding: var(--space-4);
   background: var(--squad-surface);
   border-radius: 18px;
+}
+
+/* Two lines: the message, then the actions. Stacked above the match banner (z-index 25),
+   which can rise out of a short stage and would otherwise cover it. */
+.squad-alone {
+  position: relative;
+  z-index: 26;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 10px;
+  background: var(--squad-surface);
+  border-radius: 14px;
+}
+
+.squad-room .squad-alone__text {
+  overflow: hidden;
+  font-size: var(--text-xs);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.squad-alone__text strong {
+  color: var(--squad-text);
+}
+
+.squad-alone__actions {
+  display: flex;
+  gap: 6px;
+}
+
+.squad-room .squad-alone__actions .lb-btn {
+  flex: 1 1 0;
+  min-height: 32px;
+  padding: 0 10px;
+  font-size: 0.8125rem;
+  white-space: nowrap;
 }
 
 .squad-room__loading {
