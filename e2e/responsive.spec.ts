@@ -392,7 +392,7 @@ test('map workspace rail, results and drawer fit desktop and mobile', async ({ p
       const results = await page.getByTestId('shell-panel').boundingBox()
       const search = await page.getByRole('search').boundingBox()
       const controls = await page.getByTestId('map-controls').boundingBox()
-      expect(railBox?.width).toBe(72)
+      expect(railBox?.width).toBe(84)
       expect(results && railBox && results.x >= railBox.x + railBox.width).toBe(true)
       expect(search && railBox && search.x >= railBox.x + railBox.width).toBe(true)
       expect(controls && controls.x > width - 200).toBe(true)

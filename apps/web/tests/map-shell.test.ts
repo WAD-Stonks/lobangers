@@ -478,9 +478,9 @@ describe('collapsing the desktop panel', () => {
     expect(panel(wrapper).attributes('inert')).toBeDefined()
     expect(tab(wrapper).attributes('aria-expanded')).toBe('false')
     expect(tab(wrapper).attributes('aria-label')).toBe('Show results panel')
-    expect(map(wrapper).props('focusOffset')).toEqual({ x: 36, y: 0 })
+    expect(map(wrapper).props('focusOffset')).toEqual({ x: 42, y: 0 })
     expect(map(wrapper).props('viewPadding').right).toBe(0)
-    expect(map(wrapper).props('viewPadding').left).toBe(72)
+    expect(map(wrapper).props('viewPadding').left).toBe(84)
 
     await tab(wrapper).trigger('click')
     expect(panel(wrapper).classes()).not.toContain('is-collapsed')

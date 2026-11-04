@@ -437,6 +437,7 @@ describe('map shell routes', () => {
       'browse',
       'deal',
       'venue',
+      'place',
       'lobbie',
       'login',
       'register',

@@ -1,11 +1,6 @@
-import {
-  CLUSTER_CLASS,
-  createGroupIcon,
-  createStackIcon,
-  STACK_CLASS,
-  stackRadiusFor,
-} from '@web/modules/browse-map/cluster-icon'
+import { CLUSTER_CLASS, createGroupIcon } from '@web/modules/browse-map/cluster-icon'
 import type { PlacedGroup } from '@web/modules/browse-map/declutter'
+import { DEAL_PIN_CLASS } from '@web/modules/browse-map/map-config'
 import { describe, expect, it } from 'vitest'
 
 const group = (overrides: Partial<PlacedGroup>): PlacedGroup => ({
@@ -88,10 +83,10 @@ describe('group foods and prices', () => {
     venue('d', 'Laksa', '$4', 400),
   ] as never
 
-  it('shows up to three different foods inside the oval', () => {
+  it('shows only the most common food inside the oval', () => {
     const chip = chipOf(createGroupIcon(group({ venues })))
     const foods = chip.querySelectorAll(`.${CLUSTER_CLASS}__fan .food-sprite`)
-    expect(foods).toHaveLength(3)
+    expect(foods).toHaveLength(1)
   })
 
   it('leads with the cheapest price in the group', () => {
@@ -113,24 +108,31 @@ describe('createGroupIcon offset', () => {
   })
 })
 
-describe('createStackIcon', () => {
-  it('counts the outlets sharing one spot', () => {
-    const element = createStackIcon(3).createIcon()
-
-    expect(element.querySelector(`.${STACK_CLASS}__chip`)?.textContent).toBe('3 places')
+describe('mall markers', () => {
+  it('draw a pin with a building and the deal count, and no food', () => {
+    const icon = createGroupIcon(
+      group({
+        kind: 'place',
+        compact: true,
+        label: 'Plaza Singapura',
+        dealCount: 2,
+        venues: [venue('a', 'Salmon sushi', 'Free', null)] as never,
+      }),
+    )
+    const stack = icon.createIcon().querySelector(`.${DEAL_PIN_CLASS}__stack`) as HTMLElement
+    expect(icon.options.className).toContain(DEAL_PIN_CLASS)
+    expect(stack.querySelector('.food-sprite')).toBeNull()
+    expect(stack.querySelector(`.${DEAL_PIN_CLASS}__building`)).not.toBeNull()
+    expect(stack.querySelector(`.${DEAL_PIN_CLASS}__badge`)?.textContent).toBe('2 deals')
+    expect(stack.querySelector(`.${DEAL_PIN_CLASS}__dot`)).not.toBeNull()
+    expect(stack.getAttribute('aria-label')).toContain('Plaza Singapura')
   })
 })
 
-describe('stackRadiusFor', () => {
-  it('only stacks outlets in the same building, about 30 m apart', () => {
-    // Around 4.8 m per pixel at zoom 15 and half that each zoom in.
-    expect(stackRadiusFor(15)).toBe(8)
-    expect(stackRadiusFor(16)).toBe(13)
-    expect(stackRadiusFor(17)).toBe(25)
-  })
-
-  it('stays within a sensible pixel range', () => {
-    expect(stackRadiusFor(11)).toBe(8)
-    expect(stackRadiusFor(19)).toBe(40)
+describe('stack dots', () => {
+  it('draw a stack like any other compact cluster: one food and the deal count', () => {
+    const chip = chipOf(createGroupIcon(group({ kind: 'stack', compact: true, dealCount: 5 })))
+    expect(chip.classList).toContain(`${CLUSTER_CLASS}__chip--compact`)
+    expect(chip.querySelector(`.${CLUSTER_CLASS}__count`)?.textContent).toBe('5')
   })
 })

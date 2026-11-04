@@ -90,7 +90,9 @@ onBeforeUnmount(() => emit('menuChange', false))
   font-weight: 650;
   line-height: 1.15;
   text-align: center;
-  overflow-wrap: anywhere;
+  /* Labels wrap between words, never inside one ("Dashboar / d"); keep them to a word or two. */
+  overflow-wrap: normal;
+  hyphens: manual;
   border-radius: 14px;
   transition:
     transform var(--dur-press) var(--ease-out),

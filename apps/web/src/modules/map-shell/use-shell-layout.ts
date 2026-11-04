@@ -17,7 +17,8 @@ export const WIDE_PANEL_COMPACT_RATIO = 0.58
 const COMPACT_DESKTOP_MAX_PX = 1279
 const SHEET_HALF_RATIO = { phone: 0.58, tablet: 0.46 } as const
 export const SHEET_PEEK_PX = 120
-export const MAP_RAIL_WIDTH_PX = 72
+// Wide enough that the longest rail label ("Dashboard") sits on one line.
+export const MAP_RAIL_WIDTH_PX = 84
 // Keep in step with .map-navigation--bottom and App.vue's .page-layout--bottom-nav.
 export const BOTTOM_NAV_HEIGHT_PX = 58
 const SHEET_GAP_PX = 8
