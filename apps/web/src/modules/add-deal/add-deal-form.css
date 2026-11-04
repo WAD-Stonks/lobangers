@@ -72,6 +72,8 @@
   gap: 24px;
 }
 .add-deal__card {
+  /* The offer tiles below go two by two when this card, not the screen, is too narrow for four. */
+  container: deal-card / inline-size;
   display: grid;
   gap: 18px;
   padding: clamp(18px, 4vw, 28px);
@@ -201,6 +203,12 @@
 .add-deal__offer:has(.add-deal__offer-input:focus-visible) {
   outline: 3px solid var(--sunny-ring);
   outline-offset: 2px;
+}
+/* Four tiles need about 576px; below that, two rows of two. */
+@container deal-card (max-width: 575.98px) {
+  .add-deal__offers {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 @media (hover: hover) and (pointer: fine) {
   .add-deal__offer:hover {
@@ -359,9 +367,6 @@
   .add-deal__pair,
   .add-deal__review {
     grid-template-columns: minmax(0, 1fr);
-  }
-  .add-deal__offers {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
   .add-deal__review-group dl > div {
     grid-template-columns: minmax(0, 1fr);
