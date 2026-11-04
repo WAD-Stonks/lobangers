@@ -70,7 +70,7 @@ describe('AccountMenu', () => {
     const { wrapper } = await mountMenu(signedIn)
     expect(links(wrapper)).toEqual([
       ['Saved', '/saved'],
-      ['My submissions', '/me/submissions'],
+      ['My deal submissions', '/me/submissions'],
       ['Merchant access', '/me/merchant-access'],
       ['Alice', '/me/profile'],
     ])
@@ -82,7 +82,7 @@ describe('AccountMenu', () => {
     const { wrapper } = await mountMenu(signedInMerchant)
     expect(links(wrapper)).toEqual([
       ['Saved', '/saved'],
-      ['My submissions', '/me/submissions'],
+      ['My deal submissions', '/me/submissions'],
       ['Merchant dashboard', '/merchant'],
       ['Mei', '/me/profile'],
     ])
@@ -93,7 +93,7 @@ describe('AccountMenu', () => {
       data: { user: { name: 'Ada', role: 'ADMIN' } },
       isPending: false,
     })
-    expect(links(wrapper).map(([text]) => text)).toEqual(['Saved', 'My submissions', 'Ada'])
+    expect(links(wrapper).map(([text]) => text)).toEqual(['Saved', 'My deal submissions', 'Ada'])
   })
 
   it('renders a hostile name as text, not markup', async () => {

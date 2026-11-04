@@ -176,7 +176,7 @@ const routes: RouteRecordRaw[] = [
     path: '/me/submissions',
     name: 'my-submissions',
     component: MySubmissionsPage,
-    meta: { requiresAuth: true, title: 'My submissions' },
+    meta: { requiresAuth: true, title: 'My deal submissions' },
   },
   {
     path: '/merchant',

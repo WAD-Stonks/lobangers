@@ -63,7 +63,7 @@ export const checkDealFields = (value: OfferFields & DateFields, context: z.Refi
 export const submitDealBodySchema = z
   .strictObject({
     ...dealContentShape,
-    stallIds: dealLocationIdsSchema,
+    stallIds: z.array(dealObjectIdSchema).length(1),
     startDate: dealDateSchema,
     endDate: dealDateSchema,
     terms: z.string().trim().min(1).max(1000),
@@ -76,5 +76,38 @@ export const submitDealResponseSchema = z.strictObject({
   reviewStatus: z.literal('PENDING'),
 })
 
+export const dealStallsQuerySchema = z.strictObject({
+  search: z.string().trim().max(100).optional(),
+})
+export const dealStallSchema = z.strictObject({
+  id: dealObjectIdSchema,
+  name: z.string(),
+  merchantName: z.string(),
+  address: z.string(),
+})
+export const dealStallsResponseSchema = z.array(dealStallSchema)
+
+export const dealPlaceIdSchema = z.string().regex(/^[A-Za-z0-9_-]{10,300}$/)
+export const dealPlacesQuerySchema = z.strictObject({
+  search: z.string().trim().min(2).max(100),
+})
+export const dealPlaceSchema = z.strictObject({
+  placeId: dealPlaceIdSchema,
+  name: z.string(),
+  address: z.string(),
+  latitude: z.number(),
+  longitude: z.number(),
+  stall: dealStallSchema.nullable(),
+})
+export const dealPlacesResponseSchema = z.array(dealPlaceSchema)
+
+export const createDealStallBodySchema = z.strictObject({
+  placeId: dealPlaceIdSchema,
+  merchantName: z.string().trim().min(1).max(120),
+})
+
 export type SubmitDealBody = z.infer<typeof submitDealBodySchema>
 export type SubmitDealResponse = z.infer<typeof submitDealResponseSchema>
+export type DealStall = z.infer<typeof dealStallSchema>
+export type DealPlace = z.infer<typeof dealPlaceSchema>
+export type CreateDealStallBody = z.infer<typeof createDealStallBodySchema>

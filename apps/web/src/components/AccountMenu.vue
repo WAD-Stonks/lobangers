@@ -18,7 +18,7 @@ const logOut = async () => {
   <template v-if="session.isPending" />
   <template v-else-if="session.data">
     <RouterLink class="nav-link px-0" :to="navigationTo('/saved')">Saved</RouterLink>
-    <RouterLink class="nav-link px-0" :to="navigationTo('/me/submissions')">My submissions</RouterLink>
+    <RouterLink class="nav-link px-0" :to="navigationTo('/me/submissions')">My deal submissions</RouterLink>
     <!-- Only regular users are offered merchant access; merchants get their dashboard instead. -->
     <RouterLink
       v-if="session.data.user.role === 'USER'"

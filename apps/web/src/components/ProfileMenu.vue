@@ -26,7 +26,7 @@ const logOut = async () => {
     <button ref="button" class="profile-menu__avatar" type="button" :aria-label="`Account menu for ${session.data.user.name}`" :aria-expanded="isOpen" :aria-controls="id" @click="toggle">{{ initials }}</button>
     <nav v-if="isOpen" :id="id" ref="panel" class="profile-menu__panel" aria-label="Account">
       <RouterLink :to="navigationTo('/me/profile')" @click="close">Account settings</RouterLink>
-      <RouterLink :to="navigationTo('/me/submissions')" @click="close">My submissions</RouterLink>
+      <RouterLink :to="navigationTo('/me/submissions')" @click="close">My deal submissions</RouterLink>
       <!-- Merchants get their dashboard; only regular users are offered merchant access. -->
       <RouterLink v-if="session.data.user.role === 'MERCHANT'" :to="navigationTo('/merchant')" data-testid="merchant-dashboard-link" @click="close">Merchant dashboard</RouterLink>
       <RouterLink v-else-if="session.data.user.role === 'USER'" :to="navigationTo('/me/merchant-access')" @click="close">Merchant access</RouterLink>

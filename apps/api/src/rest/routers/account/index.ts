@@ -2,6 +2,7 @@ import type { RestDependencies } from '@api/rest/context'
 import { methodNotAllowed } from '@api/rest/policy'
 import { createMerchantRequest } from '@api/rest/routers/account/handlers/create-merchant-request'
 import { deleteBookmark } from '@api/rest/routers/account/handlers/delete-bookmark'
+import { deleteSubmission } from '@api/rest/routers/account/handlers/delete-submission'
 import { getProfile } from '@api/rest/routers/account/handlers/get-profile'
 import { listBookmarks } from '@api/rest/routers/account/handlers/list-bookmarks'
 import { listMerchantRequests } from '@api/rest/routers/account/handlers/list-merchant-requests'
@@ -17,6 +18,7 @@ export const createAccountRouter = (dependencies: RestDependencies): Router => {
   router.put('/bookmarks/:dealId', saveBookmark(dependencies))
   router.delete('/bookmarks/:dealId', deleteBookmark(dependencies))
   router.get('/submissions', listSubmissions(dependencies))
+  router.delete('/submissions/:dealId', deleteSubmission(dependencies))
   router.get('/venues', searchVenues(dependencies))
   router.get('/merchant-requests', listMerchantRequests(dependencies))
   router.post('/merchant-requests', createMerchantRequest(dependencies))
@@ -24,6 +26,7 @@ export const createAccountRouter = (dependencies: RestDependencies): Router => {
   router.all('/bookmarks', methodNotAllowed('GET'))
   router.all('/bookmarks/:dealId', methodNotAllowed('PUT', 'DELETE'))
   router.all('/submissions', methodNotAllowed('GET'))
+  router.all('/submissions/:dealId', methodNotAllowed('DELETE'))
   router.all('/venues', methodNotAllowed('GET'))
   router.all('/merchant-requests', methodNotAllowed('GET', 'POST'))
   return router

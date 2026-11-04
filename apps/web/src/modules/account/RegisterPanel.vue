@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import RegisterForm from '@web/modules/account/RegisterForm.vue'
 import PanelFrame from '@web/modules/map-shell/PanelFrame.vue'
-import { safeRedirect } from '@web/router/guards'
+import { afterLoginPath, safeRedirect } from '@web/router/guards'
 import { useRoute, useRouter } from 'vue-router'
 
 // Sign up over the map. Accounts that must verify their email go to log in with a notice.
@@ -10,14 +10,14 @@ const router = useRouter()
 
 const onRegistered = (needsVerification: boolean) =>
   needsVerification
-    ? router.replace({ name: 'login', query: { notice: 'verify' } })
+    ? router.replace({ name: 'login', query: { notice: 'verify', redirect: route.query.redirect } })
     : router.replace(safeRedirect(route.query.redirect, '/deals'))
 </script>
 
 <template>
   <PanelFrame title="Create an account">
     <div class="account-panel__form">
-      <RegisterForm @registered="onRegistered" />
+      <RegisterForm :destination="afterLoginPath(route.query.redirect)" @registered="onRegistered" />
     </div>
   </PanelFrame>
 </template>

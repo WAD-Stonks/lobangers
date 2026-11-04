@@ -65,7 +65,7 @@ export const checkDeal = (
   if (form.offerType === 'FIXED_PRICE' && (form.priceDollars === '' || form.priceDollars <= 0))
     found.priceDollars = 'Please enter the price.'
   if (!extras.hasPhoto) found.photo = 'Please add a photo of the deal.'
-  if (extras.stallCount === 0) found.stalls = 'Please add at least one stall.'
+  if (extras.stallCount === 0) found.stalls = 'Please add the stall.'
   if (form.startDate === '') found.startDate = 'Please choose a start date.'
   if (form.endDate === '') found.endDate = 'Please choose the last day.'
   else if (form.endDate < extras.today) found.endDate = 'The last day cannot be in the past.'

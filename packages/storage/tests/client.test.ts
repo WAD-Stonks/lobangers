@@ -1,4 +1,4 @@
-import { expect, it, vi } from 'vitest'
+import { afterEach, expect, it, vi } from 'vitest'
 
 const { uploadFiles } = vi.hoisted(() => ({ uploadFiles: vi.fn() }))
 vi.mock('uploadthing/client', () => ({ genUploader: () => ({ uploadFiles }) }))
@@ -29,4 +29,24 @@ it('preserves an authorized SDK completion result', async () => {
     url: 'https://synthetic.invalid/photo',
     uploadedBy: 'synthetic-user',
   })
+})
+
+afterEach(() => {
+  vi.useRealTimers()
+})
+
+it('gives up on an upload that never completes, so the form does not wait forever', async () => {
+  vi.useFakeTimers()
+  let signal: AbortSignal | undefined
+  uploadFiles.mockImplementation((_route, options: { signal: AbortSignal }) => {
+    signal = options.signal
+    return new Promise(() => {})
+  })
+  const { PHOTO_UPLOAD_TIMEOUT_MS, uploadPhoto } = await import('@broke-oclock/storage/client')
+  const upload = uploadPhoto(new File(['synthetic'], 'photo.webp', { type: 'image/webp' }))
+  const outcome = expect(upload).rejects.toThrow('Photo upload timed out')
+
+  await vi.advanceTimersByTimeAsync(PHOTO_UPLOAD_TIMEOUT_MS)
+  await outcome
+  expect(signal?.aborted).toBe(true)
 })

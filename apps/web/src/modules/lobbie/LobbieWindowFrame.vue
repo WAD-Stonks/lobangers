@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import ShellIcon from '@web/modules/map-shell/ShellIcon.vue'
-import { useId } from 'vue'
+import { onBeforeUnmount, onMounted, ref, useId } from 'vue'
 
 // The floating chat window on the All Deals page. It takes the same slots as PanelFrame (the
 // conversation, then a sticky action bar for the message box), so LobbiePanel can sit in either.
@@ -8,6 +8,22 @@ defineProps<{ title: string }>()
 defineSlots<{ default(): unknown; actions?(): unknown }>()
 const emit = defineEmits<{ close: [] }>()
 const headingId = useId()
+
+const body = ref<HTMLElement | null>(null)
+let atEnd = true
+const trackEnd = () => {
+  const el = body.value
+  if (el) atEnd = el.scrollHeight - el.scrollTop - el.clientHeight < 24
+}
+let resizes: ResizeObserver | undefined
+onMounted(() => {
+  if (typeof ResizeObserver === 'undefined' || !body.value) return
+  resizes = new ResizeObserver(() => {
+    if (atEnd && body.value) body.value.scrollTop = body.value.scrollHeight
+  })
+  resizes.observe(body.value)
+})
+onBeforeUnmount(() => resizes?.disconnect())
 </script>
 
 <template>
@@ -28,7 +44,7 @@ const headingId = useId()
         <ShellIcon name="close" :size="18" :stroke-width="2.4" />
       </button>
     </header>
-    <div class="lobbie-window__body">
+    <div ref="body" class="lobbie-window__body" @scroll.passive="trackEnd">
       <slot />
     </div>
     <div v-if="$slots.actions" class="lobbie-window__actions">
@@ -111,5 +127,28 @@ const headingId = useId()
 .lobbie-window__actions {
   padding: 12px 16px 16px;
   border-top: 1px solid var(--hairline);
+}
+
+/* Phones: a slimmer header and edges leave more of the screen for the conversation. */
+@media (max-width: 599.98px) {
+  .lobbie-window {
+    border-radius: 22px;
+  }
+
+  .lobbie-window__header {
+    padding: 10px 10px 10px 16px;
+  }
+
+  .lobbie-window__subtitle {
+    display: none;
+  }
+
+  .lobbie-window__body {
+    padding: 14px;
+  }
+
+  .lobbie-window__actions {
+    padding: 10px 12px 12px;
+  }
 }
 </style>

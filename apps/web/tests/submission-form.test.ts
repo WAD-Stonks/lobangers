@@ -3,12 +3,32 @@ import SubmissionForm from '@web/pages/SubmissionForm.vue'
 import { chooseOption, optionLabels } from '@web-tests/support/select'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-const addDealApi = vi.hoisted(() => ({ submitDeal: vi.fn(), searchStalls: vi.fn() }))
+const addDealApi = vi.hoisted(() => ({
+  submitDeal: vi.fn(),
+  searchStalls: vi.fn(),
+  searchPlaces: vi.fn(),
+  addStallFromPlace: vi.fn(),
+}))
 
 vi.mock('@web/modules/add-deal/add-deal-api', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@web/modules/add-deal/add-deal-api')>()),
   submitDeal: addDealApi.submitDeal,
   searchStalls: addDealApi.searchStalls,
+  searchPlaces: addDealApi.searchPlaces,
+  addStallFromPlace: addDealApi.addStallFromPlace,
+}))
+
+const router = vi.hoisted(() => ({
+  push: vi.fn(),
+  replace: vi.fn(),
+  back: vi.fn(),
+  options: { history: { state: {} } },
+}))
+
+vi.mock('vue-router', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('vue-router')>()),
+  useRouter: () => router,
+  onBeforeRouteLeave: vi.fn(),
 }))
 
 enableAutoUnmount(afterEach)
@@ -141,7 +161,7 @@ describe('add a deal form', () => {
     expect(errorTexts(wrapper)).toEqual([])
     expect(stepShown(wrapper)).toContain('Location')
     await next(wrapper)
-    expect(errorTexts(wrapper)).toEqual(['Please add at least one stall.'])
+    expect(errorTexts(wrapper)).toEqual(['Please add the stall.'])
     expect(addDealApi.submitDeal).not.toHaveBeenCalled()
   })
 
@@ -222,11 +242,13 @@ describe('add a deal form', () => {
     await addStall(wrapper)
     expect(addDealApi.searchStalls).toHaveBeenCalledWith('chicken')
     expect(wrapper.findAll('button').map((button) => button.text())).toContain('Added')
-    expect(wrapper.text()).not.toContain('No stalls added yet.')
+    expect(wrapper.get('#stalls-added').text()).toBe('Stall added')
+    expect(wrapper.get('.add-deal__stalls--chosen').text()).toContain(stall.name)
 
     const remove = wrapper.findAll('button').find((button) => button.text() === 'Remove')
     await remove?.trigger('click')
-    expect(wrapper.text()).toContain('No stalls added yet.')
+    expect(wrapper.find('#stalls-added').exists()).toBe(false)
+    expect(wrapper.find('.add-deal__stalls--chosen').exists()).toBe(false)
   })
 
   it('says when a stall search finds nothing', async () => {
@@ -235,7 +257,53 @@ describe('add a deal form', () => {
     await wrapper.get('#stall-search').setValue('nothing')
     await wrapper.get('#stall-search').trigger('keydown.enter')
     await flush()
-    expect(wrapper.text()).toContain('No stalls found. Try other words.')
+    const row = wrapper.get('.add-deal__missing')
+    expect(row.text()).toContain('No existing stalls found.')
+    expect(row.text()).toContain('Add new stall')
+    expect(wrapper.text()).not.toContain("Can't find the existing stall?")
+  })
+
+  it('adds a stall missing from the list by finding it on the map', async () => {
+    addDealApi.searchStalls.mockResolvedValue([])
+    const mapStall = { ...stall, id: 'stall-2', name: 'Synthetic Map Stall' }
+    addDealApi.searchPlaces.mockResolvedValue([
+      {
+        placeId: 'SyntheticPlace_Map',
+        name: 'Synthetic Map Stall',
+        address: '3 Synthetic Rd',
+        latitude: 1.3,
+        longitude: 103.85,
+        stall: null,
+      },
+    ])
+    addDealApi.addStallFromPlace.mockResolvedValue(mapStall)
+    const wrapper = mountForm()
+    const mapButton = () =>
+      wrapper.findAll('button').find((button) => button.text() === 'Add new stall')
+    expect(mapButton()).toBeUndefined()
+    await wrapper.get('#stall-search').setValue('synthetic map')
+    await wrapper.get('#stall-search').trigger('keydown.enter')
+    await flush()
+    const open = mapButton()
+    await open?.trigger('click')
+    await vi.dynamicImportSettled()
+    await flush()
+    expect(addDealApi.searchPlaces).toHaveBeenCalledWith('synthetic map')
+    expect((wrapper.get('#stall-search').element as HTMLInputElement).value).toBe('')
+    expect(wrapper.text()).not.toContain('No existing stalls found')
+    expect(wrapper.get('.add-deal__missing').text()).toContain(
+      'Search for the new stall on the map below.',
+    )
+
+    await wrapper.get('.stall-map__place').trigger('click')
+    await wrapper.get('.stall-map__confirm .lb-btn').trigger('click')
+    await flush()
+    expect(addDealApi.addStallFromPlace).toHaveBeenCalledWith(
+      'SyntheticPlace_Map',
+      'Synthetic Map Stall',
+    )
+    expect(wrapper.find('.stall-map').exists()).toBe(false)
+    expect(wrapper.get('.add-deal__stalls--chosen').text()).toContain('Synthetic Map Stall')
   })
 
   it('reviews the deal before sending it', async () => {
@@ -245,11 +313,12 @@ describe('add a deal form', () => {
     const review = wrapper.get('.add-deal__review').text()
     expect(review).toContain('1-for-1 chicken rice')
     expect(review).toContain('Campus Chicken Rice')
+    expect(review).toContain('Address1 Stamford Rd')
     expect(review).toContain('1 Jan 2099 to 31 Jan 2099')
     expect(wrapper.find('.add-deal-tip img').attributes('src')).toBe('/chatbot-sprites/hello.svg')
   })
 
-  it('submits a trimmed deal with its photo, shows a pop-up and clears the form', async () => {
+  it('submits a trimmed deal with its photo, clears the form and opens my deal submissions', async () => {
     const wrapper = mountForm()
     await fillDetails(wrapper)
     await chooseOption(wrapper, '#deal-cuisine', 'NONE')
@@ -279,7 +348,11 @@ describe('add a deal form', () => {
       terms: 'Dine-in only',
     })
     expect(photo).toBeInstanceOf(File)
-    expect(wrapper.get('.popup-stub').text()).toContain('Deal submitted')
+    expect(wrapper.find('.popup-stub').exists()).toBe(false)
+    expect(router.replace).toHaveBeenCalledWith({
+      path: '/me/submissions',
+      query: { submitted: '1' },
+    })
     expect(wrapper.get('#deal-title').element).toHaveProperty('value', '')
     expect(wrapper.find('.add-deal__preview').exists()).toBe(false)
     expect(stepShown(wrapper)).toContain('Deal Details')
@@ -298,5 +371,6 @@ describe('add a deal form', () => {
     )
     expect(wrapper.get('#deal-title').element).toHaveProperty('value', '  1-for-1 chicken rice  ')
     expect(wrapper.get('button[type="submit"]').element).toHaveProperty('disabled', false)
+    expect(router.replace).not.toHaveBeenCalled()
   })
 })

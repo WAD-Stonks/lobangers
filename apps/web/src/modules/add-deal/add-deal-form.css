@@ -39,8 +39,11 @@
   font-weight: 800;
   letter-spacing: -0.02em;
 }
+.add-deal__intro {
+  flex: 1;
+  min-width: 0;
+}
 .add-deal__lede {
-  max-width: 46ch;
   margin: 0;
   color: var(--ink-muted);
   font-size: 1rem;
@@ -245,6 +248,11 @@
   border: 1px solid var(--hairline);
   border-radius: 16px;
 }
+.add-deal__chosen-title {
+  margin: 0 0 6px;
+  font-size: 1rem;
+  font-weight: 700;
+}
 .add-deal__stalls--chosen li {
   background: var(--sunny-wash);
   border-color: transparent;
@@ -262,6 +270,15 @@
 }
 .add-deal__remove {
   color: var(--coral-deep);
+}
+.add-deal__missing {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+}
+.add-deal__missing .lb-btn {
+  gap: 6px;
 }
 
 /* ----- Review ----- */

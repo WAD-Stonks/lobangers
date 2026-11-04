@@ -24,6 +24,13 @@ export const safeRedirect = (value: unknown, fallback = '/'): string =>
     ? value
     : fallback
 
+// Logging in normally opens All Deals. Squad invites are the exception: the friend who tapped
+// the link came to join that room, so they go straight back to it.
+export const afterLoginPath = (redirect: unknown): string => {
+  const destination = safeRedirect(redirect, '/deals')
+  return destination.startsWith('/squad/') ? destination : '/deals'
+}
+
 // UX ONLY. The browser can be tampered with; the API (protectedProcedure and the
 // database-backed role checks) is what actually enforces access.
 export const authGuard = async (

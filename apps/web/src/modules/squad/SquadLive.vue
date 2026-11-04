@@ -224,21 +224,20 @@ const browse = (event: MouseEvent, navigate: (event?: MouseEvent) => Promise<unk
         <span class="squad-live__position">{{ position }}</span>
       </div>
 
-      <SquadMembers :state="state" @remove="askRemove" />
-
-      <p v-if="state.me?.spectator" class="squad-banner squad-banner--watch">
-        You're watching. Everything happens live, but only people who joined before the start can vote.
-      </p>
-
-      <div v-if="justYou" class="squad-alone">
-        <h2 class="squad-room__title">Just you left in {{ state.code }}</h2>
-        <p>Everyone else left or went quiet. Invite more people, or close the room. Your saved deals stay saved.</p>
-        <div class="squad-sheet__actions">
+      <div v-if="justYou" class="squad-alone" role="status">
+        <p class="squad-alone__text"><strong>Just you left in {{ state.code }}.</strong> Everyone else left or went quiet.</p>
+        <div class="squad-alone__actions">
           <button type="button" class="lb-btn lb-btn--primary" @click="share">Share the code</button>
           <button v-if="state.me?.isHost" type="button" class="lb-btn squad-btn-dark" @click="openSheet('close', $event)">Close the room</button>
           <button v-else type="button" class="lb-btn squad-btn-dark" @click="openSheet('leave', $event)">Leave the room</button>
         </div>
       </div>
+
+      <SquadMembers :state="state" @remove="askRemove" />
+
+      <p v-if="state.me?.spectator" class="squad-banner squad-banner--watch">
+        You're watching. Everything happens live, but only people who joined before the start can vote.
+      </p>
 
       <div class="squad-live__stage">
         <SquadDealCard

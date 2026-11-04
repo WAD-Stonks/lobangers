@@ -21,6 +21,7 @@ import { provideHungryNearby } from '@web/modules/hungry-nearby/use-hungry-nearb
 import LobbieLauncher from '@web/modules/lobbie/LobbieLauncher.vue'
 import LobbiePanel from '@web/modules/lobbie/LobbiePanel.vue'
 import { provideLobbieChat } from '@web/modules/lobbie/use-lobbie-chat'
+import { useVisibleViewport } from '@web/modules/lobbie/use-visible-viewport'
 import FilterSheet from '@web/modules/map-shell/FilterSheet.vue'
 import { withFilters } from '@web/modules/map-shell/filter-query'
 import MapControls from '@web/modules/map-shell/MapControls.vue'
@@ -372,8 +373,21 @@ const showLobbieLauncher = computed(() => !authPrompt.value && dealsPage.value &
 const toggleLobbieWindow = () => { lobbieWindowOpen.value = !lobbieWindowOpen.value }
 const closeLobbieWindow = () => {
   lobbieWindowOpen.value = false
-  lobbieLauncher.value?.focus()
+  // On phones the button is hidden behind the open window until the next render.
+  void nextTick(() => lobbieLauncher.value?.focus())
 }
+
+// While the message box has focus on a touch screen, the window sits on top of the on-screen
+// keyboard and takes the space left above it, so the box is never hidden behind the keys.
+const lobbieTyping = ref(false)
+const lobbieFocusChange = (event: FocusEvent) => {
+  lobbieTyping.value = !finePointer.value && event.type === 'focusin' && event.target instanceof HTMLInputElement
+}
+const lobbieViewport = useVisibleViewport(lobbieTyping)
+const lobbieWindowStyle = computed(() => lobbieViewport.value && {
+  '--lobbie-keyboard-inset': `${lobbieViewport.value.keyboardInset}px`,
+  '--lobbie-visible-h': `${lobbieViewport.value.height}px`,
+})
 
 // A deal opened from the chat shows over the list; the window waits behind it and is still open
 // when the deal closes. Leaving the list for anywhere else puts it away.
@@ -385,6 +399,8 @@ const closeLobbieOnEscape = (event: KeyboardEvent) => {
   if (event.key === 'Escape' && !sheetOpen.value && !dealDialogOpen.value) closeLobbieWindow()
 }
 watch(lobbieWindowOpen, (open) => {
+  // A window removed with focus inside it never reports the focus leaving.
+  if (!open) lobbieTyping.value = false
   if (open) document.addEventListener('keydown', closeLobbieOnEscape)
   else document.removeEventListener('keydown', closeLobbieOnEscape)
 })
@@ -627,11 +643,19 @@ onBeforeUnmount(() => document.documentElement.classList.remove('is-canvas'))
 
     <template v-if="showLobbieLauncher">
       <Transition name="lobbie-window">
-        <div v-if="lobbieWindowOpen" id="lobbie-window" class="map-shell__lobbie-window">
+        <div
+          v-if="lobbieWindowOpen"
+          id="lobbie-window"
+          class="map-shell__lobbie-window"
+          :class="{ 'is-typing': lobbieTyping }"
+          :style="lobbieWindowStyle || undefined"
+          @focusin="lobbieFocusChange"
+          @focusout="lobbieFocusChange"
+        >
           <LobbiePanel windowed @close="closeLobbieWindow" />
         </div>
       </Transition>
-      <LobbieLauncher ref="lobbieLauncher" class="map-shell__lobbie-launcher" :open="lobbieWindowOpen" controls="lobbie-window" @toggle="toggleLobbieWindow" />
+      <LobbieLauncher ref="lobbieLauncher" class="map-shell__lobbie-launcher" :class="{ 'is-hidden': lobbieTyping, 'is-covered': lobbieWindowOpen }" :open="lobbieWindowOpen" controls="lobbie-window" @toggle="toggleLobbieWindow" />
     </template>
 
     <DealDetailsDialog v-if="dealDialogOpen && !authPrompt" :restore-focus-to="dealDialogTrigger" @close="closeDealDialog" />
@@ -688,10 +712,26 @@ onBeforeUnmount(() => document.documentElement.classList.remove('is-canvas'))
   height: min(620px, calc(100dvh - var(--bottom-nav-h, 0px) - 140px));
   transform-origin: bottom right;
 }
+/* Phones: the window takes the whole screen above the tab bar, and its own close button stands
+   in for the corner one, which hides while it is open. */
 @media (max-width: 599.98px) {
   .map-shell__lobbie-launcher { right: 16px; bottom: calc(16px + var(--bottom-nav-h, 0px) + env(safe-area-inset-bottom, 0px)); }
-  .map-shell__lobbie-window { right: 16px; bottom: calc(16px + 44px + 12px + var(--bottom-nav-h, 0px) + env(safe-area-inset-bottom, 0px)); }
+  .map-shell__lobbie-launcher.is-covered { visibility: hidden; }
+  .map-shell__lobbie-window {
+    right: 8px;
+    bottom: calc(8px + var(--bottom-nav-h, 0px) + env(safe-area-inset-bottom, 0px));
+    width: calc(100vw - 16px);
+    height: calc(100dvh - var(--bottom-nav-h, 0px) - env(safe-area-inset-bottom, 0px) - env(safe-area-inset-top, 0px) - 16px);
+    transform-origin: bottom center;
+  }
 }
+/* Typing on a touch screen: sit just above the keyboard, over the tab bar, and fill what's left. */
+.map-shell__lobbie-window.is-typing {
+  bottom: calc(8px + var(--lobbie-keyboard-inset, 0px));
+  z-index: 41;
+  height: min(620px, calc(var(--lobbie-visible-h, 100dvh) - 16px));
+}
+.map-shell__lobbie-launcher.is-hidden { visibility: hidden; }
 .lobbie-window-enter-active, .lobbie-window-leave-active { transition: opacity 180ms ease, transform 220ms var(--ease-out); }
 .lobbie-window-enter-from, .lobbie-window-leave-to { opacity: 0; transform: translateY(12px) scale(0.96); }
 @media (prefers-reduced-motion: reduce) {
