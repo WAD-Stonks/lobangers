@@ -373,7 +373,8 @@ const showLobbieLauncher = computed(() => !authPrompt.value && dealsPage.value &
 const toggleLobbieWindow = () => { lobbieWindowOpen.value = !lobbieWindowOpen.value }
 const closeLobbieWindow = () => {
   lobbieWindowOpen.value = false
-  lobbieLauncher.value?.focus()
+  // On phones the button is hidden behind the open window until the next render.
+  void nextTick(() => lobbieLauncher.value?.focus())
 }
 
 // While the message box has focus on a touch screen, the window sits on top of the on-screen
@@ -654,7 +655,7 @@ onBeforeUnmount(() => document.documentElement.classList.remove('is-canvas'))
           <LobbiePanel windowed @close="closeLobbieWindow" />
         </div>
       </Transition>
-      <LobbieLauncher ref="lobbieLauncher" class="map-shell__lobbie-launcher" :class="{ 'is-hidden': lobbieTyping }" :open="lobbieWindowOpen" controls="lobbie-window" @toggle="toggleLobbieWindow" />
+      <LobbieLauncher ref="lobbieLauncher" class="map-shell__lobbie-launcher" :class="{ 'is-hidden': lobbieTyping, 'is-covered': lobbieWindowOpen }" :open="lobbieWindowOpen" controls="lobbie-window" @toggle="toggleLobbieWindow" />
     </template>
 
     <DealDetailsDialog v-if="dealDialogOpen && !authPrompt" :restore-focus-to="dealDialogTrigger" @close="closeDealDialog" />
@@ -711,9 +712,18 @@ onBeforeUnmount(() => document.documentElement.classList.remove('is-canvas'))
   height: min(620px, calc(100dvh - var(--bottom-nav-h, 0px) - 140px));
   transform-origin: bottom right;
 }
+/* Phones: the window takes the whole screen above the tab bar, and its own close button stands
+   in for the corner one, which hides while it is open. */
 @media (max-width: 599.98px) {
   .map-shell__lobbie-launcher { right: 16px; bottom: calc(16px + var(--bottom-nav-h, 0px) + env(safe-area-inset-bottom, 0px)); }
-  .map-shell__lobbie-window { right: 16px; bottom: calc(16px + 44px + 12px + var(--bottom-nav-h, 0px) + env(safe-area-inset-bottom, 0px)); }
+  .map-shell__lobbie-launcher.is-covered { visibility: hidden; }
+  .map-shell__lobbie-window {
+    right: 8px;
+    bottom: calc(8px + var(--bottom-nav-h, 0px) + env(safe-area-inset-bottom, 0px));
+    width: calc(100vw - 16px);
+    height: calc(100dvh - var(--bottom-nav-h, 0px) - env(safe-area-inset-bottom, 0px) - env(safe-area-inset-top, 0px) - 16px);
+    transform-origin: bottom center;
+  }
 }
 /* Typing on a touch screen: sit just above the keyboard, over the tab bar, and fill what's left. */
 .map-shell__lobbie-window.is-typing {

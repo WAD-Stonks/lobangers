@@ -341,7 +341,6 @@ describe('Ask Lobbie panel', () => {
     expect(wrapper.find('[data-testid="lobbie-typing"]').exists()).toBe(false)
     expect(wrapper.get('[data-testid="lobbie-input"]').attributes('readonly')).toBeUndefined()
     expect(wrapper.text()).toContain('Shiok, here are some lobangs!')
-    expect(wrapper.text()).toContain('Up to $5')
     expect(
       wrapper
         .findAll('[data-testid="lobbie-deals"] .deal-rows__title')
@@ -384,7 +383,7 @@ describe('Ask Lobbie panel', () => {
     expect(map(wrapper).props('pins')).toHaveLength(2)
   })
 
-  it('shows the active filters above the box, removes one, and clears them all', async () => {
+  it('keeps the filters Lobbie understood off the screen', async () => {
     rest.chat.mockResolvedValue(
       reply({
         deals: [KOPI],
@@ -392,25 +391,10 @@ describe('Ask Lobbie panel', () => {
       }),
     )
     const { wrapper } = await mountAt('/ask-lobbie')
-    expect(wrapper.find('[data-testid="lobbie-active-filters"]').exists()).toBe(false)
-
     await wrapper.findAll('[data-testid="lobbie-suggestion"]')[1]?.trigger('click')
     await flushPromises()
-    const pills = () =>
-      wrapper.findAll('[data-testid="lobbie-active-filters"] button').map((pill) => pill.text())
-    expect(pills()).toEqual(['Up to $5', 'Ending today', 'Clear all'])
-
-    await wrapper.get('[aria-label="Remove filter Up to $5"]').trigger('click')
-    expect(pills()).toEqual(['Ending today', 'Clear all'])
-    expect(wrapper.get('[data-testid="lobbie-notice"]').text()).toBe('Removed “Up to $5”')
-
-    await wrapper.get('[data-testid="lobbie-clear-filters"]').trigger('click')
-    expect(wrapper.find('[data-testid="lobbie-active-filters"]').exists()).toBe(false)
-    expect(wrapper.findAll('[data-testid="lobbie-notice"]').at(-1)?.text()).toBe(
-      'Cleared all filters',
-    )
-    // Lobbie's last picks stay on the map until the next question.
-    expect(map(wrapper).props('framed')).toBe(true)
+    expect(wrapper.text()).not.toContain('Up to $5')
+    expect(wrapper.text()).not.toContain('Clear all')
   })
 
   it('shows a Lobbie sprite that follows the conversation: hello, thinking, then deal-found or thinking', async () => {
