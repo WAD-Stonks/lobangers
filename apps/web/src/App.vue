@@ -81,6 +81,6 @@ const administration = computed(() =>
 <style scoped>
 /* Room for the fixed bottom nav, so the end of the page can scroll clear of it. */
 .page-layout--bottom-nav {
-  padding-bottom: calc(68px + env(safe-area-inset-bottom, 0px));
+  padding-bottom: calc(58px + env(safe-area-inset-bottom, 0px));
 }
 </style>

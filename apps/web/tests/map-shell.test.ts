@@ -1,6 +1,7 @@
 import { flushPromises, type VueWrapper } from '@vue/test-utils'
 import { FOCUS_ZOOM, LOCATE_ZOOM } from '@web/modules/browse-map/map-config'
 import { MAP_SIDEBAR_STORAGE_KEY } from '@web/modules/map-shell/map-preferences'
+import { BOTTOM_NAV_HEIGHT_PX } from '@web/modules/map-shell/use-shell-layout'
 import { defined } from '@web-tests/support/defined'
 import { chooseOption, selectedValue } from '@web-tests/support/select'
 import {
@@ -946,7 +947,7 @@ describe('map navigation rail', () => {
       (wrapper.get('[data-testid="map-shell"]').element as HTMLElement).style.getPropertyValue(
         '--bottom-nav-h',
       ),
-    ).toContain('68px')
+    ).toContain(`${BOTTOM_NAV_HEIGHT_PX}px`)
     // The bottom nav replaces the menu button: Squad takes its slot in the header.
     expect(wrapper.find('[data-testid="nav-toggle"]').exists()).toBe(false)
     expect(wrapper.get('[data-testid="squad-header-button"]').classes()).toContain(

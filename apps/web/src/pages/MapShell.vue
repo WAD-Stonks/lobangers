@@ -103,7 +103,7 @@ const wide = computed(() => dealsPage.value ||
 const mapOnly = computed(() => !authPrompt.value && isBrowse.value && dealsExperience.value && shell.view.value === 'map' && !shell.split.value)
 const collapsed = computed(() => !authPrompt.value && panelHidden.value && breakpoint.value === 'desktop')
 const resultsPreviewHeight = ref<number | null>(null)
-const layout = useShellLayout({ breakpoint, wide, header, collapsed, leftPanel: desktopMap, railVisible: mapPreferences.sidebarVisible, bottomNavigation, resultsPreviewHeight })
+const layout = useShellLayout({ breakpoint, wide, header, collapsed, leftPanel: desktopMap, railVisible: mapPreferences.sidebarVisible, bottomNavigation, resultsPreviewHeight, flush: dealsPage })
 
 // A panel behind the session check (Room, Profile, Saved) waits on the network before the URL
 // changes. Past a short beat, open the panel with a loader so the click visibly lands; quick
@@ -856,6 +856,11 @@ onBeforeUnmount(() => document.documentElement.classList.remove('is-canvas'))
 
 .map-shell--bottom-nav .shell-panel--sheet {
   bottom: var(--bottom-nav-h);
+}
+
+/* The dark sheet adds a light edge; the All deals list meets the header with no card edge. */
+.app-palette[data-theme='dark'] .map-shell--deals-page .shell-panel {
+  box-shadow: none;
 }
 
 /* Below 992px the panel is a bottom sheet: the header spans the screen, and the controls ride
