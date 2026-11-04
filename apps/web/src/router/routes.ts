@@ -15,6 +15,7 @@ import LandingPage from '@web/pages/LandingPage.vue'
 import MapShell from '@web/pages/MapShell.vue'
 import NotFoundPage from '@web/pages/NotFoundPage.vue'
 import SubmissionForm from '@web/pages/SubmissionForm.vue'
+import { merchantRoutes } from '@web/router/merchant-routes'
 import type { RouteRecordRaw } from 'vue-router'
 
 // Pages most visitors never open (admin, merchant, own submissions, password reset) load on
@@ -28,7 +29,6 @@ const AdminOverviewPage = () => import('@web/pages/AdminOverviewPage.vue')
 const IngestionAdminPage = () => import('@web/pages/IngestionAdminPage.vue')
 const PlatformAdminPage = () => import('@web/pages/PlatformAdminPage.vue')
 const MerchantAccessPage = () => import('@web/pages/MerchantAccessPage.vue')
-const MerchantDashboardPage = () => import('@web/pages/MerchantDashboardPage.vue')
 const MySubmissionsPage = () => import('@web/pages/MySubmissionsPage.vue')
 const ForgotPasswordPage = () => import('@web/pages/ForgotPasswordPage.vue')
 const ResetPasswordPage = () => import('@web/pages/ResetPasswordPage.vue')
@@ -178,13 +178,7 @@ const routes: RouteRecordRaw[] = [
     component: MySubmissionsPage,
     meta: { requiresAuth: true, title: 'My deal submissions' },
   },
-  {
-    path: '/merchant',
-    name: 'merchant',
-    component: MerchantDashboardPage,
-    // Only merchants can open it; the API must still check each outlet belongs to them.
-    meta: { requiresAuth: true, roles: ['MERCHANT'], title: 'Merchant dashboard' },
-  },
+  ...merchantRoutes,
   {
     path: '/me/merchant-access',
     name: 'merchant-access',

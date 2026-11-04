@@ -70,21 +70,21 @@ const claimedPercent = (drop: MerchantFlashDrop) =>
 
         <template v-if="showsProgress(drop)">
           <div
-            class="progress"
+            class="claimed-track"
             role="progressbar"
             :aria-label="`Codes claimed for ${drop.dealTitle}`"
             :aria-valuenow="drop.claimedCount"
             aria-valuemin="0"
             :aria-valuemax="drop.codeLimit"
           >
-            <div class="progress-bar claimed" :style="{ width: `${claimedPercent(drop)}%` }"></div>
+            <div class="claimed-bar" :style="{ width: `${claimedPercent(drop)}%` }"></div>
           </div>
           <p class="flash-extra">
-            <strong class="text-body">{{ drop.claimedCount }}</strong> of {{ drop.codeLimit }} claimed
+            <strong class="claimed-count">{{ drop.claimedCount }}</strong> of {{ drop.codeLimit }} claimed
           </p>
         </template>
 
-        <p v-if="drop.status === 'STOPPED' && drop.reviewNote" class="alert alert-danger small mb-0 p-2">
+        <p v-if="drop.status === 'STOPPED' && drop.reviewNote" class="merchant-alert merchant-alert--error flash-note">
           LoBangers: “{{ drop.reviewNote }}”
         </p>
 
@@ -92,7 +92,7 @@ const claimedPercent = (drop: MerchantFlashDrop) =>
           <template v-if="drop.status === 'DRAFT'">
             <button
               type="button"
-              class="btn btn-sm btn-primary"
+              class="lb-btn lb-btn--primary merchant-btn--sm"
               :disabled="busyId === drop.id"
               @click="emit('goLive', drop)"
             >
@@ -100,7 +100,7 @@ const claimedPercent = (drop: MerchantFlashDrop) =>
             </button>
             <button
               type="button"
-              class="btn btn-sm btn-outline-primary"
+              class="lb-btn merchant-btn--sm"
               :disabled="busyId === drop.id"
               @click="emit('edit', drop)"
             >
@@ -108,7 +108,7 @@ const claimedPercent = (drop: MerchantFlashDrop) =>
             </button>
             <button
               type="button"
-              class="btn btn-sm btn-outline-danger"
+              class="lb-btn merchant-btn--sm merchant-btn--danger"
               :disabled="busyId === drop.id"
               @click="emit('remove', drop)"
             >
@@ -118,7 +118,7 @@ const claimedPercent = (drop: MerchantFlashDrop) =>
           <button
             v-if="drop.status === 'SCHEDULED' || drop.status === 'LIVE'"
             type="button"
-            class="btn btn-sm btn-outline-danger"
+            class="lb-btn merchant-btn--sm merchant-btn--danger"
             :disabled="busyId === drop.id"
             @click="emit('end', drop)"
           >
@@ -127,7 +127,7 @@ const claimedPercent = (drop: MerchantFlashDrop) =>
           <button
             v-if="drop.status === 'ENDED' || drop.status === 'STOPPED'"
             type="button"
-            class="btn btn-sm btn-outline-danger"
+            class="lb-btn merchant-btn--sm merchant-btn--danger"
             :disabled="busyId === drop.id"
             @click="emit('remove', drop)"
           >
@@ -146,17 +146,31 @@ const claimedPercent = (drop: MerchantFlashDrop) =>
   color: var(--ink-muted);
   font-size: 0.8rem;
 }
-.progress {
+.flash-empty {
+  margin: 0;
+  padding: 18px 20px;
+  border: 1.5px dashed var(--track, var(--hairline));
+  border-radius: 20px;
+  color: var(--ink-muted);
+  font-size: var(--text-sm);
+}
+/* How many codes are claimed: a coral bar on a sunk track, like the dashboard's stats. */
+.claimed-track {
   height: 8px;
+  overflow: hidden;
+  border-radius: var(--radius-pill);
   background: var(--paper-sunk);
 }
-.claimed {
+.claimed-bar {
+  height: 100%;
+  border-radius: var(--radius-pill);
   background: var(--coral);
 }
-/* Comfortable touch targets on phones. */
-@media (max-width: 575.98px) {
-  .btn-sm {
-    min-height: var(--hit);
-  }
+.claimed-count {
+  color: var(--ink);
+}
+.flash-note {
+  padding: 8px 12px;
+  font-size: 0.8rem;
 }
 </style>

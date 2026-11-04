@@ -1,0 +1,106 @@
+/* Pieces shared by the merchant dashboard and its deal form pages. Buttons, chips and tabs are
+   the app's own (lb-btn, lb-chip, lb-tab in shell-ui.css); these add what those don't have. */
+
+/* The page column: as wide as four deal cards, with the site's page padding. */
+.merchant-page {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 82rem;
+  margin: 0 auto;
+  padding: clamp(16px, 4vw, 32px) clamp(16px, 4vw, 24px) 48px;
+}
+
+/* Back link above a page title, like My deal submissions. */
+.merchant-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: var(--hit, 44px);
+  margin-bottom: 4px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font: 700 0.875rem / 1 var(--font-sans);
+  color: var(--ink-muted);
+  text-decoration: none;
+  cursor: pointer;
+}
+.merchant-back:hover {
+  color: var(--ink);
+}
+.merchant-back:focus-visible {
+  outline: 3px solid var(--focus-ring, var(--sunny-ring));
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+.merchant-title {
+  margin: 0;
+  font-size: clamp(2rem, 6vw, 2.75rem);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+}
+
+/* A red-text button for End, Delete and the like, on the app's white pill. */
+.lb-btn.merchant-btn--danger {
+  color: var(--tag-end-ink, #a8321f);
+}
+.lb-btn.merchant-btn--danger:hover {
+  color: var(--tag-end-ink, #a8321f);
+  background: var(--tag-end-bg, #fdf0ee);
+}
+/* Card buttons: a notch smaller on a mouse, still a full touch target on phones. */
+.merchant-btn--sm {
+  min-height: 40px;
+  padding: 0 14px;
+}
+@media (pointer: coarse) {
+  .merchant-btn--sm {
+    min-height: var(--hit, 44px);
+  }
+}
+
+/* Messages: a soft green or red box with rounded corners. */
+.merchant-alert {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 0;
+  padding: 12px 16px;
+  border: 1px solid transparent;
+  border-radius: 16px;
+  font-size: var(--text-sm);
+  line-height: 1.45;
+}
+.merchant-alert--success {
+  color: var(--tag-ok-ink);
+  background: var(--tag-ok-bg);
+}
+.merchant-alert--error {
+  color: var(--tag-end-ink);
+  background: var(--tag-end-bg);
+}
+.merchant-alert__text {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.merchant-alert__close {
+  flex: none;
+  width: 36px;
+  height: 36px;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: inherit;
+  font-size: 1.25rem;
+  line-height: 1;
+  cursor: pointer;
+}
+.merchant-alert__close:hover {
+  background: rgb(0 0 0 / 0.06);
+}
+.merchant-alert__close:focus-visible {
+  outline: 3px solid var(--focus-ring, var(--sunny-ring));
+  outline-offset: 2px;
+}

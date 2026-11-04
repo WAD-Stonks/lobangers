@@ -185,7 +185,7 @@ const dropCard = (page: Page, text: string) =>
 // Fills the ordinary part of the deal form, step by step, and stops on the review: a $4.00
 // deal at the Maxwell branch.
 const fillDeal = async (page: Page, title: string) => {
-  await page.getByRole('button', { name: '+ New deal' }).click()
+  await page.getByRole('button', { name: 'Add a deal' }).click()
   await page.getByLabel('Title').fill(title)
   await page.getByLabel('Description').fill('Fake deal for tests.')
   for (const [label, value] of [
@@ -205,6 +205,7 @@ const fillDeal = async (page: Page, title: string) => {
 
 test('save a flash deal as a draft, send it live and end it early', async ({ page }) => {
   const state = await signInAsMerchant(page)
+  await page.getByRole('tab', { name: /Flash deals/ }).click()
   await expect(page.getByText('No drafts.', { exact: false })).toBeVisible()
   await expect(page.getByText('Fake flash drops')).toHaveCount(0)
   await expect(page.getByRole('button', { name: /Flash drop this/ })).toHaveCount(0)
@@ -237,7 +238,9 @@ test('save a flash deal as a draft, send it live and end it early', async ({ pag
   await page.getByRole('button', { name: 'Next: Review' }).click()
   await page.getByRole('button', { name: 'Save as flash deal' }).click()
 
-  await expect(page.getByRole('status')).toContainText('was saved as a draft')
+  // Saving goes back to the dashboard's Flash deals tab.
+  await expect(page).toHaveURL(/\/merchant\?tab=flash$/)
+  await expect(page.getByRole('status').filter({ hasText: 'was saved as a draft' })).toBeVisible()
   const draft = dropCard(page, 'Synthetic roast chicken rice')
   await expect(draft.locator('.merchant-card__badge')).toHaveText('Draft')
   await expect(draft).toContainText('Nobody can see it yet')
@@ -263,8 +266,7 @@ test('save a flash deal as a draft, send it live and end it early', async ({ pag
   await expect(draft.locator('.merchant-card__badge')).toHaveText('Ended')
   await expect(page.getByRole('status')).toContainText('has ended')
 
-  // A past flash deal can be deleted from the history; Past starts closed.
-  await page.getByRole('button', { name: /^Past/ }).click()
+  // A past flash deal can be deleted from the history.
   await draft.getByRole('button', { name: /Delete/ }).click()
   await confirmDialog(page, 'Delete this flash deal?')
   await expect(page.getByRole('status')).toContainText('was deleted from your past flash deals')
@@ -273,11 +275,14 @@ test('save a flash deal as a draft, send it live and end it early', async ({ pag
 
 test('edit a draft in the deal form, then delete it', async ({ page }) => {
   const state = await signInAsMerchant(page, [SAVED_DRAFT])
+  await page.getByRole('tab', { name: /Flash deals/ }).click()
   const draft = dropCard(page, 'Synthetic steamed chicken rice set')
   await expect(draft.locator('.merchant-card__badge')).toHaveText('Draft')
   await expect(draft).toContainText('Starts at Go live')
 
   await draft.getByRole('button', { name: /^Edit/ }).click()
+  // The draft opens on its own address.
+  await expect(page).toHaveURL(new RegExp(`/merchant/flash/${SAVED_DRAFT.id}/edit$`))
   await expect(page.getByRole('heading', { name: 'Edit flash deal draft' })).toBeVisible()
   await expect(page.getByLabel('Title')).toHaveValue('Synthetic steamed chicken rice set')
   await expect(page.getByLabel('Flash price ($)')).toHaveValue('2.5')
@@ -288,7 +293,8 @@ test('edit a draft in the deal form, then delete it', async ({ page }) => {
   await page.getByTestId('step-review').click()
   await page.getByRole('button', { name: 'Save draft' }).click()
 
-  await expect(page.getByRole('status')).toContainText('was updated')
+  // Back on the dashboard, while the flash deals reload.
+  await expect(page.getByRole('status').filter({ hasText: 'was updated' })).toBeVisible()
   const edited = dropCard(page, 'Synthetic duck rice set')
   await expect(edited).toContainText('1 km')
   expect(state.requests.find((entry) => entry.method === 'PUT')?.body).toMatchObject({
