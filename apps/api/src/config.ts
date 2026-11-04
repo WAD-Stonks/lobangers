@@ -30,6 +30,7 @@ export type AppConfig = {
   }
   // Present only when all four PUSHER_* values are set; rooms fall back to polling otherwise.
   pusher?: { appId: string; key: string; secret: string; cluster: string }
+  places?: { apiKey: string }
 }
 
 type Environment = Record<string, string | undefined>
@@ -192,6 +193,7 @@ export const parseConfig = (env: Environment): AppConfig => {
   const authProviders = parseAuthProviders(env)
   const email = authProviders?.email
   const pusher = parsePusher(env)
+  const placesKey = optionalKey(env, 'GOOGLE_MAPS_API_KEY')
   return {
     port: parsePort(env.PORT),
     community: parseCommunityPolicy(env),
@@ -208,6 +210,7 @@ export const parseConfig = (env: Environment): AppConfig => {
     databaseUrl: validateDatabaseUrl(requiredString(env, 'DATABASE_URL')),
     ...(email ? { email } : {}),
     ...(pusher ? { pusher } : {}),
+    ...(placesKey ? { places: { apiKey: placesKey } } : {}),
   }
 }
 export const loadConfig = (): AppConfig => parseConfig(process.env)

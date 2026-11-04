@@ -14,7 +14,7 @@ export const SITE_NAV_LINKS: readonly SiteNavLink[] = Object.freeze([
 // their outlets from the dashboard, so only regular users are offered merchant access.
 export const ACCOUNT_NAV_LINKS: readonly SiteNavLink[] = Object.freeze([
   { label: 'Saved deals', to: '/saved' },
-  { label: 'My submissions', to: '/me/submissions' },
+  { label: 'My deal submissions', to: '/me/submissions' },
   { label: 'Merchant dashboard', to: '/merchant', roles: ['MERCHANT'] },
   { label: 'For merchants', to: '/me/merchant-access', roles: ['USER'] },
 ])

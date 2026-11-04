@@ -62,7 +62,7 @@ const venue = (id: string, name: string): AccountVenue => ({
   address: '1 Test Road',
 })
 
-const mountPage = async (component: Component) => {
+const mountPage = async (component: Component, path = '/') => {
   const stub = { render: () => h('div') }
   const router = createRouter({
     history: createMemoryHistory(),
@@ -71,11 +71,11 @@ const mountPage = async (component: Component) => {
       { path: '/login', component: stub },
     ],
   })
-  await router.push('/')
+  await router.push(path)
   await router.isReady()
   const wrapper = mount(component, { global: { plugins: [router] } })
   await flushPromises()
-  return wrapper
+  return Object.assign(wrapper, { router })
 }
 
 const buttonWithText = (wrapper: VueWrapper, text: string) =>
@@ -102,6 +102,23 @@ describe('Load more on the submissions page', () => {
       'Submission 1',
       'Submission 2',
     ])
+  })
+})
+
+describe('thanks after sharing a deal', () => {
+  it('thanks the member once after a submission, then drops the marker from the address', async () => {
+    account.submissions.mockResolvedValue({ items: [submission(1)], nextCursor: null })
+    const wrapper = await mountPage(MySubmissionsPage, '/?submitted=1')
+
+    expect(wrapper.get('h1').text()).toBe('My deal submissions')
+    expect(wrapper.get('.alert-success').text()).toContain('will appear once an admin reviews it')
+    expect(wrapper.router.currentRoute.value.query).toEqual({})
+  })
+
+  it('shows no thanks on an ordinary visit', async () => {
+    account.submissions.mockResolvedValue({ items: [], nextCursor: null })
+    const wrapper = await mountPage(MySubmissionsPage)
+    expect(wrapper.find('.alert-success').exists()).toBe(false)
   })
 })
 

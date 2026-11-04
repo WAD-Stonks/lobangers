@@ -9,6 +9,8 @@ import {
   seedSyntheticOutletProof,
 } from '@api/../tests/fixtures/outlet-proof'
 import { parseConfig } from '@api/config'
+import { createRateLimiter } from '@api/modules/assistant/runtime'
+import type { PlacesRuntime } from '@api/modules/deals/community-stalls'
 import { hasConfirmedOutletScope } from '@api/modules/deals/outlet-eligibility'
 import { MongoMemoryReplSet } from 'mongodb-memory-server'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
@@ -22,6 +24,47 @@ let mongo: MongoMemoryReplSet | undefined
 let server: Server | undefined
 let db: typeof import('@broke-oclock/db').db
 let baseURL = ''
+
+const syntheticPlaces = [
+  {
+    placeId: 'SyntheticPlace_Hawker01',
+    name: 'Synthetic Hawker Stall',
+    address: '1 Synthetic Ave, #01-01, Singapore 000001',
+    postalCode: '000001',
+    latitude: 1.3,
+    longitude: 103.85,
+  },
+  {
+    placeId: 'SyntheticPlace_Imported3',
+    name: 'Synthetic Noodle Bar (Synthetic Mall)',
+    address: '3 Synthetic Ave, #02-02 Synthetic Mall, Singapore 000003',
+    postalCode: null,
+    latitude: 1.35,
+    longitude: 103.9,
+  },
+  {
+    placeId: 'SyntheticPlace_Bakery02',
+    name: 'Synthetic Bakery',
+    address: '2 Synthetic Ave, Singapore 000002',
+    postalCode: '000002',
+    latitude: 1.31,
+    longitude: 103.86,
+  },
+]
+const placeLookups: string[] = []
+const fakePlaces: PlacesRuntime = {
+  client: {
+    search: async (query) =>
+      syntheticPlaces.filter((place) => place.name.toLowerCase().includes(query.toLowerCase())),
+    get: async (placeId) => {
+      placeLookups.push(placeId)
+      const place = syntheticPlaces.find((candidate) => candidate.placeId === placeId)
+      if (!place) throw Object.assign(new Error('missing'), { code: 'NOT_FOUND' })
+      return place
+    },
+  },
+  limiter: createRateLimiter({ visitorLimit: 1_000, globalLimit: 1_000 }),
+}
 
 type Account = { id: string; cookie: string }
 let merchant: Account
@@ -165,6 +208,7 @@ beforeAll(async () => {
         BETTER_AUTH_URL: baseURL,
         WEB_ORIGIN: origin,
       }),
+      { places: fakePlaces },
     ),
   )
   merchant = await signUp('Synthetic merchant')
@@ -617,14 +661,15 @@ describe('community deal submission', () => {
     )
   })
 
-  it('refuses unselectable stalls, mixed merchants and past deals', async () => {
+  it('accepts stalls not verified yet, and refuses archived stalls, mixed merchants and past deals', async () => {
     const [verified] = await selectableStalls('Verified', 1)
     const [otherBrand] = await selectableStalls('Other brand', 1)
-    const [unverified] = await brand('Unverified', 1)
+    const [unverified, archived] = await brand('Unverified', 2)
+    await db.venue.update({ where: { id: archived.id }, data: { deletedAt: new Date() } })
     const file = await photo(member.id)
 
-    const hidden = await call(member, 'POST', '/deals', submission([unverified.id], file.key))
-    expect(hidden.status).toBe(412)
+    const gone = await call(member, 'POST', '/deals', submission([archived.id], file.key))
+    expect(gone.status).toBe(412)
     const mixed = await call(
       member,
       'POST',
@@ -644,6 +689,9 @@ describe('community deal submission', () => {
     expect(
       (await db.uploadedFile.findUniqueOrThrow({ where: { key: file.key } })).dealId,
     ).toBeNull()
+
+    const pending = await call(member, 'POST', '/deals', submission([unverified.id], file.key))
+    expect(pending.status).toBe(201)
   })
 
   it('requires a session, a trusted origin and every field', async () => {
@@ -659,5 +707,151 @@ describe('community deal submission', () => {
     }
     expect((await call(member, 'POST', '/deals', { ...body, terms: '  ' })).status).toBe(400)
     expect((await call(member, 'PUT', '/deals', body)).status).toBe(405)
+  })
+})
+
+describe('stalls for a community deal', () => {
+  it('finds live stalls by stall or merchant name, verified or not', async () => {
+    const [stall, archived] = await brand('Stall search', 2)
+    await db.venue.update({ where: { id: archived.id }, data: { deletedAt: new Date() } })
+
+    const byStall = await call(member, 'GET', '/deals/stalls?search=stall%20search%20outlet')
+    expect(byStall.status).toBe(200)
+    expect(byStall.body).toEqual([
+      {
+        id: stall.id,
+        name: stall.name,
+        merchantName: 'Synthetic Stall search',
+        address: stall.address,
+      },
+    ])
+    const byMerchant = await call(member, 'GET', '/deals/stalls?search=synthetic%20stall%20search')
+    expect(ids(byMerchant.body)).toEqual([stall.id])
+
+    const [west, east] = await brand('Combo Burger', 2)
+    await db.venue.update({ where: { id: west.id }, data: { address: '1 Synthetic Clementi Rd' } })
+    await db.venue.update({ where: { id: east.id }, data: { area: 'Synthetic Tampines' } })
+    const byAddress = await call(member, 'GET', '/deals/stalls?search=combo%20burger%20clementi')
+    expect(ids(byAddress.body)).toEqual([west.id])
+    const byArea = await call(member, 'GET', '/deals/stalls?search=tampines%20%20combo')
+    expect(ids(byArea.body)).toEqual([east.id])
+    const noMatch = await call(member, 'GET', '/deals/stalls?search=combo%20burger%20jurong')
+    expect(noMatch.body).toEqual([])
+    expect((await call(null, 'GET', '/deals/stalls')).status).toBe(401)
+    expect((await call(member, 'GET', '/deals/stalls?bogus=1')).status).toBe(400)
+  })
+
+  it('searches the map and adds a picked place once, from Google’s own details', async () => {
+    const found = await call(member, 'GET', '/deals/places?search=hawker')
+    expect(found.status).toBe(200)
+    expect(found.body).toEqual([
+      {
+        placeId: 'SyntheticPlace_Hawker01',
+        name: 'Synthetic Hawker Stall',
+        address: '1 Synthetic Ave, #01-01, Singapore 000001',
+        latitude: 1.3,
+        longitude: 103.85,
+        stall: null,
+      },
+    ])
+
+    const added = await call(member, 'POST', '/deals/stalls', {
+      placeId: 'SyntheticPlace_Hawker01',
+      merchantName: 'Synthetic Hawker Brand',
+    })
+    expect(added.status).toBe(201)
+    expect(added.body).toMatchObject({
+      name: 'Synthetic Hawker Stall',
+      merchantName: 'Synthetic Hawker Brand',
+      address: '1 Synthetic Ave, #01-01, Singapore 000001',
+    })
+    expect(placeLookups).toContain('SyntheticPlace_Hawker01')
+    const venue = await db.venue.findUniqueOrThrow({ where: { id: added.body.id } })
+    expect(venue).toMatchObject({
+      postalCode: '000001',
+      latitude: 1.3,
+      longitude: 103.85,
+      catalogueKey: 'google-places:SyntheticPlace_Hawker01',
+      geographyPrecision: 'OUTLET',
+      geographyEvidence: { state: 'VERIFIED', provider: 'GOOGLE_PLACES' },
+      occupancyEvidence: { state: 'UNVERIFIED', provider: 'GOOGLE_PLACES' },
+    })
+
+    const again = await call(member, 'POST', '/deals/stalls', {
+      placeId: 'SyntheticPlace_Hawker01',
+      merchantName: 'Anything',
+    })
+    expect(again).toEqual({ status: 200, body: added.body })
+    expect((await call(member, 'GET', '/deals/places?search=hawker')).body[0].stall).toEqual(
+      added.body,
+    )
+
+    const bakery = await call(member, 'POST', '/deals/stalls', {
+      placeId: 'SyntheticPlace_Bakery02',
+      merchantName: 'synthetic hawker BRAND',
+    })
+    expect(bakery.status).toBe(201)
+    expect(bakery.body.merchantName).toBe('Synthetic Hawker Brand')
+
+    const file = await photo(member.id)
+    const deal = await call(member, 'POST', '/deals', {
+      title: 'Synthetic set meal',
+      description: 'Synthetic.',
+      category: 'FOOD',
+      cuisine: null,
+      offerType: 'OTHER',
+      discountPercent: null,
+      priceCents: null,
+      stallIds: [added.body.id, bakery.body.id],
+      startDate: '2026-11-01',
+      endDate: '2099-11-30',
+      terms: 'Synthetic',
+      photoKey: file.key,
+    })
+    expect(deal.status).toBe(201)
+  })
+
+  it('recognises a stall imported under another name nearby, and never adds it again', async () => {
+    const imported = await db.merchant.create({ data: { name: 'Synthetic Noodle Bar Singapore' } })
+    const listed = await db.venue.create({
+      data: {
+        merchantId: imported.id,
+        name: 'Synthetic Mall',
+        address: '3 Synthetic Ave',
+        latitude: 1.3505,
+        longitude: 103.9,
+      },
+    })
+    const expected = {
+      id: listed.id,
+      name: 'Synthetic Mall',
+      merchantName: 'Synthetic Noodle Bar Singapore',
+      address: '3 Synthetic Ave',
+    }
+
+    const found = await call(member, 'GET', '/deals/places?search=noodle')
+    expect(found.body[0]).toMatchObject({ placeId: 'SyntheticPlace_Imported3', stall: expected })
+    const before = await db.venue.count()
+    const added = await call(member, 'POST', '/deals/stalls', {
+      placeId: 'SyntheticPlace_Imported3',
+      merchantName: 'Synthetic Noodle Bar',
+    })
+    expect(added).toEqual({ status: 200, body: expected })
+    expect(await db.venue.count()).toBe(before)
+  })
+
+  it('refuses unknown places, untrusted origins and anonymous visitors', async () => {
+    const body = { placeId: 'SyntheticPlace_Missing', merchantName: 'Synthetic' }
+    expect((await call(member, 'POST', '/deals/stalls', body)).status).toBe(404)
+    expect((await call(member, 'POST', '/deals/stalls', body, 'https://evil.example')).status).toBe(
+      403,
+    )
+    expect((await call(null, 'POST', '/deals/stalls', body)).status).toBe(401)
+    expect((await call(null, 'GET', '/deals/places?search=hawker')).status).toBe(401)
+    expect((await call(member, 'GET', '/deals/places?search=x')).status).toBe(400)
+    expect(
+      (await call(member, 'POST', '/deals/stalls', { placeId: '../../x', merchantName: 'S' }))
+        .status,
+    ).toBe(400)
   })
 })

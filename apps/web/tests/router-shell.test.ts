@@ -283,7 +283,7 @@ describe('map shell routes', () => {
     expect(navbar.find('a[href="/login"]').exists()).toBe(false)
     await navbar.get('.profile-menu__avatar').trigger('click')
     expect(navbar.get('.profile-menu__panel').text()).toContain('Account settings')
-    expect(navbar.get('.profile-menu__panel').text()).toContain('My submissions')
+    expect(navbar.get('.profile-menu__panel').text()).toContain('My deal submissions')
     expect(navbar.get('.profile-menu__panel').text()).toContain('Log out')
   })
 

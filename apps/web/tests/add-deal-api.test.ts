@@ -1,4 +1,10 @@
-import { errorMessageFor, searchStalls, submitDeal } from '@web/modules/add-deal/add-deal-api'
+import {
+  addStallFromPlace,
+  errorMessageFor,
+  searchPlaces,
+  searchStalls,
+  submitDeal,
+} from '@web/modules/add-deal/add-deal-api'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 const mocks = vi.hoisted(() => ({ get: vi.fn(), post: vi.fn(), uploadPhoto: vi.fn() }))
@@ -27,14 +33,31 @@ const deal = {
 const photo = new File(['image'], 'lunch.png', { type: 'image/png' })
 
 describe('add a deal requests', () => {
-  it('searches the verified stalls on the server', async () => {
+  it('searches the stalls on the server', async () => {
     const stalls = [
       { id: 'a'.repeat(24), name: 'Synthetic Stall', merchantName: 'S', address: '1' },
     ]
     mocks.get.mockResolvedValue({ data: stalls })
 
     expect(await searchStalls('synthetic')).toEqual(stalls)
-    expect(mocks.get).toHaveBeenCalledWith('/account/venues', { params: { search: 'synthetic' } })
+    expect(mocks.get).toHaveBeenCalledWith('/deals/stalls', { params: { search: 'synthetic' } })
+  })
+
+  it('searches the map and adds a picked place by its ID and shop name', async () => {
+    mocks.get.mockResolvedValue({ data: [] })
+    mocks.post.mockResolvedValue({ data: { id: 'c'.repeat(24) } })
+
+    await searchPlaces('synthetic kopi')
+    expect(mocks.get).toHaveBeenCalledWith('/deals/places', {
+      params: { search: 'synthetic kopi' },
+    })
+    expect(await addStallFromPlace('SyntheticPlace_01', 'Synthetic Kopi')).toEqual({
+      id: 'c'.repeat(24),
+    })
+    expect(mocks.post).toHaveBeenCalledWith('/deals/stalls', {
+      placeId: 'SyntheticPlace_01',
+      merchantName: 'Synthetic Kopi',
+    })
   })
 
   it('uploads the photo, then sends the deal with its key', async () => {

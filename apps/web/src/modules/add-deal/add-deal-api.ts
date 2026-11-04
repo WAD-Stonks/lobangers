@@ -14,6 +14,15 @@ export interface Stall {
   address: string
 }
 
+export interface Place {
+  placeId: string
+  name: string
+  address: string
+  latitude: number
+  longitude: number
+  stall: Stall | null
+}
+
 export type OfferType = 'BUY_ONE_GET_ONE' | 'PERCENT_OFF' | 'FIXED_PRICE' | 'OTHER'
 
 // Everything the form sends, apart from the photo.
@@ -33,13 +42,23 @@ export interface NewDeal {
 
 // ---------------------------------------------------------------------------------------------
 // Requests to the server. api.http is the project's shared axios instance: it already starts
-// URLs with /api and sends the login cookie, so '/account/venues' becomes /api/account/venues.
+// URLs with /api and sends the login cookie, so '/deals/stalls' becomes /api/deals/stalls.
 // ---------------------------------------------------------------------------------------------
 
-// Finds stalls whose name contains the search words (any capitals). An empty search lists all.
-// It only returns stalls with verified occupancy.
+// Finds up to ten stalls whose own or shop name contains the search words (any capitals).
+// An empty search lists the first ten.
 export const searchStalls = async (search: string): Promise<Stall[]> => {
-  const response = await api.http.get('/account/venues', { params: { search } })
+  const response = await api.http.get('/deals/stalls', { params: { search } })
+  return response.data
+}
+
+export const searchPlaces = async (search: string): Promise<Place[]> => {
+  const response = await api.http.get('/deals/places', { params: { search } })
+  return response.data
+}
+
+export const addStallFromPlace = async (placeId: string, merchantName: string): Promise<Stall> => {
+  const response = await api.http.post('/deals/stalls', { placeId, merchantName })
   return response.data
 }
 
@@ -65,11 +84,12 @@ export const errorMessageFor = (error: unknown, fallback: string): string => {
   if (axios.isAxiosError(error)) {
     const status = error.response?.status
     if (status === 401) return 'Your session has ended. Please log in again.'
+    if (status === 429) return 'Too many map searches. Please wait a minute and try again.'
     // For these the server explains what is wrong, e.g. "All stalls must belong to the
     // same merchant". Its generic "Invalid request" is less helpful than our own fallback.
     const message = error.response?.data?.error?.message
     if (
-      (status === 400 || status === 409 || status === 412) &&
+      (status === 400 || status === 404 || status === 409 || status === 412 || status === 502) &&
       typeof message === 'string' &&
       message !== 'Invalid request'
     )

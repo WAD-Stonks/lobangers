@@ -28,7 +28,10 @@ import {
   toNewDeal,
 } from '@web/modules/add-deal/add-deal-steps'
 import ShellIcon, { type ShellIconName } from '@web/modules/map-shell/ShellIcon.vue'
-import { computed, nextTick, ref } from 'vue'
+
+const StallMapPicker = defineAsyncComponent(() => import('@web/modules/add-deal/StallMapPicker.vue'))
+
+import { computed, defineAsyncComponent, nextTick, ref } from 'vue'
 import { useRouter } from 'vue-router'
 
 // ----- Choices -----
@@ -64,7 +67,7 @@ const TIPS = [
   {
     sprite: 'idle-peek',
     title: 'Finding the right stall',
-    points: ['Search by the stall or shop name', 'Add every outlet that runs the deal', 'Check the address matches where you saw it'],
+    points: ['Search by the stall or shop name', 'Not listed yet? Find it on the map', 'Add every outlet that runs the deal'],
   },
   {
     sprite: 'thinking',
@@ -74,7 +77,7 @@ const TIPS = [
   {
     sprite: 'hello',
     title: 'Almost there!',
-    points: ['Check the details match the poster', 'An admin checks every deal before it goes live', 'Find it in My submissions once it is sent'],
+    points: ['Check the details match the poster', 'An admin checks every deal before it goes live', 'Find it in My deal submissions once it is sent'],
   },
 ] as const
 
@@ -147,6 +150,7 @@ const stallSearch = ref('')
 const stallResults = ref<Stall[]>([])
 const searching = ref(false)
 const searchMessage = ref('')
+const searched = ref(false)
 
 const findStalls = async () => {
   if (searching.value) return // Enter pressed again while a search is still running
@@ -154,7 +158,9 @@ const findStalls = async () => {
   searchMessage.value = ''
   try {
     stallResults.value = await searchStalls(stallSearch.value)
-    if (stallResults.value.length === 0) searchMessage.value = 'No stalls found. Try other words.'
+    searched.value = true
+    if (stallResults.value.length === 0)
+      searchMessage.value = 'No stalls found. Try other words, or find the stall on the map.'
   } catch (error) {
     searchMessage.value = errorMessageFor(error, 'Could not search stalls. Please try again.')
   } finally {
@@ -169,6 +175,24 @@ const addStall = (stall: Stall) => {
 }
 const removeStall = (stall: Stall) => {
   chosenStalls.value = chosenStalls.value.filter((chosen) => chosen.id !== stall.id)
+}
+
+const mapOpen = ref(false)
+const mapSearch = ref('')
+const toggleMap = () => {
+  if (!mapOpen.value) {
+    mapSearch.value = stallSearch.value
+    stallSearch.value = ''
+    stallResults.value = []
+    searchMessage.value = ''
+  }
+  mapOpen.value = !mapOpen.value
+}
+const addFromMap = (stall: Stall) => {
+  const already = isChosen(stall)
+  addStall(stall)
+  mapOpen.value = false
+  searchMessage.value = already ? `${stall.name} is already on this deal.` : `${stall.name} is added to this deal.`
 }
 
 // ----- Photo -----
@@ -249,13 +273,14 @@ const sendDeal = async () => {
   submitting.value = true
   try {
     await submitDeal(toNewDeal(form.value, chosenStalls.value), photo.value as File)
-    openPopup('Deal submitted', 'Thanks! Your deal will appear once an admin reviews it.')
-    clearForm()
   } catch (error) {
     openPopup('Could not submit', errorMessageFor(error, 'Could not submit the deal. Please try again.'))
+    return
   } finally {
     submitting.value = false
   }
+  clearForm()
+  await router.push({ path: '/me/submissions', query: { submitted: '1' } })
 }
 
 // Empties every field and goes back to the first step, so the user can add another deal.
@@ -493,9 +518,23 @@ const goBack = () => {
             </li>
           </ul>
 
-          <p class="form-label mt-3 mb-2">Stalls with this deal</p>
+          <div v-if="searched" class="add-deal__missing">
+            <p class="add-deal__hint mb-0">Can't find the existing stall?</p>
+            <button type="button" class="lb-btn" :aria-expanded="mapOpen" aria-controls="stall-map" @click="toggleMap">
+              <ShellIcon :name="mapOpen ? 'close' : 'plus'" :size="18" />{{ mapOpen ? 'Close the map' : 'Add new stall' }}
+            </button>
+          </div>
+          <StallMapPicker
+            v-if="searched && mapOpen"
+            id="stall-map"
+            :initial-search="mapSearch"
+            :chosen-ids="chosenStalls.map((chosen) => chosen.id)"
+            @add="addFromMap"
+          />
+
+          <!-- <p class="form-label mt-3 mb-2">Stalls with this deal</p> -->
           <p v-if="chosenStalls.length === 0" class="add-deal__hint mb-0">
-            No stalls added yet. Search above and click Add. A deal can be at more than one stall.
+            No stalls added yet. Search above and click Add. 
           </p>
           <ul v-else class="add-deal__stalls add-deal__stalls--chosen">
             <li v-for="stall in chosenStalls" :key="stall.id">
@@ -640,8 +679,11 @@ const goBack = () => {
   font-weight: 800;
   letter-spacing: -0.02em;
 }
+.add-deal__intro {
+  flex: 1;
+  min-width: 0;
+}
 .add-deal__lede {
-  max-width: 46ch;
   margin: 0;
   color: var(--ink-muted);
   font-size: 1rem;
@@ -863,6 +905,15 @@ const goBack = () => {
 }
 .add-deal__remove {
   color: var(--coral-deep);
+}
+.add-deal__missing {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+}
+.add-deal__missing .lb-btn {
+  gap: 6px;
 }
 
 /* ----- Review ----- */

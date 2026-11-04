@@ -5,7 +5,7 @@ import { api } from '@web/lib/api-client'
 import { formatDate } from '@web/lib/format'
 import { errorCode } from '@web/modules/ingestion-admin/errors'
 import { onMounted, ref } from 'vue'
-import { RouterLink } from 'vue-router'
+import { RouterLink, useRoute, useRouter } from 'vue-router'
 
 const submissions = ref<Submission[]>([])
 const nextCursor = ref<string | null>(null)
@@ -14,6 +14,9 @@ const loadingMore = ref(false)
 const loadMoreError = ref('')
 const notLoggedIn = ref(false)
 const errorMessage = ref('')
+const route = useRoute()
+const router = useRouter()
+const justSubmitted = route.query.submitted === '1'
 
 // Which Bootstrap colour to use for each review status
 const badgeClass: Record<string, string> = {
@@ -58,12 +61,19 @@ const loadMore = async () => {
   }
 }
 
-onMounted(loadSubmissions)
+onMounted(() => {
+  if (justSubmitted) void router.replace({ query: {} })
+  void loadSubmissions()
+})
 </script>
 
 <template>
   <section class="container py-4 my-submissions">
-    <h1 class="h2 mb-4">My submissions</h1>
+    <h1 class="h2 mb-4">My deal submissions</h1>
+
+    <p v-if="justSubmitted" class="alert alert-success" role="status">
+      Thanks! Your deal is submitted and will appear once an admin reviews it.
+    </p>
 
     <TicketLoading v-if="loading" label="Loading your submissions…" />
 
