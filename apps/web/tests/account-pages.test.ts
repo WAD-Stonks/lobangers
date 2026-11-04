@@ -17,6 +17,12 @@ const account = vi.hoisted(() => ({
   requestMerchantAccess: vi.fn(),
   merchantRequests: vi.fn(),
 }))
+const canAddDeal = vi.hoisted(() => ({ value: true }))
+vi.mock('@web/lib/use-can-add-deal', async () => {
+  const { computed } = await import('vue')
+  return { useCanAddDeal: () => computed(() => canAddDeal.value) }
+})
+
 vi.mock('@web/lib/api-client', () => ({
   ApiClientError: class ApiClientError extends Error {
     constructor(
@@ -60,6 +66,7 @@ const submission = (n: number, overrides: Partial<Submission> = {}): Submission 
   ],
   reviewStatus: 'PENDING',
   reviewNote: null,
+  deletable: true,
   createdAt: '2026-01-01T00:00:00.000Z',
   ...overrides,
 })
@@ -90,6 +97,7 @@ const mountPage = async (component: Component, path = '/') => {
     routes: [
       { path: '/', component: stub },
       { path: '/login', component: stub },
+      { path: '/add', name: 'submit-deal', component: stub },
     ],
   })
   await router.push(path)
@@ -104,6 +112,7 @@ const buttonWithText = (wrapper: VueWrapper, text: string) =>
 
 beforeEach(() => {
   vi.resetAllMocks()
+  canAddDeal.value = true
 })
 
 describe('Load more on the submissions page', () => {
@@ -140,6 +149,23 @@ describe('thanks after sharing a deal', () => {
     account.submissions.mockResolvedValue({ items: [], nextCursor: null })
     const wrapper = await mountPage(MySubmissionsPage)
     expect(wrapper.find('.alert-success').exists()).toBe(false)
+  })
+})
+
+describe('adding a deal from the submissions page', () => {
+  it('links to the Add a deal form, even before the first submission', async () => {
+    account.submissions.mockResolvedValue({ items: [], nextCursor: null })
+    const wrapper = await mountPage(MySubmissionsPage)
+    const link = wrapper.get('a.my-submissions__add')
+    expect(link.text()).toBe('Add a deal')
+    expect(link.attributes('href')).toBe('/add')
+  })
+
+  it('offers no Add a deal to merchants, who add deals from their dashboard', async () => {
+    canAddDeal.value = false
+    account.submissions.mockResolvedValue({ items: [], nextCursor: null })
+    const wrapper = await mountPage(MySubmissionsPage)
+    expect(wrapper.find('.my-submissions__add').exists()).toBe(false)
   })
 })
 
@@ -190,12 +216,23 @@ describe('submission cards and details', () => {
 
   it('offers delete only while the deal is pending', async () => {
     account.submissions.mockResolvedValue({
-      items: [submission(1, { reviewStatus: 'APPROVED' })],
+      items: [submission(1, { reviewStatus: 'APPROVED', deletable: false })],
       nextCursor: null,
     })
     const wrapper = await mountPage(MySubmissionsPage)
     await wrapper.get('.submission-card__open').trigger('click')
     expect(buttonWithText(wrapper, 'Delete deal')).toBeUndefined()
+  })
+
+  it('offers no delete for a deal back in review after an admin approved it', async () => {
+    account.submissions.mockResolvedValue({
+      items: [submission(1, { deletable: false })],
+      nextCursor: null,
+    })
+    const wrapper = await mountPage(MySubmissionsPage)
+    await wrapper.get('.submission-card__open').trigger('click')
+    expect(buttonWithText(wrapper, 'Delete deal')).toBeUndefined()
+    expect(wrapper.get('.modal-stub').text()).toContain('can no longer be deleted')
   })
 
   it('deletes a pending deal after a second confirming click and drops it from the list', async () => {

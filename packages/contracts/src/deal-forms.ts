@@ -63,7 +63,7 @@ export const checkDealFields = (value: OfferFields & DateFields, context: z.Refi
 export const submitDealBodySchema = z
   .strictObject({
     ...dealContentShape,
-    stallIds: dealLocationIdsSchema,
+    stallIds: z.array(dealObjectIdSchema).length(1),
     startDate: dealDateSchema,
     endDate: dealDateSchema,
     terms: z.string().trim().min(1).max(1000),

@@ -161,7 +161,7 @@ describe('add a deal form', () => {
     expect(errorTexts(wrapper)).toEqual([])
     expect(stepShown(wrapper)).toContain('Location')
     await next(wrapper)
-    expect(errorTexts(wrapper)).toEqual(['Please add at least one stall.'])
+    expect(errorTexts(wrapper)).toEqual(['Please add the stall.'])
     expect(addDealApi.submitDeal).not.toHaveBeenCalled()
   })
 
@@ -242,11 +242,13 @@ describe('add a deal form', () => {
     await addStall(wrapper)
     expect(addDealApi.searchStalls).toHaveBeenCalledWith('chicken')
     expect(wrapper.findAll('button').map((button) => button.text())).toContain('Added')
-    expect(wrapper.text()).not.toContain('No stalls added yet.')
+    expect(wrapper.get('#stalls-added').text()).toBe('Stall added')
+    expect(wrapper.get('.add-deal__stalls--chosen').text()).toContain(stall.name)
 
     const remove = wrapper.findAll('button').find((button) => button.text() === 'Remove')
     await remove?.trigger('click')
-    expect(wrapper.text()).toContain('No stalls added yet.')
+    expect(wrapper.find('#stalls-added').exists()).toBe(false)
+    expect(wrapper.find('.add-deal__stalls--chosen').exists()).toBe(false)
   })
 
   it('says when a stall search finds nothing', async () => {
@@ -255,9 +257,10 @@ describe('add a deal form', () => {
     await wrapper.get('#stall-search').setValue('nothing')
     await wrapper.get('#stall-search').trigger('keydown.enter')
     await flush()
-    expect(wrapper.text()).toContain(
-      'No stalls found. Try other words, or find the stall on the map.',
-    )
+    const row = wrapper.get('.add-deal__missing')
+    expect(row.text()).toContain('No existing stalls found.')
+    expect(row.text()).toContain('Add new stall')
+    expect(wrapper.text()).not.toContain("Can't find the existing stall?")
   })
 
   it('adds a stall missing from the list by finding it on the map', async () => {
@@ -287,15 +290,17 @@ describe('add a deal form', () => {
     await flush()
     expect(addDealApi.searchPlaces).toHaveBeenCalledWith('synthetic map')
     expect((wrapper.get('#stall-search').element as HTMLInputElement).value).toBe('')
-    expect(wrapper.text()).not.toContain('No stalls found')
+    expect(wrapper.text()).not.toContain('No existing stalls found')
+    expect(wrapper.get('.add-deal__missing').text()).toContain(
+      'Search for the new stall on the map below.',
+    )
 
     await wrapper.get('.stall-map__place').trigger('click')
-    await wrapper.get('#place-brand').setValue('Synthetic Map Brand')
     await wrapper.get('.stall-map__confirm .lb-btn').trigger('click')
     await flush()
     expect(addDealApi.addStallFromPlace).toHaveBeenCalledWith(
       'SyntheticPlace_Map',
-      'Synthetic Map Brand',
+      'Synthetic Map Stall',
     )
     expect(wrapper.find('.stall-map').exists()).toBe(false)
     expect(wrapper.get('.add-deal__stalls--chosen').text()).toContain('Synthetic Map Stall')
@@ -308,6 +313,7 @@ describe('add a deal form', () => {
     const review = wrapper.get('.add-deal__review').text()
     expect(review).toContain('1-for-1 chicken rice')
     expect(review).toContain('Campus Chicken Rice')
+    expect(review).toContain('Address1 Stamford Rd')
     expect(review).toContain('1 Jan 2099 to 31 Jan 2099')
     expect(wrapper.find('.add-deal-tip img').attributes('src')).toBe('/chatbot-sprites/hello.svg')
   })

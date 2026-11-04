@@ -152,6 +152,15 @@
   gap: 6px;
 }
 
+/* Long labels ("Go with the top pick: …") wrap inside the room instead of running off a phone. */
+.squad-room .lb-btn {
+  max-width: 100%;
+  padding-block: 8px;
+  overflow-wrap: anywhere;
+  white-space: normal;
+  text-align: center;
+}
+
 .squad-room .squad-alone__actions .lb-btn {
   flex: 1 1 0;
   min-height: 32px;
@@ -201,15 +210,6 @@
   color: var(--squad-text);
   background: var(--squad-surface);
   border-color: var(--squad-surface);
-}
-
-/* Long labels ("Go with the top pick: …") wrap inside the room instead of running off a phone. */
-.squad-room .lb-btn {
-  max-width: 100%;
-  padding-block: 8px;
-  overflow-wrap: anywhere;
-  white-space: normal;
-  text-align: center;
 }
 
 .squad-room .squad-btn-dark:hover {

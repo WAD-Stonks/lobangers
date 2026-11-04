@@ -6,6 +6,7 @@ import DealImage from '@web/components/DealImage.vue'
 import TicketLoading from '@web/components/TicketLoading.vue'
 import { api } from '@web/lib/api-client'
 import { formatDate } from '@web/lib/format'
+import { useCanAddDeal } from '@web/lib/use-can-add-deal'
 import { errorCode } from '@web/modules/ingestion-admin/errors'
 import ShellIcon from '@web/modules/map-shell/ShellIcon.vue'
 import { offerLabel } from '@web/modules/venues-feed/deal-format'
@@ -23,6 +24,7 @@ const notice = ref('')
 const route = useRoute()
 const router = useRouter()
 const justSubmitted = route.query.submitted === '1'
+const canAddDeal = useCanAddDeal()
 
 const selected = ref<Submission | null>(null)
 const detailsOpen = ref(false)
@@ -49,6 +51,10 @@ const statusHint: Record<string, string> = {
   REJECTED: 'An admin did not approve this deal, so it is not on the map.',
   HIDDEN: 'An admin took this deal off the map.',
 }
+const statusMessage = (item: Submission) =>
+  item.reviewStatus === 'PENDING' && !item.deletable
+    ? 'An admin approved this deal before and is checking it again, so it can no longer be deleted.'
+    : statusHint[item.reviewStatus]
 const categoryLabel: Record<string, string> = {
   FOOD: 'Food',
   DRINKS: 'Drinks',
@@ -156,8 +162,13 @@ onMounted(() => {
 <template>
   <section class="my-submissions">
     <header class="my-submissions__hero">
-      <button type="button" class="my-submissions__back" @click="goBack"><ShellIcon name="back" :size="16" />Back</button>
-      <h1 class="my-submissions__title">My deal submissions</h1>
+      <div class="my-submissions__intro">
+        <button type="button" class="my-submissions__back" @click="goBack"><ShellIcon name="back" :size="16" />Back</button>
+        <h1 class="my-submissions__title">My deal submissions</h1>
+      </div>
+      <RouterLink v-if="canAddDeal" class="lb-btn lb-btn--primary my-submissions__add" :to="{ name: 'submit-deal' }">
+        <ShellIcon name="plus" :size="18" />Add a deal
+      </RouterLink>
     </header>
 
     <p v-if="justSubmitted" class="alert alert-success" role="status">
@@ -222,7 +233,7 @@ onMounted(() => {
       <div v-if="selected" class="submission-details">
         <div class="submission-details__status">
           <span class="badge" :class="badgeClass[selected.reviewStatus]">{{ statusLabel[selected.reviewStatus] }}</span>
-          <p class="mb-0">{{ statusHint[selected.reviewStatus] }}</p>
+          <p class="mb-0">{{ statusMessage(selected) }}</p>
         </div>
         <DealImage v-if="selected.photoUrl" :url="selected.photoUrl" :alt="selected.title" class="submission-details__photo" />
         <dl class="submission-details__rows">
@@ -244,7 +255,7 @@ onMounted(() => {
           </li>
         </ul>
 
-        <div v-if="selected.reviewStatus === 'PENDING'" class="submission-details__delete">
+        <div v-if="selected.deletable" class="submission-details__delete">
           <button v-if="!confirmingDelete" type="button" class="lb-btn submission-details__danger" @click="confirmingDelete = true">
             Delete deal
           </button>
@@ -274,7 +285,19 @@ onMounted(() => {
 }
 
 .my-submissions__hero {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px 16px;
   margin-bottom: 24px;
+}
+.my-submissions__intro {
+  min-width: 0;
+}
+.my-submissions__add {
+  flex: none;
+  gap: 6px;
 }
 .my-submissions__back {
   display: inline-flex;
@@ -390,8 +413,25 @@ onMounted(() => {
 .submission-details__status .badge {
   flex: none;
 }
-.submission-details__photo {
+.submission-details .submission-details__photo {
+  aspect-ratio: auto;
+  overflow: visible;
+  background: transparent;
+}
+.submission-details__photo :deep(img) {
+  width: auto;
+  max-width: 100%;
+  height: auto;
   max-height: 280px;
+  border-radius: 16px;
+}
+.submission-details__photo :deep([role="img"]) {
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  display: grid;
+  place-items: center;
+  background: var(--paper-sunk);
+  border-radius: 16px;
 }
 .submission-details__rows {
   display: grid;

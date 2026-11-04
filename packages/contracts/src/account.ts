@@ -61,6 +61,7 @@ export const submissionSchema = z.object({
   stalls: z.array(submissionStallSchema),
   reviewStatus: z.enum(['PENDING', 'APPROVED', 'REJECTED', 'HIDDEN']),
   reviewNote: z.string().nullable(),
+  deletable: z.boolean(),
   createdAt: z.string().datetime(),
 })
 export const submissionsResponseSchema = platformPageSchema(submissionSchema)
