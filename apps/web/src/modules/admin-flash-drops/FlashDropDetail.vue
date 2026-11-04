@@ -42,7 +42,7 @@ const coordinates = computed(
     <dl class="fd-facts">
       <dt>Offer</dt><dd>{{ offerLine(drop) }}</dd>
       <dt>Window (SGT)</dt><dd>{{ windowLine(drop) }} · {{ durationMinutes(drop) }} min</dd>
-      <dt>Banner radius</dt><dd>{{ formatDistance(drop.radiusMetres) }} around the outlet</dd>
+      <dt>Map circle</dt><dd>{{ formatDistance(drop.radiusMetres) }} around the outlet</dd>
       <dt>Codes</dt><dd>{{ codesLine }}</dd>
       <dt>Outlet</dt><dd>{{ drop.outletName }} · {{ coordinates }}</dd>
       <template v-if="drop.reviewNote && !outcome"><dt>Last note</dt><dd>“{{ drop.reviewNote }}”</dd></template>

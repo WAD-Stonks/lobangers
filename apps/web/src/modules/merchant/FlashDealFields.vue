@@ -158,9 +158,13 @@ const changeCodes = (direction: 1 | -1) => {
     <ChoiceChips
       v-model="fields.radiusMetres"
       name="flash-radius"
-      legend="Who sees the banner"
+      legend="Circle on the map"
       :choices="radiusChoices"
     />
+    <p class="small text-secondary mt-n2">
+      A circle around your outlet, so people can see how close they are. Everyone on LoBangers
+      is told when the flash deal goes live, wherever they are.
+    </p>
 
     <p class="small text-secondary mb-1">Preview of the banner on the map</p>
     <p class="banner mb-0" data-testid="flash-preview">{{ preview }}</p>

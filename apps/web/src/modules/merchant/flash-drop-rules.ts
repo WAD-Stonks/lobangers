@@ -218,9 +218,9 @@ const startText = (drop: MerchantFlashDrop, now: Date) =>
 export const flashWhenText = (drop: MerchantFlashDrop, now: Date) =>
   `${startText(drop, now)} · ${durationMinutesOf(drop)} min`
 
-// How far the banner reaches and how many codes there are: "500 m · 40 codes".
+// The size of its circle on the map and how many codes there are: "500 m circle · 40 codes".
 export const flashReachText = (drop: MerchantFlashDrop) =>
-  `${radiusLabel(drop.radiusMetres)} · ${drop.codeLimit} codes`
+  `${radiusLabel(drop.radiusMetres)} circle · ${drop.codeLimit} codes`
 
 // "Maxwell · Today 6:00 pm · 30 min · 500 m · 40 codes"
 export const summaryLine = (drop: MerchantFlashDrop, now: Date) =>
@@ -273,13 +273,13 @@ export const STATUS_LABELS: Record<FlashDropDisplayStatus, string> = {
 // The flash offer in words, e.g. "$1.50", "1-for-1" or "30% off" ('' for another offer).
 export const flashOfferText = (drop: MerchantFlashDrop) => offerText(drop)
 
-// The small banner people near the stall will see, as text, with the same wording as the map:
-// "FLASH DROP · 1-for-1 chicken rice · 30:00 · within 500 m"
+// The flash deal as a line of text, for the form's preview: what it is, how long, and its circle:
+// "FLASH DROP · 1-for-1 chicken rice · 30:00 · 500 m circle"
 export const bannerPreview = (
   fields: FlashFieldsState,
   title: string,
   offer: Pick<MerchantFlashDrop, 'offerType' | 'discountPercent' | 'flashPriceCents'>,
 ) => {
   const name = offerTitle({ ...offer, dealTitle: title.trim() || 'your deal' })
-  return `FLASH DROP · ${name} · ${fields.durationMinutes}:00 · within ${radiusLabel(fields.radiusMetres)}`
+  return `FLASH DROP · ${name} · ${fields.durationMinutes}:00 · ${radiusLabel(fields.radiusMetres)} circle`
 }

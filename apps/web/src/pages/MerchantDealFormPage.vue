@@ -616,7 +616,7 @@ const formTitle = computed(() => {
 })
 const formLede = computed(() =>
   flashMode.value
-    ? 'A short burst offer for people near your stall. It saves as a draft, and nobody sees it until you press Go live.'
+    ? 'A short burst offer that everyone on LoBangers is told about. It saves as a draft, and nobody sees it until you press Go live.'
     : 'It goes on the map as soon as you save it.',
 )
 // In flash mode the form's offer is the flash offer: a discount or price only goes with the
