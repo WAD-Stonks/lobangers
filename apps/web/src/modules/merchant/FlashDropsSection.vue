@@ -14,7 +14,7 @@ const emit = defineEmits<{ edit: [drop: MerchantFlashDrop] }>()
 <template>
   <div class="flash-tab">
     <p class="flash-tab__intro">
-      Short, limited-code deals that pop up on the map for people nearby.
+      Short, limited-code deals. Everyone on LoBangers is told when one goes live, and its circle on the map shows people how close they are.
       <span v-if="store.live.value" class="flash-tab__live" data-testid="flash-live-updates"><span class="flash-tab__dot" aria-hidden="true" />Live updates</span>
     </p>
     <p v-if="store.loadError.value" class="merchant-alert merchant-alert--error" role="alert">{{ store.loadError.value }}</p>

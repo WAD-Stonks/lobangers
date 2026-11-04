@@ -233,7 +233,7 @@ test('save a flash deal as a draft, send it live and end it early', async ({ pag
   await page.getByLabel('Usual price ($, optional)').fill('4')
   await page.getByText('15 min', { exact: true }).click()
   await expect(page.getByTestId('flash-preview')).toHaveText(
-    'FLASH DROP · $1.20 Synthetic roast chicken rice · 15:00 · within 500 m',
+    'FLASH DROP · $1.20 Synthetic roast chicken rice · 15:00 · 500 m circle',
   )
   await page.getByRole('button', { name: 'Next: Review' }).click()
   await page.getByRole('button', { name: 'Save as flash deal' }).click()

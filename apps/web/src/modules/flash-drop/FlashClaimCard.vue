@@ -79,7 +79,7 @@ const claim = async () => {
       <span v-if="saving" class="flash-claim__saving">{{ saving }}</span>
     </p>
     <p class="flash-claim__meta">
-      {{ codesLeftText(drop) }} of {{ drop.codeLimit }} · for people within {{ radiusText(drop.radiusMetres) }}
+      {{ codesLeftText(drop) }} of {{ drop.codeLimit }} · {{ radiusText(drop.radiusMetres) }} circle around the stall
     </p>
     <p v-if="!code" class="flash-claim__meta" data-testid="flash-use-by">
       Claim before the timer runs out. {{ useByText(drop.codesExpireAt, now) }} at the counter.

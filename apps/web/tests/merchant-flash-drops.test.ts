@@ -184,15 +184,15 @@ describe('flash deal helpers', () => {
         'Synthetic chicken rice',
         offer('FIXED_PRICE', { flashPriceCents: 150 }),
       ),
-    ).toBe('FLASH DROP · $1.50 Synthetic chicken rice · 30:00 · within 500\u00a0m')
+    ).toBe('FLASH DROP · $1.50 Synthetic chicken rice · 30:00 · 500\u00a0m circle')
     expect(bannerPreview(fields(), 'Synthetic chicken rice', offer('BUY_ONE_GET_ONE'))).toBe(
-      'FLASH DROP · 1-for-1 Synthetic chicken rice · 30:00 · within 500\u00a0m',
+      'FLASH DROP · 1-for-1 Synthetic chicken rice · 30:00 · 500\u00a0m circle',
     )
     expect(
       bannerPreview(fields(), 'Synthetic kopi', offer('PERCENT_OFF', { discountPercent: 30 })),
-    ).toBe('FLASH DROP · 30% off Synthetic kopi · 30:00 · within 500\u00a0m')
+    ).toBe('FLASH DROP · 30% off Synthetic kopi · 30:00 · 500\u00a0m circle')
     expect(bannerPreview(fields({ radiusMetres: 1000 }), ' ', offer('OTHER'))).toBe(
-      'FLASH DROP · your deal · 30:00 · within 1\u00a0km',
+      'FLASH DROP · your deal · 30:00 · 1\u00a0km circle',
     )
   })
 
@@ -291,7 +291,7 @@ describe('FlashDealFields', () => {
     await wrapper.get('#flash-radius-1000').setValue(true)
     expect(wrapper.get('output').text()).toBe('50')
     expect(wrapper.get('[data-testid="flash-preview"]').text()).toBe(
-      'FLASH DROP · $1.50 Synthetic chicken rice · 30:00 · within 1 km',
+      'FLASH DROP · $1.50 Synthetic chicken rice · 30:00 · 1 km circle',
     )
     expect(model.value).toMatchObject({ usualDollars: 4, codeLimit: 50, radiusMetres: 1000 })
   })
