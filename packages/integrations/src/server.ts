@@ -6,6 +6,17 @@ export type {
   GeminiTurn,
 } from '@integrations/gemini-client'
 export { createGeminiClient, GeminiClientError } from '@integrations/gemini-client'
+export type {
+  GooglePlacesClient,
+  GooglePlacesClientOptions,
+  GooglePlacesErrorCode,
+  PlaceMatch,
+} from '@integrations/google-places-client'
+export {
+  createGooglePlacesClient,
+  GooglePlacesClientError,
+  PLACE_ID_PATTERN,
+} from '@integrations/google-places-client'
 export type { GroqClient, GroqClientOptions, GroqErrorCode } from '@integrations/groq-client'
 export { createGroqClient, GroqClientError, toStrictSchema } from '@integrations/groq-client'
 export type {

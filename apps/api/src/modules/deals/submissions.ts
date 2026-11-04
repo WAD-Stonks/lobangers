@@ -1,6 +1,6 @@
 import { catalogueVenueSelect } from '@api/modules/deals/catalogue-select'
+import { isPickableStall } from '@api/modules/deals/community-stalls'
 import { dayOf, endAfterDay, startOfDay } from '@api/modules/deals/deal-dates'
-import { isSelectableCatalogueVenue } from '@api/modules/deals/outlet-eligibility'
 import { DomainError } from '@api/modules/domain-error'
 import { activeRecord } from '@api/modules/platform-admin/venues'
 import type { SubmitDealBody } from '@broke-oclock/contracts/deal-forms'
@@ -26,9 +26,7 @@ export const submitCommunityDeal = async (
     where: { id: { in: input.stallIds }, ...activeRecord },
     select: catalogueVenueSelect,
   })
-  const usable = venues.filter(
-    (venue) => isSelectableCatalogueVenue(venue) && !venue.merchant.deletedAt,
-  )
+  const usable = venues.filter(isPickableStall)
   if (usable.length !== input.stallIds.length)
     throw new DomainError('PRECONDITION_FAILED', 'One of the stalls is no longer available')
   const merchantIds = new Set(usable.map((venue) => venue.merchantId))

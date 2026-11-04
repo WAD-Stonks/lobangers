@@ -3,12 +3,19 @@ import SubmissionForm from '@web/pages/SubmissionForm.vue'
 import { chooseOption, optionLabels } from '@web-tests/support/select'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-const addDealApi = vi.hoisted(() => ({ submitDeal: vi.fn(), searchStalls: vi.fn() }))
+const addDealApi = vi.hoisted(() => ({
+  submitDeal: vi.fn(),
+  searchStalls: vi.fn(),
+  searchPlaces: vi.fn(),
+  addStallFromPlace: vi.fn(),
+}))
 
 vi.mock('@web/modules/add-deal/add-deal-api', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@web/modules/add-deal/add-deal-api')>()),
   submitDeal: addDealApi.submitDeal,
   searchStalls: addDealApi.searchStalls,
+  searchPlaces: addDealApi.searchPlaces,
+  addStallFromPlace: addDealApi.addStallFromPlace,
 }))
 
 enableAutoUnmount(afterEach)
@@ -235,7 +242,50 @@ describe('add a deal form', () => {
     await wrapper.get('#stall-search').setValue('nothing')
     await wrapper.get('#stall-search').trigger('keydown.enter')
     await flush()
-    expect(wrapper.text()).toContain('No stalls found. Try other words.')
+    expect(wrapper.text()).toContain(
+      'No stalls found. Try other words, or find the stall on the map.',
+    )
+  })
+
+  it('adds a stall missing from the list by finding it on the map', async () => {
+    addDealApi.searchStalls.mockResolvedValue([])
+    const mapStall = { ...stall, id: 'stall-2', name: 'Synthetic Map Stall' }
+    addDealApi.searchPlaces.mockResolvedValue([
+      {
+        placeId: 'SyntheticPlace_Map',
+        name: 'Synthetic Map Stall',
+        address: '3 Synthetic Rd',
+        latitude: 1.3,
+        longitude: 103.85,
+        stall: null,
+      },
+    ])
+    addDealApi.addStallFromPlace.mockResolvedValue(mapStall)
+    const wrapper = mountForm()
+    const mapButton = () =>
+      wrapper.findAll('button').find((button) => button.text() === 'Add new stall')
+    expect(mapButton()).toBeUndefined()
+    await wrapper.get('#stall-search').setValue('synthetic map')
+    await wrapper.get('#stall-search').trigger('keydown.enter')
+    await flush()
+    const open = mapButton()
+    await open?.trigger('click')
+    await vi.dynamicImportSettled()
+    await flush()
+    expect(addDealApi.searchPlaces).toHaveBeenCalledWith('synthetic map')
+    expect((wrapper.get('#stall-search').element as HTMLInputElement).value).toBe('')
+    expect(wrapper.text()).not.toContain('No stalls found')
+
+    await wrapper.get('.stall-map__place').trigger('click')
+    await wrapper.get('#place-brand').setValue('Synthetic Map Brand')
+    await wrapper.get('.stall-map__confirm .lb-btn').trigger('click')
+    await flush()
+    expect(addDealApi.addStallFromPlace).toHaveBeenCalledWith(
+      'SyntheticPlace_Map',
+      'Synthetic Map Brand',
+    )
+    expect(wrapper.find('.stall-map').exists()).toBe(false)
+    expect(wrapper.get('.add-deal__stalls--chosen').text()).toContain('Synthetic Map Stall')
   })
 
   it('reviews the deal before sending it', async () => {
