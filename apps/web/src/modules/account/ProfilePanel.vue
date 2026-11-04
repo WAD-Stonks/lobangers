@@ -99,4 +99,36 @@ const onTabKeydown = async (event: KeyboardEvent) => {
 .profile-panel__body :deep(.row > [class*='col-sm']) {
   width: 100%;
 }
+
+.profile-panel__body :deep(.my-submissions) {
+  max-width: none;
+  padding: 0;
+}
+
+.profile-panel__body :deep(.my-submissions__intro) {
+  display: none;
+}
+
+.profile-panel__body :deep(.my-submissions__hero) {
+  margin-bottom: 16px;
+}
+
+.profile-panel__body :deep(.submission-card) {
+  gap: 4px;
+  padding: 12px 14px;
+  border-radius: 16px;
+}
+
+.profile-panel__body :deep(.submission-card__title) {
+  font-size: 1rem;
+}
+
+.profile-panel__body :deep(.submission-card__meta),
+.profile-panel__body :deep(.submission-card__line) {
+  font-size: 0.8125rem;
+}
+
+.profile-panel__body :deep(.submission-card__line svg) {
+  margin-top: 1px;
+}
 </style>
