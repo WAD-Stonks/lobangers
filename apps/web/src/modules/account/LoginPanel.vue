@@ -2,11 +2,12 @@
 import LoginForm from '@web/modules/account/LoginForm.vue'
 import PanelFrame from '@web/modules/map-shell/PanelFrame.vue'
 import { useToast } from '@web/modules/map-shell/use-toast'
-import { safeRedirect } from '@web/router/guards'
+import { afterLoginPath, safeRedirect } from '@web/router/guards'
 import { computed } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 
-// Successful login always opens All Deals; the original destination only explains the prompt.
+// Successful login opens All Deals (or the Squad room an invite came from); otherwise the
+// original destination only explains the prompt.
 const route = useRoute()
 const router = useRouter()
 const toast = useToast()
@@ -24,9 +25,11 @@ const REASONS: readonly [prefix: string, title: string][] = [
   ['/merchant', 'Log in to manage your stall'],
   ['/me/', 'Log in to see your account'],
   ['/deals/', 'Log in to save deals'],
+  ['/squad/', 'Log in to join the Squad room'],
 ]
 
 const redirect = computed(() => safeRedirect(route.query.redirect, '/deals'))
+const destination = computed(() => afterLoginPath(route.query.redirect))
 const notice = computed(() => {
   const key = route.query.notice
   return typeof key === 'string' && Object.hasOwn(NOTICES, key) ? NOTICES[key] : ''
@@ -34,7 +37,7 @@ const notice = computed(() => {
 const title = computed(() => REASONS.find(([prefix]) => redirect.value.startsWith(prefix))?.[1] ?? 'Welcome back')
 
 const onSignedIn = async () => {
-  await router.replace('/deals')
+  await router.replace(destination.value)
   toast.show('You are logged in')
 }
 </script>
@@ -43,7 +46,7 @@ const onSignedIn = async () => {
   <PanelFrame :title="title" :back="{ name: 'browse' }" back-label="Back to deals">
     <div v-if="notice" class="account-panel__notice" role="status">{{ notice }}</div>
     <div class="account-panel__form">
-      <LoginForm destination="/deals" embedded @signed-in="onSignedIn" />
+      <LoginForm :destination="destination" embedded @signed-in="onSignedIn" />
     </div>
     <p class="lb-meta account-panel__switch">
       New here?
