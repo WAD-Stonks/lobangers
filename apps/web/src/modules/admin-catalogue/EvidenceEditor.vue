@@ -1,83 +1,96 @@
 <script setup lang="ts">
 import type { CatalogueVenueDetail } from '@broke-oclock/contracts/admin-catalogue'
-import AppSelect from '@web/components/AppSelect.vue'
-import AdminStatusBadge from '@web/components/admin/AdminStatusBadge.vue'
-import type { SelectOption } from '@web/components/select-options'
-import { formatDateTime } from '@web/lib/format'
+import { checkName, type EvidenceKind } from '@web/modules/admin-catalogue/catalogue-labels'
 import { computed, ref } from 'vue'
 
-defineProps<{ venue: CatalogueVenueDetail; disabled: boolean }>()
-const emit = defineEmits<{
-  record: [body: Record<string, unknown>]
-  withdraw: [body: Record<string, unknown>]
-}>()
-const kind = ref<'GEOGRAPHY' | 'OCCUPANCY'>('GEOGRAPHY')
-const KIND_OPTIONS: readonly SelectOption[] = [
-  { value: 'GEOGRAPHY', label: 'Geography' },
-  { value: 'OCCUPANCY', label: 'Occupancy' },
-]
-const sourceOptions = computed<readonly SelectOption[]>(() => [
-  { value: 'ADMIN_VERIFIED', label: 'Explicit administrator source verification' },
-  { value: 'OFFICIAL_MERCHANT', label: 'Official merchant' },
-  { value: 'OFFICIAL_PROPERTY', label: 'Official property' },
-  ...(kind.value === 'GEOGRAPHY' ? [{ value: 'ONEMAP', label: 'OneMap — geography only' }] : []),
-])
-const sourceType = ref('ADMIN_VERIFIED')
+type Source = 'ONEMAP' | 'OFFICIAL_MERCHANT' | 'OFFICIAL_PROPERTY' | 'ADMIN_VERIFIED'
+const props = defineProps<{ venue: CatalogueVenueDetail; kind: EvidenceKind; disabled: boolean }>()
+const emit = defineEmits<{ record: [body: Record<string, unknown>]; cancel: [] }>()
+
+// OneMap proves where a building is, never who trades in it, so it is offered for location only.
+const SOURCES: Record<EvidenceKind, { value: Source; label: string; hint: string }[]> = {
+  GEOGRAPHY: [
+    { value: 'ONEMAP', label: 'OneMap', hint: 'A OneMap search for the postal code or address lands on this pin.' },
+    { value: 'OFFICIAL_PROPERTY', label: 'Mall or property website', hint: 'The property’s own site gives this address.' },
+    { value: 'OFFICIAL_MERCHANT', label: 'Merchant website or app', hint: 'The merchant’s store locator gives this address.' },
+    { value: 'ADMIN_VERIFIED', label: 'Another source I checked', hint: 'Describe it below, for example a visit or a call.' },
+  ],
+  OCCUPANCY: [
+    { value: 'OFFICIAL_MERCHANT', label: 'Merchant website or app', hint: 'The merchant lists this outlet as one of theirs.' },
+    { value: 'OFFICIAL_PROPERTY', label: 'Mall or property directory', hint: 'The property lists this merchant at this unit.' },
+    { value: 'ADMIN_VERIFIED', label: 'Another source I checked', hint: 'Describe it below, for example a visit or a call.' },
+  ],
+}
+const sources = computed(() => SOURCES[props.kind])
+const sourceType = ref<Source>(SOURCES[props.kind][0]?.value ?? 'ADMIN_VERIFIED')
 const reference = ref('')
 const sourceUrl = ref('')
 const observedAt = ref('')
 const statement = ref('')
 const note = ref('')
-const reviewedSource = ref(false)
 const confirmed = ref(false)
+const name = computed(() => checkName[props.kind])
+const referenceHint = computed(() =>
+  sourceType.value === 'ONEMAP'
+    ? `OneMap search for ${props.venue.postalCode ?? 'the postal code'}`
+    : sourceType.value === 'ADMIN_VERIFIED'
+      ? 'Phone call to the outlet, 3 Nov'
+      : 'Store locator page',
+)
+const statementHint = computed(() =>
+  props.kind === 'GEOGRAPHY'
+    ? `${props.venue.address} matches the pin`
+    : `Lists ${props.venue.name} as an outlet of ${props.venue.merchantName}`,
+)
 const record = () =>
+  // One checkbox covers both attestations the API asks for: the source was reviewed by this
+  // admin, and this exact outlet is the target.
   emit('record', {
-    kind: kind.value,
+    kind: props.kind,
     sourceType: sourceType.value,
     reference: reference.value,
     ...(sourceUrl.value ? { sourceUrl: sourceUrl.value } : {}),
     ...(observedAt.value ? { observedAt: new Date(observedAt.value).toISOString() } : {}),
     statement: statement.value,
     note: note.value,
-    reviewedSource: reviewedSource.value,
+    reviewedSource: confirmed.value,
     confirmed: confirmed.value,
   })
 </script>
+
 <template>
-  <section class="catalogue-editor mt-4">
-    <h3>Location &amp; occupancy verification</h3>
-    <dl class="catalogue-verification"><div><dt>Geography</dt><dd><AdminStatusBadge :status="venue.geographyVerified ? 'VERIFIED' : venue.geographyState" :label="venue.geographyVerified ? 'Verified' : 'Verification needed'" :tone="venue.geographyVerified ? 'success' : 'warning'" /></dd></div><div><dt>Occupancy</dt><dd><AdminStatusBadge :status="venue.occupancyVerified ? 'VERIFIED' : venue.occupancyState" :label="venue.occupancyVerified ? 'Verified' : 'Verification needed'" :tone="venue.occupancyVerified ? 'success' : 'warning'" /></dd></div><div><dt>Selection</dt><dd><AdminStatusBadge :status="venue.selectable ? 'ACTIVE' : 'UNVERIFIED'" :label="venue.selectable ? 'Ready for selection' : 'Maintenance only'" :tone="venue.selectable ? 'success' : 'neutral'" /></dd></div></dl>
-    <details class="catalogue-record-details"><summary>What counts as supporting evidence?</summary><p>Manual verification is an administrator attestation of a reviewed real supporting source, not an automated provider lookup. OneMap establishes geography only, never merchant occupancy. Occupancy needs an official merchant/property source or explicit administrator source verification. A picker selection is not proof.</p><p>Stored verification states: geography {{ venue.geographyState }} · occupancy {{ venue.occupancyState }}.</p></details>
+  <section class="catalogue-editor catalogue-decision" :aria-labelledby="`verify-${kind}-title`">
+    <h4 :id="`verify-${kind}-title`">Verify {{ name }}</h4>
     <form @submit.prevent="record">
       <fieldset :disabled="disabled">
-        <label for="proof-kind" class="form-label">Evidence kind</label><AppSelect id="proof-kind" v-model="kind" :options="KIND_OPTIONS" class="form-select" />
-        <label for="proof-source" class="form-label mt-3">Reviewed source type</label><AppSelect id="proof-source" v-model="sourceType" :options="sourceOptions" class="form-select" />
-        <label for="proof-reference" class="form-label mt-3">Supporting-source reference</label><input id="proof-reference" v-model="reference" class="form-control" maxlength="2048" required />
-        <label for="proof-url" class="form-label mt-3">Source URL (optional, required for OneMap)</label><input id="proof-url" v-model="sourceUrl" type="url" class="form-control" maxlength="2048" />
-        <label for="proof-observed" class="form-label mt-3">Observed at (optional, local time)</label><input id="proof-observed" v-model="observedAt" name="observed-at" type="datetime-local" class="form-control" />
-        <label for="proof-statement" class="form-label mt-3">What does this source establish about this exact outlet?</label><textarea id="proof-statement" v-model="statement" class="form-control" maxlength="4000" required />
-        <div class="catalogue-decision">
-        <h4>Confirm the reviewed source</h4>
-        <label for="proof-note" class="form-label">Reason for recording / withdrawing</label><textarea id="proof-note" v-model="note" class="form-control" maxlength="500" required />
-        <label class="form-check mt-3"><input v-model="reviewedSource" type="checkbox" class="form-check-input" required /><span class="form-check-label">I personally reviewed a real supporting source for this exact merchant and outlet tuple. This is not inferred from selection.</span></label>
-        <label class="form-check mt-3"><input v-model="confirmed" type="checkbox" class="form-check-input" required /><span class="form-check-label">I confirm {{ venue.name }} (version {{ venue.version }}) is the exact target. Authority affects dependent deals and selection.</span></label>
-        <div class="d-flex flex-wrap gap-2 mt-3"><button class="btn btn-primary" type="submit">Record manual verification</button><button class="btn btn-outline-danger" type="button" :disabled="!confirmed || !note.trim()" @click="emit('withdraw', { kind, note, confirmed })">Withdraw selected authority</button></div>
+        <legend class="form-label">Where did you check?</legend>
+        <div class="catalogue-sources">
+          <label v-for="source in sources" :key="source.value" class="catalogue-source">
+            <input v-model="sourceType" type="radio" :name="`proof-source-${kind}`" :value="source.value" class="form-check-input" />
+            <span><strong>{{ source.label }}</strong><span class="catalogue-muted">{{ source.hint }}</span></span>
+          </label>
         </div>
+        <label :for="`proof-reference-${kind}`" class="form-label mt-3">Source</label>
+        <input :id="`proof-reference-${kind}`" v-model="reference" name="reference" class="form-control" maxlength="2048" :placeholder="referenceHint" required />
+        <label :for="`proof-url-${kind}`" class="form-label mt-3">Link<span v-if="sourceType !== 'ONEMAP'" class="catalogue-muted"> (optional)</span></label>
+        <input :id="`proof-url-${kind}`" v-model="sourceUrl" name="sourceUrl" type="url" class="form-control" maxlength="2048" :placeholder="sourceType === 'ONEMAP' ? 'https://www.onemap.gov.sg/…' : 'https://'" :required="sourceType === 'ONEMAP'" />
+        <label :for="`proof-statement-${kind}`" class="form-label mt-3">What it shows</label>
+        <textarea :id="`proof-statement-${kind}`" v-model="statement" name="statement" class="form-control" maxlength="4000" rows="2" :placeholder="statementHint" required />
+        <details class="catalogue-more">
+          <summary>When you checked (optional)</summary>
+          <label :for="`proof-observed-${kind}`" class="form-label mt-2">Date and time</label>
+          <input :id="`proof-observed-${kind}`" v-model="observedAt" name="observed-at" type="datetime-local" class="form-control" />
+        </details>
+        <label :for="`proof-note-${kind}`" class="form-label mt-3">Reason</label>
+        <input :id="`proof-note-${kind}`" v-model="note" name="note" class="form-control" maxlength="500" placeholder="New outlet, first check" required />
+        <label class="form-check mt-3"><input v-model="confirmed" name="confirmed" type="checkbox" class="form-check-input" required /><span class="form-check-label">I checked this source myself and it is about {{ venue.name }}</span></label>
       </fieldset>
+      <div class="catalogue-form-actions">
+        <button class="btn btn-primary" type="submit" :disabled="disabled">Record {{ name }} check</button>
+        <button class="btn btn-outline-secondary" type="button" @click="emit('cancel')">Cancel</button>
+      </div>
     </form>
-    <details class="catalogue-record-details catalogue-receipts"><summary>Retained verification history ({{ venue.evidence.length }})</summary>
-    <p v-if="!venue.evidence.length">No administrator receipts recorded. Legacy proof is shown above, never inferred from this empty history.</p>
-    <p v-if="venue.evidenceTruncated" class="alert alert-info">Showing the newest 100 receipts. Older evidence remains retained in history.</p>
-    <ol class="list-group list-group-numbered">
-      <li v-for="receipt in venue.evidence" :key="receipt.id" class="list-group-item">
-        <strong>{{ receipt.kind }} · {{ receipt.provider === 'ADMIN' ? 'Manual verification / historical receipt' : receipt.provider }}</strong>
-        <p>{{ receipt.reference }}</p><p>{{ receipt.statement }}</p>
-        <p class="small">{{ receipt.actorName }} · <time :datetime="receipt.recordedAt">{{ formatDateTime(receipt.recordedAt) }}</time> · tuple version {{ receipt.catalogueVersion ?? 'legacy' }}</p>
-        <details><summary>Receipt fingerprint</summary><code class="catalogue-hash">{{ receipt.subjectHash }}</code></details>
-        <a v-if="receipt.sourceUrl && /^https?:\/\//.test(receipt.sourceUrl)" :href="receipt.sourceUrl" target="_blank" rel="noopener noreferrer">Open supporting source</a>
-      </li>
-    </ol>
-    </details>
   </section>
 </template>
+
 <style scoped src="@web/modules/admin-catalogue/catalogue-editor.css"></style>

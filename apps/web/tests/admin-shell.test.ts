@@ -47,7 +47,7 @@ it('uses concise navigation and changes routes without a document reload', async
     'Overview',
     'Deals',
     'Flash drops',
-    'Catalogue',
+    'Merchants',
     'Moderation',
     'Accounts',
     'Ingestion',

@@ -39,3 +39,18 @@ it('rejects malformed successful response instead of treating writes as confirme
     }),
   ).rejects.toMatchObject({ code: 'INTERNAL_SERVER_ERROR' })
 })
+it('reads the verification queue and its summary through validated routes', async () => {
+  const http = axios.create()
+  const get = vi
+    .spyOn(http, 'get')
+    .mockResolvedValueOnce({ data: { items: [], nextCursor: null } })
+    .mockResolvedValueOnce({ data: { needsVerification: 4, needsVerificationWithDeals: 1 } })
+  const client = createAdminCatalogueClient(http)
+  await client.venues({ verification: 'needed' })
+  expect(get).toHaveBeenLastCalledWith('/admin/catalogue/venues', {
+    params: { verification: 'needed', limit: 25, status: 'active' },
+  })
+  expect(await client.summary()).toEqual({ needsVerification: 4, needsVerificationWithDeals: 1 })
+  expect(get).toHaveBeenLastCalledWith('/admin/catalogue/summary')
+  expect(() => client.venues({ verification: 'maybe' as 'needed' })).toThrow('Invalid request')
+})

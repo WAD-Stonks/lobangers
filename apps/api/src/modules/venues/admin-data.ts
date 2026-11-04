@@ -1,3 +1,4 @@
+import { catalogueVenueSelect } from '@api/modules/deals/catalogue-select'
 import {
   hasVerifiedGeography,
   hasVerifiedOccupancy,
@@ -10,6 +11,11 @@ import {
   conflict,
   type Database,
 } from '@api/modules/platform-admin/transaction'
+import {
+  needsCatalogueVerification,
+  readyForCatalogueSelection,
+  scanCataloguePage,
+} from '@api/modules/venues/catalogue-scan'
 
 type MerchantRow = Awaited<ReturnType<Database['merchant']['findUniqueOrThrow']>> & {
   _count: { venues: number; deals: number }
@@ -93,30 +99,61 @@ export const listCatalogueVenues = async (
   db: Reader,
   query: z.output<typeof catalogueVenuesQuerySchema>,
 ) => {
+  const where = {
+    AND: [
+      statusWhere(query.status),
+      ...(query.search
+        ? [
+            {
+              OR: [
+                { name: { contains: query.search, mode: 'insensitive' as const } },
+                { address: { contains: query.search, mode: 'insensitive' as const } },
+                { postalCode: { contains: query.search } },
+              ],
+            },
+          ]
+        : []),
+    ],
+    ...(query.merchantId ? { merchantId: query.merchantId } : {}),
+  }
+  if (query.verification) {
+    const keep =
+      query.verification === 'needed' ? needsCatalogueVerification : readyForCatalogueSelection
+    const scanned = await scanCataloguePage({
+      fetch: (after, take) =>
+        db.venue.findMany({
+          where: { ...where, ...(after ? { id: { gt: after } } : {}) },
+          orderBy: { id: 'asc' },
+          take,
+          include: venueInclude,
+        }),
+      keep,
+      limit: query.limit,
+      after: query.cursor,
+    })
+    return {
+      items: await Promise.all(scanned.items.map((row) => venueView(db, row))),
+      nextCursor: scanned.nextCursor,
+    }
+  }
   const rows = await db.venue.findMany({
-    where: {
-      AND: [
-        statusWhere(query.status),
-        ...(query.search
-          ? [
-              {
-                OR: [
-                  { name: { contains: query.search, mode: 'insensitive' as const } },
-                  { address: { contains: query.search, mode: 'insensitive' as const } },
-                  { postalCode: { contains: query.search } },
-                ],
-              },
-            ]
-          : []),
-      ],
-      ...(query.cursor ? { id: { gt: query.cursor } } : {}),
-      ...(query.merchantId ? { merchantId: query.merchantId } : {}),
-    },
+    where: { ...where, ...(query.cursor ? { id: { gt: query.cursor } } : {}) },
     orderBy: { id: 'asc' },
     take: query.limit + 1,
     include: venueInclude,
   })
   return page(await Promise.all(rows.map((row) => venueView(db, row))), query.limit)
+}
+export const summarizeCatalogue = async (db: Reader) => {
+  const rows = await db.venue.findMany({
+    where: activeCatalogue,
+    select: { ...catalogueVenueSelect, _count: { select: { deals: true } } },
+  })
+  const waiting = rows.filter(needsCatalogueVerification)
+  return {
+    needsVerification: waiting.length,
+    needsVerificationWithDeals: waiting.filter((row) => row._count.deals > 0).length,
+  }
 }
 export const getCatalogueVenue = async (db: Reader, id: string) => {
   const row = await db.venue.findUnique({ where: { id }, include: venueInclude })

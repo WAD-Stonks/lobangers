@@ -8,6 +8,8 @@ const rest = vi.hoisted(() => ({
   patchMerchant: vi.fn(),
   archiveMerchant: vi.fn(),
   createMerchant: vi.fn(),
+  venues: vi.fn(),
+  summary: vi.fn(),
 }))
 vi.mock('@web/lib/api-client', () => ({ api: { adminCatalogue: rest } }))
 const row = {
@@ -23,18 +25,31 @@ const clickButton = async (wrapper: ReturnType<typeof mount>, text: string) => {
   if (!button) throw new Error(`Missing button: ${text}`)
   await button.trigger('click')
 }
+// The page opens on the verification queue. These flows start from the merchant directory.
+const merchantsTab = async (wrapper: ReturnType<typeof mount>) => {
+  await clickButton(wrapper, 'Merchants')
+  await flushPromises()
+}
+// Opens the merchant and its name form, where the reason and confirmation live.
+const openMerchant = async (wrapper: ReturnType<typeof mount>) => {
+  await wrapper.get('button[data-open-row="Synthetic mounted merchant"]').trigger('click')
+  await flushPromises()
+  await clickButton(wrapper, 'Edit name')
+}
 beforeEach(() => {
   vi.resetAllMocks()
   rest.merchants.mockResolvedValue({ items: [row], nextCursor: null })
   rest.merchant.mockResolvedValue(row)
   rest.patchMerchant.mockResolvedValue({ id, version: 8 })
+  rest.venues.mockResolvedValue({ items: [], nextCursor: null })
+  rest.summary.mockResolvedValue({ needsVerification: 0, needsVerificationWithDeals: 0 })
 })
 it('mounts directory, reads exact detail, confirms immutable versioned payload and locks unknown outcomes', async () => {
   const { default: Panel } = await import('@web/modules/admin-catalogue/CataloguePanel.vue')
   const wrapper = mount(Panel)
   await flushPromises()
-  await wrapper.get('button[data-open-row="Synthetic mounted merchant"]').trigger('click')
-  await flushPromises()
+  await merchantsTab(wrapper)
+  await openMerchant(wrapper)
   await wrapper.get('[name="merchantName"]').setValue('Synthetic spelling correction')
   await wrapper.get('[name="note"]').setValue('Reviewed exact target')
   await wrapper.get('[name="confirmed"]').setValue(true)
@@ -57,6 +72,7 @@ it('reports server role denial and fences the late directory response on unmount
   rest.merchants.mockRejectedValueOnce({ code: 'FORBIDDEN' })
   const wrapper = mount(Panel)
   await flushPromises()
+  await merchantsTab(wrapper)
   expect(wrapper.emitted('denied')).toEqual([['FORBIDDEN']])
   expect(wrapper.find('[name="merchantName"]').exists()).toBe(false)
   wrapper.unmount()
@@ -74,7 +90,15 @@ it.each(['UNKNOWN', 'CONFLICT'])(
       await w.get('button[data-open-row="Synthetic mounted merchant"]').trigger('click')
       await flushPromises()
     }
+    const editButton = () =>
+      w.findAll('button').find((candidate) => candidate.text() === 'Edit name')
     const submit = async () => {
+      // A reopened detail starts read-only. While it is locked, Edit name stays disabled, so
+      // there is no form to resubmit.
+      if (!w.find('[name="merchantName"]').exists()) {
+        if (editButton()?.attributes('disabled') !== undefined) return
+        await clickButton(w, 'Edit name')
+      }
       await w.get('[name="merchantName"]').setValue('Corrected')
       await w.get('[name="note"]').setValue('Reviewed')
       await w.get('[name="confirmed"]').setValue(true)
@@ -83,6 +107,7 @@ it.each(['UNKNOWN', 'CONFLICT'])(
     }
     try {
       await flushPromises()
+      await merchantsTab(w)
       await open()
       await submit()
       await clickButton(w, 'Reload target detail')
@@ -92,11 +117,11 @@ it.each(['UNKNOWN', 'CONFLICT'])(
         rest.patchMerchant,
         'unchanged authoritative detail must not permit replay',
       ).toHaveBeenCalledTimes(1)
-      expect(w.get('fieldset').attributes('disabled')).toBeDefined()
+      expect(editButton()?.attributes('disabled')).toBeDefined()
       expect(w.text()).toContain(
         outcome === 'CONFLICT' ? 'changed' : 'outcome could not be confirmed',
       )
-      await w.get('form.row').trigger('submit')
+      await w.get('form.catalogue-toolbar').trigger('submit')
       await flushPromises()
       await open()
       await submit()
@@ -104,8 +129,9 @@ it.each(['UNKNOWN', 'CONFLICT'])(
       rest.merchant.mockResolvedValue({ ...row, version: 8 })
       await clickButton(w, 'Reload target detail')
       await flushPromises()
-      expect(w.get<HTMLTextAreaElement>('[name="note"]').element.value).toBe('')
-      expect(w.get('fieldset').attributes('disabled')).toBeUndefined()
+      // The newer version reopens read-only, so earlier consent cannot carry over.
+      expect(w.find('[name="note"]').exists()).toBe(false)
+      expect(editButton()?.attributes('disabled')).toBeUndefined()
       await submit()
       expect(rest.patchMerchant).toHaveBeenCalledTimes(2)
       expect(rest.patchMerchant.mock.calls[1]?.[1].expectedVersion).toBe(8)
@@ -125,6 +151,7 @@ it('retains an unknown merchant creation when another create form is opened', as
       await flushPromises()
     }
     await start()
+    expect(rest.merchants).toHaveBeenCalled()
     await w.get('[name="merchantName"]').setValue('Unknown created merchant')
     await w.get('[name="note"]').setValue('Reviewed creation')
     await w.get('[name="confirmed"]').setValue(true)
@@ -140,8 +167,7 @@ it('retains an unknown merchant creation when another create form is opened', as
     expect(w.text()).toContain('audit')
     expect(w.text()).toContain('Unknown created merchant')
     expect(rest.createMerchant).toHaveBeenCalledTimes(1)
-    await w.get('button[data-open-row="Synthetic mounted merchant"]').trigger('click')
-    await flushPromises()
+    await openMerchant(w)
     expect(w.get('fieldset').attributes('disabled')).toBeUndefined()
   } finally {
     w.unmount()
@@ -153,13 +179,16 @@ it('opens the editor in the inspector, focuses it and returns to the same direct
   const wrapper = mount(Panel, { attachTo: document.body })
   try {
     await flushPromises()
+    await merchantsTab(wrapper)
     await wrapper.get('[data-open-row="Synthetic mounted merchant"]').trigger('click')
     await flushPromises()
     const heading = wrapper.get('[data-testid="catalogue-detail-heading"]')
     expect(heading.text()).toBe(row.name)
     expect(document.activeElement).toBe(heading.element)
-    expect(wrapper.find('.admin-record-workspace-detail .catalogue-editor').exists()).toBe(true)
-    expect(wrapper.find('.admin-record-workspace-list .catalogue-editor').exists()).toBe(false)
+    expect(wrapper.find('.admin-record-workspace-detail .catalogue-detail-body').exists()).toBe(
+      true,
+    )
+    expect(wrapper.find('.admin-record-workspace-list .catalogue-detail-body').exists()).toBe(false)
     await clickButton(wrapper, '← Back to results')
     expect(wrapper.find('[name="merchantName"]').exists()).toBe(false)
     expect(document.activeElement).toBe(
@@ -182,6 +211,7 @@ it('fences a late detail when returning to the directory before the read finishe
   const wrapper = mount(Panel)
   try {
     await flushPromises()
+    await merchantsTab(wrapper)
     await wrapper.get('[data-open-row="Synthetic mounted merchant"]').trigger('click')
     await clickButton(wrapper, '← Back to results')
     release(row)
@@ -199,8 +229,8 @@ it('keeps unknown-result locks after closing and reopening the inspector', async
   const wrapper = mount(Panel)
   try {
     await flushPromises()
-    await wrapper.get('[data-open-row="Synthetic mounted merchant"]').trigger('click')
-    await flushPromises()
+    await merchantsTab(wrapper)
+    await openMerchant(wrapper)
     await wrapper.get('[name="merchantName"]').setValue('Corrected name')
     await wrapper.get('[name="note"]').setValue('Reviewed correction')
     await wrapper.get('[name="confirmed"]').setValue(true)
@@ -209,7 +239,8 @@ it('keeps unknown-result locks after closing and reopening the inspector', async
     await clickButton(wrapper, '← Back to results')
     await wrapper.get('[data-open-row="Synthetic mounted merchant"]').trigger('click')
     await flushPromises()
-    expect(wrapper.get('fieldset').attributes('disabled')).toBeDefined()
+    const edit = wrapper.findAll('button').find((candidate) => candidate.text() === 'Edit name')
+    expect(edit?.attributes('disabled')).toBeDefined()
     expect(wrapper.text()).toContain('outcome could not be confirmed')
     expect(rest.patchMerchant).toHaveBeenCalledTimes(1)
   } finally {

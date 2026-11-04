@@ -12,6 +12,7 @@ export const createAdminOptionsRouter = (): Router => {
         '/api/admin/deals',
         '/api/admin/deals/:dealId',
         '/api/admin/audit',
+        '/api/admin/catalogue/summary',
         '/api/admin/moderation/reports',
         '/api/admin/moderation/reports/:targetType/:id',
         '/api/admin/moderation/comments',

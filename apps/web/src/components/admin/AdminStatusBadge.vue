@@ -6,7 +6,11 @@ const props = defineProps<{
   label?: string
   tone?: 'neutral' | 'success' | 'warning' | 'danger' | 'info'
 }>()
-const text = computed(() => props.label ?? props.status.replaceAll('_', ' ').toLowerCase())
+// Sentence case: "Needs review", never "Needs Review".
+const text = computed(() => {
+  const value = props.label ?? props.status.replaceAll('_', ' ').toLowerCase()
+  return value.charAt(0).toUpperCase() + value.slice(1)
+})
 const tone = computed(() => {
   if (props.tone) return props.tone
   if (['APPROVED', 'PUBLISHED', 'ACTIVE', 'SUCCEEDED', 'SUCCESS', 'VISIBLE'].includes(props.status)) return 'success'
@@ -37,7 +41,6 @@ const tone = computed(() => {
   font-size: 12px;
   font-weight: 650;
   line-height: 1.4;
-  text-transform: capitalize;
 }
 [data-tone="success"] { color: var(--admin-success-ink); background: var(--admin-success-bg); border-color: var(--admin-success-border); }
 [data-tone="warning"] { color: var(--admin-warning-ink); background: var(--admin-warning-bg); border-color: var(--admin-accent-border); }

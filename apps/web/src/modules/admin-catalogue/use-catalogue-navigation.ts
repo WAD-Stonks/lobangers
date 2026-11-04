@@ -6,8 +6,10 @@ import { routeLocationKey, routerKey } from 'vue-router'
 
 type CatalogueState = ReturnType<typeof useCatalogue>
 type Kind = 'merchants' | 'venues'
+export type CatalogueView = 'queue' | 'merchants' | 'venues'
 type Location = {
   kind: Kind
+  verification: 'needed' | undefined
   status: 'active' | 'archived' | 'all'
   search: string
   merchantId: string | undefined
@@ -25,9 +27,24 @@ export const useCatalogueNavigation = (state: CatalogueState) => {
   let internalPath: string | null = null
   let generation = 0
   let alive = true
+  const home = route?.path
 
-  const fromRoute = (): Location => ({
-    kind: route?.query.kind === 'venues' ? 'venues' : 'merchants',
+  const fromRoute = (): Location => {
+    const query = route?.query
+    const recordId = adminRecordId(query?.recordId)
+    // A bare /admin/catalogue opens the verification queue. Older links that name only a
+    // record still mean a merchant, as they did before the queue existed.
+    const bare = query?.kind === undefined && !recordId
+    const kind: Kind = query?.kind === 'venues' || bare ? 'venues' : 'merchants'
+    return {
+      kind,
+      verification:
+        kind === 'venues' && (bare || query?.verification === 'needed') ? 'needed' : undefined,
+      ...rest(),
+      recordId,
+    }
+  }
+  const rest = (): Omit<Location, 'kind' | 'verification' | 'recordId'> => ({
     status:
       route?.query.status === 'all' || route?.query.status === 'archived'
         ? route.query.status
@@ -37,10 +54,10 @@ export const useCatalogueNavigation = (state: CatalogueState) => {
         ? route.query.search
         : '',
     merchantId: route?.query.kind === 'venues' ? adminRecordId(route.query.merchantId) : undefined,
-    recordId: adminRecordId(route?.query.recordId),
     returnTo: adminReturnTo(route?.query.returnTo),
   })
   const current = (): Location => applied ?? fromRoute()
+  const view = ref<CatalogueView>('queue')
   const returnTo = computed(() => (route ? adminReturnTo(route.query.returnTo) : applied?.returnTo))
   const merchantName = computed(() => {
     const id = state.merchantId.value
@@ -67,12 +84,15 @@ export const useCatalogueNavigation = (state: CatalogueState) => {
     const reload =
       refresh ||
       !applied ||
-      ['kind', 'status', 'search', 'merchantId'].some(
+      ['kind', 'verification', 'status', 'search', 'merchantId'].some(
         (key) => applied?.[key as keyof Location] !== location[key as keyof Location],
       )
     applied = location
     notice.value = ''
+    view.value =
+      location.kind === 'merchants' ? 'merchants' : location.verification ? 'queue' : 'venues'
     state.kind.value = location.kind
+    state.verification.value = location.verification ?? ''
     state.status.value = location.status
     state.search.value = location.search
     state.merchantId.value = location.merchantId ?? ''
@@ -108,6 +128,7 @@ export const useCatalogueNavigation = (state: CatalogueState) => {
     return navigate({
       ...current(),
       kind: 'venues',
+      verification: undefined,
       merchantId: merchant.id,
       recordId: undefined,
       search: '',
@@ -122,44 +143,54 @@ export const useCatalogueNavigation = (state: CatalogueState) => {
       return navigate({
         ...current(),
         kind: 'merchants',
+        verification: undefined,
         merchantId: undefined,
         recordId: id,
         search: '',
         status: 'all',
       })
   }
-  const clearMerchant = () => navigate({ ...current(), merchantId: undefined, recordId: undefined })
-  const changeDirectory = () => {
-    const selected = state.selected.value
-    if (state.kind.value === 'venues' && selected?.kind === 'merchants')
-      return viewOutlets(selected.row)
+  // From a merchant page: open one of its outlets with the directory narrowed to that merchant.
+  const openOutlet = (merchant: CatalogueMerchant, outletId: string) => {
+    if (state.pending.value) return
+    names.set(merchant.id, merchant.name)
     return navigate({
       ...current(),
-      kind: state.kind.value,
+      kind: 'venues',
+      verification: undefined,
+      merchantId: merchant.id,
+      recordId: outletId,
+      search: '',
+      status: 'all',
+    })
+  }
+  const clearMerchant = () => navigate({ ...current(), merchantId: undefined, recordId: undefined })
+  const changeView = (next: CatalogueView) => {
+    if (state.pending.value) return
+    const selected = state.selected.value
+    if (next === 'venues' && selected?.kind === 'merchants') return viewOutlets(selected.row)
+    return navigate({
+      ...current(),
+      kind: next === 'merchants' ? 'merchants' : 'venues',
+      verification: next === 'queue' ? 'needed' : undefined,
+      // The queue is about outlets in use, so it always starts from active ones.
+      status: next === 'queue' ? 'active' : current().status,
       merchantId: undefined,
       recordId: undefined,
       search: '',
     })
   }
-  const applyFilters = () => {
-    if (state.merchantId.value.trim() && !adminRecordId(state.merchantId.value.trim())) {
-      notice.value = 'Enter a valid merchant ID or clear the merchant filter.'
-      return
-    }
-    return navigate(
+  const applyFilters = () =>
+    navigate(
       {
         ...current(),
-        kind: state.kind.value,
         search: state.search.value.trim(),
         status: state.status.value,
-        merchantId:
-          state.kind.value === 'venues' ? adminRecordId(state.merchantId.value.trim()) : undefined,
         recordId: undefined,
       },
       false,
       true,
     )
-  }
   const loadMore = async () => {
     if (state.pending.value) return
     await closeRecord()
@@ -167,7 +198,13 @@ export const useCatalogueNavigation = (state: CatalogueState) => {
   }
   const startMerchant = async () => {
     if (state.pending.value) return
-    await navigate({ ...current(), kind: 'merchants', merchantId: undefined, recordId: undefined })
+    await navigate({
+      ...current(),
+      kind: 'merchants',
+      verification: undefined,
+      merchantId: undefined,
+      recordId: undefined,
+    })
     if (alive && !state.pending.value) state.start()
   }
   const write = async (...args: Parameters<CatalogueState['write']>) => {
@@ -183,16 +220,29 @@ export const useCatalogueNavigation = (state: CatalogueState) => {
       state.locked.value
     )
       return
-    const merchantId = selected.kind === 'venues' ? selected.row.merchantId : undefined
+    const location = current()
+    // Stay in the queue after a write so the next outlet is one click away. Elsewhere, an outlet
+    // opens inside its merchant's outlets.
+    const inQueue = selected.kind === 'venues' && location.verification === 'needed'
+    const merchantId = selected.kind === 'venues' && !inQueue ? selected.row.merchantId : undefined
     if (selected.kind === 'venues') names.set(selected.row.merchantId, selected.row.merchantName)
     await navigate(
-      { ...current(), kind: selected.kind, merchantId, recordId: selected.row.id },
+      {
+        ...location,
+        kind: selected.kind,
+        verification: inQueue ? 'needed' : undefined,
+        merchantId,
+        recordId: selected.row.id,
+      },
+      true,
+      // A write changes what belongs in the list, so read it again.
       true,
     )
   }
   watch(
     () => [
       route?.query.kind,
+      route?.query.verification,
       route?.query.status,
       route?.query.search,
       route?.query.merchantId,
@@ -201,6 +251,8 @@ export const useCatalogueNavigation = (state: CatalogueState) => {
     ],
     () => {
       if (route?.fullPath === internalPath) return
+      // Leaving the page empties the query too. That must not read anything on the way out.
+      if (route && route.path !== home) return
       void apply(fromRoute())
     },
     { flush: 'sync' },
@@ -215,6 +267,7 @@ export const useCatalogueNavigation = (state: CatalogueState) => {
   })
   onMounted(() => {
     void apply(fromRoute())
+    void state.refreshSummary()
   })
   onUnmounted(() => {
     alive = false
@@ -222,14 +275,16 @@ export const useCatalogueNavigation = (state: CatalogueState) => {
   })
   return {
     notice,
+    view,
     returnTo,
     merchantName,
     openRecord,
     closeRecord,
     viewOutlets,
     viewMerchant,
+    openOutlet,
     clearMerchant,
-    changeDirectory,
+    changeView,
     applyFilters,
     loadMore,
     startMerchant,

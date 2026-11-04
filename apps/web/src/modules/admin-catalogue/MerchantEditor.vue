@@ -1,42 +1,48 @@
 <script setup lang="ts">
 import type { CatalogueMerchant } from '@broke-oclock/contracts/admin-catalogue'
-import AdminStatusBadge from '@web/components/admin/AdminStatusBadge.vue'
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 
 const props = defineProps<{ merchant?: CatalogueMerchant; disabled: boolean }>()
 const emit = defineEmits<{
   save: [body: { name: string; note: string; confirmed: boolean }]
-  archive: [body: { note: string; confirmed: boolean }]
-  addOutlet: []
+  cancel: []
 }>()
 const name = ref(props.merchant?.name ?? '')
 const note = ref('')
 const confirmed = ref(false)
+// The reason and confirmation sit with the field: renaming a merchant is always deliberate.
+const changed = computed(() => {
+  const next = name.value.trim()
+  return next !== '' && next !== (props.merchant?.name ?? '')
+})
 </script>
+
 <template>
   <section class="catalogue-editor">
-    <h3>Merchant information</h3>
-    <AdminStatusBadge v-if="merchant" :status="merchant.archived ? 'ARCHIVED' : 'ACTIVE'" />
-    <p class="catalogue-editor-intro">Name corrections only. No merging, rebranding or reparenting.</p>
-    <details v-if="merchant" class="catalogue-record-details"><summary>Record details</summary><p><span translate="no">{{ merchant.id }}</span> · version {{ merchant.version }}</p></details>
+    <h3>{{ merchant ? 'Edit name' : 'Merchant name' }}</h3>
+    <p class="catalogue-editor-intro">
+      <template v-if="merchant">Fix spelling or formatting only. No merging, rebranding or reparenting.</template>
+      <template v-else>Add the merchant first. You can add its outlets right after.</template>
+    </p>
     <form @submit.prevent="emit('save', { name, note, confirmed })">
       <fieldset :disabled="disabled">
-        <label class="form-label" for="merchant-name">Canonical merchant name</label>
-        <input id="merchant-name" v-model="name" name="merchantName" class="form-control" maxlength="160" required />
+        <label class="form-label" for="merchant-name">Merchant name</label>
+        <input id="merchant-name" v-model="name" name="merchantName" class="form-control" maxlength="160" autocomplete="off" required />
         <div class="catalogue-decision">
-        <h4>Review your change</h4>
-        <p v-if="merchant" class="catalogue-consequence">{{ merchant.venueCount }} outlets and {{ merchant.dealCount }} deals depend on this merchant. Archiving makes every outlet unavailable for new selection and public eligibility; it preserves all children, deals, grants, requests and evidence. No restore or grant reactivation.</p>
-        <label class="form-label" for="merchant-note">Reason for this operation</label>
-        <textarea id="merchant-note" v-model="note" name="note" class="form-control" maxlength="500" required />
-        <label class="form-check mt-3"><input v-model="confirmed" name="confirmed" type="checkbox" class="form-check-input" required /><span class="form-check-label">I confirm {{ merchant?.name ?? 'this new merchant' }} is the exact target and have reviewed the consequences. This is not rebranding.</span></label>
-        <div class="d-flex gap-2 flex-wrap mt-3">
-          <button class="btn btn-primary" type="submit">{{ merchant ? 'Save name correction' : 'Create merchant' }}</button>
-          <button v-if="merchant" class="btn btn-outline-danger" type="button" :disabled="!confirmed || !note.trim()" @click="emit('archive', { note, confirmed })">Archive merchant</button>
-          <button v-if="merchant" class="btn btn-outline-primary" type="button" @click="emit('addOutlet')">Add outlet to this merchant</button>
-        </div>
+          <p v-if="changed && merchant" class="catalogue-consequence">“{{ merchant.name }}” becomes “{{ name.trim() }}” on {{ merchant.venueCount }} outlets and {{ merchant.dealCount }} deals.</p>
+          <p v-else-if="changed" class="catalogue-consequence">Creates “{{ name.trim() }}” with no outlets yet.</p>
+          <label class="form-label" for="merchant-note">Reason</label>
+          <textarea id="merchant-note" v-model="note" name="note" class="form-control" maxlength="500" rows="2" required />
+          <label class="form-check mt-3"><input v-model="confirmed" name="confirmed" type="checkbox" class="form-check-input" required /><span class="form-check-label">{{ merchant ? `I checked this is still the same business as ${merchant.name}, not a rebrand` : 'I checked this merchant is not already in the list' }}</span></label>
         </div>
       </fieldset>
+      <!-- Outside the fieldset so a locked form can still be closed. -->
+      <div class="catalogue-form-actions">
+        <button class="btn btn-primary" type="submit" :disabled="disabled || !changed">{{ merchant ? 'Save name' : 'Create merchant' }}</button>
+        <button class="btn btn-outline-secondary" type="button" @click="emit('cancel')">Cancel</button>
+      </div>
     </form>
   </section>
 </template>
+
 <style scoped src="@web/modules/admin-catalogue/catalogue-editor.css"></style>

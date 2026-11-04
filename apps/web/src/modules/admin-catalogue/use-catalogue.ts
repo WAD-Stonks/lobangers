@@ -1,6 +1,7 @@
 import type { createAdminCatalogueClient } from '@broke-oclock/api-client/admin-catalogue'
 import type {
   CatalogueMerchant,
+  CatalogueSummary,
   CatalogueVenue,
   CatalogueVenueDetail,
 } from '@broke-oclock/contracts/admin-catalogue'
@@ -21,6 +22,9 @@ export const useCatalogue = (
   const search = ref('')
   const status = ref<'active' | 'archived' | 'all'>('active')
   const merchantId = ref('')
+  // Only for outlets: 'needed' narrows the directory to outlets deals cannot use yet.
+  const verification = ref<'needed' | ''>('')
+  const summary = shallowRef<CatalogueSummary | null>(null)
   const items = shallowRef<(CatalogueMerchant | CatalogueVenue)[]>([])
   const selected = shallowRef<Selection | null>(null)
   const nextCursor = ref<string | null>(null)
@@ -62,6 +66,8 @@ export const useCatalogue = (
   const close = () => {
     clearTarget()
     listGeneration++
+    summaryGeneration++
+    summary.value = null
     items.value = []
     nextCursor.value = null
     loading.value = false
@@ -83,6 +89,18 @@ export const useCatalogue = (
       code === 'CONFLICT'
         ? 'This target changed. Reload its detail and review again before writing.'
         : 'The outcome could not be confirmed. Writes are locked. Reload the target; do not replay the request.'
+  }
+  let summaryGeneration = 0
+  // The queue count is a hint for the tabs, so a failed read leaves it blank rather than locking.
+  const refreshSummary = async () => {
+    if (!alive || typeof client.summary !== 'function') return
+    const ticket = ++summaryGeneration
+    try {
+      const result = await client.summary()
+      if (alive && recovery.current() && ticket === summaryGeneration) summary.value = result
+    } catch {
+      if (alive && ticket === summaryGeneration) summary.value = null
+    }
   }
   const load = async (more = false) => {
     if (!alive || pending.value || (more && (loading.value || !nextCursor.value))) return
@@ -108,6 +126,7 @@ export const useCatalogue = (
           : await client.venues({
               ...query,
               ...(merchantId.value ? { merchantId: merchantId.value } : {}),
+              ...(verification.value ? { verification: verification.value } : {}),
             })
       if (!alive || !recovery.current() || ticket !== listGeneration) return
       items.value = [...new Map([...previous, ...page.items].map((row) => [row.id, row])).values()]
@@ -247,6 +266,7 @@ export const useCatalogue = (
       })
       if (!alive || !recovery.current() || ticket !== generation) return
       pending.value = false
+      void refreshSummary()
       await select(type, result.id)
       // Keep directory counts/versions from being reused as authority after writes.
       items.value = []
@@ -281,6 +301,9 @@ export const useCatalogue = (
     search,
     status,
     merchantId,
+    verification,
+    summary,
+    refreshSummary,
     items,
     selected,
     creating,

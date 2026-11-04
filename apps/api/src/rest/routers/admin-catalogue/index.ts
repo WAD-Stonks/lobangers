@@ -5,6 +5,7 @@ import { archiveAdminCatalogueVenue } from '@api/rest/routers/admin-catalogue/ar
 import { createAdminCatalogueMerchant } from '@api/rest/routers/admin-catalogue/create-merchant'
 import { createAdminCatalogueVenue } from '@api/rest/routers/admin-catalogue/create-venue'
 import { getAdminCatalogueMerchant } from '@api/rest/routers/admin-catalogue/get-merchant'
+import { getAdminCatalogueSummary } from '@api/rest/routers/admin-catalogue/get-summary'
 import { getAdminCatalogueVenue } from '@api/rest/routers/admin-catalogue/get-venue'
 import { listAdminCatalogueMerchants } from '@api/rest/routers/admin-catalogue/list-merchants'
 import { listAdminCatalogueVenues } from '@api/rest/routers/admin-catalogue/list-venues'
@@ -20,6 +21,7 @@ export const createAdminCatalogueRouter = (dependencies: RestDependencies) => {
     response.setHeader('Cache-Control', 'no-store')
     next()
   })
+  router.get('/summary', getAdminCatalogueSummary(dependencies))
   router.get('/merchants', listAdminCatalogueMerchants(dependencies))
   router.get('/merchants/:id', getAdminCatalogueMerchant(dependencies))
   router.post('/merchants', createAdminCatalogueMerchant(dependencies))
@@ -32,6 +34,7 @@ export const createAdminCatalogueRouter = (dependencies: RestDependencies) => {
   router.post('/venues/:id/archive', archiveAdminCatalogueVenue(dependencies))
   router.post('/venues/:id/evidence', recordAdminCatalogueEvidence(dependencies))
   router.post('/venues/:id/evidence/withdraw', withdrawAdminCatalogueEvidence(dependencies))
+  router.all('/summary', methodNotAllowed('GET'))
   router.all('/merchants', methodNotAllowed('GET', 'POST'))
   router.all('/merchants/:id', methodNotAllowed('GET', 'PATCH'))
   router.all('/merchants/:id/archive', methodNotAllowed('POST'))

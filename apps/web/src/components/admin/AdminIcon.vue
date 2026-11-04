@@ -12,6 +12,8 @@ const paths: Record<string, string> = {
   audit: 'M14 3H5v18h14V8z M14 3v5h5 M8 12h8 M8 16h5',
   sidebar: 'M3 4h18v16H3z M9 4v16',
   close: 'm6 6 12 12 M6 18 18 6',
+  check: 'm5 12 5 5 9-10',
+  open: 'M12 4a8 8 0 1 0 0 16 8 8 0 0 0 0-16',
   back: 'm10 5-7 7 7 7 M3 12h18',
   chevron: 'm8 10 4 4 4-4',
   user: 'M20 21v-2a6 6 0 0 0-6-6h-4a6 6 0 0 0-6 6v2 M12 9a4 4 0 1 0 0-8 4 4 0 0 0 0 8',

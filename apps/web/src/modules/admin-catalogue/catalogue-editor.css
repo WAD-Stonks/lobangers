@@ -1,77 +1,231 @@
+/* Shared by the catalogue detail pieces. One spacing step (4px), quiet chrome, the accent only
+   on the next action. */
+.catalogue-detail-body {
+  display: grid;
+  gap: 24px;
+  min-width: 0;
+}
 .catalogue-editor {
   min-width: 0;
 }
-.catalogue-editor h3 {
-  margin: 0 0 12px;
-  font-size: 17px;
+.catalogue-editor h3,
+.catalogue-section h3 {
+  margin: 0;
+  font-size: 18px;
 }
-.catalogue-editor h4 {
-  margin: 0 0 16px;
-  font-size: 15px;
+.catalogue-editor h4,
+.catalogue-decision h4,
+.catalogue-confirm h4,
+.catalogue-lookup h4 {
+  margin: 0 0 12px;
+  font-size: 16px;
 }
 .catalogue-editor fieldset {
   min-width: 0;
 }
 .catalogue-editor-intro {
-  margin: 12px 0 16px;
+  margin: 4px 0 16px;
   color: var(--admin-muted);
-  font-size: 13px;
+  font-size: 14px;
 }
-.catalogue-record-details {
-  margin: 16px 0 20px;
-  padding: 12px 0;
-  border-block: 1px solid var(--admin-border);
+.catalogue-muted {
   color: var(--admin-muted);
-  font-size: 13px;
 }
-.catalogue-record-details summary {
-  cursor: pointer;
+.catalogue-figures {
+  font-variant-numeric: tabular-nums;
 }
-.catalogue-record-details p {
-  margin: 12px 0 0;
-  overflow-wrap: anywhere;
+.catalogue-actions,
+.catalogue-form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
 }
-.catalogue-decision {
-  margin-top: 24px;
-  padding: 20px;
-  border: 1px solid var(--admin-accent-border);
-  border-radius: 16px;
-  background: var(--admin-accent-wash);
-}
-.catalogue-consequence {
-  margin: 16px 0 0;
-  color: var(--admin-secondary-text);
-  font-size: 13px;
-}
-.catalogue-decision .catalogue-consequence:first-of-type {
-  margin: 0 0 16px;
-}
-.catalogue-verification {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
-  margin: 16px 0;
-}
-.catalogue-verification > div {
-  padding: 12px;
-  border-radius: 12px;
-  background: var(--admin-subtle-bg);
-}
-.catalogue-verification dt {
-  margin-bottom: 8px;
-  color: var(--admin-muted);
-  font-size: 12px;
-}
-.catalogue-verification dd {
-  margin: 0;
-}
-.catalogue-receipts .list-group {
+.catalogue-form-actions {
   margin-top: 16px;
 }
-.catalogue-receipts .list-group-item {
-  color: var(--admin-text);
-  background: var(--admin-surface);
-  border-color: var(--admin-border);
+.catalogue-section {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+  padding-top: 24px;
+  border-top: 1px solid var(--admin-border);
+}
+.catalogue-section-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.catalogue-inline-link {
+  justify-self: start;
+  padding-inline: 0;
+}
+.catalogue-quiet-link {
+  color: var(--admin-muted);
+}
+
+/* Review and confirm steps: a neutral inset, so the primary button stays the only bright thing. */
+.catalogue-decision,
+.catalogue-confirm,
+.catalogue-lookup {
+  margin-top: 16px;
+  padding: 20px;
+  border: 1px solid var(--admin-border);
+  border-radius: 16px;
+  background: var(--admin-subtle-bg);
+}
+.catalogue-confirm {
+  margin-top: 0;
+}
+.catalogue-lookup {
+  margin: 0 0 20px;
+}
+.catalogue-consequence {
+  margin: 0 0 16px;
+  color: var(--admin-secondary-text);
+  font-size: 14px;
+}
+.catalogue-warning {
+  margin: 0 0 16px;
+  color: var(--admin-warning-ink);
+  font-size: 14px;
+  font-weight: 500;
+}
+.catalogue-changes {
+  display: grid;
+  gap: 4px;
+  margin: 0 0 16px;
+  padding: 0;
+  list-style: none;
+  font-size: 14px;
+}
+.catalogue-changes s {
+  color: var(--admin-muted);
+}
+.catalogue-more {
+  margin-top: 16px;
+  color: var(--admin-muted);
+  font-size: 14px;
+}
+.catalogue-more summary {
+  cursor: pointer;
+}
+
+/* Readiness and the two checks */
+.catalogue-readiness {
+  display: flex;
+  align-items: start;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid var(--admin-border);
+  border-radius: 16px;
+  background: var(--admin-subtle-bg);
+}
+.catalogue-readiness p {
+  margin: 0;
+}
+.catalogue-readiness span {
+  color: var(--admin-secondary-text);
+}
+.catalogue-readiness[data-tone="ready"] {
+  border-color: var(--admin-success-border);
+  background: var(--admin-success-wash);
+  color: var(--admin-success-ink);
+}
+.catalogue-readiness .admin-icon,
+.catalogue-check .admin-icon {
+  flex: 0 0 18px;
+  width: 18px;
+  height: 18px;
+  margin-top: 2px;
+}
+.catalogue-check-cell .admin-icon {
+  flex: 0 0 16px;
+  width: 16px;
+  height: 16px;
+  margin-top: 1px;
+}
+.catalogue-readiness[data-tone="blocked"] .admin-icon {
+  color: var(--admin-warning-ink);
+}
+.catalogue-checks {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.catalogue-check {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: start;
+  gap: 12px;
+}
+.catalogue-check-text {
+  flex: 1 1 240px;
+  min-width: 0;
+}
+.catalogue-check-text p {
+  margin: 0;
+  font-size: 14px;
+}
+.catalogue-check-state {
+  margin-left: 8px;
+  color: var(--admin-muted);
+  font-size: 13px;
+}
+.catalogue-checks [data-done="true"] .catalogue-check .admin-icon,
+.catalogue-check-cell[data-done="true"] {
+  color: var(--admin-success-ink);
+}
+.catalogue-checks [data-done="false"] .catalogue-check .admin-icon,
+.catalogue-check-cell[data-done="false"] {
+  color: var(--admin-muted);
+}
+
+/* Facts and history */
+.catalogue-facts {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+}
+.catalogue-facts > div {
+  display: grid;
+  grid-template-columns: minmax(120px, 160px) minmax(0, 1fr);
+  gap: 12px;
+}
+.catalogue-facts dt {
+  color: var(--admin-muted);
+  font-weight: 400;
+}
+.catalogue-facts dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.catalogue-usage {
+  margin: 0;
+  font-size: 13px;
+}
+.catalogue-history summary {
+  font-weight: 500;
+  cursor: pointer;
+}
+.catalogue-receipts {
+  display: grid;
+  gap: 16px;
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.catalogue-receipts li {
+  padding-top: 12px;
+  border-top: 1px solid var(--admin-line);
+  font-size: 14px;
+}
+.catalogue-receipts p {
+  margin: 0 0 4px;
+  overflow-wrap: anywhere;
 }
 .catalogue-hash {
   display: block;
@@ -79,11 +233,187 @@
   white-space: normal;
   overflow-wrap: anywhere;
 }
+.catalogue-danger-zone {
+  justify-items: start;
+}
+.catalogue-record-meta {
+  margin: 0;
+  color: var(--admin-muted);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+/* A merchant's outlets */
+.catalogue-outlet-columns,
+.catalogue-outlet {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 104px 104px 48px;
+  align-items: start;
+  gap: 12px;
+}
+.catalogue-outlet-columns {
+  padding: 0 12px;
+  color: var(--admin-muted);
+  font-size: 12px;
+}
+.catalogue-outlet-columns span:last-child,
+.catalogue-outlet > span:last-child {
+  text-align: right;
+}
+.catalogue-outlets {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border: 1px solid var(--admin-border);
+  border-radius: 12px;
+  overflow: hidden;
+}
+.catalogue-outlets li + li {
+  border-top: 1px solid var(--admin-line);
+}
+.catalogue-outlet {
+  width: 100%;
+  padding: 12px;
+  border: 0;
+  background: transparent;
+  color: var(--admin-text);
+  text-align: left;
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background-color 120ms ease-out;
+}
+.catalogue-outlet:hover {
+  background: var(--admin-hover);
+}
+.catalogue-outlet:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+.catalogue-outlet-name {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.catalogue-outlet-name strong {
+  font-weight: 500;
+}
+.catalogue-outlet-name .catalogue-muted {
+  font-size: 13px;
+}
+.catalogue-check-cell {
+  display: inline-flex;
+  align-items: start;
+  gap: 4px;
+  font-size: 13px;
+}
+
+/* Verification sources and the OneMap lookup */
+.catalogue-editor legend {
+  float: none;
+  margin-bottom: 8px;
+  font-size: inherit;
+}
+.catalogue-sources {
+  display: grid;
+  gap: 8px;
+}
+.catalogue-source {
+  display: flex;
+  align-items: start;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid var(--admin-border);
+  border-radius: 12px;
+  background: var(--admin-surface);
+  cursor: pointer;
+}
+.catalogue-source:has(input:checked) {
+  border-color: var(--admin-accent-border-strong);
+}
+.catalogue-source .form-check-input {
+  flex: 0 0 auto;
+  margin: 2px 0 0;
+}
+.catalogue-source > span {
+  display: grid;
+  gap: 2px;
+  font-size: 14px;
+}
+.catalogue-source strong {
+  font-weight: 500;
+}
+.catalogue-lookup-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.catalogue-lookup-form .form-control {
+  flex: 1 1 220px;
+  min-width: 0;
+}
+.catalogue-candidates {
+  display: grid;
+  gap: 4px;
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.catalogue-candidate {
+  display: grid;
+  gap: 2px;
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: var(--admin-surface);
+  color: var(--admin-text);
+  text-align: left;
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+  transition:
+    background-color 120ms ease-out,
+    border-color 120ms ease-out;
+}
+.catalogue-candidate:hover {
+  background: var(--admin-hover);
+}
+.catalogue-candidate[aria-pressed="true"] {
+  border-color: var(--admin-accent-border-strong);
+  background: var(--admin-selected-bg);
+}
+.catalogue-candidate strong {
+  font-weight: 500;
+}
+.catalogue-candidate-title {
+  text-transform: capitalize;
+}
+.catalogue-lookup-credit {
+  margin: 12px 0 0;
+  font-size: 12px;
+}
+
 @media (max-width: 575.98px) {
-  .catalogue-decision {
+  .catalogue-decision,
+  .catalogue-confirm,
+  .catalogue-lookup {
     padding: 16px;
   }
-  .catalogue-verification {
-    grid-template-columns: 1fr;
+  .catalogue-facts > div {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+  }
+  .catalogue-outlet-columns {
+    display: none;
+  }
+  .catalogue-outlet {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+  .catalogue-outlet-name {
+    grid-column: 1 / -1;
+  }
+  .catalogue-outlet > span:last-child {
+    text-align: left;
   }
 }

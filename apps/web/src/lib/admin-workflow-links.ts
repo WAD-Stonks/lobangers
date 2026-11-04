@@ -50,12 +50,14 @@ export const adminDealHref = (options: {
 
 export const adminCatalogueHref = (options: {
   kind?: 'merchants' | 'venues'
+  verification?: 'needed'
   merchantId?: string
   recordId?: string
   returnTo?: string
 }) =>
   href('/admin/catalogue', {
     kind: options.kind,
+    verification: options.kind === 'venues' ? options.verification : undefined,
     merchantId: adminRecordId(options.merchantId),
     recordId: adminRecordId(options.recordId),
     returnTo: adminReturnTo(options.returnTo),
