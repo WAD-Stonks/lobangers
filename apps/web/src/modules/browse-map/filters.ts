@@ -17,6 +17,8 @@ export type BrowseFilters = {
   readonly offerTypes: readonly OfferType[]
   readonly walkMinutes: number | null
   readonly ending: EndingWindow
+  // Only deals the community currently reports as still on ("Likely still on").
+  readonly verifiedOnly: boolean
 }
 
 // The "Under $5" chip sets this cap; any other cap counts as a sheet filter.
@@ -45,6 +47,7 @@ export const createDefaultFilters = (): BrowseFilters => ({
   offerTypes: [],
   walkMinutes: null,
   ending: 'any',
+  verifiedOnly: false,
 })
 
 export const updateFilters = <K extends keyof BrowseFilters>(
@@ -66,4 +69,5 @@ export const countSheetFilters = (filters: BrowseFilters): number =>
   (filters.priceMaxMinor !== null ? 1 : 0) +
   (filters.walkMinutes !== null ? 1 : 0) +
   (filters.ending !== 'any' ? 1 : 0) +
+  (filters.verifiedOnly ? 1 : 0) +
   (filters.validNow ? 0 : 1)

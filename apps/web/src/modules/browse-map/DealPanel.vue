@@ -458,7 +458,11 @@ const toggleSave = async () => {
 }
 
 .deal-panel__venue {
+  /* A finger-sized tap area around the name without moving the text. */
+  display: inline-block;
   min-width: 0;
+  padding-block: 10px;
+  margin-block: -10px;
   font-weight: 600;
   color: var(--ink);
   overflow-wrap: anywhere;

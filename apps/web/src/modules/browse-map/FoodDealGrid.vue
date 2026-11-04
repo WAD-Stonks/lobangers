@@ -80,9 +80,12 @@ const cardStyle = (row: DealRow, index: number) => ({
   column-gap: 20px;
 }
 
-/* Narrow panels (the venue page) fit three thin cards; two reads better there. */
-.food-deal-grid--two {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+/* The venue page on a narrow screen fits three thin cards; two reads better there. On a wide
+   screen it uses the same columns as the main deal grid, rather than two cards half a desktop wide. */
+@media (max-width: 899.98px) {
+  .food-deal-grid--two {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 .food-deal-grid > * {

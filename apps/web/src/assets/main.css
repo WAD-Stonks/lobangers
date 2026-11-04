@@ -285,6 +285,14 @@ button:focus-visible,
   border-bottom: 1px solid var(--bs-border-color);
 }
 
+/* Finger-sized links on the Getting started page. */
+.module-list dt a,
+.setup-back {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+}
+
 @media (max-width: 575.98px) {
   .module-list dt {
     padding-bottom: 0.35rem;

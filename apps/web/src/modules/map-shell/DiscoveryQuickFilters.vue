@@ -111,23 +111,43 @@ const onEscape = (event: KeyboardEvent) => {
 }
 watch(() => props.sheetOpen, () => close())
 watch(() => props.filters, () => close())
+// When the chips scroll sideways (phones), each edge fades only while more chips sit past it, so
+// a chip is never cut off with a hard edge and the row reads as scrollable.
+const chipRow = ref<HTMLElement | null>(null)
+const moreBefore = ref(false)
+const moreAfter = ref(false)
+const measureChipRow = () => {
+  const row = chipRow.value
+  if (!row) return
+  moreBefore.value = row.scrollLeft > 1
+  moreAfter.value = row.scrollLeft + row.clientWidth < row.scrollWidth - 1
+}
+let chipRowObserver: ResizeObserver | undefined
+// Chip labels change with the filters ("Price" becomes "Under $5"), which changes the row's width.
+watch(() => props.filters, () => void nextTick(measureChipRow))
 onMounted(() => {
   document.addEventListener('pointerdown', outside)
   document.addEventListener('keydown', onEscape)
   window.addEventListener('resize', closeOnResize)
+  measureChipRow()
+  if (typeof ResizeObserver !== 'undefined' && chipRow.value) {
+    chipRowObserver = new ResizeObserver(measureChipRow)
+    chipRowObserver.observe(chipRow.value)
+  }
 })
 const closeOnResize = () => close()
 onBeforeUnmount(() => {
   document.removeEventListener('pointerdown', outside)
   document.removeEventListener('keydown', onEscape)
   window.removeEventListener('resize', closeOnResize)
+  chipRowObserver?.disconnect()
 })
 defineExpose({ focusAllFilters: () => allButton.value?.focus() })
 </script>
 
 <template>
   <div ref="root" class="discovery-filters" data-testid="discovery-quick-filters">
-    <fieldset class="discovery-filters__chips">
+    <fieldset ref="chipRow" class="discovery-filters__chips" :class="{ 'has-more-before': moreBefore, 'has-more-after': moreAfter }" @scroll.passive="measureChipRow">
       <legend class="visually-hidden">Quick filters</legend>
       <button ref="allButton" class="lb-chip discovery-filters__all" type="button" aria-haspopup="dialog" :aria-expanded="sheetOpen" aria-controls="filter-sheet" data-testid="all-filters" @click="close(); emit('openSheet')">
         <ShellIcon name="filters" :size="16" />Filters
@@ -303,6 +323,16 @@ defineExpose({ focusAllFilters: () => allButton.value?.focus() })
   .discovery-filters__chips::-webkit-scrollbar {
     display: none;
   }
+  /* Fade whichever edge has more chips beyond it; the last chip scrolls fully clear of the edge. */
+  .discovery-filters__chips {
+    --fade-before: 0px;
+    --fade-after: 0px;
+    padding-inline-end: 12px;
+    scroll-padding-inline: 12px;
+    mask-image: linear-gradient(to right, transparent 0, #000 var(--fade-before), #000 calc(100% - var(--fade-after)), transparent 100%);
+  }
+  .discovery-filters__chips.has-more-before { --fade-before: 28px; }
+  .discovery-filters__chips.has-more-after { --fade-after: 36px; }
   .discovery-filters__clear-all {
     flex: none;
   }

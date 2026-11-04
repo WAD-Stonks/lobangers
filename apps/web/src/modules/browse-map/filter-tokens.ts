@@ -84,6 +84,13 @@ export const activeFilterTokens = (filters: BrowseFilters): readonly FilterToken
       next: updateFilters(filters, 'ending', 'any'),
     })
   }
+  if (filters.verifiedOnly) {
+    tokens.push({
+      key: 'verified',
+      label: 'Verified only',
+      next: updateFilters(filters, 'verifiedOnly', false),
+    })
+  }
   if (!filters.validNow) {
     tokens.push({
       key: 'now',

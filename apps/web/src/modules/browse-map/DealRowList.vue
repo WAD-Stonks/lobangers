@@ -47,7 +47,7 @@ const isHot = (row: DealRow) => {
         @focus="point(row)"
         @blur="point(null)"
       >
-        <span class="lb-tag deal-rows__status" :class="[`lb-tag--${dealFreshness(row.deal).tone}`, { 'is-expired': dealFreshness(row.deal).label === 'Expired', 'is-conflicting': dealFreshness(row.deal).label === 'Mixed reports' }]">{{ dealFreshness(row.deal).label }}</span>
+        <span class="lb-tag deal-rows__status" :class="`lb-tag--${dealFreshness(row.deal).tone}`" data-testid="deal-status">{{ dealFreshness(row.deal).label }}</span>
         <span class="deal-rows__media" :class="{ 'deal-rows__media--placeholder': !row.deal.imageUrl && !row.deal.images[0] }">
           <DealImage v-if="row.deal.imageUrl || row.deal.images[0]" :key="row.deal.id" class="deal-rows__image" :url="row.deal.imageUrl || row.deal.images[0]?.url" :alt="row.deal.imageAltText?.trim() || row.deal.images[0]?.alt || ''" />
           <CategoryBubble v-else :category="row.deal.category" :title="row.deal.title" :venue="row.venue.name" size="md" />
@@ -285,11 +285,10 @@ const isHot = (row: DealRow) => {
   left: 12px;
   max-width: calc(100% - 76px);
   white-space: normal;
+  /* Lifts the tag off any photo, light or dark; its colour comes from its lb-tag tone. */
+  box-shadow: 0 1px 4px rgb(27 27 31 / 0.14);
 }
 
-.deal-rows__status.is-conflicting { color: var(--tag-end-ink); background: var(--tag-end-bg); }
-
-.deal-rows__status.is-expired,
 .deal-rows__ending.is-expired {
   color: var(--coral-deep);
 }

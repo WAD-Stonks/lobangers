@@ -20,6 +20,7 @@ describe('browse filters', () => {
       offerTypes: [],
       walkMinutes: null,
       ending: 'any',
+      verifiedOnly: false,
     })
   })
 
@@ -35,6 +36,7 @@ describe('browse filters', () => {
       offerTypes: ['PERCENT_OFF'],
       walkMinutes: 10,
       ending: 'today',
+      verifiedOnly: true,
     }
     for (const key of Object.keys(patches) as (keyof BrowseFilters)[]) {
       const next = updateFilters(base, key, patches[key])
@@ -71,5 +73,6 @@ describe('browse filters', () => {
         validNow: false,
       }),
     ).toBe(8)
+    expect(countSheetFilters({ ...base, verifiedOnly: true })).toBe(1)
   })
 })

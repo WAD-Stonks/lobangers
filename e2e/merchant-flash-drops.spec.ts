@@ -182,7 +182,8 @@ const confirmDialog = async (page: Page, title: string) => {
 const dropCard = (page: Page, text: string) =>
   page.locator('[data-testid^="flash-drop-"]').filter({ hasText: text })
 
-// Fills the ordinary part of the deal form: a $4.00 deal at the Maxwell branch.
+// Fills the ordinary part of the deal form, step by step, and stops on the review: a $4.00
+// deal at the Maxwell branch.
 const fillDeal = async (page: Page, title: string) => {
   await page.getByRole('button', { name: '+ New deal' }).click()
   await page.getByLabel('Title').fill(title)
@@ -190,13 +191,16 @@ const fillDeal = async (page: Page, title: string) => {
   for (const [label, value] of [
     ['Category', 'FOOD'],
     ['Cuisine', 'CHINESE'],
-    ['Offer type', 'FIXED_PRICE'],
   ] as const) {
     await page.getByLabel(label).click()
     await page.locator(`[role="option"][data-value="${value}"]`).click()
   }
+  await page.getByRole('radio', { name: 'Fixed price' }).check()
   await page.getByLabel('Deal price ($)').fill('4')
+  await page.getByRole('button', { name: 'Next: Outlets' }).click()
   await page.getByRole('checkbox', { name: 'Ah Seng Chicken Rice (Maxwell)' }).check()
+  await page.getByRole('button', { name: 'Next: Validity' }).click()
+  await page.getByRole('button', { name: 'Next: Review' }).click()
 }
 
 test('save a flash deal as a draft, send it live and end it early', async ({ page }) => {
@@ -206,15 +210,22 @@ test('save a flash deal as a draft, send it live and end it early', async ({ pag
   await expect(page.getByRole('button', { name: /Flash drop this/ })).toHaveCount(0)
 
   await fillDeal(page, 'Synthetic roast chicken rice')
+  // On the review, "Save as flash deal" opens the flash timing step in place of the dates.
   await page.getByRole('button', { name: 'Save as flash deal' }).click()
   await expect(page.getByRole('heading', { name: 'New flash deal' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Flash timing' })).toBeVisible()
   await expect(page.getByLabel('Start date (optional)')).toHaveCount(0)
 
-  // The form's offer is now the flash offer; a usual price is optional but must be higher.
-  await expect(page.getByLabel('Flash offer')).toHaveAttribute('data-value', 'FIXED_PRICE')
+  // The form's offer is now the flash offer, set on the first step.
+  await page.getByTestId('step-details').click()
+  await expect(page.getByRole('radiogroup', { name: 'Flash offer' })).toBeVisible()
+  await expect(page.getByRole('radio', { name: 'Fixed price' })).toBeChecked()
   await page.getByLabel('Flash price ($)').fill('1.20')
+
+  // A usual price is optional but must be higher; the timing step checks it before the review.
+  await page.getByTestId('step-validity').click()
   await page.getByLabel('Usual price ($, optional)').fill('1')
-  await page.getByRole('button', { name: 'Save as flash deal' }).click()
+  await page.getByRole('button', { name: 'Next: Review' }).click()
   await expect(
     page.getByText('The usual price has to be higher than the flash price of $1.20.'),
   ).toBeVisible()
@@ -223,6 +234,7 @@ test('save a flash deal as a draft, send it live and end it early', async ({ pag
   await expect(page.getByTestId('flash-preview')).toHaveText(
     'FLASH DROP · $1.20 Synthetic roast chicken rice · 15:00 · within 500 m',
   )
+  await page.getByRole('button', { name: 'Next: Review' }).click()
   await page.getByRole('button', { name: 'Save as flash deal' }).click()
 
   await expect(page.getByRole('status')).toContainText('was saved as a draft')
@@ -270,7 +282,10 @@ test('edit a draft in the deal form, then delete it', async ({ page }) => {
   await expect(page.getByLabel('Title')).toHaveValue('Synthetic steamed chicken rice set')
   await expect(page.getByLabel('Flash price ($)')).toHaveValue('2.5')
   await page.getByLabel('Title').fill('Synthetic duck rice set')
+  // A saved draft can open any step straight from the stepper.
+  await page.getByTestId('step-validity').click()
   await page.getByText('1 km', { exact: true }).click()
+  await page.getByTestId('step-review').click()
   await page.getByRole('button', { name: 'Save draft' }).click()
 
   await expect(page.getByRole('status')).toContainText('was updated')

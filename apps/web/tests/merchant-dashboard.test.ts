@@ -173,12 +173,24 @@ async function fillNewDeal(wrapper: PageWrapper) {
   await wrapper.get('#deal-description').setValue('Two plates for one.')
   await chooseOption(wrapper, '#deal-category', 'FOOD')
   await chooseOption(wrapper, '#deal-cuisine', 'CHINESE')
-  await chooseOption(wrapper, '#deal-offer', 'BUY_ONE_GET_ONE')
+  await wrapper.get('[data-testid="merchant-offer-BUY_ONE_GET_ONE"]').setValue(true)
 }
 
-const save = async (wrapper: PageWrapper) => {
+// The form is in four steps; each submit (Enter, or Next) checks the step and opens the next,
+// and a submit on the last step, the review, saves.
+const submit = async (wrapper: PageWrapper) => {
   await wrapper.get('form').trigger('submit')
   await flushPromises()
+}
+const FORM_STEPS = 4
+const toReview = async (wrapper: PageWrapper) => {
+  for (let index = 1; index < FORM_STEPS; index++) await submit(wrapper)
+}
+// Steps through to the review and saves; a step with a problem stops it there, and a save that
+// closes the form ends it.
+const save = async (wrapper: PageWrapper) => {
+  for (let index = 0; index < FORM_STEPS && wrapper.find('form').exists(); index++)
+    await submit(wrapper)
 }
 
 describe('merchant dashboard', () => {
@@ -344,6 +356,33 @@ describe('merchant dashboard', () => {
     expect(wrapper.find('form').exists()).toBe(true)
     expect(wrapper.text()).toContain('Could not upload the photo. Please try again.')
   })
+  it('walks a new deal through the same four steps as Add a deal, checking each one', async () => {
+    const wrapper = await mountPage()
+    await button(wrapper, '+ New deal').trigger('click')
+    const current = () => wrapper.get('[aria-current="step"]').text()
+    expect(current()).toContain('Deal details')
+    // A step with a problem stays open; later steps cannot be opened from the stepper yet.
+    await submit(wrapper)
+    expect(current()).toContain('Deal details')
+    expect(wrapper.text()).toContain('Please give the deal a title.')
+    expect(wrapper.get('[data-testid="step-review"]').attributes('disabled')).toBeDefined()
+
+    await fillNewDeal(wrapper)
+    await submit(wrapper)
+    expect(current()).toContain('Outlets')
+    await submit(wrapper)
+    expect(current()).toContain('Validity')
+    await submit(wrapper)
+    expect(current()).toContain('Review')
+    expect(wrapper.text()).toContain('Synthetic 1-for-1')
+    expect(merchantApi.createDeal).not.toHaveBeenCalled()
+
+    // Edit on the review reopens that step.
+    await wrapper.get('[data-testid="merchant-review-edit-0"]').trigger('click')
+    await flushPromises()
+    expect(current()).toContain('Deal details')
+  })
+
   it('links to merchant access so a merchant can request another outlet', async () => {
     const wrapper = await mountPage()
     expect(wrapper.find('router-link-stub[to="/me/merchant-access"]').exists()).toBe(true)
@@ -392,30 +431,38 @@ describe('merchant dashboard', () => {
     await fillNewDeal(wrapper)
     await wrapper.get(`#outlet-${outlet.id}`).setValue(true)
     await wrapper.get(`#outlet-${otherOutlet.id}`).setValue(true)
+    await toReview(wrapper)
 
-    // The first press shows the flash fields and keeps only the first outlet.
+    // The first press opens the flash timing step and keeps only the first outlet.
     await button(wrapper, 'Save as flash deal').trigger('click')
+    expect(wrapper.get('[aria-current="step"]').text()).toContain('Flash timing')
     expect(wrapper.get('form h2').text()).toBe('New flash deal')
     expect(wrapper.find('#deal-start').exists()).toBe(false)
     expect(wrapper.find('[data-testid="flash-preview"]').exists()).toBe(true)
     expect(flashSaved).not.toHaveBeenCalled()
     // The form's own offer is the flash offer, with the same choices as a deal.
-    expect(wrapper.get('label[for="deal-offer"]').text()).toBe('Flash offer')
-    await chooseOption(wrapper, '#deal-offer', 'FIXED_PRICE')
-    expect(wrapper.get('label[for="deal-price"]').text()).toBe('Flash price ($)')
+    expect(wrapper.get('.add-deal__offers').attributes('aria-label')).toBe('Flash offer')
+    await wrapper.get('[data-testid="merchant-offer-FIXED_PRICE"]').setValue(true)
+    expect(wrapper.get('label[for="deal-price"]').text()).toContain('Flash price ($)')
     await wrapper.get('#deal-price').setValue('1.5')
 
     await wrapper.get(`#outlet-${otherOutlet.id}`).setValue(true)
     await wrapper.get('#flash-usual').setValue('1')
+    // The timing step checks its own fields before the review opens.
     await save(wrapper)
-    expect(wrapper.text()).toContain('A flash deal runs at one outlet. Choose just one.')
     expect(wrapper.text()).toContain(
       'The usual price has to be higher than the flash price of $1.50.',
     )
     expect(flashApi.saveFlashDraft).not.toHaveBeenCalled()
 
-    await wrapper.get(`#outlet-${otherOutlet.id}`).setValue(false)
+    // Saving from the review checks every step and opens the first one with a problem.
     await wrapper.get('#flash-usual').setValue('4')
+    await save(wrapper)
+    expect(wrapper.get('[aria-current="step"]').text()).toContain('Outlets')
+    expect(wrapper.text()).toContain('A flash deal runs at one outlet. Choose just one.')
+    expect(flashApi.saveFlashDraft).not.toHaveBeenCalled()
+
+    await wrapper.get(`#outlet-${otherOutlet.id}`).setValue(false)
     await save(wrapper)
     expect(merchantApi.createDeal).not.toHaveBeenCalled()
     expect(flashApi.saveFlashDraft).toHaveBeenCalledWith(null, {
@@ -443,6 +490,7 @@ describe('merchant dashboard', () => {
   it('saves a 1-for-1 flash deal with no price', async () => {
     const wrapper = await mountPage()
     await fillNewDeal(wrapper)
+    await toReview(wrapper)
     await button(wrapper, 'Save as flash deal').trigger('click')
     expect(wrapper.find('#flash-usual').exists()).toBe(false)
     expect(wrapper.get('[data-testid="flash-preview"]').text()).toContain(
@@ -463,10 +511,11 @@ describe('merchant dashboard', () => {
   it('can turn the flash deal back into an ordinary deal before saving', async () => {
     const wrapper = await mountPage()
     await fillNewDeal(wrapper)
+    await toReview(wrapper)
     await button(wrapper, 'Save as flash deal').trigger('click')
     await button(wrapper, 'Make it an ordinary deal').trigger('click')
     expect(wrapper.find('[data-testid="flash-preview"]').exists()).toBe(false)
-    expect(wrapper.get('label[for="deal-offer"]').text()).toBe('Offer type')
+    expect(wrapper.get('.add-deal__offers').attributes('aria-label')).toBe('Offer type')
     await save(wrapper)
     expect(merchantApi.createDeal).toHaveBeenCalledOnce()
     expect(flashApi.saveFlashDraft).not.toHaveBeenCalled()

@@ -79,6 +79,7 @@ const matchesDeal = (deal: DealPin, filters: BrowseFilters, now: Date): boolean 
   (filters.priceMaxMinor === null ||
     deal.priceMinor === null ||
     deal.priceMinor <= filters.priceMaxMinor) &&
+  (!filters.verifiedOnly || isVerified(deal.votes)) &&
   endsWithin(deal, filters.ending, now)
 
 export const filterDeals = (

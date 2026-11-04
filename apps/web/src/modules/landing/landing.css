@@ -1417,10 +1417,9 @@
     height: 38px;
     top: -1px;
   }
+  /* At 6px the region names could not be read; each pin's button already names its region. */
   .pin-label {
-    font-size: 6px;
-    margin-top: 7px;
-    padding: 1px 4px;
+    display: none;
   }
   .story-intro > p {
     font-size: 34px;

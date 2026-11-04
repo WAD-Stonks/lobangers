@@ -73,7 +73,7 @@ onBeforeUnmount(() => { fitRequest++; resizeObserver?.disconnect() })
         <button type="button" class="lb-btn lb-btn--primary" data-testid="show-map" @click="shell.setView('map')"><ShellIcon name="map" :size="21" />Show map<ShellIcon name="back" class="all-deals-hero__arrow" :size="21" /></button>
       </div>
     </div>
-    <img class="all-deals-hero__art" src="/landing/all-deals-hero-1520.webp" srcset="/landing/all-deals-hero-800.webp 800w, /landing/all-deals-hero-1520.webp 1520w" sizes="(max-width: 699.98px) calc(100vw + 40px), 760px" alt="" aria-hidden="true" width="1520" height="508" />
+    <img class="all-deals-hero__art" src="/landing/all-deals-hero-1520.webp" srcset="/landing/all-deals-hero-800.webp 800w, /landing/all-deals-hero-1520.webp 1520w" sizes="(max-width: 699.98px) 100vw, 760px" alt="" aria-hidden="true" width="1520" height="508" />
   </section>
 </template>
 
@@ -118,19 +118,20 @@ p { margin: 0 0 12px; font-size: 1rem; line-height: 1.45; color: var(--hero-body
 /* Expand downwards whenever the side-by-side artwork would enter the copy's space. */
 .all-deals-hero--stacked { flex-direction: column; align-items: stretch; min-height: 0; }
 .all-deals-hero--stacked .all-deals-hero__copy { width: 100%; max-width: none; }
-.all-deals-hero--stacked .all-deals-hero__art { position: relative; inset: auto; left: auto; right: -20px; bottom: -24px; width: calc(100% + 40px); height: auto; object-fit: contain; align-self: flex-end; flex-shrink: 0; margin-top: -36px; }
+/* Stacked, the artwork spans the card edge to edge and shows whole: no crop, no overhang. */
+.all-deals-hero--stacked .all-deals-hero__art { position: relative; inset: auto; width: 100%; height: auto; object-fit: contain; align-self: stretch; flex-shrink: 0; margin-top: -12px; }
 
 @media (max-width: 699.98px) {
   .all-deals-hero { flex-direction: column; align-items: stretch; min-height: 0; --hero-radius: 20px; }
   .all-deals-hero .all-deals-hero__copy { width: 100%; padding: 18px 28px 8px 36px; }
-  .all-deals-hero .all-deals-hero__art { position: relative; inset: auto; left: auto; right: -20px; bottom: -24px; align-self: flex-end; width: calc(100% + 40px); height: auto; flex-shrink: 0; margin-top: -24px; object-fit: contain; object-position: right bottom; }
+  .all-deals-hero .all-deals-hero__art { position: relative; inset: auto; align-self: stretch; width: 100%; height: auto; flex-shrink: 0; margin-top: 0; object-fit: contain; }
   .all-deals-hero__accent--coral { width: 20px; height: 28px; left: -22px; top: -10px; }
   .all-deals-hero__accent--yellow { display: none; }
-  /* The headline says it already, and the art crops from the top, so the banner leaves room
-     for the first deals on a phone screen. */
+  /* The headline says it already, so the banner leaves room for the first deals on a phone
+     screen; the art shows whole, never cropped. */
   .all-deals-hero p[data-hero-subtitle] { display: none; }
   .all-deals-hero h2 { margin-bottom: 14px; }
-  .all-deals-hero .all-deals-hero__art { max-height: 116px; object-fit: cover; }
+  .all-deals-hero .all-deals-hero__actions { margin-bottom: 14px; }
 }
 @media (prefers-reduced-motion: reduce) {
   .all-deals-hero__actions .lb-btn, .all-deals-hero__arrow { transition: none; }

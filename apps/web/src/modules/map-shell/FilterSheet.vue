@@ -338,6 +338,24 @@ watch(
         <div class="filter-sheet__group">
           <div class="filter-sheet__row">
             <span class="filter-sheet__switch-text">
+              <span id="filter-verified" class="filter-sheet__label">Verified only</span>
+              <span class="lb-meta">Only deals the community says are still on</span>
+            </span>
+            <button
+              type="button"
+              role="switch"
+              class="filter-sheet__switch"
+              :aria-checked="draft.verifiedOnly"
+              aria-labelledby="filter-verified"
+              data-testid="filter-verified"
+              @click="updateDraft(updateFilters(draft, 'verifiedOnly', !draft.verifiedOnly))"
+            />
+          </div>
+        </div>
+
+        <div class="filter-sheet__group">
+          <div class="filter-sheet__row">
+            <span class="filter-sheet__switch-text">
               <span id="filter-valid" class="filter-sheet__label">Valid now</span>
               <span class="lb-meta">Hide deals past their end date</span>
             </span>

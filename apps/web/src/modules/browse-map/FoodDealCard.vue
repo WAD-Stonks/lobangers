@@ -49,7 +49,7 @@ const photoStyle = computed(() => (photoRatio.value ? { '--photo-ratio': String(
         @ratio="onPhotoRatio"
       />
       <div v-else class="food-deal-card__placeholder" aria-hidden="true">🍽️</div>
-      <span class="food-deal-card__status" :class="{ 'is-expired': dealFreshness(props.row.deal).label === 'Expired', 'is-conflicting': dealFreshness(props.row.deal).label === 'Mixed reports' }">{{ dealFreshness(props.row.deal).label }}</span>
+      <span class="food-deal-card__status" :class="`food-deal-card__status--${dealFreshness(props.row.deal).tone}`" data-testid="deal-status">{{ dealFreshness(props.row.deal).label }}</span>
     </div>
     <div class="food-deal-card__body">
       <p class="food-deal-card__description">{{ props.row.deal.title }}</p>
@@ -155,9 +155,17 @@ const photoStyle = computed(() => (photoRatio.value ? { '--photo-ratio': String(
   font-weight: 700;
   text-overflow: ellipsis;
   white-space: nowrap;
-  background: var(--paper-white);
   border-radius: var(--radius-pill);
+  /* Lifts the tag off any photo, light or dark. */
+  box-shadow: 0 1px 4px rgb(27 27 31 / 0.14);
 }
+
+/* The same status colours as the list rows and the deal panel (lb-tag tones in shell-ui.css):
+   green when the community says it is still on, coral when it ends today, has mixed reports or
+   has expired, and grey while unverified. */
+.food-deal-card__status--ok { color: var(--tag-ok-ink); background: var(--tag-ok-bg); }
+.food-deal-card__status--end { color: var(--tag-end-ink); background: var(--tag-end-bg); }
+.food-deal-card__status--new { color: var(--tag-new-ink); background: var(--tag-new-bg); }
 
 .food-deal-card__body {
   flex: 1;
@@ -226,9 +234,6 @@ const photoStyle = computed(() => (photoRatio.value ? { '--photo-ratio': String(
   margin-left: auto;
 }
 
-.food-deal-card__status.is-conflicting { color: var(--tag-end-ink); background: var(--tag-end-bg); }
-
-.food-deal-card__status.is-expired,
 .food-deal-card__validity.is-expired {
   color: var(--coral-deep);
 }
