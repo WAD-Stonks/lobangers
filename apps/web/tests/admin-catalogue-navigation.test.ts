@@ -4,7 +4,6 @@ import type {
 } from '@broke-oclock/contracts/admin-catalogue'
 import { flushPromises, mount } from '@vue/test-utils'
 import CataloguePanel from '@web/modules/admin-catalogue/CataloguePanel.vue'
-import { chooseOption } from '@web-tests/support/select'
 import { beforeEach, expect, it, vi } from 'vitest'
 import { createMemoryHistory, createRouter, RouterView } from 'vue-router'
 
@@ -14,6 +13,7 @@ const rest = vi.hoisted(() => ({
   venues: vi.fn(),
   venue: vi.fn(),
   patchMerchant: vi.fn(),
+  summary: vi.fn(),
 }))
 vi.mock('@web/lib/api-client', () => ({ api: { adminCatalogue: rest } }))
 const merchant: CatalogueMerchant = {
@@ -85,10 +85,57 @@ beforeEach(() => {
   rest.venues.mockResolvedValue({ items: [venue], nextCursor: null })
   rest.venue.mockResolvedValue(venue)
   rest.patchMerchant.mockResolvedValue({ id: merchant.id, version: 4 })
+  rest.summary.mockResolvedValue({ needsVerification: 1, needsVerificationWithDeals: 1 })
+})
+const editName = (wrapper: ReturnType<typeof mount>) => click(wrapper, 'Edit name')
+
+it('opens on the verification queue and asks the API for outlets that need it', async () => {
+  const { router, wrapper } = await routed()
+  try {
+    expect(rest.venues).toHaveBeenLastCalledWith({
+      status: 'active',
+      limit: 25,
+      verification: 'needed',
+    })
+    expect(wrapper.text()).toContain('To verify (1)')
+    expect(wrapper.text()).toContain('Needs occupancy and location')
+    expect(wrapper.text()).toContain('1 deal waiting')
+    await wrapper.get(`[data-open-id="${venue.id}"]`).trigger('click')
+    await flushPromises()
+    expect(router.currentRoute.value.query).toMatchObject({
+      kind: 'venues',
+      verification: 'needed',
+      recordId: venue.id,
+    })
+    expect(wrapper.text()).toContain('Not ready for deals')
+    const verify = wrapper.findAll('button').find((button) => button.text() === 'Verify occupancy')
+    expect(verify?.classes()).toContain('btn-primary')
+  } finally {
+    wrapper.unmount()
+  }
+})
+
+it('shows a merchant’s outlets on its page and opens one inside that merchant', async () => {
+  const { router, wrapper } = await routed(
+    `/admin/catalogue?kind=merchants&recordId=${merchant.id}`,
+  )
+  try {
+    expect(rest.venues).toHaveBeenCalledWith({ merchantId: merchant.id, status: 'all', limit: 100 })
+    await wrapper.get(`[data-outlet-id="${venue.id}"]`).trigger('click')
+    await flushPromises()
+    expect(router.currentRoute.value.query).toMatchObject({
+      kind: 'venues',
+      merchantId: merchant.id,
+      recordId: venue.id,
+    })
+    expect(wrapper.get('[data-testid="catalogue-detail-heading"]').text()).toBe(venue.name)
+  } finally {
+    wrapper.unmount()
+  }
 })
 
 it('keeps the merchant context while opening its outlets and returning to its exact record', async () => {
-  const { router, wrapper } = await routed()
+  const { router, wrapper } = await routed('/admin/catalogue?kind=merchants')
   try {
     await wrapper.get(`[data-open-id="${merchant.id}"]`).trigger('click')
     await flushPromises()
@@ -144,8 +191,7 @@ it('opens an exact outlet outside the first page and preserves a safe return tas
 it('filters the directory when switching from a selected merchant and can explicitly clear that filter', async () => {
   const { router, wrapper } = await routed(`/admin/catalogue?recordId=${merchant.id}`)
   try {
-    await chooseOption(wrapper, '#catalogue-kind', 'venues')
-    await flushPromises()
+    await click(wrapper, 'Outlets')
     expect(rest.venues).toHaveBeenLastCalledWith({
       status: 'all',
       limit: 25,
@@ -169,6 +215,7 @@ it('queues browser route changes until a captured write finishes and resets cons
   )
   const { router, wrapper } = await routed(`/admin/catalogue?recordId=${merchant.id}`)
   try {
+    await editName(wrapper)
     await wrapper.get('[name="merchantName"]').setValue('Synthetic correction')
     await wrapper.get('[name="note"]').setValue('Reviewed exact original version')
     await wrapper.get('[name="confirmed"]').setValue(true)
@@ -193,8 +240,9 @@ it('queues browser route changes until a captured write finishes and resets cons
     })
     expect(rest.merchant).toHaveBeenCalledWith(otherMerchant.id)
     expect(wrapper.get('[data-testid="catalogue-detail-heading"]').text()).toBe(otherMerchant.name)
-    expect(wrapper.get<HTMLTextAreaElement>('[name="note"]').element.value).toBe('')
-    expect(wrapper.get<HTMLInputElement>('[name="confirmed"]').element.checked).toBe(false)
+    // The new target opens read-only: no reason or confirmation carries over.
+    expect(wrapper.find('[name="note"]').exists()).toBe(false)
+    expect(wrapper.find('[name="confirmed"]').exists()).toBe(false)
   } finally {
     wrapper.unmount()
   }
@@ -230,6 +278,7 @@ it('retains an unknown-result lock after a queued route change and a return to t
   )
   const { router, wrapper } = await routed(`/admin/catalogue?recordId=${merchant.id}`)
   try {
+    await editName(wrapper)
     await wrapper.get('[name="merchantName"]').setValue('Synthetic correction')
     await wrapper.get('[name="note"]').setValue('Reviewed original target')
     await wrapper.get('[name="confirmed"]').setValue(true)
@@ -242,10 +291,10 @@ it('retains an unknown-result lock after a queued route change and a return to t
     await router.push(`/admin/catalogue?recordId=${merchant.id}`)
     await flushPromises()
     expect(wrapper.text()).toContain('outcome could not be confirmed')
-    expect(wrapper.get('fieldset').attributes('disabled')).toBeDefined()
-    expect(wrapper.get<HTMLTextAreaElement>('[name="note"]').element.value).toBe('')
-    expect(wrapper.get<HTMLInputElement>('[name="confirmed"]').element.checked).toBe(false)
-    await wrapper.get('form:has([name="merchantName"])').trigger('submit')
+    // Locked: the form cannot be reopened, so nothing can be resubmitted.
+    expect(wrapper.find('[name="note"]').exists()).toBe(false)
+    const edit = wrapper.findAll('button').find((button) => button.text() === 'Edit name')
+    expect(edit?.attributes('disabled')).toBeDefined()
     expect(rest.patchMerchant).toHaveBeenCalledTimes(1)
   } finally {
     wrapper.unmount()

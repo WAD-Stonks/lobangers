@@ -56,11 +56,11 @@ onUnmounted(fence.dispose)
 </script>
 <template>
   <AdminShell :access="access" title="Merchants & outlets" :refresh-key="refreshKey" @closing="close" @signed-out="anonymous" @access-reload="reload">
-    <p v-if="access === 'loading'" role="status">Checking catalogue access…</p>
-    <SharedSignIn heading-level="h1" v-else-if="access === 'UNAUTHORIZED'" title="Sign in to maintain the catalogue" destination="/admin/catalogue" @signed-in="signedIn" />
-    <div v-else-if="access === 'FORBIDDEN'" role="alert"><p>You do not have permission to maintain the catalogue.</p><button class="btn btn-outline-primary" type="button" @click="reload">Recheck access</button></div>
-    <p v-else-if="access === 'closed'" role="status">Catalogue access is closed. Use the session controls to recheck.</p>
-    <div v-else-if="access === 'error'" role="alert"><p>Unable to confirm your session. Catalogue writes remain closed.</p><button class="btn btn-outline-primary" type="button" @click="reload">Retry access</button></div>
+    <p v-if="access === 'loading'" role="status">Checking access…</p>
+    <SharedSignIn heading-level="h1" v-else-if="access === 'UNAUTHORIZED'" title="Sign in to manage merchants and outlets" destination="/admin/catalogue" @signed-in="signedIn" />
+    <div v-else-if="access === 'FORBIDDEN'" role="alert"><p>You do not have permission to manage merchants and outlets.</p><button class="btn btn-outline-primary" type="button" @click="reload">Recheck access</button></div>
+    <p v-else-if="access === 'closed'" role="status">Access is closed. Use the session controls to recheck.</p>
+    <div v-else-if="access === 'error'" role="alert"><p>Couldn’t confirm your session. Changes stay locked until it’s confirmed.</p><button class="btn btn-outline-primary" type="button" @click="reload">Retry access</button></div>
     <CataloguePanel v-else :key="refreshKey" @denied="denied" />
   </AdminShell>
 </template>

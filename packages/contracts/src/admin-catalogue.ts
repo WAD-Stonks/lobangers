@@ -39,9 +39,12 @@ const pageFields = {
   search: text(100).optional(),
 }
 export const catalogueMerchantsQuerySchema = z.strictObject(pageFields)
+export const catalogueVerificationFilterSchema = z.enum(['needed', 'ready'])
 export const catalogueVenuesQuerySchema = z.strictObject({
   ...pageFields,
   merchantId: adminObjectIdSchema.optional(),
+  // needed: active outlets that cannot be picked for deals yet. ready: ones that can.
+  verification: catalogueVerificationFilterSchema.optional(),
 })
 const confirmation = { note: adminNoteSchema, confirmed: z.literal(true) }
 export const catalogueMutationSchema = z.strictObject({
@@ -183,6 +186,14 @@ export const catalogueVenuesResponseSchema = z.strictObject({
   items: z.array(catalogueVenueSchema).max(100),
   nextCursor: adminObjectIdSchema.nullable(),
 })
+export const catalogueSummarySchema = z.strictObject({
+  // Active outlets of active merchants that cannot be picked for deals yet.
+  needsVerification: count,
+  // The subset of those already linked to at least one deal.
+  needsVerificationWithDeals: count,
+})
+export type CatalogueSummary = z.infer<typeof catalogueSummarySchema>
+export type CatalogueVerificationFilter = z.infer<typeof catalogueVerificationFilterSchema>
 export type CatalogueMerchant = z.infer<typeof catalogueMerchantSchema>
 export type CatalogueVenue = z.infer<typeof catalogueVenueSchema>
 export type CatalogueVenueDetail = z.infer<typeof catalogueVenueDetailSchema>

@@ -38,6 +38,7 @@ it.each([
   [`/admin/deals/${id}/scope-evidence`, 'POST'],
   [`/admin/deals/${id}/unpublish`, 'POST'],
   [`/admin/deals/${id}/reopen`, 'POST'],
+  ['/admin/catalogue/summary', 'GET'],
   ['/admin/catalogue/merchants', 'GET, POST'],
   [`/admin/catalogue/merchants/${id}`, 'GET, PATCH'],
   [`/admin/catalogue/merchants/${id}/archive`, 'POST'],

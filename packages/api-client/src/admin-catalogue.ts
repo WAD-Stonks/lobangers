@@ -40,6 +40,7 @@ export const createAdminCatalogueClient = (http: AxiosInstance) => ({
       schemas.catalogueMutationResponseSchema,
     )
   },
+  summary: () => request(http.get(`/admin/catalogue/summary`), schemas.catalogueSummarySchema),
   venues: (input: QueryInput<typeof schemas.catalogueVenuesQuerySchema> = {}) => {
     const inputValue = validateInput(schemas.catalogueVenuesQuerySchema, input)
     return request(

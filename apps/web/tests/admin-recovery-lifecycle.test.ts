@@ -153,6 +153,9 @@ beforeEach(() => {
       data = { password: true, google: false, emailOtp: false, passwordRecovery: false }
     else if (url === '/admin/catalogue/merchants')
       data = { items: [{ ...merchant, version }], nextCursor: null }
+    else if (url === '/admin/catalogue/venues') data = { items: [], nextCursor: null }
+    else if (url === '/admin/catalogue/summary')
+      data = { needsVerification: 0, needsVerificationWithDeals: 0 }
     else if (url === `/admin/catalogue/merchants/${id}`) data = { ...merchant, version }
     else if (url === '/admin/deals')
       data = {
@@ -190,6 +193,22 @@ const button = async (w: ReturnType<typeof mount>, text: string) => {
   await b.trigger('click')
   await flushPromises()
 }
+// The catalogue opens on its verification queue and shows a merchant read-only. Reach the
+// merchant directory, open the merchant and, unless told not to, its name form.
+const openMerchant = async (w: ReturnType<typeof mount>, edit = true) => {
+  if (!w.find(`button[data-open-row="${merchant.name}"]`).exists()) {
+    const tab = w.findAll('[role="tab"]').find((candidate) => candidate.text() === 'Merchants')
+    await tab?.trigger('click')
+    await flushPromises()
+  }
+  await w.get(`button[data-open-row="${merchant.name}"]`).trigger('click')
+  await flushPromises()
+  const editName = w.findAll('button').find((candidate) => candidate.text() === 'Edit name')
+  if (edit && editName && editName.attributes('disabled') === undefined) {
+    await editName.trigger('click')
+    await flushPromises()
+  }
+}
 const consent = async (w: ReturnType<typeof mount>, confirmation = 'confirmed') => {
   await w.get('[name="note"]').setValue('Fresh deliberate reviewed action')
   await w.get(`[name="${confirmation}"]`).setValue(true)
@@ -207,8 +226,7 @@ it('same-mount unknown -> failed detail -> unchanged detail stays locked; newer 
   const w = mount(Panel)
   try {
     await flushPromises()
-    await w.get(`button[data-open-row="${merchant.name}"]`).trigger('click')
-    await flushPromises()
+    await openMerchant(w)
     await consent(w)
     await w.get('[name="merchantName"]').setValue('Reviewed corrected spelling')
     await w.get('form:has([name="merchantName"])').trigger('submit')
@@ -218,11 +236,13 @@ it('same-mount unknown -> failed detail -> unchanged detail stays locked; newer 
     await button(w, 'Reload target detail')
     expect(w.find('[name="merchantName"]').exists()).toBe(false)
     readFails = false
-    await w.get(`button[data-open-row="${merchant.name}"]`).trigger('click')
-    await flushPromises()
-    expect(w.get('fieldset').attributes('disabled')).toBeDefined()
+    await openMerchant(w)
+    const editName = () => w.findAll('button').find((candidate) => candidate.text() === 'Edit name')
+    expect(editName()?.attributes('disabled')).toBeDefined()
     version = 8
     await button(w, 'Reload target detail')
+    expect(editName()?.attributes('disabled')).toBeUndefined()
+    await button(w, 'Edit name')
     expect(w.get('fieldset').attributes('disabled')).toBeUndefined()
     expect(w.get<HTMLInputElement>('[name="confirmed"]').element.checked).toBe(false)
   } finally {
@@ -312,17 +332,15 @@ const originalPage = async (kind: (typeof mountedCases)[number]) =>
       : (await import('@web/pages/AdminCataloguePage.vue')).default
 const act = async (w: ReturnType<typeof mount>, kind: (typeof mountedCases)[number]) => {
   if (kind === 'create') await button(w, 'New merchant')
+  else if (kind === 'catalogue') await openMerchant(w)
   else
     await w
-      .get(
-        kind === 'catalogue'
-          ? `button[data-open-row="${merchant.name}"]`
-          : kind === 'deals'
-            ? '[data-testid="select-deal"]'
-            : '[data-testid="inspect-report"]',
-      )
+      .get(kind === 'deals' ? '[data-testid="select-deal"]' : '[data-testid="inspect-report"]')
       .trigger('click')
   await flushPromises()
+  // A locked catalogue record keeps Edit name disabled, so there may be no form to fill.
+  if ((kind === 'catalogue' || kind === 'create') && !w.find('[name="merchantName"]').exists())
+    return
   if (kind === 'catalogue' || kind === 'create')
     await w.get('[name="merchantName"]').setValue('PRIVATE NEW FORM NAME')
   if (kind === 'deals') await w.get('[name="edit-title"]').setValue('PRIVATE NEW TITLE')
@@ -424,15 +442,11 @@ it.each(['catalogue', 'deals', 'moderation'] as const)(
     const w = mount(await originalPage(kind))
     try {
       await flushPromises()
-      await w
-        .get(
-          kind === 'catalogue'
-            ? `button[data-open-row="${merchant.name}"]`
-            : kind === 'deals'
-              ? '[data-testid="select-deal"]'
-              : '[data-testid="inspect-report"]',
-        )
-        .trigger('click')
+      if (kind === 'catalogue') await openMerchant(w)
+      else
+        await w
+          .get(kind === 'deals' ? '[data-testid="select-deal"]' : '[data-testid="inspect-report"]')
+          .trigger('click')
       await flushPromises()
       await consent(w, kind === 'deals' ? 'confirm' : 'confirmed')
       window.dispatchEvent(new Event('focus'))
@@ -479,15 +493,11 @@ it.each(['catalogue', 'deals', 'moderation'] as const)(
       version++
       deal.operationVersion++
       report.moderationVersion++
-      await w
-        .get(
-          kind === 'catalogue'
-            ? `button[data-open-row="${merchant.name}"]`
-            : kind === 'deals'
-              ? '[data-testid="select-deal"]'
-              : '[data-testid="inspect-report"]',
-        )
-        .trigger('click')
+      if (kind === 'catalogue') await openMerchant(w)
+      else
+        await w
+          .get(kind === 'deals' ? '[data-testid="select-deal"]' : '[data-testid="inspect-report"]')
+          .trigger('click')
       await flushPromises()
       expect(w.get<HTMLTextAreaElement>('[name="note"]').element.value).toBe('')
       expect(
@@ -601,8 +611,7 @@ it('a detail read started before a late creation receipt cannot reconcile the cr
     delayDetail = new Promise<void>((resolve) => {
       releaseRead = resolve
     })
-    await w.get(`button[data-open-row="${merchant.name}"]`).trigger('click')
-    await flushPromises()
+    await openMerchant(w, false)
     releaseWrite()
     await flushPromises()
     releaseRead()
@@ -610,8 +619,7 @@ it('a detail read started before a late creation receipt cannot reconcile the cr
     await act(w, 'create')
     expect(writes, 'pre-receipt read is not post-receipt reconciliation').toHaveLength(1)
     delayDetail = null
-    await w.get(`button[data-open-row="${merchant.name}"]`).trigger('click')
-    await flushPromises()
+    await openMerchant(w, false)
     await act(w, 'create')
     expect(writes).toHaveLength(2)
   } finally {
@@ -640,9 +648,8 @@ it('a newer parent alone cannot reconcile a late outlet creation receipt', async
   writeResult = { id: 'd'.repeat(24), version: 1 }
   const w = mount(RouterView, { global: { plugins: [router] } })
   const openCreate = async () => {
-    await w.get(`button[data-open-row="${merchant.name}"]`).trigger('click')
-    await flushPromises()
-    await button(w, 'Add outlet to this merchant')
+    await openMerchant(w, false)
+    await button(w, 'Add outlet')
   }
   const submit = async () => {
     for (const [field, value] of Object.entries({
@@ -980,6 +987,9 @@ it.each(
   }
   try {
     await act(w, 'create')
+    // New merchant switches the page to the merchant directory, which is a read of its own.
+    // What matters is that nothing is read once the session is in doubt.
+    reads.length = 0
     const { adminRecovery } = await import('@web/lib/admin-recovery')
     const old = adminRecovery('catalogue')
     const attempt = [...old.attempts.values()][0]
