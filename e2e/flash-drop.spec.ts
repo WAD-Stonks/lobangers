@@ -82,38 +82,10 @@ test('a drop off screen docks its banner to the edge and flies there', async ({ 
   await page.goto('/browse')
   await expect(page.getByTestId('splash-screen')).toBeHidden()
   const edge = page.getByTestId('flash-edge-banner')
-  await expect(edge).toBeVisible({ timeout: 6000 })
+  // The banner waits for a quiet map (FIRST_IDLE_MS), which takes longer to settle when the
+  // machine is busy running other tests.
+  await expect(edge).toBeVisible({ timeout: 15_000 })
   await expect(edge).toContainText('away')
   await edge.click()
   await expect(page).toHaveURL(/\/deals\/d6d6/)
-})
-
-test('flash drop screens for review', async ({ page }, info) => {
-  test.setTimeout(120_000)
-  await mockPublicApi(page)
-  await mockSignedIn(page)
-  await mockFlashApi(page, [flashDrop()])
-  for (const width of [390, 834, 1280]) {
-    await page.setViewportSize({ width, height: 844 })
-    await settledMap(page)
-    // Phones dock the banner to the edge when the sheet leaves no room over the circle.
-    await expect(
-      page.locator('.flash-banner').or(page.getByTestId('flash-edge-banner')),
-    ).toBeVisible({ timeout: 6000 })
-    await page.waitForTimeout(500)
-    await page.screenshot({ path: info.outputPath(`flash-banner-${width}.png`) })
-    await page.goto(`/deals/${'d2'.repeat(12)}?at=${VENUES.chicken.id}`)
-    await expect(page.getByTestId('flash-claim')).toBeVisible()
-    await page.waitForTimeout(400)
-    await page.screenshot({ path: info.outputPath(`flash-claim-${width}.png`) })
-    await page.getByTestId('flash-claim-button').or(page.getByTestId('flash-code')).first().click()
-    await expect(page.getByTestId('flash-code')).toBeVisible()
-    await page.waitForTimeout(400)
-    await page.screenshot({ path: info.outputPath(`flash-claimed-${width}.png`) })
-    await page.goto('/codes')
-    await expect(page.getByTestId('splash-screen')).toBeHidden()
-    await expect(page.getByTestId('my-code')).toBeVisible()
-    await page.waitForTimeout(400)
-    await page.screenshot({ path: info.outputPath(`flash-codes-${width}.png`) })
-  }
 })

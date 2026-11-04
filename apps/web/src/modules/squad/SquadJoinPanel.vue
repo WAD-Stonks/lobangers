@@ -140,7 +140,7 @@ const tryAnother = async () => {
 </script>
 
 <template>
-  <section class="squad-room" aria-labelledby="squad-join-title">
+  <div class="squad-room">
     <div class="squad-room__body">
       <RouterLink class="squad-back" :to="{ name: 'browse' }"><ShellIcon name="back" :size="16" />Back to the map</RouterLink>
       <h1 id="squad-join-title" class="squad-room__title" tabindex="-1" data-panel-heading>Join a Squad room</h1>
@@ -203,5 +203,5 @@ const tryAnother = async () => {
         </button>
       </form>
     </div>
-  </section>
+  </div>
 </template>

@@ -1,4 +1,5 @@
 import { authGuard } from '@web/router/guards'
+import { trackPageTitle } from '@web/router/page-title'
 import { trackPendingNavigation } from '@web/router/pending-navigation'
 import routes from '@web/router/routes'
 import { createRouter, createWebHistory } from 'vue-router'
@@ -10,5 +11,6 @@ const router = createRouter({
 // Before authGuard, so the shell knows where the visitor is going while the session loads.
 trackPendingNavigation(router)
 router.beforeEach(authGuard)
+trackPageTitle(router)
 
 export default router

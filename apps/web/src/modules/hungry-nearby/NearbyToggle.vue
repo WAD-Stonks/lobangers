@@ -71,7 +71,7 @@ onBeforeUnmount(() => {
       :aria-pressed="store.looking.value"
       :aria-label="label"
       :title="label"
-      aria-controls="nearby-popover"
+      :aria-controls="store.popoverOpen.value && store.looking.value ? 'nearby-popover' : undefined"
       @click="store.toggle()"
     >
       <img :src="avatarSrc(iconAvatar)" alt="" width="28" height="28" class="nearby-toggle__face" />

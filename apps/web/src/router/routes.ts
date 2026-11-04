@@ -38,6 +38,8 @@ declare module 'vue-router' {
   interface RouteMeta {
     /** Accessible name of the panel aside while this child route is shown. */
     panelLabel?: string
+    /** Tab title for the route; map panels fall back to their panel label. */
+    title?: string
   }
 }
 
@@ -56,7 +58,12 @@ const routes: RouteRecordRaw[] = [
         component: AuthPrompt,
         meta: { panelLabel: 'Log in or sign up' },
       },
-      { path: '', name: 'browse', component: BrowseListPanel, meta: { panelLabel: 'Results' } },
+      {
+        path: '',
+        name: 'browse',
+        component: BrowseListPanel,
+        meta: { title: 'Food deals', panelLabel: 'Results' },
+      },
       { path: '/deals/:dealId', name: 'deal', component: DealPanel, meta: { panelLabel: 'Deal' } },
       {
         path: '/venues/:venueId',
@@ -119,27 +126,37 @@ const routes: RouteRecordRaw[] = [
     ],
   },
   { path: '/', name: 'landing', component: LandingPage, meta: { layout: 'landing' } },
-  { path: '/about', name: 'about', component: LandingPage, meta: { layout: 'landing' } },
+  {
+    path: '/about',
+    name: 'about',
+    component: LandingPage,
+    meta: { layout: 'landing', title: 'About' },
+  },
   {
     path: '/sign-in',
     name: 'sign-in',
     component: AuthPage,
     props: { mode: 'login' },
-    meta: { layout: 'auth', guestOnly: true },
+    meta: { layout: 'auth', guestOnly: true, title: 'Log in' },
   },
   {
     path: '/sign-up',
     name: 'sign-up',
     component: AuthPage,
     props: { mode: 'register' },
-    meta: { layout: 'auth', guestOnly: true },
+    meta: { layout: 'auth', guestOnly: true, title: 'Sign up' },
   },
   // The feed without a map is now the shell's list mode; old links keep working.
   {
     path: '/deals',
     redirect: (to) => ({ name: 'browse', query: { ...to.query, view: 'list', discovery: '1' } }),
   },
-  { path: '/getting-started', name: 'getting-started', component: GettingStartedPage },
+  {
+    path: '/getting-started',
+    name: 'getting-started',
+    component: GettingStartedPage,
+    meta: { title: 'Getting started' },
+  },
   { path: '/admin', name: 'admin-overview', component: AdminOverviewPage },
   { path: '/admin/deals', name: 'admin-deals', component: AdminDealsPage },
   { path: '/admin/flash-drops', name: 'admin-flash-drops', component: AdminFlashDropsPage },
@@ -152,44 +169,49 @@ const routes: RouteRecordRaw[] = [
     path: '/me/submissions',
     name: 'my-submissions',
     component: MySubmissionsPage,
-    meta: { requiresAuth: true },
+    meta: { requiresAuth: true, title: 'My submissions' },
   },
   {
     path: '/merchant',
     name: 'merchant',
     component: MerchantDashboardPage,
     // Only merchants can open it; the API must still check each outlet belongs to them.
-    meta: { requiresAuth: true, roles: ['MERCHANT'] },
+    meta: { requiresAuth: true, roles: ['MERCHANT'], title: 'Merchant dashboard' },
   },
   {
     path: '/me/merchant-access',
     name: 'merchant-access',
     component: MerchantAccessPage,
     // Staff can't request merchant access; the API enforces this too.
-    meta: { requiresAuth: true, roles: ['USER', 'MERCHANT'] },
+    meta: { requiresAuth: true, roles: ['USER', 'MERCHANT'], title: 'Merchant access' },
   },
   {
     path: '/forgot-password',
     name: 'forgot-password',
     component: ForgotPasswordPage,
-    meta: { layout: 'auth', guestOnly: true },
+    meta: { layout: 'auth', guestOnly: true, title: 'Forgot password' },
   },
   {
     path: '/reset-password',
     name: 'reset-password',
     component: ResetPasswordPage,
-    meta: { layout: 'auth' },
+    meta: { layout: 'auth', title: 'Reset password' },
   },
   {
     path: '/add',
     name: 'submit-deal',
     component: SubmissionForm,
     // Merchants add and edit their deals from the merchant dashboard.
-    meta: { requiresAuth: true, roleRedirects: { MERCHANT: '/merchant' } },
+    meta: { requiresAuth: true, roleRedirects: { MERCHANT: '/merchant' }, title: 'Add a deal' },
   },
   // The form used to live at /submit-deal; keep old links working.
   { path: '/submit-deal', redirect: '/add' },
-  { path: '/:pathMatch(.*)*', name: 'not-found', component: NotFoundPage },
+  {
+    path: '/:pathMatch(.*)*',
+    name: 'not-found',
+    component: NotFoundPage,
+    meta: { title: 'Page not found' },
+  },
 ]
 
 export default routes

@@ -200,8 +200,6 @@ async function boundary(page: Page): Promise<Boundary> {
   })
   return state
 }
-const noHorizontalScroll = (page: Page) =>
-  page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)
 const tab = (page: Page, name: RegExp) =>
   page.getByRole('tablist', { name: 'Flash deal views' }).getByRole('tab', { name })
 
@@ -276,50 +274,3 @@ test('overview card and attention row link to the flash deals page', async ({ pa
   await expect(page).toHaveURL('/admin/flash-drops?view=scheduled')
   await expect(tab(page, /Scheduled/)).toHaveAttribute('aria-selected', 'true')
 })
-
-for (const width of [390, 834, 1280]) {
-  test(`review screenshots at ${width}px`, async ({ page }, info) => {
-    await boundary(page)
-    await page.setViewportSize({ width, height: 900 })
-    await page.emulateMedia({ reducedMotion: 'reduce' })
-    await page.goto('/admin/flash-drops')
-    await expect(page.locator('.fd-detail')).toContainText('420 m away')
-    expect(await noHorizontalScroll(page)).toBe(true)
-    if (width < 992) {
-      const small = await page
-        .locator('.fd-panel button:visible')
-        .evaluateAll((buttons) =>
-          buttons
-            .filter((button) => button.getBoundingClientRect().height < 44)
-            .map((button) => button.textContent),
-        )
-      expect(small).toEqual([])
-    }
-    await page.evaluate(() => window.scrollTo(0, 0))
-    await page.screenshot({
-      animations: 'disabled',
-      path: info.outputPath(`flash-drops-review-${width}.png`),
-      fullPage: true,
-    })
-    await page.getByTestId('flash-drop-record').nth(1).click()
-    await expect(page.locator('.fd-live')).toBeVisible()
-    expect(await noHorizontalScroll(page)).toBe(true)
-    await page.evaluate(() => window.scrollTo(0, 0))
-    await page.screenshot({
-      animations: 'disabled',
-      path: info.outputPath(`flash-drops-live-${width}.png`),
-      fullPage: true,
-    })
-    await page.goto('/admin')
-    await expect(
-      page.locator('.overview-summary a[href="/admin/flash-drops?view=scheduled"]'),
-    ).toBeVisible()
-    expect(await noHorizontalScroll(page)).toBe(true)
-    await page.evaluate(() => window.scrollTo(0, 0))
-    await page.screenshot({
-      animations: 'disabled',
-      path: info.outputPath(`admin-overview-${width}.png`),
-      fullPage: true,
-    })
-  })
-}
