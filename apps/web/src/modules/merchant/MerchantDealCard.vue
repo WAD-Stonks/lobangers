@@ -203,6 +203,18 @@ const muted = computed(() => props.tone === 'ended' || props.tone === 'removed')
   white-space: pre-line;
 }
 
+/* On a phone, where cards stack one per row, a wider and shorter picture keeps the details in
+   view. */
+@media (max-width: 575.98px) {
+  .merchant-card__photo {
+    aspect-ratio: 16 / 9;
+  }
+
+  .merchant-card__food {
+    width: 34%;
+  }
+}
+
 /* Buttons sit at the bottom, so they line up across a row of cards. */
 .merchant-card__actions {
   display: flex;

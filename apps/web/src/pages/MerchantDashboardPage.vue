@@ -1,163 +1,122 @@
 <script setup lang="ts">
-import { DEAL_CUISINE_LABELS } from '@broke-oclock/contracts/deal-cuisines'
-import AppSelect from '@web/components/AppSelect.vue'
-import { optionsFromLabels, withLeading } from '@web/components/select-options'
 import TicketLoading from '@web/components/TicketLoading.vue'
-import { focusFirstInvalid } from '@web/lib/form-focus'
 import { formatDate, formatMoneyMinor } from '@web/lib/format'
 import { useConfirm } from '@web/lib/use-confirm'
-import { useUnsavedChanges } from '@web/lib/use-unsaved-changes'
-import '@web/modules/add-deal/add-deal-form.css'
-import AddDealStepper from '@web/modules/add-deal/AddDealStepper.vue'
-import { DESCRIPTION_MAX } from '@web/modules/add-deal/add-deal-steps'
-import { OFFER_TILES } from '@web/modules/add-deal/offer-tiles'
-import PhotoDropzone from '@web/modules/add-deal/PhotoDropzone.vue'
 import ShellIcon from '@web/modules/map-shell/ShellIcon.vue'
-import DealSection from '@web/modules/merchant/DealSection.vue'
-import FlashDealFields from '@web/modules/merchant/FlashDealFields.vue'
+import '@web/modules/merchant/merchant.css'
 import FlashDropsSection from '@web/modules/merchant/FlashDropsSection.vue'
-import {
-  type MerchantFlashDropBody as FlashBody,
-  flashDropErrorMessage,
-  type MerchantFlashDrop,
-  saveFlashDraft,
-} from '@web/modules/merchant/flash-drop-api'
-import {
-  bannerPreview,
-  blankFlashFields,
-  type FlashFieldsState,
-  type FlashProblem,
-  flashFieldsFromDrop,
-  flashFieldsProblem,
-  toFlashDropBody,
-} from '@web/modules/merchant/flash-drop-rules'
+import type { MerchantFlashDrop } from '@web/modules/merchant/flash-drop-api'
+import { flashOfferText, whenText } from '@web/modules/merchant/flash-drop-rules'
 import MerchantCardGrid from '@web/modules/merchant/MerchantCardGrid.vue'
 import MerchantDealCard from '@web/modules/merchant/MerchantDealCard.vue'
 import {
-  createDeal,
-  type DealInput,
-  type DealPhoto,
   deleteDeal,
   endDeal,
   errorMessageFor,
   getDeals,
   getOutlets,
-  MAX_PHOTO_BYTES,
   type MerchantDeal,
   type MerchantOutlet,
   type OfferType,
-  PHOTO_TYPES,
-  savePhoto,
-  updateDeal,
 } from '@web/modules/merchant/merchant-api'
+import {
+  type MerchantNotice,
+  type NoticeTone,
+  takeMerchantNotice,
+} from '@web/modules/merchant/merchant-notice'
+import { useMerchantFlashDrops } from '@web/modules/merchant/use-merchant-flash-drops'
 import { computed, nextTick, onMounted, ref } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 
+// The merchant dashboard: a summary of what is running, then the merchant's deals in three tabs
+// (Deals, Flash deals, Ended). Adding and editing happen on the deal form's own pages
+// (MerchantDealFormPage), which come back here with a message to show.
+
+const route = useRoute()
+const router = useRouter()
 // The app's own confirm dialog, in place of the browser's.
 const { ask } = useConfirm()
 
 const outlets = ref<MerchantOutlet[]>([])
 const deals = ref<MerchantDeal[]>([])
 const loading = ref(true)
-const saving = ref(false)
-const errorMessage = ref('')
-const successMessage = ref('')
+const loadError = ref('')
 
-// ----- Form -----
-// showForm opens the form card. editingId is null when creating a new deal,
-// or the id of the deal being edited.
-const showForm = ref(false)
-const editingId = ref<string | null>(null)
-// The title of the ended deal a new deal was copied from ("Run it again"), or null.
-const copiedFrom = ref<string | null>(null)
-// "Save as flash deal": the same form, plus the flash fields. A flash deal is saved as a draft
-// and only goes public when the merchant presses Go live in the Flash deals section.
-// editingFlash is the draft being changed, or null for a new flash deal.
-const flashMode = ref(false)
-const editingFlash = ref<MerchantFlashDrop | null>(null)
-const flashFields = ref<FlashFieldsState>(blankFlashFields())
-const flashProblem = ref<FlashProblem | null>(null)
-const formError = ref('')
-// One message per field, e.g. fieldErrors.title = 'Please give the deal a title.'
-const fieldErrors = ref<Record<string, string>>({})
-const formEl = ref<HTMLFormElement | null>(null)
+// One message at a time at the top of the page: what the last action did, or why it failed.
+const notice = ref<MerchantNotice | null>(takeMerchantNotice())
+const noticeEl = ref<HTMLElement | null>(null)
+const notify = (tone: NoticeTone, text: string) => {
+  notice.value = { tone, text }
+  // Bring it into view: the button pressed may be far down the page.
+  void nextTick(() => noticeEl.value?.scrollIntoView?.({ block: 'nearest' }))
+}
 
-// The form's fields. Price is typed in dollars here and turned into cents when saving.
-const emptyForm = () => ({
-  title: '',
-  description: '',
-  category: '',
-  cuisine: '', // 'NONE' means "No specific cuisine"
-  outletIds: [] as string[],
-  offerType: 'PERCENT_OFF' as OfferType,
-  discountPercent: '' as number | '',
-  priceDollars: '' as number | '',
-  startDate: '',
-  endDate: '',
-  terms: '',
-  savedPhoto: null as DealPhoto | null, // the deal's current photo, kept unless removed or replaced
+const flash = useMerchantFlashDrops(notify)
+
+// ----- Tabs -----
+type TabId = 'deals' | 'flash' | 'ended'
+const TAB_IDS: readonly TabId[] = ['deals', 'flash', 'ended']
+// The open tab lives in the address (?tab=flash), so back, refresh and links keep it.
+const tab = computed<TabId>(() => {
+  const asked = route.query.tab
+  return TAB_IDS.includes(asked as TabId) ? (asked as TabId) : 'deals'
 })
-const form = ref(emptyForm())
-// A newly chosen photo. It is only uploaded when the deal is saved.
-const newPhoto = ref<File | null>(null)
-const newPhotoPreview = ref('') // a temporary link to the chosen image, for the <img> preview
-const photoInput = ref<InstanceType<typeof PhotoDropzone> | null>(null)
-// The form as it was opened, so Cancel and leaving the page only warn when something changed.
-const openedAs = ref('')
-const snapshot = () =>
-  JSON.stringify({ form: form.value, flash: flashMode.value ? flashFields.value : null })
-const isDirty = computed(
-  () => showForm.value && (snapshot() !== openedAs.value || newPhoto.value !== null),
-)
-const { confirmDiscard } = useUnsavedChanges(isDirty)
+const openTab = (id: TabId) =>
+  router.replace({ query: { ...route.query, tab: id === 'deals' ? undefined : id } })
 
-// Links a field to its error text so screen readers read the message with the field.
-const invalidAttrs = (field: string) =>
-  fieldErrors.value[field]
-    ? { 'aria-invalid': 'true' as const, 'aria-describedby': `error-${field}` }
-    : {}
+// Left and right arrows move between tabs, as in any tab list.
+const tabEls = ref<HTMLElement[]>([])
+const moveTab = async (from: number, by: number) => {
+  const index = (from + by + TAB_IDS.length) % TAB_IDS.length
+  const target = TAB_IDS[index] as TabId
+  await openTab(target)
+  tabEls.value[index]?.focus()
+}
 
-// ----- Steps -----
-// The same four steps as the visitor's Add a deal form, so both read alike: details, where it
-// runs, when it runs, then a review. Each step checks only its own fields before the next one
-// opens; saving checks them all and opens the first step with a problem.
-const STEP_FIELDS: readonly (readonly string[])[] = [
-  ['title', 'description', 'category', 'cuisine', 'discountPercent', 'priceDollars', 'photo'],
-  ['outletIds'],
-  ['endDate'],
-  [],
-]
-const LAST_STEP = STEP_FIELDS.length - 1
-const TIMING_STEP = 2
-const step = ref(0)
-// The furthest step opened so far; the stepper reopens any of these.
-const reached = ref(0)
-const stepHeadings = ref<HTMLElement[]>([])
-const stepLabels = computed(() => [
-  'Deal details',
-  'Outlets',
-  flashMode.value ? 'Flash timing' : 'Validity',
-  'Review',
+// ----- Deal status -----
+// Today's date as 'YYYY-MM-DD' in the merchant's own time zone, so it can be compared with
+// the deals' date strings.
+const today = new Date().toLocaleDateString('en-CA')
+
+type DealStatus = 'Live' | 'Scheduled' | 'Ended'
+const statusOf = (deal: MerchantDeal): DealStatus => {
+  if (deal.endedAt) return 'Ended'
+  if (deal.endDate && deal.endDate < today) return 'Ended'
+  if (deal.startDate && deal.startDate > today) return 'Scheduled'
+  return 'Live'
+}
+
+const liveDeals = computed(() => deals.value.filter((deal) => statusOf(deal) === 'Live'))
+const scheduledDeals = computed(() => deals.value.filter((deal) => statusOf(deal) === 'Scheduled'))
+const currentDeals = computed(() => deals.value.filter((deal) => statusOf(deal) !== 'Ended'))
+const endedDeals = computed(() => deals.value.filter((deal) => statusOf(deal) === 'Ended'))
+
+// The Deals tab's filter chips.
+type DealFilter = 'all' | 'live' | 'scheduled'
+const filter = ref<DealFilter>('all')
+const filters = computed(() => [
+  { id: 'all' as const, label: 'All', count: currentDeals.value.length },
+  { id: 'live' as const, label: 'Live', count: liveDeals.value.length },
+  { id: 'scheduled' as const, label: 'Scheduled', count: scheduledDeals.value.length },
 ])
-const nextLabel = computed(() => stepLabels.value[step.value + 1] ?? '')
-const stepOf = (field: string) => STEP_FIELDS.findIndex((fields) => fields.includes(field))
+const shownDeals = computed(() => {
+  if (filter.value === 'live') return liveDeals.value
+  if (filter.value === 'scheduled') return scheduledDeals.value
+  return currentDeals.value
+})
+const emptyDeals = computed(() => {
+  if (filter.value === 'live') return 'No live deals right now.'
+  if (filter.value === 'scheduled') return 'No scheduled deals.'
+  return 'No deals yet. Add one and it goes on the map straight away.'
+})
 
-// A new deal starts at the first step; an existing or copied one is already filled in, so
-// every step can be opened straight away.
-const startSteps = (prefilled: boolean) => {
-  step.value = 0
-  reached.value = prefilled ? LAST_STEP : 0
-}
+const tabs = computed(() => [
+  { id: 'deals' as const, label: 'Deals', count: currentDeals.value.length },
+  { id: 'flash' as const, label: 'Flash deals', count: flash.drops.value.length },
+  { id: 'ended' as const, label: 'Ended', count: endedDeals.value.length },
+])
 
-// Opens a step and moves focus to its heading, so keyboard and screen reader users land on it.
-const go = async (target: number) => {
-  step.value = target
-  reached.value = Math.max(reached.value, target)
-  formError.value = ''
-  await nextTick()
-  stepHeadings.value[target]?.focus()
-  formEl.value?.scrollIntoView?.({ block: 'start' })
-}
-
+// ----- Text helpers for showing a deal -----
 const offerLabels: Record<OfferType, string> = {
   BUY_ONE_GET_ONE: '1-for-1',
   PERCENT_OFF: '% off',
@@ -165,57 +124,6 @@ const offerLabels: Record<OfferType, string> = {
   OTHER: 'Other',
 }
 
-// Same choices as the Add-a-deal form.
-const categoryLabels: Record<string, string> = {
-  FOOD: 'Food',
-  DRINKS: 'Drinks',
-  DESSERT: 'Dessert',
-  SNACKS: 'Snacks',
-  BAKERY: 'Bakery',
-}
-// The app's shared cuisine list (Chinese, Malay, ...), plus our own "no cuisine" choice.
-const cuisineLabels: Record<string, string> = {
-  ...DEAL_CUISINE_LABELS,
-  NONE: 'No specific cuisine (e.g. drinks, desserts)',
-}
-
-const categoryOptions = withLeading({ value: '', label: 'Choose a category' }, optionsFromLabels(categoryLabels))
-const cuisineOptions = withLeading({ value: '', label: 'Choose a cuisine' }, optionsFromLabels(cuisineLabels))
-
-// ----- Deal status -----
-// Today's date as 'YYYY-MM-DD' in the merchant's own time zone, so it can be compared with
-// the form's date strings.
-const today = new Date().toLocaleDateString('en-CA')
-
-const statusOf = (deal: MerchantDeal): 'Live' | 'Scheduled' | 'Ended' => {
-  if (deal.endedAt) return 'Ended'
-  if (deal.endDate && deal.endDate < today) return 'Ended'
-  if (deal.startDate && deal.startDate > today) return 'Scheduled'
-  return 'Live'
-}
-
-// Ended deals go in their own list further down the page.
-const currentDeals = computed(() => deals.value.filter((deal) => statusOf(deal) !== 'Ended'))
-const endedDeals = computed(() => deals.value.filter((deal) => statusOf(deal) === 'Ended'))
-// The current deals in their two dropdowns. Live starts open; Scheduled starts closed.
-const currentGroups = computed(() => [
-  {
-    key: 'live',
-    title: 'Live',
-    empty: 'No live deals.',
-    open: true,
-    deals: currentDeals.value.filter((deal) => statusOf(deal) === 'Live'),
-  },
-  {
-    key: 'scheduled',
-    title: 'Scheduled',
-    empty: 'No scheduled deals.',
-    open: false,
-    deals: currentDeals.value.filter((deal) => statusOf(deal) === 'Scheduled'),
-  },
-])
-
-// ----- Text helpers for showing a deal -----
 const offerText = (deal: MerchantDeal) => {
   if (deal.offerType === 'PERCENT_OFF') return `${deal.discountPercent}% off`
   if (deal.offerType === 'FIXED_PRICE') return formatMoneyMinor(deal.priceCents ?? 0)
@@ -234,431 +142,64 @@ const outletNames = (deal: MerchantDeal) =>
     .map((outlet) => outlet.name)
     .join(', ')
 
+// ----- Stats -----
+// The flash deal to feature: the live one, else the next scheduled one.
+const featuredFlash = computed<MerchantFlashDrop | null>(() => {
+  const running = flash.running.value
+  return (
+    running.find((drop) => drop.status === 'LIVE') ??
+    [...running].sort((a, b) => a.startsAt.localeCompare(b.startsAt))[0] ??
+    null
+  )
+})
+const featuredWhen = computed(() => {
+  const drop = featuredFlash.value
+  if (!drop) return ''
+  const now = flash.now.value
+  if (drop.status === 'LIVE') {
+    const minutes = Math.max(0, Math.ceil((Date.parse(drop.endsAt) - now.getTime()) / 60_000))
+    return `${minutes} min left to claim`
+  }
+  return `Starts ${whenText(drop.startsAt, now).toLowerCase()}`
+})
+// Codes claimed from the flash deals that are live or scheduled.
+const codes = computed(() =>
+  flash.running.value.reduce(
+    (sum, drop) => ({ claimed: sum.claimed + drop.claimedCount, limit: sum.limit + drop.codeLimit }),
+    { claimed: 0, limit: 0 },
+  ),
+)
+const codesPercent = computed(() =>
+  codes.value.limit === 0 ? 0 : Math.round((codes.value.claimed / codes.value.limit) * 100),
+)
+const comingUpText = computed(() => {
+  const drafts = flash.drafts.value.length
+  return drafts === 0 ? 'scheduled deals' : `scheduled · ${drafts} flash ${drafts === 1 ? 'draft' : 'drafts'}`
+})
+
 // ----- Loading -----
 const loadDashboard = async () => {
   loading.value = true
-  errorMessage.value = ''
+  loadError.value = ''
   try {
     outlets.value = await getOutlets()
     deals.value = await getDeals()
   } catch (error) {
-    errorMessage.value = errorMessageFor(error, 'Could not load your deals. Please try again.')
+    loadError.value = errorMessageFor(error, 'Could not load your deals. Please try again.')
   } finally {
     loading.value = false
   }
 }
 
-// ----- Photo -----
-const clearNewPhoto = () => {
-  newPhoto.value = null
-  newPhotoPreview.value = ''
-  photoInput.value?.clear() // empty the file box
-}
-
-const choosePhoto = (event: Event) => {
-  const input = event.target as HTMLInputElement
-  const file = input.files?.[0] ?? null
-  delete fieldErrors.value.photo
-  if (file === null) return
-
-  if (!PHOTO_TYPES.includes(file.type)) {
-    fieldErrors.value.photo = 'Please choose a JPEG, PNG or WebP image.'
-    input.value = ''
-    return
-  }
-  if (file.size > MAX_PHOTO_BYTES) {
-    fieldErrors.value.photo = 'The image must be 4 MB or smaller.'
-    input.value = ''
-    return
-  }
-  newPhoto.value = file
-  newPhotoPreview.value = URL.createObjectURL(file)
-}
-
-// The photo is optional, so Remove takes off both a newly chosen photo and the saved one.
-const removePhoto = () => {
-  clearNewPhoto()
-  form.value.savedPhoto = null
-}
-
-// What the form shows: a newly chosen photo first, otherwise the deal's saved one.
-const shownPhoto = computed(() => newPhotoPreview.value || form.value.savedPhoto?.url || '')
-
-// ----- Opening and closing the form -----
-// Every way of opening the form starts as an ordinary deal unless it says otherwise.
-const resetFlash = () => {
-  flashMode.value = false
-  editingFlash.value = null
-  flashFields.value = blankFlashFields()
-  flashProblem.value = null
-}
-
-const openCreateForm = async () => {
-  if (!(await confirmDiscard())) return
-  clearNewPhoto()
-  resetFlash()
-  form.value = emptyForm()
-  // A merchant with only one outlet will almost always pick it, so tick it for them.
-  if (outlets.value.length === 1) form.value.outletIds = outlets.value.map((outlet) => outlet.id)
-  editingId.value = null
-  copiedFrom.value = null
-  startSteps(false)
-  formError.value = ''
-  fieldErrors.value = {}
-  successMessage.value = ''
-  openedAs.value = snapshot()
-  showForm.value = true
-}
-
-// The form's fields filled from a deal, for editing it or running it again.
-const formFrom = (deal: MerchantDeal) => ({
-  title: deal.title,
-  description: deal.description,
-  category: deal.category,
-  cuisine: deal.cuisine ?? 'NONE',
-  outletIds: [...deal.outletIds],
-  offerType: deal.offerType,
-  discountPercent: deal.discountPercent ?? ('' as number | ''),
-  priceDollars: deal.priceCents === null ? ('' as number | '') : deal.priceCents / 100,
-  startDate: deal.startDate,
-  endDate: deal.endDate,
-  terms: deal.terms,
-  savedPhoto: deal.photo ?? null,
-})
-
-// An ended deal can't be edited, but it can run again as a new deal with the same details.
-// The dates start empty (from now, no end), and the photo stays with the old deal, since a
-// photo belongs to one deal only.
-const openRunAgainForm = async (deal: MerchantDeal) => {
-  if (!(await confirmDiscard())) return
-  clearNewPhoto()
-  resetFlash()
-  // Outlets the merchant no longer manages are left out.
-  const managed = new Set(outlets.value.map((outlet) => outlet.id))
-  form.value = {
-    ...formFrom(deal),
-    outletIds: deal.outletIds.filter((id) => managed.has(id)),
-    startDate: '',
-    endDate: '',
-    savedPhoto: null,
-  }
-  editingId.value = null
-  copiedFrom.value = deal.title
-  startSteps(true)
-  formError.value = ''
-  fieldErrors.value = {}
-  successMessage.value = ''
-  openedAs.value = snapshot()
-  showForm.value = true
-  // The ended deals are at the bottom of the page and the form at the top.
-  nextTick(() => formEl.value?.scrollIntoView?.({ block: 'start' }))
-}
-
-const openEditForm = async (deal: MerchantDeal) => {
-  if (!(await confirmDiscard())) return
-  clearNewPhoto()
-  resetFlash()
-  form.value = formFrom(deal)
-  editingId.value = deal.id
-  copiedFrom.value = null
-  startSteps(true)
-  formError.value = ''
-  fieldErrors.value = {}
-  successMessage.value = ''
-  openedAs.value = snapshot()
-  showForm.value = true
-}
-
-// Edit on a flash deal draft opens it in this form with its flash fields.
-const openFlashDraftForm = async (drop: MerchantFlashDrop) => {
-  if (!(await confirmDiscard())) return
-  clearNewPhoto()
-  const { deal } = drop
-  form.value = {
-    title: deal.title,
-    description: deal.description,
-    category: deal.category,
-    cuisine: deal.cuisine ?? 'NONE',
-    outletIds: [drop.outletId],
-    offerType: deal.offerType,
-    discountPercent: deal.discountPercent ?? '',
-    priceDollars: deal.priceCents === null ? '' : deal.priceCents / 100,
-    startDate: '',
-    endDate: '',
-    terms: deal.terms,
-    savedPhoto: deal.photo,
-  }
-  editingId.value = null
-  copiedFrom.value = null
-  flashMode.value = true
-  editingFlash.value = drop
-  flashFields.value = flashFieldsFromDrop(drop)
-  startSteps(true)
-  flashProblem.value = null
-  formError.value = ''
-  fieldErrors.value = {}
-  successMessage.value = ''
-  openedAs.value = snapshot()
-  showForm.value = true
-  // The Flash deals section is below the deals and the form at the top.
-  nextTick(() => formEl.value?.scrollIntoView?.({ block: 'start' }))
-}
-
-// "Save as flash deal" on the review turns the deal into a flash deal and opens its timing
-// step, where the flash fields replace the dates; the next press on the review saves it.
-const showFlashFields = async () => {
-  flashMode.value = true
-  // A flash deal runs at one outlet; keep the first one ticked.
-  form.value.outletIds = form.value.outletIds.slice(0, 1)
-  await go(TIMING_STEP)
-}
-
-const backToNormalDeal = () => {
-  flashMode.value = false
-  flashProblem.value = null
-}
-
-const closeForm = () => {
-  showForm.value = false
-  clearNewPhoto()
-}
-
-// Cancel asks first when the merchant has changed something.
-const cancelForm = async () => {
-  if (await confirmDiscard()) closeForm()
-}
-
-// Shows one step's problems and focuses the first, opening that step if it isn't showing.
-const flagStep = async (target: number, problems: Record<string, string>) => {
-  if (step.value !== target) await go(target)
-  fieldErrors.value = problems
-  formError.value = 'Please fix the highlighted fields.'
-  await nextTick()
-  focusFirstInvalid(formEl.value?.querySelector(`[data-step="${target}"]`))
-}
-
-const problemsIn = (problems: Record<string, string>, target: number) =>
-  Object.fromEntries(Object.entries(problems).filter(([field]) => stepOf(field) === target))
-
-// The flash fields (start, length, usual price) belong to the timing step.
-const checkFlashTiming = () => {
-  const offer = flashOffer.value
-  flashProblem.value = flashFieldsProblem(
-    flashFields.value,
-    { offerType: offer.offerType, priceCents: offer.flashPriceCents },
-    new Date(),
-  )
-  return flashProblem.value !== null
-}
-
-// Saving checks every step and opens the first one with a problem.
-const flagFirstProblem = (problems: Record<string, string>, flashTimingBad: boolean) => {
-  const steps = Object.keys(problems).map(stepOf).filter((index) => index >= 0)
-  if (flashTimingBad) steps.push(TIMING_STEP)
-  const target = Math.min(...steps)
-  return flagStep(target, problemsIn(problems, target))
-}
-
-const next = async () => {
-  const problems = problemsIn(checkForm(), step.value)
-  const flashTimingBad = step.value === TIMING_STEP && flashMode.value && checkFlashTiming()
-  if (Object.keys(problems).length > 0 || flashTimingBad) return flagStep(step.value, problems)
-  fieldErrors.value = {}
-  await go(step.value + 1)
-}
-
-const back = () => (step.value === 0 ? cancelForm() : go(step.value - 1))
-
-// ----- Review -----
-const offerSummary = computed(() => {
-  const f = form.value
-  if (f.offerType === 'PERCENT_OFF' && f.discountPercent !== '') return `${f.discountPercent}% off`
-  if (f.offerType === 'FIXED_PRICE' && f.priceDollars !== '')
-    return `${flashMode.value ? 'Flash price' : 'Fixed price'}, ${formatMoneyMinor(Math.round(Number(f.priceDollars) * 100))}`
-  return OFFER_TILES.find((offer) => offer.value === f.offerType)?.label ?? ''
-})
-const review = computed(() => {
-  const f = form.value
-  const runs = `${f.startDate ? formatDate(f.startDate) : 'From today'} to ${f.endDate ? formatDate(f.endDate) : 'no end date'}`
-  return [
-    {
-      step: 0,
-      rows: [
-        ['Title', f.title.trim()],
-        ['Description', f.description.trim()],
-        ['Category', categoryLabels[f.category] ?? ''],
-        ['Cuisine', cuisineLabels[f.cuisine] ?? ''],
-        ['Offer', offerSummary.value],
-      ],
-    },
-    {
-      step: 1,
-      rows: [
-        [
-          f.outletIds.length === 1 ? 'Outlet' : 'Outlets',
-          outlets.value
-            .filter((outlet) => f.outletIds.includes(outlet.id))
-            .map((outlet) => outlet.name)
-            .join(', '),
-        ],
-      ],
-    },
-    {
-      step: TIMING_STEP,
-      rows: [
-        flashMode.value
-          ? ['Flash', bannerPreview(flashFields.value, f.title, flashOffer.value)]
-          : ['Runs', runs],
-        ['Terms', f.terms.trim()],
-      ],
-    },
-  ]
-})
-
-// Returns a message for every field that has a problem; an empty object means the form is fine.
-const checkForm = () => {
-  const f = form.value
-  const found: Record<string, string> = {}
-  if (f.title.trim() === '') found.title = 'Please give the deal a title.'
-  if (f.description.trim() === '') found.description = 'Please describe the deal.'
-  if (f.category === '') found.category = 'Please choose a category.'
-  if (f.cuisine === '') found.cuisine = 'Please choose a cuisine, or "No specific cuisine".'
-  if (f.outletIds.length === 0) found.outletIds = 'Please choose at least one outlet.'
-  else if (flashMode.value && f.outletIds.length > 1)
-    found.outletIds = 'A flash deal runs at one outlet. Choose just one.'
-  if (f.offerType === 'PERCENT_OFF') {
-    if (f.discountPercent === '' || f.discountPercent < 1 || f.discountPercent > 100) {
-      found.discountPercent = 'The discount must be between 1 and 100 percent.'
-    }
-  }
-  if (f.offerType === 'FIXED_PRICE') {
-    if (f.priceDollars === '' || f.priceDollars <= 0) found.priceDollars = 'Please enter the deal price.'
-  }
-  if (!flashMode.value && f.startDate && f.endDate && f.endDate < f.startDate) {
-    found.endDate = 'The last day cannot be before the start date.'
-  }
-  return found
-}
-
-// ----- Saving (create or edit) -----
-const saveDeal = async () => {
-  if (saving.value) return
-  formError.value = ''
-  const problems = checkForm()
-  if (Object.keys(problems).length > 0) return flagFirstProblem(problems, false)
-  fieldErrors.value = {}
-
-  const f = form.value
-  // Only send a discount or price when the offer type uses it.
-  const content: Omit<DealInput, 'photoKey'> = {
-    title: f.title.trim(),
-    description: f.description.trim(),
-    category: f.category,
-    cuisine: f.cuisine === 'NONE' ? null : f.cuisine,
-    outletIds: f.outletIds,
-    offerType: f.offerType,
-    discountPercent: f.offerType === 'PERCENT_OFF' ? Number(f.discountPercent) : null,
-    priceCents: f.offerType === 'FIXED_PRICE' ? Math.round(Number(f.priceDollars) * 100) : null,
-    startDate: f.startDate,
-    endDate: f.endDate,
-    terms: f.terms.trim(),
-  }
-
-  saving.value = true
-  try {
-    // A newly chosen photo is uploaded first; otherwise keep the saved one (or none).
-    const photoKey = newPhoto.value ? await savePhoto(newPhoto.value) : (f.savedPhoto?.key ?? null)
-    const input = { ...content, photoKey }
-    if (editingId.value === null) {
-      const created = await createDeal(input)
-      deals.value.unshift(created) // newest first, like the server's list
-      successMessage.value = `"${created.title}" is now live.`
-    } else {
-      const updated = await updateDeal(editingId.value, input)
-      // Swap the old copy of the deal in the list for the updated one.
-      deals.value = deals.value.map((deal) => (deal.id === updated.id ? updated : deal))
-      successMessage.value = `"${updated.title}" was updated.`
-    }
-    closeForm()
-  } catch (error) {
-    formError.value = errorMessageFor(error, 'Could not save the deal. Please try again.')
-  } finally {
-    saving.value = false
-  }
-}
-
-// ----- Saving as a flash deal (a draft) -----
-const saveFlash = async () => {
-  if (saving.value) return
-  formError.value = ''
-  const problems = checkForm()
-  const flashTimingBad = checkFlashTiming()
-  if (Object.keys(problems).length > 0 || flashTimingBad)
-    return flagFirstProblem(problems, flashTimingBad)
-  fieldErrors.value = {}
-  const f = form.value
-  const offer = flashOffer.value
-
-  saving.value = true
-  try {
-    // A newly chosen photo is uploaded first; otherwise keep the saved one (or none).
-    const photoKey = newPhoto.value ? await savePhoto(newPhoto.value) : (f.savedPhoto?.key ?? null)
-    const body = toFlashDropBody(
-      {
-        title: f.title.trim(),
-        description: f.description.trim(),
-        // The selects only offer the allowed values, and the server checks them again.
-        category: f.category as FlashBody['category'],
-        cuisine: (f.cuisine === 'NONE' ? null : f.cuisine) as FlashBody['cuisine'],
-        // The form's offer is the flash offer.
-        offerType: offer.offerType,
-        discountPercent: offer.discountPercent,
-        priceCents: offer.flashPriceCents,
-        terms: f.terms.trim(),
-        photoKey,
-      },
-      f.outletIds[0] ?? '',
-      flashFields.value,
-    )
-    const created = editingFlash.value === null
-    const draft = await saveFlashDraft(editingFlash.value, body)
-    flashDrops.value?.saved(draft, created)
-    closeForm()
-  } catch (error) {
-    // A failed photo upload has its own message; anything else is the server's.
-    const photoFailed = errorMessageFor(error, '')
-    formError.value =
-      photoFailed ||
-      flashDropErrorMessage(error, 'Could not save the flash deal. Please try again.')
-  } finally {
-    saving.value = false
-  }
-}
-
-// Enter in a field moves on a step; on the review it saves.
-const submitForm = () => {
-  if (step.value < LAST_STEP) return next()
-  return flashMode.value ? saveFlash() : saveDeal()
-}
-
-const formTitle = computed(() => {
-  if (flashMode.value) return editingFlash.value ? 'Edit flash deal draft' : 'New flash deal'
-  return editingId.value === null ? 'New deal' : 'Edit deal'
-})
-// In flash mode the form's offer is the flash offer: a discount or price only goes with the
-// offer type that uses it.
-const flashOffer = computed(() => {
-  const f = form.value
-  return {
-    offerType: f.offerType,
-    discountPercent:
-      f.offerType === 'PERCENT_OFF' && f.discountPercent !== '' ? Number(f.discountPercent) : null,
-    flashPriceCents:
-      f.offerType === 'FIXED_PRICE' && f.priceDollars !== ''
-        ? Math.round(Number(f.priceDollars) * 100)
-        : null,
-  }
-})
+// ----- Opening the deal form pages -----
+const newDeal = () => router.push({ name: 'merchant-deal-new' })
+const newFlashDeal = () => router.push({ name: 'merchant-flash-new' })
+const editDeal = (deal: MerchantDeal) =>
+  router.push({ name: 'merchant-deal-edit', params: { id: deal.id } })
+const runAgain = (deal: MerchantDeal) =>
+  router.push({ name: 'merchant-deal-run-again', params: { id: deal.id } })
+const editFlashDraft = (drop: MerchantFlashDrop) =>
+  router.push({ name: 'merchant-flash-edit', params: { id: drop.id } })
 
 // ----- Ending a deal early -----
 const confirmEndDeal = async (deal: MerchantDeal) => {
@@ -668,14 +209,12 @@ const confirmEndDeal = async (deal: MerchantDeal) => {
     confirmLabel: 'End deal',
   })
   if (!confirmed) return
-  errorMessage.value = ''
-  successMessage.value = ''
   try {
     const ended = await endDeal(deal.id)
     deals.value = deals.value.map((item) => (item.id === ended.id ? ended : item))
-    successMessage.value = `"${ended.title}" has ended.`
+    notify('success', `"${ended.title}" has ended.`)
   } catch (error) {
-    errorMessage.value = errorMessageFor(error, 'Could not end the deal. Please try again.')
+    notify('error', errorMessageFor(error, 'Could not end the deal. Please try again.'))
   }
 }
 
@@ -688,436 +227,225 @@ const confirmDeleteDeal = async (deal: MerchantDeal) => {
     confirmLabel: 'Delete deal',
   })
   if (!confirmed) return
-  errorMessage.value = ''
-  successMessage.value = ''
   try {
     await deleteDeal(deal.id)
     deals.value = deals.value.filter((item) => item.id !== deal.id)
-    successMessage.value = `"${deal.title}" was deleted.`
+    notify('success', `"${deal.title}" was deleted.`)
   } catch (error) {
-    errorMessage.value = errorMessageFor(error, 'Could not delete the deal. Please try again.')
+    notify('error', errorMessageFor(error, 'Could not delete the deal. Please try again.'))
   }
 }
-
-// ----- Flash deals -----
-// The list lives in its own component; the page tells it when a draft was saved.
-const flashDrops = ref<InstanceType<typeof FlashDropsSection> | null>(null)
 
 onMounted(loadDashboard)
 </script>
 
 <template>
-  <section class="container py-4 merchant-dashboard">
-    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
-      <h1 class="h2 mb-0">Merchant dashboard</h1>
-      <div v-if="!loading && outlets.length > 0" class="d-flex flex-wrap gap-2">
-        <button type="button" class="btn btn-primary" @click="openCreateForm">+ New deal</button>
+  <section class="merchant-page merchant-dashboard">
+    <header class="merchant-dashboard__head">
+      <div class="merchant-dashboard__intro">
+        <!-- Always to All deals: going back in history could land on a form just saved. -->
+        <RouterLink to="/deals" class="merchant-back"><ShellIcon name="back" :size="16" />Back to all deals</RouterLink>
+        <h1 class="merchant-title">Merchant dashboard</h1>
+        <p v-if="outlets.length > 0" class="merchant-dashboard__outlets">
+          Your outlets: {{ outlets.map((outlet) => outlet.name).join(', ') }} ·
+          <RouterLink to="/me/merchant-access">Request another outlet</RouterLink>
+        </p>
       </div>
+      <div v-if="!loading && outlets.length > 0" class="merchant-dashboard__actions">
+        <button type="button" class="lb-btn" @click="newFlashDeal">
+          <ShellIcon name="flash" :size="18" class="merchant-dashboard__flash-icon" />New flash deal
+        </button>
+        <button type="button" class="lb-btn lb-btn--primary" @click="newDeal">
+          <ShellIcon name="plus" :size="18" />Add a deal
+        </button>
+      </div>
+    </header>
+
+    <div ref="noticeEl" class="merchant-dashboard__notice" :role="notice?.tone === 'error' ? 'alert' : 'status'">
+      <p v-if="notice" class="merchant-alert" :class="`merchant-alert--${notice.tone}`">
+        <ShellIcon :name="notice.tone === 'error' ? 'close' : 'check'" :size="18" />
+        <span class="merchant-alert__text">{{ notice.text }}</span>
+        <button type="button" class="merchant-alert__close" aria-label="Dismiss message" @click="notice = null">×</button>
+      </p>
     </div>
 
-    <p v-if="errorMessage" class="alert alert-danger" role="alert">{{ errorMessage }}</p>
-    <p v-if="successMessage" class="alert alert-success" role="status">{{ successMessage }}</p>
+    <TicketLoading v-if="loading" label="Loading your deals…" />
 
-    <TicketLoading v-if="loading" class="text-secondary" label="Loading your deals…" />
+    <div v-else-if="loadError" class="lb-state" role="alert">
+      <p class="lb-state__title">Your deals didn't load</p>
+      <p class="lb-state__body">{{ loadError }}</p>
+      <button type="button" class="lb-btn lb-btn--primary merchant-dashboard__state-action" @click="loadDashboard">Try again</button>
+    </div>
 
     <!-- Merchant role, but no approved outlets yet -->
-    <div v-else-if="outlets.length === 0 && !errorMessage" class="card card-body">
-      <p class="mb-2">You don't manage any outlets yet.</p>
-      <RouterLink to="/me/merchant-access">Request access to your stall</RouterLink>
+    <div v-else-if="outlets.length === 0" class="lb-state">
+      <p class="lb-state__title">You don't manage any outlets yet</p>
+      <p class="lb-state__body">Once an admin approves your stall, you can add deals and flash deals for it here.</p>
+      <RouterLink to="/me/merchant-access" class="lb-btn lb-btn--primary merchant-dashboard__state-action">Request access to your stall</RouterLink>
     </div>
 
-    <template v-else-if="outlets.length > 0">
-      <p class="text-secondary text-break">
-        Your outlets: {{ outlets.map((outlet) => outlet.name).join(', ') }} ·
-        <RouterLink to="/me/merchant-access">Request another outlet</RouterLink>
-      </p>
-
-      <!-- Create / edit form: the same steps and look as the visitor's Add a deal form
-           (AddDealStepper, add-deal-form.css). Every step stays in the form, so moving between
-           them keeps what was typed. -->
-      <form
-        v-if="showForm"
-        ref="formEl"
-        class="add-deal__panel add-deal__form mb-4 deal-form"
-        novalidate
-        @submit.prevent="submitForm"
-      >
-        <div class="deal-form__head">
-          <h2 class="deal-form__title">{{ formTitle }}</h2>
-          <p v-if="copiedFrom" class="add-deal__hint">
-            Copied from "{{ copiedFrom }}". Check the dates and outlets, and add a photo if you want
-            one, before saving.
-          </p>
+    <template v-else>
+      <!-- At a glance -->
+      <section class="merchant-stats" aria-label="At a glance">
+        <div class="merchant-stat" data-testid="stat-live">
+          <span class="merchant-stat__label">Live now</span>
+          <span class="merchant-stat__value">{{ liveDeals.length }}</span>
+          <span class="merchant-stat__note">{{ liveDeals.length === 1 ? 'deal' : 'deals' }} on the map</span>
         </div>
-
-        <AddDealStepper :current="step" :reached="reached" :labels="stepLabels" nav-label="Deal steps" @go="go" />
-
-        <!-- 1. Deal details -->
-        <section v-show="step === 0" class="add-deal__card" data-step="0" aria-labelledby="deal-form-step-0">
-          <h3 id="deal-form-step-0" :ref="(el) => { if (el) stepHeadings[0] = el as HTMLElement }" class="add-deal__step-title" tabindex="-1">
-            <span class="add-deal__step-icon" aria-hidden="true"><ShellIcon name="ticket" :size="20" /></span>Deal details
-          </h3>
-          <p class="add-deal__hint">Fields marked <span aria-hidden="true">*</span><span class="visually-hidden">with a star</span> are required.</p>
-
-          <div class="add-deal__field">
-            <label for="deal-title" class="form-label">Title <span class="add-deal__required" aria-hidden="true">*</span></label>
-            <input
-              id="deal-title"
-              v-model="form.title"
-              name="title"
-              autocomplete="off"
-              class="form-control"
-              :class="{ 'is-invalid': fieldErrors.title }"
-              v-bind="invalidAttrs('title')"
-              aria-required="true"
-              maxlength="120"
-              placeholder="e.g. 1-for-1 Nanban chicken bites"
-            />
-            <div id="error-title" class="invalid-feedback">{{ fieldErrors.title }}</div>
-          </div>
-
-          <div class="add-deal__field">
-            <label for="deal-description" class="form-label">Description <span class="add-deal__required" aria-hidden="true">*</span></label>
-            <div class="add-deal__counted">
-              <textarea
-                id="deal-description"
-                v-model="form.description"
-                name="description"
-                autocomplete="off"
-                class="form-control"
-                :class="{ 'is-invalid': fieldErrors.description }"
-                v-bind="invalidAttrs('description')"
-                aria-required="true"
-                rows="3"
-                :maxlength="DESCRIPTION_MAX"
-                placeholder="Briefly describe the deal…"
-              ></textarea>
-              <span class="add-deal__count" aria-hidden="true">{{ form.description.length }} / {{ DESCRIPTION_MAX }}</span>
-            </div>
-            <div id="error-description" class="invalid-feedback">{{ fieldErrors.description }}</div>
-          </div>
-
-          <div class="add-deal__pair">
-            <div class="add-deal__field">
-              <label for="deal-category" class="form-label">Category <span class="add-deal__required" aria-hidden="true">*</span></label>
-              <AppSelect
-                id="deal-category"
-                v-model="form.category"
-                name="category"
-                class="form-select"
-                :class="{ 'is-invalid': fieldErrors.category }"
-                v-bind="invalidAttrs('category')"
-                :options="categoryOptions"
-              />
-              <div id="error-category" class="invalid-feedback">{{ fieldErrors.category }}</div>
-            </div>
-            <div class="add-deal__field">
-              <label for="deal-cuisine" class="form-label">Cuisine <span class="add-deal__required" aria-hidden="true">*</span></label>
-              <AppSelect
-                id="deal-cuisine"
-                v-model="form.cuisine"
-                name="cuisine"
-                class="form-select"
-                :class="{ 'is-invalid': fieldErrors.cuisine }"
-                v-bind="invalidAttrs('cuisine')"
-                :options="cuisineOptions"
-              />
-              <div id="error-cuisine" class="invalid-feedback">{{ fieldErrors.cuisine }}</div>
-            </div>
-          </div>
-
-          <fieldset class="add-deal__field">
-            <legend class="form-label">{{ flashMode ? 'Flash offer' : 'Offer type' }} <span class="add-deal__required" aria-hidden="true">*</span></legend>
-            <div class="add-deal__offers" role="radiogroup" :aria-label="flashMode ? 'Flash offer' : 'Offer type'">
-              <label v-for="offer in OFFER_TILES" :key="offer.value" class="add-deal__offer" :class="{ 'is-chosen': form.offerType === offer.value }">
-                <input
-                  v-model="form.offerType"
-                  class="add-deal__offer-input"
-                  type="radio"
-                  name="offerType"
-                  :value="offer.value"
-                  :data-testid="`merchant-offer-${offer.value}`"
-                />
-                <ShellIcon :name="offer.icon" :size="20" />{{ offer.label }}
-              </label>
-            </div>
-          </fieldset>
-
-          <!-- Only the box the chosen offer type needs. -->
-          <div v-if="form.offerType === 'PERCENT_OFF'" class="add-deal__field add-deal__short">
-            <label for="deal-discount" class="form-label">Discount (%) <span class="add-deal__required" aria-hidden="true">*</span></label>
-            <input
-              id="deal-discount"
-              v-model.number="form.discountPercent"
-              name="discountPercent"
-              type="number"
-              inputmode="numeric"
-              autocomplete="off"
-              min="1"
-              max="100"
-              class="form-control"
-              :class="{ 'is-invalid': fieldErrors.discountPercent }"
-              v-bind="invalidAttrs('discountPercent')"
-            />
-            <div id="error-discountPercent" class="invalid-feedback">{{ fieldErrors.discountPercent }}</div>
-          </div>
-          <div v-if="form.offerType === 'FIXED_PRICE'" class="add-deal__field add-deal__short">
-            <label for="deal-price" class="form-label">{{ flashMode ? 'Flash price ($)' : 'Deal price ($)' }} <span class="add-deal__required" aria-hidden="true">*</span></label>
-            <input
-              id="deal-price"
-              v-model.number="form.priceDollars"
-              name="priceDollars"
-              type="number"
-              inputmode="decimal"
-              autocomplete="off"
-              min="0.01"
-              step="0.01"
-              class="form-control"
-              :class="{ 'is-invalid': fieldErrors.priceDollars }"
-              v-bind="invalidAttrs('priceDollars')"
-            />
-            <div id="error-priceDollars" class="invalid-feedback">{{ fieldErrors.priceDollars }}</div>
-          </div>
-
-          <div class="add-deal__field">
-            <label for="deal-photo" class="form-label">{{ shownPhoto ? 'Replace the photo' : 'Photo of the deal' }} <span class="add-deal__hint">(optional)</span></label>
-            <p id="deal-photo-help" class="add-deal__hint">JPEG, PNG or WebP, up to 4 MB. A photo of the poster or menu works best.</p>
-            <PhotoDropzone
-              id="deal-photo"
-              ref="photoInput"
-              name="photo"
-              :has-photo="Boolean(shownPhoto)"
-              :class="{ 'is-invalid': fieldErrors.photo }"
-              v-bind="invalidAttrs('photo')"
-              :aria-describedby="fieldErrors.photo ? 'error-photo' : 'deal-photo-help'"
-              @change="choosePhoto"
-            />
-            <!-- The input sits inside the drop zone, so the error is shown here rather than by
-                 Bootstrap's "after an invalid input" rule. -->
-            <div id="error-photo" class="invalid-feedback" :class="{ 'd-block': fieldErrors.photo }">{{ fieldErrors.photo }}</div>
-            <div v-if="shownPhoto" class="deal-form__photo">
-              <img :src="shownPhoto" alt="Your deal, as customers will see it" width="480" height="320" class="add-deal__preview" />
-              <button type="button" class="lb-btn add-deal__remove" @click="removePhoto">Remove photo</button>
-            </div>
-          </div>
-        </section>
-
-        <!-- 2. Outlets -->
-        <section v-show="step === 1" class="add-deal__card" data-step="1" aria-labelledby="deal-form-step-1">
-          <h3 id="deal-form-step-1" :ref="(el) => { if (el) stepHeadings[1] = el as HTMLElement }" class="add-deal__step-title" tabindex="-1">
-            <span class="add-deal__step-icon" aria-hidden="true"><ShellIcon name="pin" :size="20" /></span>Outlets
-          </h3>
-          <fieldset
-            class="add-deal__field"
-            :aria-invalid="fieldErrors.outletIds ? 'true' : undefined"
-            :aria-describedby="fieldErrors.outletIds ? 'error-outletIds' : undefined"
-          >
-            <legend class="form-label">
-              {{ flashMode ? 'Which outlet is this flash deal at? (one only)' : 'Which outlets is this deal at?' }}
-              <span class="add-deal__required" aria-hidden="true">*</span>
-            </legend>
-            <ul class="add-deal__stalls deal-form__outlets">
-              <li v-for="outlet in outlets" :key="outlet.id" :class="{ 'is-chosen': form.outletIds.includes(outlet.id) }">
-                <input
-                  :id="`outlet-${outlet.id}`"
-                  v-model="form.outletIds"
-                  name="outletIds"
-                  :value="outlet.id"
-                  type="checkbox"
-                  class="form-check-input deal-form__outlet-check"
-                  :class="{ 'is-invalid': fieldErrors.outletIds }"
-                />
-                <label :for="`outlet-${outlet.id}`" class="add-deal__stall-text deal-form__outlet-label">
-                  <strong>{{ outlet.name }}</strong><span>{{ outlet.address }}</span>
-                </label>
-              </li>
-            </ul>
-            <p id="error-outletIds" class="add-deal__error" aria-live="polite">{{ fieldErrors.outletIds }}</p>
-          </fieldset>
-        </section>
-
-        <!-- 3. Validity. A flash deal has its own start time and length instead of dates. -->
-        <section v-show="step === 2" class="add-deal__card" data-step="2" aria-labelledby="deal-form-step-2">
-          <h3 id="deal-form-step-2" :ref="(el) => { if (el) stepHeadings[2] = el as HTMLElement }" class="add-deal__step-title" tabindex="-1">
-            <span class="add-deal__step-icon" aria-hidden="true"><ShellIcon name="calendar" :size="20" /></span>{{ stepLabels[2] }}
-          </h3>
-          <div v-if="flashMode" class="flash-holder">
-            <FlashDealFields
-              v-model="flashFields"
-              :title="form.title"
-              :offer="flashOffer"
-              :problem="flashProblem"
-            />
-            <button
-              v-if="editingFlash === null"
-              type="button"
-              class="add-deal__edit"
-              :disabled="saving"
-              @click="backToNormalDeal"
+        <div class="merchant-stat" data-testid="stat-coming-up">
+          <span class="merchant-stat__label">Coming up</span>
+          <span class="merchant-stat__value">{{ scheduledDeals.length }}</span>
+          <span class="merchant-stat__note">{{ comingUpText }}</span>
+        </div>
+        <div class="merchant-stat" :class="{ 'merchant-stat--flash': featuredFlash }" data-testid="stat-flash">
+          <template v-if="featuredFlash">
+            <span class="merchant-stat__label">
+              <span class="merchant-stat__dot" aria-hidden="true" />Flash deal {{ featuredFlash.status === 'LIVE' ? 'live' : 'scheduled' }}
+            </span>
+            <span class="merchant-stat__headline">{{ featuredFlash.dealTitle }} · {{ flashOfferText(featuredFlash) || 'Flash deal' }}</span>
+            <span class="merchant-stat__note merchant-stat__note--icon"><ShellIcon name="clock" :size="15" />{{ featuredWhen }}</span>
+          </template>
+          <template v-else>
+            <span class="merchant-stat__label">Flash deal</span>
+            <span class="merchant-stat__headline">None running</span>
+            <button type="button" class="merchant-stat__link" @click="newFlashDeal">Start a flash deal</button>
+          </template>
+        </div>
+        <div class="merchant-stat" data-testid="stat-codes">
+          <span class="merchant-stat__label">Codes claimed</span>
+          <template v-if="codes.limit > 0">
+            <span class="merchant-stat__value">{{ codes.claimed }}<span class="merchant-stat__of"> / {{ codes.limit }}</span></span>
+            <div
+              class="merchant-stat__track"
+              role="progressbar"
+              aria-label="Codes claimed from running flash deals"
+              :aria-valuenow="codes.claimed"
+              aria-valuemin="0"
+              :aria-valuemax="codes.limit"
             >
-              Make it an ordinary deal
-            </button>
-          </div>
-          <div v-if="!flashMode" class="add-deal__pair">
-            <div class="add-deal__field">
-              <label for="deal-start" class="form-label">Start date <span class="add-deal__hint">(optional)</span></label>
-              <input id="deal-start" v-model="form.startDate" name="startDate" type="date" class="form-control" />
+              <div class="merchant-stat__bar" :style="{ width: `${codesPercent}%` }"></div>
             </div>
-            <div class="add-deal__field">
-              <label for="deal-end" class="form-label">Last day <span class="add-deal__hint">(optional)</span></label>
-              <input
-                id="deal-end"
-                v-model="form.endDate"
-                name="endDate"
-                type="date"
-                class="form-control"
-                :class="{ 'is-invalid': fieldErrors.endDate }"
-                v-bind="invalidAttrs('endDate')"
-              />
-              <div id="error-endDate" class="invalid-feedback">{{ fieldErrors.endDate }}</div>
-            </div>
-          </div>
-          <div class="add-deal__field">
-            <label for="deal-terms" class="form-label">Terms &amp; conditions <span class="add-deal__hint">(optional)</span></label>
-            <textarea
-              id="deal-terms"
-              v-model="form.terms"
-              name="terms"
-              autocomplete="off"
-              class="form-control"
-              rows="4"
-              maxlength="1000"
-              placeholder="One condition per line, e.g. Dine-in only…"
-            ></textarea>
-          </div>
-        </section>
-
-        <!-- 4. Review -->
-        <section v-show="step === 3" class="add-deal__card" data-step="3" aria-labelledby="deal-form-step-3">
-          <h3 id="deal-form-step-3" :ref="(el) => { if (el) stepHeadings[3] = el as HTMLElement }" class="add-deal__step-title" tabindex="-1">
-            <span class="add-deal__step-icon" aria-hidden="true"><ShellIcon name="check" :size="20" /></span>Review
-          </h3>
-          <p class="add-deal__hint">
-            {{ flashMode ? 'Check everything looks right, then save the flash deal as a draft. It goes live when you press Go live.' : 'Check everything looks right, then save. The deal goes live straight away.' }}
-          </p>
-          <div class="add-deal__review">
-            <img v-if="shownPhoto" :src="shownPhoto" alt="Your deal, as customers will see it" width="480" height="320" class="add-deal__preview add-deal__review-photo" />
-            <div class="add-deal__review-groups">
-              <div v-for="group in review" :key="group.step" class="add-deal__review-group">
-                <dl>
-                  <div v-for="[term, value] in group.rows" :key="term">
-                    <dt>{{ term }}</dt>
-                    <dd>{{ value || '—' }}</dd>
-                  </div>
-                </dl>
-                <button type="button" class="add-deal__edit" :data-testid="`merchant-review-edit-${group.step}`" @click="go(group.step)">
-                  Edit<span class="visually-hidden"> {{ stepLabels[group.step] }}</span>
-                </button>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <!-- Always mounted so the summary or a save error is announced. -->
-        <div role="alert">
-          <p v-if="formError" class="add-deal__alert">{{ formError }}</p>
+          </template>
+          <template v-else>
+            <span class="merchant-stat__value">0</span>
+            <span class="merchant-stat__note">from live or scheduled flash deals</span>
+          </template>
         </div>
+      </section>
 
-        <div class="add-deal__nav">
-          <button type="button" class="lb-btn" data-testid="deal-form-back" @click="back">
-            <ShellIcon name="back" :size="18" />{{ step === 0 ? 'Cancel' : 'Back' }}
-          </button>
-          <button v-if="step < LAST_STEP" type="submit" class="lb-btn lb-btn--primary" data-testid="deal-form-next">
-            Next: {{ nextLabel }}<ShellIcon name="arrowRight" :size="18" />
-          </button>
-          <div v-else class="deal-form__actions">
-            <!-- An ordinary deal goes live when saved; a flash deal is saved as a draft. -->
-            <template v-if="!flashMode">
-              <button
-                v-if="editingId === null"
-                type="button"
-                class="lb-btn"
-                :disabled="saving"
-                @click="showFlashFields"
-              >
-                Save as flash deal
-              </button>
-              <button type="submit" class="lb-btn lb-btn--primary" :disabled="saving">
-                {{ saving ? 'Saving…' : 'Save deal' }}
-              </button>
-            </template>
-            <template v-else>
-              <button
-                v-if="editingFlash === null"
-                type="button"
-                class="lb-btn"
-                :disabled="saving"
-                @click="backToNormalDeal"
-              >
-                Make it an ordinary deal
-              </button>
-              <button type="submit" class="lb-btn lb-btn--primary" :disabled="saving">
-                {{ saving ? 'Saving…' : editingFlash ? 'Save draft' : 'Save as flash deal' }}
-              </button>
-            </template>
-          </div>
-        </div>
-      </form>
-
-      <!-- Each kind of deal in its own dropdown, with live, draft and scheduled ones open first. -->
-      <DealSection title="Current deals" :count="currentDeals.length">
-        <DealSection
-          v-for="group in currentGroups"
-          :key="group.key"
-          :title="group.title"
-          :count="group.deals.length"
-          level="h3"
-          :default-open="group.open"
+      <!-- Tabs -->
+      <div class="lb-tabs merchant-dashboard__tabs" role="tablist" aria-label="Your deals">
+        <button
+          v-for="(item, index) in tabs"
+          :id="`merchant-tab-${item.id}`"
+          :key="item.id"
+          :ref="(el) => { if (el) tabEls[index] = el as HTMLElement }"
+          type="button"
+          role="tab"
+          class="lb-tab merchant-dashboard__tab"
+          :aria-selected="tab === item.id ? 'true' : 'false'"
+          :aria-controls="`merchant-panel-${item.id}`"
+          :tabindex="tab === item.id ? 0 : -1"
+          :data-testid="`tab-${item.id}`"
+          @click="openTab(item.id)"
+          @keydown.right.prevent="moveTab(index, 1)"
+          @keydown.left.prevent="moveTab(index, -1)"
         >
-          <p v-if="group.deals.length === 0" class="text-secondary small mb-2">{{ group.empty }}</p>
-          <MerchantCardGrid v-else>
-            <li v-for="deal in group.deals" :key="deal.id">
-              <MerchantDealCard
-                :title="deal.title"
-                :description="deal.description"
-                :offer="offerText(deal)"
-                :dates="datesText(deal)"
-                :location="`At: ${outletNames(deal)}`"
-                :terms="deal.terms"
-                :category="deal.category"
-                :photo-url="deal.photo?.url ?? null"
-                :badge="statusOf(deal)"
-                :tone="statusOf(deal) === 'Live' ? 'live' : 'scheduled'"
-              >
-                <template #actions>
-                  <button type="button" class="btn btn-sm btn-outline-primary" @click="openEditForm(deal)">
-                    Edit<span class="visually-hidden"> {{ deal.title }}</span>
-                  </button>
-                  <!-- A live deal is ended; one that has not started yet can simply be deleted. -->
-                  <button
-                    v-if="statusOf(deal) === 'Scheduled'"
-                    type="button"
-                    class="btn btn-sm btn-outline-danger"
-                    @click="confirmDeleteDeal(deal)"
-                  >
-                    Delete<span class="visually-hidden">: {{ deal.title }}</span>
-                  </button>
-                  <button v-else type="button" class="btn btn-sm btn-outline-danger" @click="confirmEndDeal(deal)">
-                    End deal<span class="visually-hidden">: {{ deal.title }}</span>
-                  </button>
-                </template>
-              </MerchantDealCard>
-            </li>
-          </MerchantCardGrid>
-        </DealSection>
-      </DealSection>
+          {{ item.label }}<span class="merchant-dashboard__tab-count">{{ item.count }}</span>
+        </button>
+      </div>
 
-      <!-- Flash deals: drafts, live and past. Drafts are edited in the form above. -->
-      <FlashDropsSection ref="flashDrops" @edit="openFlashDraftForm" />
+      <!-- Deals: live and scheduled -->
+      <div
+        v-if="tab === 'deals'"
+        id="merchant-panel-deals"
+        class="merchant-dashboard__panel"
+        role="tabpanel"
+        aria-labelledby="merchant-tab-deals"
+      >
+        <fieldset class="merchant-dashboard__chips">
+          <legend class="visually-hidden">Show</legend>
+          <button
+            v-for="item in filters"
+            :key="item.id"
+            type="button"
+            class="lb-chip"
+            :aria-pressed="filter === item.id ? 'true' : 'false'"
+            :data-testid="`filter-${item.id}`"
+            @click="filter = item.id"
+          >
+            {{ item.label }}<span class="lb-chip__count">{{ item.count }}</span>
+          </button>
+        </fieldset>
+        <div v-if="shownDeals.length === 0" class="lb-state merchant-dashboard__empty">
+          <p class="lb-state__body">{{ emptyDeals }}</p>
+          <button type="button" class="lb-btn lb-btn--primary merchant-dashboard__state-action" @click="newDeal">
+            <ShellIcon name="plus" :size="18" />Add a deal
+          </button>
+        </div>
+        <MerchantCardGrid v-else>
+          <li v-for="deal in shownDeals" :key="deal.id">
+            <MerchantDealCard
+              :title="deal.title"
+              :description="deal.description"
+              :offer="offerText(deal)"
+              :dates="datesText(deal)"
+              :location="`At: ${outletNames(deal)}`"
+              :terms="deal.terms"
+              :category="deal.category"
+              :photo-url="deal.photo?.url ?? null"
+              :badge="statusOf(deal)"
+              :tone="statusOf(deal) === 'Live' ? 'live' : 'scheduled'"
+            >
+              <template #actions>
+                <button type="button" class="lb-btn merchant-btn--sm" @click="editDeal(deal)">
+                  Edit<span class="visually-hidden"> {{ deal.title }}</span>
+                </button>
+                <!-- A live deal is ended; one that has not started yet can simply be deleted. -->
+                <button
+                  v-if="statusOf(deal) === 'Scheduled'"
+                  type="button"
+                  class="lb-btn merchant-btn--sm merchant-btn--danger"
+                  @click="confirmDeleteDeal(deal)"
+                >
+                  Delete<span class="visually-hidden">: {{ deal.title }}</span>
+                </button>
+                <button
+                  v-else
+                  type="button"
+                  class="lb-btn merchant-btn--sm merchant-btn--danger"
+                  @click="confirmEndDeal(deal)"
+                >
+                  End deal<span class="visually-hidden">: {{ deal.title }}</span>
+                </button>
+              </template>
+            </MerchantDealCard>
+          </li>
+        </MerchantCardGrid>
+      </div>
 
-      <!-- Ended deals: view only, so closed at first -->
-      <DealSection title="Ended deals" :count="endedDeals.length" :default-open="false">
-        <p v-if="endedDeals.length === 0" class="text-secondary small mb-2">No ended deals.</p>
+      <!-- Flash deals: drafts, live and past. Kept mounted, so live updates keep arriving. -->
+      <div
+        v-show="tab === 'flash'"
+        id="merchant-panel-flash"
+        class="merchant-dashboard__panel"
+        role="tabpanel"
+        aria-labelledby="merchant-tab-flash"
+      >
+        <FlashDropsSection :store="flash" @edit="editFlashDraft" />
+      </div>
+
+      <!-- Ended deals: view only, with Run it again -->
+      <div
+        v-if="tab === 'ended'"
+        id="merchant-panel-ended"
+        class="merchant-dashboard__panel"
+        role="tabpanel"
+        aria-labelledby="merchant-tab-ended"
+      >
+        <div v-if="endedDeals.length === 0" class="lb-state merchant-dashboard__empty">
+          <p class="lb-state__body">No ended deals. Deals you end, or that pass their last day, show up here.</p>
+        </div>
         <MerchantCardGrid v-else>
           <li v-for="deal in endedDeals" :key="deal.id">
             <MerchantDealCard
@@ -1126,121 +454,296 @@ onMounted(loadDashboard)
               :offer="offerText(deal)"
               :dates="datesText(deal)"
               :location="`At: ${outletNames(deal)}`"
-                :terms="deal.terms"
+              :terms="deal.terms"
               :category="deal.category"
               :photo-url="deal.photo?.url ?? null"
               badge="Ended"
               tone="ended"
             >
               <template #actions>
-                <button type="button" class="btn btn-sm btn-outline-primary" @click="openRunAgainForm(deal)">
+                <button type="button" class="lb-btn merchant-btn--sm" @click="runAgain(deal)">
                   Run it again<span class="visually-hidden">: {{ deal.title }}</span>
                 </button>
-                <button type="button" class="btn btn-sm btn-outline-danger" @click="confirmDeleteDeal(deal)">
+                <button
+                  type="button"
+                  class="lb-btn merchant-btn--sm merchant-btn--danger"
+                  @click="confirmDeleteDeal(deal)"
+                >
                   Delete<span class="visually-hidden">: {{ deal.title }}</span>
                 </button>
               </template>
             </MerchantDealCard>
           </li>
         </MerchantCardGrid>
-      </DealSection>
+      </div>
     </template>
   </section>
 </template>
 
 <style scoped>
-/* Wide enough for four deal cards in a row on a large screen. */
 .merchant-dashboard {
-  max-width: 82rem;
-}
-
-/* Leave room above the flash fields when they are scrolled into view. */
-.flash-holder {
-  scroll-margin-top: 80px;
-}
-
-/* The deal form uses the Add a deal look (add-deal-form.css); these few pieces are its own. */
-.deal-form__head {
   display: grid;
-  gap: 6px;
+  gap: 24px;
 }
 
-.deal-form__title {
-  margin: 0;
-  font-size: clamp(1.5rem, 4vw, 2rem);
-  font-weight: 800;
-  letter-spacing: -0.02em;
-}
-
-.deal-form__photo {
+.merchant-dashboard__head {
   display: flex;
   flex-wrap: wrap;
   align-items: flex-end;
-  gap: 12px;
+  justify-content: space-between;
+  gap: 16px 20px;
 }
 
-/* Outlets as tiles like the chosen stalls; a ticked one takes the same sunny wash. */
-.deal-form__outlets li {
-  position: relative;
-  padding: 12px 16px;
-  cursor: pointer;
+.merchant-dashboard__intro {
+  min-width: 0;
 }
 
-.deal-form__outlets li.is-chosen {
-  background: var(--sunny-wash);
-  border-color: var(--sunny-deep);
+.merchant-dashboard__outlets {
+  margin: 8px 0 0;
+  color: var(--ink-muted);
+  font-size: var(--text-sm);
+  overflow-wrap: anywhere;
 }
 
-.deal-form__outlet-check {
-  position: relative;
-  z-index: 1;
-  flex: none;
-  margin: 0;
-}
-
-/* The whole tile is the label's click target; the checkbox sits above it and takes its own clicks. */
-.deal-form__outlet-label {
-  cursor: pointer;
-}
-
-.deal-form__outlet-label::after {
-  position: absolute;
-  inset: 0;
-  content: '';
-}
-
-.deal-form__actions {
+.merchant-dashboard__actions {
   display: flex;
   flex-wrap: wrap;
-  justify-content: flex-end;
-  gap: 12px;
+  gap: 10px;
 }
 
-/* On a phone, Back and Next share a row like the visitor's form; the review's save buttons
-   stack full width under Back, with the main one on top. */
-@media (max-width: 480px) {
-  .deal-form .add-deal__nav {
-    flex-wrap: wrap;
+.merchant-dashboard__flash-icon {
+  color: var(--coral);
+}
+
+/* Holds the message, so a screen reader hears it as soon as it appears. */
+.merchant-dashboard__notice:empty {
+  display: none;
+}
+
+.merchant-dashboard__state-action {
+  align-self: flex-start;
+}
+
+/* ----- Stats ----- */
+.merchant-stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.merchant-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  padding: 18px 20px;
+  border: 1px solid var(--hairline);
+  border-radius: 24px;
+  background: var(--paper-white);
+}
+
+/* A running flash deal stands out in the sunny wash, like the flash banner on the map. */
+.merchant-stat--flash {
+  border-color: var(--sunny-deep);
+  background: var(--sunny-wash, var(--sunny-soft));
+}
+
+.merchant-stat__label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--ink-muted);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.merchant-stat__value {
+  font-size: 2.25rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+}
+
+.merchant-stat__of {
+  color: var(--ink-muted);
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+
+.merchant-stat__headline {
+  font-size: 1.25rem;
+  font-weight: 800;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.merchant-stat__note {
+  color: var(--ink-muted);
+  font-size: var(--text-sm);
+}
+
+.merchant-stat__note--icon {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.merchant-stat__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--coral);
+}
+
+.merchant-stat__link {
+  align-self: flex-start;
+  min-height: var(--hit);
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--coral-deep);
+  font: 700 var(--text-sm) / 1.2 var(--font-sans);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.merchant-stat__link:focus-visible {
+  outline: 3px solid var(--focus-ring, var(--sunny-ring));
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+.merchant-stat__track {
+  height: 8px;
+  margin-top: 4px;
+  overflow: hidden;
+  border-radius: var(--radius-pill);
+  background: var(--paper-sunk);
+}
+
+.merchant-stat__bar {
+  height: 100%;
+  border-radius: var(--radius-pill);
+  background: var(--coral);
+}
+
+@media (max-width: 991.98px) {
+  .merchant-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* ----- Tabs and panels ----- */
+.merchant-dashboard__tabs {
+  gap: 24px;
+}
+
+.merchant-dashboard__tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 1rem;
+}
+
+.merchant-dashboard__tab-count {
+  min-width: 24px;
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+  background: var(--paper-sunk);
+  color: var(--ink-muted);
+  font-size: 0.75rem;
+  text-align: center;
+}
+
+.merchant-dashboard__tab[aria-selected='true'] .merchant-dashboard__tab-count {
+  background: var(--sunny);
+  color: var(--on-accent);
+}
+
+.merchant-dashboard__panel {
+  display: grid;
+  gap: 18px;
+}
+
+.merchant-dashboard__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.merchant-dashboard__empty {
+  align-items: flex-start;
+}
+
+/* Phones: the header buttons fill the width, the stats get compact (the flash tile, which
+   carries a name, takes a whole row), and the three tabs share the width so none is cut off. */
+@media (max-width: 575.98px) {
+  .merchant-dashboard {
+    gap: 20px;
   }
 
-  .deal-form__actions {
-    flex: 1 1 100%;
-    flex-direction: column-reverse;
+  .merchant-dashboard__actions {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    width: 100%;
+    gap: 8px;
+  }
+
+  .merchant-dashboard__actions .lb-btn--primary {
     order: -1;
   }
 
-  .deal-form__actions .lb-btn {
-    width: 100%;
+  .merchant-stats {
+    gap: 10px;
   }
-}
 
-.btn {
-  touch-action: manipulation;
-}
-/* Comfortable touch targets on phones. */
-@media (max-width: 575.98px) {
-  .btn-sm {
-    min-height: var(--hit);
+  .merchant-stat {
+    gap: 4px;
+    padding: 14px 16px;
+    border-radius: 20px;
+  }
+
+  /* The two flash tiles carry a name and a bar, so each takes a whole row. */
+  .merchant-stat[data-testid='stat-flash'],
+  .merchant-stat[data-testid='stat-codes'] {
+    grid-column: 1 / -1;
+  }
+
+  .merchant-stat__value {
+    font-size: 1.75rem;
+  }
+
+  .merchant-stat__headline {
+    font-size: 1.0625rem;
+  }
+
+  .merchant-stat__note {
+    font-size: var(--text-xs);
+  }
+
+  .merchant-dashboard__tabs {
+    gap: 4px;
+  }
+
+  .merchant-dashboard__tab {
+    flex: 1 1 0;
+    justify-content: center;
+    gap: 5px;
+    min-width: 0;
+    font-size: 0.8125rem;
+    white-space: nowrap;
+  }
+
+  .merchant-dashboard__tab-count {
+    min-width: 20px;
+    padding: 1px 5px;
   }
 }
 </style>

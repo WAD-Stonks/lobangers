@@ -50,6 +50,8 @@ const ICONS = {
   more: ['M5 12h.01', 'M12 12h.01', 'M19 12h.01'],
   pin: ['M12 21s-7-6.2-7-12a7 7 0 0 1 14 0c0 5.8-7 12-7 12z', 'M12 6.5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5'],
   arrowRight: ['M5 12h14', 'm13 6 6 6-6 6'],
+  flash: ['M13 2 4 14h7l-1 8 9-12h-7z'],
+  clock: ['M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18', 'M12 7v5l3 2'],
 } as const
 
 export type ShellIconName = keyof typeof ICONS
