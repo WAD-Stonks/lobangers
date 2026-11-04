@@ -77,7 +77,7 @@ const TIPS = [
   {
     sprite: 'hello',
     title: 'Almost there!',
-    points: ['Check the details match the poster', 'An admin checks every deal before it goes live', 'Find it in My submissions once it is sent'],
+    points: ['Check the details match the poster', 'An admin checks every deal before it goes live', 'Find it in My deal submissions once it is sent'],
   },
 ] as const
 
@@ -273,13 +273,14 @@ const sendDeal = async () => {
   submitting.value = true
   try {
     await submitDeal(toNewDeal(form.value, chosenStalls.value), photo.value as File)
-    openPopup('Deal submitted', 'Thanks! Your deal will appear once an admin reviews it.')
-    clearForm()
   } catch (error) {
     openPopup('Could not submit', errorMessageFor(error, 'Could not submit the deal. Please try again.'))
+    return
   } finally {
     submitting.value = false
   }
+  clearForm()
+  await router.push({ path: '/me/submissions', query: { submitted: '1' } })
 }
 
 // Empties every field and goes back to the first step, so the user can add another deal.

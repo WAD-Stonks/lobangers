@@ -18,6 +18,18 @@ vi.mock('@web/modules/add-deal/add-deal-api', async (importOriginal) => ({
   addStallFromPlace: addDealApi.addStallFromPlace,
 }))
 
+const router = vi.hoisted(() => ({
+  push: vi.fn(),
+  back: vi.fn(),
+  options: { history: { state: {} } },
+}))
+
+vi.mock('vue-router', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('vue-router')>()),
+  useRouter: () => router,
+  onBeforeRouteLeave: vi.fn(),
+}))
+
 enableAutoUnmount(afterEach)
 
 const createObjectURL = vi.fn(() => 'blob:synthetic-deal-preview')
@@ -299,7 +311,7 @@ describe('add a deal form', () => {
     expect(wrapper.find('.add-deal-tip img').attributes('src')).toBe('/chatbot-sprites/hello.svg')
   })
 
-  it('submits a trimmed deal with its photo, shows a pop-up and clears the form', async () => {
+  it('submits a trimmed deal with its photo, clears the form and opens my deal submissions', async () => {
     const wrapper = mountForm()
     await fillDetails(wrapper)
     await chooseOption(wrapper, '#deal-cuisine', 'NONE')
@@ -329,7 +341,8 @@ describe('add a deal form', () => {
       terms: 'Dine-in only',
     })
     expect(photo).toBeInstanceOf(File)
-    expect(wrapper.get('.popup-stub').text()).toContain('Deal submitted')
+    expect(wrapper.find('.popup-stub').exists()).toBe(false)
+    expect(router.push).toHaveBeenCalledWith({ path: '/me/submissions', query: { submitted: '1' } })
     expect(wrapper.get('#deal-title').element).toHaveProperty('value', '')
     expect(wrapper.find('.add-deal__preview').exists()).toBe(false)
     expect(stepShown(wrapper)).toContain('Deal Details')
@@ -348,5 +361,6 @@ describe('add a deal form', () => {
     )
     expect(wrapper.get('#deal-title').element).toHaveProperty('value', '  1-for-1 chicken rice  ')
     expect(wrapper.get('button[type="submit"]').element).toHaveProperty('disabled', false)
+    expect(router.push).not.toHaveBeenCalled()
   })
 })
