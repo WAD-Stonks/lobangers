@@ -140,7 +140,8 @@ onBeforeUnmount(() => emit('menuChange', false))
   position: fixed;
   inset: auto 0 0;
   width: 100%;
-  height: calc(68px + env(safe-area-inset-bottom, 0px));
+  /* 58px: BOTTOM_NAV_HEIGHT_PX in use-shell-layout.ts. */
+  height: calc(58px + env(safe-area-inset-bottom, 0px));
   padding: 4px calc(8px + env(safe-area-inset-right, 0px)) calc(4px + env(safe-area-inset-bottom, 0px)) calc(8px + env(safe-area-inset-left, 0px));
   box-sizing: border-box;
   flex-direction: row;
@@ -161,9 +162,10 @@ onBeforeUnmount(() => emit('menuChange', false))
 .map-navigation--bottom .map-navigation__links a,
 .map-navigation--bottom .map-navigation__account {
   flex: 1;
+  gap: 3px;
   min-width: 0;
-  min-height: 56px;
-  padding: 4px 2px;
+  min-height: 48px;
+  padding: 3px 2px;
 }
 
 .map-navigation--bottom .map-navigation__account {

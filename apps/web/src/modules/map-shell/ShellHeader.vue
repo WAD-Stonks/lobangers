@@ -379,8 +379,10 @@ defineExpose({ focusAllFilters: () => {
   .shell-header--deals .shell-header__mobile-filters { position: relative; display: grid; place-items: center; grid-column: 3; grid-row: 1; width: 44px; height: 44px; padding: 0; border: 0; border-radius: 50%; color: var(--ink); background: var(--paper-white); }
   .shell-header--deals .shell-header__chips { grid-column: 1 / -1; grid-row: 2; }
 }
-/* Phones: the compact chip row sits as close to the search as it does on the map. */
+/* Phones: the compact chip row sits as close to the search as it does on the map, and the header
+   ends 12px below the chips (9px here plus the row's 3px focus-ring inset) so the bar doesn't
+   look bottom-heavy. */
 @media (max-width: 767.98px) {
-  .shell-header--deals { row-gap: 6px; }
+  .shell-header--deals { row-gap: 6px; padding-bottom: 9px; }
 }
 </style>

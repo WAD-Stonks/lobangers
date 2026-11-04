@@ -18,7 +18,8 @@ const COMPACT_DESKTOP_MAX_PX = 1279
 const SHEET_HALF_RATIO = { phone: 0.58, tablet: 0.46 } as const
 export const SHEET_PEEK_PX = 120
 export const MAP_RAIL_WIDTH_PX = 72
-export const BOTTOM_NAV_HEIGHT_PX = 68
+// Keep in step with .map-navigation--bottom and App.vue's .page-layout--bottom-nav.
+export const BOTTOM_NAV_HEIGHT_PX = 58
 const SHEET_GAP_PX = 8
 const SHEET_MIN_STEP_PX = 60
 const DESKTOP_GUTTER_PX = 16
@@ -42,6 +43,8 @@ type Options = {
   readonly railVisible?: Readonly<Ref<boolean>>
   readonly bottomNavigation?: Readonly<Ref<boolean>>
   readonly resultsPreviewHeight?: Readonly<Ref<number | null>>
+  /** The sheet meets the header with no strip of map between them (the All deals list). */
+  readonly flush?: Readonly<Ref<boolean>>
 }
 
 const viewportSize = () =>
@@ -54,11 +57,9 @@ export const sheetHeights = (
   headerBottom: number,
   halfRatio: number = SHEET_HALF_RATIO.tablet,
   previewHeight: number | null = null,
+  gap: number = SHEET_GAP_PX,
 ): readonly number[] => {
-  const full = Math.max(
-    SHEET_PEEK_PX + 2 * SHEET_MIN_STEP_PX,
-    viewportHeight - headerBottom - SHEET_GAP_PX,
-  )
+  const full = Math.max(SHEET_PEEK_PX + 2 * SHEET_MIN_STEP_PX, viewportHeight - headerBottom - gap)
   const half = Math.min(
     full - SHEET_MIN_STEP_PX,
     Math.max(
@@ -89,6 +90,7 @@ export const useShellLayout = ({
   railVisible = ref(true),
   bottomNavigation = ref(false),
   resultsPreviewHeight = ref(null),
+  flush = ref(false),
 }: Options) => {
   const viewport = ref(viewportSize())
   const headerBottom = ref(FALLBACK_HEADER_BOTTOM_PX)
@@ -123,6 +125,7 @@ export const useShellLayout = ({
       headerBottom.value,
       breakpoint.value === 'phone' ? SHEET_HALF_RATIO.phone : SHEET_HALF_RATIO.tablet,
       resultsPreviewHeight.value,
+      flush.value ? 0 : SHEET_GAP_PX,
     ),
   )
   const sheetVisible = computed(() =>

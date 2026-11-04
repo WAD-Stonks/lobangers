@@ -46,6 +46,13 @@
   transform: none;
 }
 
+/* Icon only: a circle the size of the touch target. Give it an aria-label. */
+.lb-btn--icon {
+  flex: 0 0 auto;
+  width: var(--hit);
+  padding: 0;
+}
+
 .lb-btn--primary {
   color: var(--on-accent);
   background: var(--sunny);

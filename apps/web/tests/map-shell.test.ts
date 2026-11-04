@@ -1,6 +1,7 @@
 import { flushPromises, type VueWrapper } from '@vue/test-utils'
 import { FOCUS_ZOOM, LOCATE_ZOOM } from '@web/modules/browse-map/map-config'
 import { MAP_SIDEBAR_STORAGE_KEY } from '@web/modules/map-shell/map-preferences'
+import { BOTTOM_NAV_HEIGHT_PX } from '@web/modules/map-shell/use-shell-layout'
 import { defined } from '@web-tests/support/defined'
 import { chooseOption, selectedValue } from '@web-tests/support/select'
 import {
@@ -825,6 +826,19 @@ describe('saving from the deal panel', () => {
     expect(router.currentRoute.value.query.redirect).toBe(`/deals/${KOPI.id}`)
   })
 
+  it('is an icon button named Save deal whose pressed state shows saving', async () => {
+    auth.session.current = SIGNED_IN
+    const { wrapper } = await mountAt(`/deals/${KOPI.id}`)
+    const save = () => wrapper.get('[data-testid="save-deal"]')
+    expect(save().text()).toBe('')
+    expect(save().attributes('aria-label')).toBe('Save deal')
+    expect(save().attributes('aria-pressed')).toBe('false')
+    await save().trigger('click')
+    await flushPromises()
+    expect(save().attributes('aria-label')).toBe('Save deal')
+    expect(save().attributes('aria-pressed')).toBe('true')
+  })
+
   it('saves, updates the menu count and buzzes only where vibration exists', async () => {
     auth.session.current = SIGNED_IN
     const vibrate = vi.fn()
@@ -933,7 +947,7 @@ describe('map navigation rail', () => {
       (wrapper.get('[data-testid="map-shell"]').element as HTMLElement).style.getPropertyValue(
         '--bottom-nav-h',
       ),
-    ).toContain('68px')
+    ).toContain(`${BOTTOM_NAV_HEIGHT_PX}px`)
     // The bottom nav replaces the menu button: Squad takes its slot in the header.
     expect(wrapper.find('[data-testid="nav-toggle"]').exists()).toBe(false)
     expect(wrapper.get('[data-testid="squad-header-button"]').classes()).toContain(
