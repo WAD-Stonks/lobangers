@@ -60,30 +60,28 @@ describe('stall map picker', () => {
     expect(placeButton(wrapper, listedStall.name).text()).toContain('Listed')
   })
 
-  it('adds a new place under the brand name the member gives', async () => {
+  it('adds a new place under its Google Maps name, without asking for one', async () => {
     api.addStallFromPlace.mockResolvedValue({ ...listedStall, id: 'b'.repeat(24) })
     const wrapper = mountPicker()
     await flushPromises()
     await placeButton(wrapper, newPlace.name).trigger('click')
-    expect((wrapper.get('#place-brand').element as HTMLInputElement).value).toBe(newPlace.name)
+    expect(wrapper.find('input[type="text"]').exists()).toBe(false)
+    expect(wrapper.text()).not.toContain('Confirm shop name')
 
-    await wrapper.get('#place-brand').setValue('  ')
-    await wrapper.get('.stall-map__confirm .lb-btn').trigger('click')
-    expect(wrapper.text()).toContain('Please name the shop or brand.')
-    expect(api.addStallFromPlace).not.toHaveBeenCalled()
-
-    await wrapper.get('#place-brand').setValue('Synthetic Noodles')
     await wrapper.get('.stall-map__confirm .lb-btn').trigger('click')
     await flushPromises()
-    expect(api.addStallFromPlace).toHaveBeenCalledWith(newPlace.placeId, 'Synthetic Noodles')
+    expect(api.addStallFromPlace).toHaveBeenCalledWith(newPlace.placeId, newPlace.name)
     expect(wrapper.emitted('add')?.[0]).toEqual([{ ...listedStall, id: 'b'.repeat(24) }])
+    expect(wrapper.find('.stall-map__confirm').exists()).toBe(true)
+
+    await wrapper.setProps({ chosenIds: ['b'.repeat(24)] })
+    expect(placeButton(wrapper, newPlace.name).text()).toContain('Already added')
   })
 
   it('reuses a listed stall without adding it again', async () => {
     const wrapper = mountPicker()
     await flushPromises()
     await placeButton(wrapper, listedStall.name).trigger('click')
-    expect(wrapper.find('#place-brand').exists()).toBe(false)
     await wrapper.get('.stall-map__confirm .lb-btn').trigger('click')
     expect(api.addStallFromPlace).not.toHaveBeenCalled()
     expect(wrapper.emitted('add')?.[0]).toEqual([listedStall])

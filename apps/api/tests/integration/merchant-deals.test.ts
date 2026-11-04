@@ -608,10 +608,10 @@ describe('community deal submission', () => {
   }
 
   it('saves a pending deal with its photo and lists it as the member’s submission', async () => {
-    const [a, b] = await selectableStalls('Submit', 2)
+    const [a] = await selectableStalls('Submit', 1)
     const file = await photo(member.id)
 
-    const created = await call(member, 'POST', '/deals', submission([a.id, b.id], file.key))
+    const created = await call(member, 'POST', '/deals', submission([a.id], file.key))
     expect(created.status).toBe(201)
     expect(created.body).toEqual({ id: created.body.id, reviewStatus: 'PENDING' })
 
@@ -628,7 +628,7 @@ describe('community deal submission', () => {
       cuisine: null,
     })
     expect(deal.publishedAt).toBeNull()
-    expect(deal.venues.map((link) => link.venueId).sort()).toEqual([a.id, b.id].sort())
+    expect(deal.venues.map((link) => link.venueId)).toEqual([a.id])
     expect(deal.images.map((image) => image.key)).toEqual([file.key])
 
     const mine = await call(member, 'GET', '/account/submissions')
@@ -661,23 +661,22 @@ describe('community deal submission', () => {
     )
   })
 
-  it('accepts stalls not verified yet, and refuses archived stalls, mixed merchants and past deals', async () => {
-    const [verified] = await selectableStalls('Verified', 1)
-    const [otherBrand] = await selectableStalls('Other brand', 1)
+  it('accepts stalls not verified yet, and refuses archived stalls, a second stall and past deals', async () => {
+    const [verified, sameBrand] = await selectableStalls('Verified', 2)
     const [unverified, archived] = await brand('Unverified', 2)
     await db.venue.update({ where: { id: archived.id }, data: { deletedAt: new Date() } })
     const file = await photo(member.id)
 
     const gone = await call(member, 'POST', '/deals', submission([archived.id], file.key))
     expect(gone.status).toBe(412)
-    const mixed = await call(
+    const twoStalls = await call(
       member,
       'POST',
       '/deals',
-      submission([verified.id, otherBrand.id], file.key),
+      submission([verified.id, sameBrand.id], file.key),
     )
-    expect(mixed.status).toBe(400)
-    expect(mixed.body.error.message).toContain('same merchant')
+    expect(twoStalls.status).toBe(400)
+    expect((await call(member, 'POST', '/deals', submission([], file.key))).status).toBe(400)
     const past = await call(
       member,
       'POST',
@@ -707,6 +706,116 @@ describe('community deal submission', () => {
     }
     expect((await call(member, 'POST', '/deals', { ...body, terms: '  ' })).status).toBe(400)
     expect((await call(member, 'PUT', '/deals', body)).status).toBe(405)
+  })
+
+  it('lists every detail of a submission, including its stalls and photo', async () => {
+    const [a] = await selectableStalls('Details', 1)
+    const file = await photo(member.id)
+    const created = await call(member, 'POST', '/deals', submission([a.id], file.key))
+
+    const mine = await call(member, 'GET', '/account/submissions')
+    const listed = mine.body.items.find((item: { id: string }) => item.id === created.body.id)
+    expect(listed).toMatchObject({
+      title: '50% off kopi',
+      description: 'Half-price kopi all day.',
+      category: 'DRINKS',
+      cuisine: null,
+      offerType: 'PERCENT_OFF',
+      discountPercent: 50,
+      priceCents: null,
+      startDate: '2026-11-01',
+      endDate: '2099-11-30',
+      terms: 'Takeaway only',
+      photoUrl: 'https://synthetic.example.test/photo.webp',
+      reviewStatus: 'PENDING',
+    })
+    expect(listed.stalls).toEqual([{ id: a.id, name: a.name, address: a.address }])
+  })
+
+  it('deletes only the member’s own submission while it is still pending', async () => {
+    const [stall] = await selectableStalls('Delete', 1)
+    const pending = await call(
+      member,
+      'POST',
+      '/deals',
+      submission([stall.id], (await photo(member.id)).key),
+    )
+    const reviewed = await call(
+      member,
+      'POST',
+      '/deals',
+      submission([stall.id], (await photo(member.id)).key),
+    )
+    await db.deal.update({ where: { id: reviewed.body.id }, data: { reviewStatus: 'APPROVED' } })
+    const path = (id: string) => `/account/submissions/${id}`
+
+    expect((await call(null, 'DELETE', path(pending.body.id))).status).toBe(401)
+    expect(
+      (await call(member, 'DELETE', path(pending.body.id), undefined, 'https://evil.example'))
+        .status,
+    ).toBe(403)
+    expect((await call(merchant, 'DELETE', path(pending.body.id))).status).toBe(404)
+    const approved = await call(member, 'DELETE', path(reviewed.body.id))
+    expect(approved.status).toBe(412)
+    expect(approved.body.error.message).toBe(
+      'Only a deal that is still pending review can be deleted',
+    )
+    expect((await call(member, 'GET', path(pending.body.id))).status).toBe(405)
+
+    const deleted = await call(member, 'DELETE', path(pending.body.id))
+    expect(deleted).toEqual({ status: 200, body: { deleted: true } })
+    expect(
+      (await db.deal.findUniqueOrThrow({ where: { id: pending.body.id } })).deletedAt,
+    ).not.toBeNull()
+    expect(
+      (await db.deal.findUniqueOrThrow({ where: { id: reviewed.body.id } })).deletedAt,
+    ).toBeNull()
+    expect((await call(member, 'DELETE', path(pending.body.id))).status).toBe(404)
+    const listed = ids((await call(member, 'GET', '/account/submissions')).body.items)
+    expect(listed).not.toContain(pending.body.id)
+    expect(listed).toContain(reviewed.body.id)
+  })
+
+  it('never deletes a deal an admin approved, even once it is back in review', async () => {
+    const [stall] = await selectableStalls('Reopened', 1)
+    const fresh = await call(
+      member,
+      'POST',
+      '/deals',
+      submission([stall.id], (await photo(member.id)).key),
+    )
+    const reopened = await call(
+      member,
+      'POST',
+      '/deals',
+      submission([stall.id], (await photo(member.id)).key),
+    )
+    await db.platformAudit.create({
+      data: {
+        actorName: 'Synthetic admin',
+        action: 'DEAL_APPROVED',
+        subjectType: 'DEAL',
+        subjectId: reopened.body.id,
+        note: 'Synthetic approval before a correction',
+      },
+    })
+
+    const mine = (await call(member, 'GET', '/account/submissions')).body.items as {
+      id: string
+      reviewStatus: string
+      deletable: boolean
+    }[]
+    expect(mine.find((item) => item.id === reopened.body.id)).toMatchObject({
+      reviewStatus: 'PENDING',
+      deletable: false,
+    })
+    expect(mine.find((item) => item.id === fresh.body.id)).toMatchObject({ deletable: true })
+
+    const refused = await call(member, 'DELETE', `/account/submissions/${reopened.body.id}`)
+    expect(refused.status).toBe(412)
+    expect(
+      (await db.deal.findUniqueOrThrow({ where: { id: reopened.body.id } })).deletedAt,
+    ).toBeNull()
   })
 })
 
@@ -802,7 +911,7 @@ describe('stalls for a community deal', () => {
       offerType: 'OTHER',
       discountPercent: null,
       priceCents: null,
-      stallIds: [added.body.id, bakery.body.id],
+      stallIds: [bakery.body.id],
       startDate: '2026-11-01',
       endDate: '2099-11-30',
       terms: 'Synthetic',

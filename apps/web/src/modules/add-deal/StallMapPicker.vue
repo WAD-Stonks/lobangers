@@ -13,7 +13,7 @@ import { FOCUS_ZOOM, MAX_ZOOM } from '@web/modules/browse-map/map-config'
 import { SINGAPORE_BOUNDS, toBoundsTuple } from '@web/modules/browse-map/singapore-bounds'
 import ShellIcon from '@web/modules/map-shell/ShellIcon.vue'
 import L from 'leaflet'
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 
 const props = defineProps<{
   initialSearch: string
@@ -24,14 +24,11 @@ const emit = defineEmits<{ add: [stall: Stall] }>()
 const search = ref(props.initialSearch)
 const places = ref<Place[]>([])
 const picked = ref<Place | null>(null)
-const merchantName = ref('')
 const searching = ref(false)
 const adding = ref(false)
 const message = ref('')
-const merchantError = ref('')
 
 const container = ref<HTMLElement | null>(null)
-const brandInput = ref<HTMLInputElement | null>(null)
 const { theme } = useTheme()
 let map: L.Map | null = null
 let tileLayer: L.TileLayer | null = null
@@ -89,14 +86,10 @@ const find = async () => {
   }
 }
 
-const pick = async (place: Place) => {
+const pick = (place: Place) => {
   picked.value = place
-  merchantName.value = place.name
-  merchantError.value = ''
   drawPins()
   map?.setView([place.latitude, place.longitude], Math.max(map.getZoom(), FOCUS_ZOOM))
-  await nextTick()
-  brandInput.value?.focus()
 }
 
 const add = async () => {
@@ -106,16 +99,13 @@ const add = async () => {
     emit('add', place.stall)
     return
   }
-  const name = merchantName.value.trim()
-  if (!name) {
-    merchantError.value = 'Please name the shop or brand.'
-    brandInput.value?.focus()
-    return
-  }
   adding.value = true
   message.value = ''
   try {
-    emit('add', await addStallFromPlace(place.placeId, name))
+    const stall = await addStallFromPlace(place.placeId, place.name.slice(0, 120))
+    places.value = places.value.map((found) => (found.placeId === place.placeId ? { ...found, stall } : found))
+    picked.value = { ...place, stall }
+    emit('add', stall)
   } catch (error) {
     message.value = errorMessageFor(error, 'Could not add the stall. Please try again.')
   } finally {
@@ -201,23 +191,7 @@ onBeforeUnmount(() => {
     </ul>
 
     <div v-if="picked" class="stall-map__confirm">
-      <template v-if="!picked.stall">
-        <label for="place-brand" class="form-label">Confirm shop name</label>
-        <input
-          id="place-brand"
-          ref="brandInput"
-          v-model="merchantName"
-          type="text"
-          class="form-control"
-          :class="{ 'is-invalid': merchantError }"
-          maxlength="120"
-          :aria-invalid="merchantError ? 'true' : undefined"
-          :aria-describedby="merchantError ? 'place-brand-error' : undefined"
-          @keydown.enter.prevent="add"
-        />
-        <p v-if="merchantError" id="place-brand-error" class="stall-map__hint">{{ merchantError }}</p>
-      </template>
-      <p v-else-if="pickedOnDeal" class="stall-map__hint">{{ picked.stall.name }} is already on this deal.</p>
+      <p v-if="pickedOnDeal" class="stall-map__hint">{{ picked.stall?.name }} is already on this deal.</p>
       <button type="button" class="lb-btn lb-btn--primary" :disabled="adding || pickedOnDeal" @click="add">{{ addLabel }}</button>
     </div>
   </div>
@@ -312,9 +286,6 @@ onBeforeUnmount(() => {
   display: grid;
   gap: 6px;
   justify-items: start;
-}
-.stall-map__confirm .form-control {
-  width: 100%;
 }
 
 .stall-map__map :deep(.stall-map__pin span) {

@@ -1,3 +1,5 @@
+import { dayOf, lastDayBefore } from '@api/modules/deals/deal-dates'
+import { approvedDealIds } from '@api/modules/deals/submissions'
 import { activeRecord } from '@api/modules/platform-admin/venues'
 import { createRestHandler, type RestDependencies, requireSession } from '@api/rest/context'
 import { page } from '@api/rest/routers/platform-admin/validation'
@@ -22,21 +24,58 @@ export const listSubmissions = (dependencies: RestDependencies) =>
       select: {
         id: true,
         title: true,
+        description: true,
         category: true,
+        cuisine: true,
+        offerType: true,
+        discountPercent: true,
+        priceMinor: true,
+        validFrom: true,
+        validUntil: true,
+        terms: true,
         reviewStatus: true,
         reviewNote: true,
         createdAt: true,
+        venues: {
+          orderBy: { createdAt: 'asc' },
+          select: { venue: { select: { id: true, name: true, address: true } } },
+        },
+        images: {
+          where: activeRecord,
+          orderBy: { createdAt: 'asc' },
+          take: 1,
+          select: { url: true },
+        },
       },
     })
 
+    const approved = await approvedDealIds(
+      context.db,
+      rows.map((row) => row.id),
+    )
     const items: Submission[] = []
     for (const row of rows) {
       items.push({
         id: row.id,
         title: row.title,
+        description: row.description,
         category: row.category,
+        cuisine: row.cuisine ?? null,
+        offerType: row.offerType,
+        discountPercent: row.discountPercent ?? null,
+        priceCents: row.priceMinor ?? null,
+        startDate: row.validFrom ? dayOf(row.validFrom) : null,
+        endDate: row.validUntil ? lastDayBefore(row.validUntil) : null,
+        terms: row.terms ?? null,
+        photoUrl: row.images[0]?.url ?? null,
+        stalls: row.venues.map(({ venue }) => ({
+          id: venue.id,
+          name: venue.name,
+          address: venue.address,
+        })),
         reviewStatus: row.reviewStatus,
         reviewNote: row.reviewNote,
+        deletable: row.reviewStatus === 'PENDING' && !approved.has(row.id),
         createdAt: row.createdAt.toISOString(),
       })
     }

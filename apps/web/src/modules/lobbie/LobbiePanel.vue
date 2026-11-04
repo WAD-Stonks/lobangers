@@ -10,7 +10,7 @@ import PanelFrame from '@web/modules/map-shell/PanelFrame.vue'
 import ShellIcon from '@web/modules/map-shell/ShellIcon.vue'
 import { browseLocation, dealLocation, lobbieDealLocation } from '@web/modules/map-shell/shell-routes'
 import { useShell } from '@web/modules/map-shell/shell-state'
-import { usePrefersReducedMotion } from '@web/modules/map-shell/use-breakpoint'
+import { useFinePointer, usePrefersReducedMotion } from '@web/modules/map-shell/use-breakpoint'
 import { computed, nextTick, onMounted, ref, useId, watch } from 'vue'
 import { useRoute } from 'vue-router'
 
@@ -23,6 +23,7 @@ const shell = useShell()
 const route = useRoute()
 const inputId = useId()
 const reducedMotion = usePrefersReducedMotion()
+const finePointer = useFinePointer()
 
 const draft = ref('')
 const input = ref<HTMLInputElement | null>(null)
@@ -36,7 +37,7 @@ const activeTokens = computed(() => filterTokens(chat.activeFilters.value))
 
 onMounted(() => {
   for (const sprite of PRELOAD_SPRITES) new Image().src = lobbieSpriteUrl(sprite)
-  if (props.windowed) input.value?.focus({ preventScroll: true })
+  if (props.windowed && finePointer.value) input.value?.focus({ preventScroll: true })
 })
 
 // From the window a deal opens over the list, so its back link returns to the list, not the chat.
@@ -54,9 +55,8 @@ const submit = () => {
   void chat.ask(text)
 }
 
-// In the window the picked pill vanishes, so focus goes to the message box once Lobbie replies.
 const pick = (suggestion: string) => {
-  refocus = props.windowed
+  refocus = props.windowed && finePointer.value
   void chat.ask(suggestion)
 }
 
@@ -210,6 +210,7 @@ watch(
           :disabled="!canSend"
           aria-label="Send message"
           data-testid="lobbie-send"
+          @mousedown.prevent
         >
           <ShellIcon name="send" :size="18" :stroke-width="2.4" />
         </button>
