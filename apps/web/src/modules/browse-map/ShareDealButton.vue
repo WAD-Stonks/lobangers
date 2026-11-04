@@ -128,14 +128,16 @@ onBeforeUnmount(() => listen(false))
   <button
     ref="button"
     type="button"
-    class="lb-btn share-deal-button"
+    class="lb-btn lb-btn--icon share-deal-button"
+    aria-label="Share"
+    title="Share"
     aria-haspopup="menu"
     :aria-expanded="open"
     :aria-controls="open ? menuId : undefined"
     data-testid="share-deal"
     @click.stop.prevent="toggle"
   >
-    <ShellIcon name="share" :size="18" />Share
+    <ShellIcon name="share" :size="18" />
   </button>
   <Teleport to="body">
     <div

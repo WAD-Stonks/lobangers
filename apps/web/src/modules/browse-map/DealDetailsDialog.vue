@@ -33,6 +33,9 @@ const sizePoster = () => {
   const image = media?.querySelector<HTMLImageElement>('.deal-photo__img')
   const verification = root.querySelector<HTMLElement>('.deal-community-verification')
   if (!body || !media || !image?.naturalWidth || !image.naturalHeight || !verification) return
+  // Wait out the community loader: it sits above the verification card while comments load, and
+  // measuring then would lock in a taller overview (and a stacked layout) once it is gone.
+  if (root.querySelector('.deal-community-loading')) return
   const style = getComputedStyle(body)
   const available = body.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight) - 24
   if (available < 640) return
@@ -248,15 +251,21 @@ onBeforeUnmount(() => {
     padding-top: 24px;
   }
 
+  /* The Squad card sits right under the overview, as high as the map panel shows it, without
+     joining the column the poster is sized against. */
+  .deal-dialog:not(.deal-dialog--stacked):not(:has(.deal-panel--no-image)) .deal-dialog__content :deep(.squad-cta) {
+    grid-row: 7;
+  }
+
   .deal-dialog:not(.deal-dialog--stacked):not(:has(.deal-panel--no-image)) .deal-dialog__content :deep(.deal-panel--dialog:not(.deal-panel--comments) .deal-community-discussion) {
     grid-column: 1 / -1;
-    grid-row: 7;
+    grid-row: 8;
     border-top: 1px solid var(--hairline);
     padding-top: 24px;
   }
 
   .deal-dialog:not(.deal-dialog--stacked):not(:has(.deal-panel--no-image)) .deal-dialog__content :deep([data-testid='deal-outlets']) {
-    grid-row: 8;
+    grid-row: 9;
     padding-top: 20px;
     border-top: 1px solid var(--hairline);
   }

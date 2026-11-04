@@ -105,6 +105,14 @@ it('opens a menu first, and More… opens the share sheet with the picture', asy
   wrapper.unmount()
 })
 
+it('is an icon button whose accessible name says Share', () => {
+  const wrapper = mountButton()
+  const button = wrapper.get('[data-testid="share-deal"]')
+  expect(button.text()).toBe('')
+  expect(button.attributes('aria-label')).toBe('Share')
+  wrapper.unmount()
+})
+
 it('leaves out More… where the browser has no share sheet, and copies the link', async () => {
   const writeText = vi.fn().mockResolvedValue(undefined)
   vi.stubGlobal('navigator', { ...navigator, share: undefined, clipboard: { writeText } })

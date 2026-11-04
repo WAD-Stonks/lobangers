@@ -267,8 +267,10 @@ const toggleSave = async () => {
     <template v-if="!commentsOpen" #actions>
       <button
         type="button"
-        class="lb-btn"
+        class="lb-btn lb-btn--icon"
         :class="{ 'lb-btn--ink': isSaved }"
+        aria-label="Save deal"
+        :title="isSaved ? 'Saved' : 'Save deal'"
         :aria-pressed="isSaved"
         data-testid="save-deal"
         @click="toggleSave"
@@ -278,7 +280,6 @@ const toggleSave = async () => {
             <path d="M6 4h12v17l-6-4-6 4z" />
           </svg>
         </span>
-        {{ isSaved ? 'Saved' : 'Save' }}
       </button>
       <ShareDealButton :deal-id="selected.deal.id" :venue-id="selected.venue.id" :title="selected.deal.title" :venue-name="selected.venue.name" :dates="dealShareDates(selected.deal.validFrom, selected.deal.validUntil)" :image-url="photos[0]?.url" />
       <a class="lb-btn lb-btn--primary" :href="directionsUrl" target="_blank" rel="noopener noreferrer">
@@ -304,23 +305,36 @@ const toggleSave = async () => {
 </template>
 
 <style scoped>
-/* One row always: Save, Share and Get directions never stack. */
+/* One row, the same on the map and in the All deals popup: Save and Share are icon circles and
+   Get directions keeps its words. Get directions fills the rest of the row, so nothing spills
+   off a narrow phone. */
 .deal-panel :deep(.panel-frame__actions) {
   display: flex;
   flex-wrap: nowrap;
   align-items: center;
+  gap: 10px;
+}
+
+.deal-panel :deep(.panel-frame__actions > .lb-btn:last-child) {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* The wide All deals popup keeps the row at the right instead of stretching one button across it. */
+.deal-panel--dialog:not(.deal-panel--phone) :deep(.panel-frame__actions) {
   justify-content: flex-end;
 }
 
-.deal-panel :deep(.panel-frame__actions > .lb-btn) {
+.deal-panel--dialog:not(.deal-panel--phone) :deep(.panel-frame__actions > .lb-btn:last-child) {
   flex: 0 0 auto;
-  width: auto;
 }
 
-/* Phones: the bar spans the sheet, so Get directions takes the space Save leaves. */
+/* Phones: a shorter bar. */
 @media (max-width: 767.98px) {
-  .deal-panel :deep(.panel-frame__actions > .lb-btn:last-child) {
-    flex: 1 1 auto;
+  .deal-panel :deep(.panel-frame__actions) {
+    gap: 8px;
+    padding-top: 8px;
+    padding-bottom: max(8px, env(safe-area-inset-bottom));
   }
 }
 

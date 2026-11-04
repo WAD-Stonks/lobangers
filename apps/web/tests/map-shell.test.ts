@@ -825,6 +825,19 @@ describe('saving from the deal panel', () => {
     expect(router.currentRoute.value.query.redirect).toBe(`/deals/${KOPI.id}`)
   })
 
+  it('is an icon button named Save deal whose pressed state shows saving', async () => {
+    auth.session.current = SIGNED_IN
+    const { wrapper } = await mountAt(`/deals/${KOPI.id}`)
+    const save = () => wrapper.get('[data-testid="save-deal"]')
+    expect(save().text()).toBe('')
+    expect(save().attributes('aria-label')).toBe('Save deal')
+    expect(save().attributes('aria-pressed')).toBe('false')
+    await save().trigger('click')
+    await flushPromises()
+    expect(save().attributes('aria-label')).toBe('Save deal')
+    expect(save().attributes('aria-pressed')).toBe('true')
+  })
+
   it('saves, updates the menu count and buzzes only where vibration exists', async () => {
     auth.session.current = SIGNED_IN
     const vibrate = vi.fn()
