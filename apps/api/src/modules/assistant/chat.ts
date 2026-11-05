@@ -23,7 +23,7 @@ import { z } from 'zod'
 export type GenerateJson = (request: JsonModelRequest) => Promise<unknown>
 
 const TEMPERATURE = 0.4
-const MAX_OUTPUT_TOKENS = 700
+const MAX_OUTPUT_TOKENS = 1500
 const MAX_PRICE_MINOR = 1_000_000
 const MAX_WALK_MINUTES = 120
 const RECENT_USER_TURNS = 2
