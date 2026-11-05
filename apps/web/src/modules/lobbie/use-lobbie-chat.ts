@@ -24,7 +24,7 @@ export const LOBBIE_SUGGESTIONS = [
 ] as const
 
 const BUSY_REPLY = 'So many people asking at once! My claws are full. Try again in a minute?'
-const FAILED_REPLY = "Sorry, I couldn't fetch deals just now. You can still browse them on the map!"
+const FAILED_REPLY = "Sorry, I couldn't answer that just now. Please try again later!"
 
 export type LobbieEntry =
   | { readonly id: number; readonly role: 'user'; readonly text: string }
