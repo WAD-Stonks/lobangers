@@ -26,7 +26,7 @@ All motion is a pure function of scroll position and reverses when scrolling upw
 
 A fixed fictional clock makes the demonstration reproducible. Positive reports are 18m, 52m and 3h old; caution reports are 32h and 27h old and visibly excluded from the illustrative 24h window. The shared approved policy requires three distinct positive voters and at least 80% positive availability votes in the exclusive 24-hour window for “Likely still on”. Only each sample user’s latest availability vote counts; terms comments are not votes. Insufficient or conflicting votes produce “Availability uncertain”; no recent votes produce “No recent reports”. Negative votes do not automatically expire a promotion. The public deals read endpoint applies the same policy to recent persisted votes since the latest approval/publication and lets commercial expiry override it. The story remains a fictional walkthrough, labelled once per scene. Dates and terms still need checking.
 
-`CommunityOrbit.vue`, `CommunityPulse.vue` and `CommunityFreshnessScene.vue` display those observations and their derived status. `JoinCommunityCTA.vue` uses `/register` and `/browse`. `VotingPreview.vue` uses plain text spans: no buttons, handlers, report writes, persistence or vote requests. The API contains no implemented public vote-submission endpoint; authentication remains unchanged. Future actual voting must enforce server-side session and authorization checks.
+`CommunityOrbit.vue`, `CommunityPulse.vue` and `CommunityFreshnessScene.vue` display those observations and their derived status. `JoinCommunityCTA.vue` uses `/register` and `/deals`. `VotingPreview.vue` shows disabled buttons only: no handlers, report writes, persistence or vote requests. Real voting lives on the deal page and goes through the authenticated `PUT /deals/:dealId/vote` endpoint.
 
 ## Responsive and reduced motion
 
@@ -43,8 +43,4 @@ Desktop reserves space beside the model for reports and explanatory copy. Tablet
 - `JoinCommunityCTA.vue`, `VotingPreview.vue`: registration/browse links and read-only previews.
 - `community-freshness.css`: responsive scene and static layout.
 
-Three.js is the sole new runtime dependency; `@types/three` supplies development types. Vue and the existing native scroll architecture are reused. No GSAP/TresJS dependency is needed for this fixed-camera, on-demand scene.
-
-## Validation of this revision
-
-Frontend type checking, 281 unit tests, repository Biome lint and Vite production build pass. Browser checks cover desktop (1800×1043), tablet (768×1024), phone (390×844), reversible handoff, status reveal and the completed still view. New tests exercise lazy initialisation, selected-deal rebuild, context-loss fallback, disposal and reversible HTML-to-sign continuity. The new dynamic renderer chunk is approximately 147KB gzipped; Vite reports the existing main-chunk warning and the renderer's greater-than-500KB uncompressed size. There is no fabricated Lighthouse score or real-device GPU benchmark. Screenshots are saved under `artifacts/hawker-community-desktop.png`, `artifacts/hawker-community-phone.png` and `artifacts/hawker-assembly.png`.
+The scene uses Three.js (`@types/three` for types) with Vue and the native scroll reader. It does not use GSAP or TresJS.

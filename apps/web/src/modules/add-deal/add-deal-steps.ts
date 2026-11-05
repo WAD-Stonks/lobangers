@@ -35,7 +35,6 @@ export const ADD_DEAL_STEPS = [
   { id: 'validity', label: 'Validity', fields: ['startDate', 'endDate', 'terms'] },
   { id: 'review', label: 'Review', fields: [] },
 ] as const
-export type AddDealStep = (typeof ADD_DEAL_STEPS)[number]
 export const LAST_STEP = ADD_DEAL_STEPS.length - 1
 
 export type DealErrors = Record<string, string>

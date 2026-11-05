@@ -3,7 +3,6 @@ export const DEFAULT_COMMUNITY_POLICY = {
   positivePercent: 80,
   windowHours: 24,
 } as const
-export const COMMUNITY_POLICY = DEFAULT_COMMUNITY_POLICY
 export type CommunityPolicy = { minAlive: number; positivePercent: number; windowHours: number }
 export type CommunityStatus = 'NO_RECENT_REPORTS' | 'UNCERTAIN' | 'LIKELY_STILL_ON' | 'EXPIRED'
 

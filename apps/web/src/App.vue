@@ -7,7 +7,6 @@ import RouteProgress from '@web/components/RouteProgress.vue'
 import SplashScreen from '@web/components/SplashScreen.vue'
 import { syncThemeColor, useTheme } from '@web/lib/theme'
 import AuthPrompt from '@web/modules/account/AuthPrompt.vue'
-import { authPrompt } from '@web/modules/account/auth-prompt'
 import { readSplit } from '@web/modules/map-shell/filter-query'
 import MapNavigation from '@web/modules/map-shell/MapNavigation.vue'
 import { routeView } from '@web/modules/map-shell/shell-routes'
@@ -16,7 +15,6 @@ import { routeLayout } from '@web/router/layouts'
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { RouterView, useRoute } from 'vue-router'
 
-onBeforeUnmount(() => authPrompt.value?.resolve(null))
 useTheme()
 const route = useRoute()
 const breakpoint = useBreakpoint()

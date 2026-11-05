@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import AccountMoreList from '@web/modules/account/AccountMoreList.vue'
-import { authPrompt } from '@web/modules/account/auth-prompt'
 import { promptContent } from '@web/modules/account/auth-prompt-content'
 import ShellIcon from '@web/modules/map-shell/ShellIcon.vue'
 import { useBreakpoint } from '@web/modules/map-shell/use-breakpoint'
@@ -10,14 +9,13 @@ import { useRoute, useRouter } from 'vue-router'
 const route = useRoute()
 const router = useRouter()
 const content = computed(() => promptContent(route.query.tab))
-const visible = computed(() => Boolean(authPrompt.value) || route.name === 'auth-required')
+const visible = computed(() => route.name === 'auth-required')
 const breakpoint = useBreakpoint()
 const showMore = computed(() =>
-  !authPrompt.value && route.name === 'auth-required' && route.query.tab === 'profile' && breakpoint.value !== 'desktop',
+  route.name === 'auth-required' && route.query.tab === 'profile' && breakpoint.value !== 'desktop',
 )
 const choose = (choice: 'login' | 'register') => {
-  if (authPrompt.value) authPrompt.value.resolve(choice)
-  else void router.push({ name: choice === 'login' ? 'sign-in' : 'sign-up', query: { redirect: route.query.redirect } })
+  void router.push({ name: choice === 'login' ? 'sign-in' : 'sign-up', query: { redirect: route.query.redirect } })
 }
 const heading = ref<HTMLElement | null>(null)
 let returnFocus: HTMLElement | null = null
@@ -29,8 +27,7 @@ watch(visible, async (prompt) => {
   } else returnFocus?.focus()
 }, { immediate: true })
 const cancel = () => {
-  if (authPrompt.value) authPrompt.value.resolve(null)
-  else if (router.options.history.state.back) router.back()
+  if (router.options.history.state.back) router.back()
   else void router.push('/browse')
 }
 </script>

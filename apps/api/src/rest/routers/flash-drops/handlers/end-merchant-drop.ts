@@ -11,8 +11,8 @@ import { parseRestInput } from '@api/rest/validation'
 import {
   flashDropEmptyQuerySchema,
   flashDropParamsSchema,
-  merchantFlashDropEndSchema,
   merchantFlashDropSchema,
+  merchantFlashDropVersionSchema,
 } from '@broke-oclock/contracts/flash-drops'
 
 export const endMerchantDrop = (dependencies: RestDependencies) =>
@@ -21,7 +21,7 @@ export const endMerchantDrop = (dependencies: RestDependencies) =>
     parseRestInput(flashDropEmptyQuerySchema, request.query)
     const actor = authenticatedActor(requireSession(context))
     const { dropId } = parseRestInput(flashDropParamsSchema, request.params)
-    const { version } = parseRestInput(merchantFlashDropEndSchema, request.body)
+    const { version } = parseRestInput(merchantFlashDropVersionSchema, request.body)
     const drop = await endMerchantFlashDrop(context.db, actor, dropId, version, new Date())
     await publishFlashChange(actor.userId, { dropId, kind: 'ENDED' })
     response.json(merchantFlashDropSchema.parse(drop))
