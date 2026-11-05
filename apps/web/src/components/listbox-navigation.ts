@@ -5,7 +5,6 @@ const TYPEAHEAD_RESET_MS = 500
 const enabled = (options: readonly SelectOption[], index: number) =>
   index >= 0 && index < options.length && !options[index]?.disabled
 
-// Moves one enabled option up or down, staying put at either end.
 export const stepIndex = (options: readonly SelectOption[], from: number, step: 1 | -1) => {
   for (let index = from + step; index >= 0 && index < options.length; index += step) {
     if (enabled(options, index)) return index
@@ -25,7 +24,6 @@ export const startIndex = (options: readonly SelectOption[], value: string) => {
 export const isPrintableKey = (event: KeyboardEvent) =>
   event.key.length === 1 && event.key !== ' ' && !event.ctrlKey && !event.metaKey && !event.altKey
 
-// Type-to-jump like a native select: letters typed in quick succession build one search.
 export const createTypeahead = () => {
   let buffer = ''
   let resetAt = 0

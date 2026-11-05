@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import ShellIcon from '@web/modules/map-shell/ShellIcon.vue'
 
-// Lobbie's advice for the step in view.
 defineProps<{ sprite: string; title: string; points: readonly string[] }>()
 </script>
 

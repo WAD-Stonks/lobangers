@@ -30,9 +30,6 @@ const isDate = (value: unknown): value is string => {
   )
 }
 
-/** Strict transport: rejects the page at the first invalid post, exposing only its index.
- * HTML parsing failures of otherwise valid posts remain the caller's per-post responsibility.
- */
 export class MoneyDigestMalformedPostError extends WordPressClientError {
   readonly postIndex: number
   constructor(postIndex: number) {
@@ -142,11 +139,6 @@ export interface MoneyDigestClientOptions {
   readonly timeoutMs?: number
 }
 
-/** Server-only, unauthenticated read-only transport; makes no request at construction.
- * One page (at most 20 posts), <=1 MiB JSON, 10s default / 30s maximum timeout.
- * Returned rendered HTML remains UNTRUSTED. Callers own reuse permission, opt-in,
- * cooldowns, parsing and persistence; technical access does not grant reuse rights.
- */
 export const createMoneyDigestClient = (
   options: MoneyDigestClientOptions = {},
 ): WordPressClient => {

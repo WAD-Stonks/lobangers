@@ -31,7 +31,6 @@ describe('optional authentication provider configuration', () => {
     if (!validate) throw new Error('Missing supported user validation hook')
     for (const action of ['create-user', 'link-account', 'sign-in'] as const) {
       const source = { action, method: 'oauth', oauth: { providerId: 'google' } }
-      // Provider proof is necessary for every action; linking also needs authoritative local context.
       const denied = await validate({ user: { emailVerified: false }, source })
       expect(denied).toEqual({
         error: 'EMAIL_NOT_VERIFIED',

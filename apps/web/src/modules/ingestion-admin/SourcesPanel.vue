@@ -84,7 +84,6 @@ const refreshConflict = async (sourceId: string) => {
 }
 const toggle = async (source: IngestionSource) => {
   if (pending.value || props.importRunning || source.provider !== 'TELEGRAM' || (!source.enabled && !confirmedIds.value.includes(source.id))) return
-  // Disabling stops imports straight away, so it asks first; enabling has its own checkbox.
   if (source.enabled && !(await ask({
     title: `Disable ${source.name}?`,
     body: 'New posts from it will stop being imported.',

@@ -1,6 +1,4 @@
 <script setup lang="ts">
-// A card on the room surface that explains why the visitor can't go on yet (signed out,
-// room full, room closed) and offers the next steps as its actions.
 defineProps<{ title: string; body: string }>()
 </script>
 

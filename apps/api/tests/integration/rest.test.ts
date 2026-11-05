@@ -71,11 +71,11 @@ beforeAll(async () => {
   mongo = await MongoMemoryReplSet.create({
     replSet: { count: 1, storageEngine: 'wiredTiger', ip: '127.0.0.1' },
   })
-  // Never consume a configured DATABASE_URL: always use this fresh disposable replica set.
+  // Never use DATABASE_URL here, always the fresh disposable replica set.
   const databaseUrl = mongo.getUri(`integration_${randomUUID().replaceAll('-', '')}`)
   vi.stubEnv('DATABASE_URL', databaseUrl)
   vi.stubEnv('NODE_ENV', 'test')
-  // Do not block the event loop: the in-memory Mongo process needs its output drained.
+  // Don't block the event loop: the in-memory Mongo process needs its output drained.
   await promisify(execFile)('pnpm', ['--dir', 'packages/db', 'run', 'push'], {
     cwd: root,
     env: { ...process.env, DATABASE_URL: databaseUrl },
@@ -101,7 +101,6 @@ beforeAll(async () => {
       }),
     ),
   )
-  // Reuse two real accounts so setup respects Better Auth's signup throttle.
   firstAccount = await signUp('REST Integration User')
   secondAccount = await signUp('Second REST User')
 }, 180_000)

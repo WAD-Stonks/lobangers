@@ -14,7 +14,6 @@ import { RouterLink } from 'vue-router'
 
 const emit = defineEmits<{ retry: [] }>()
 const props = defineProps<{ live: DealPin[]; liveState: LandingDealsStatus }>()
-// Include a chain in each region where it has an outlet.
 const regionalPicks = computed(() => regions.map(region => props.live.flatMap(deal => {
   const venue = venuesInRegion(deal, region.name)[0]
   return venue ? [{ deal, venue }] : []
@@ -42,10 +41,7 @@ function positionPreview() {
   const width = card.offsetWidth
   const height = card.offsetHeight
   if (!bounds.width || !width || !height) return
-  // Keep the search envelope stable as deal text changes length.
   const placementHeight = bounds.width <= 340 ? 470 : bounds.width <= 480 ? 420 : 360
-  // Use the same clearance for every pin, including whichever one is selected.
-  // Its visual scale changes during rotation, but the card position should not.
   const pins = [...area.querySelectorAll<HTMLElement>('.island-marker')].map(pin => {
     const anchorX = land.left + land.width * parseFloat(pin.style.left) / 100
     const anchorY = land.top + land.height * parseFloat(pin.style.top) / 100
@@ -58,7 +54,6 @@ function positionPreview() {
       bottom: anchorY + pinHeight * .09,
     }
   })
-  // Overlap the shoreline when a central placement cannot clear every pin.
   const dockLeft = bounds.left + (bounds.width - width) / 2
   const dockPins = pins.filter(pin => pin.right + 20 > dockLeft && pin.left - 20 < dockLeft + width)
   const lowestPin = Math.max(land.top, ...dockPins.map(pin => pin.bottom + 20))
@@ -86,7 +81,6 @@ function positionPreview() {
   const best = candidates.sort((a, b) => a.distance - b.distance)[0]
   previewPosition.value = best ? { left: `${best.x - bounds.left}px`, top: `${best.y - bounds.top}px` } : undefined
 }
-// Pins and the card fire transitionend/animationend as they settle; measure once per frame.
 let positionFrame = 0
 function queuePosition() {
   if (positionFrame) return
@@ -104,8 +98,6 @@ watch([featured, selected, () => props.liveState], async () => {
 }, { flush: 'post' })
 const discoveryKey = ref(0)
 const reduced = ref(false)
-// Reduced motion stops the deal rotation and the ambient waterfront loops; hovering or focusing
-// the map holds the rotation so a card never changes mid-read.
 const hovering = ref(false)
 const focusWithin = ref(false)
 const ambientPaused = computed(() => reduced.value)
@@ -157,7 +149,6 @@ function restartRotation() {
   }, 5000)
 }
 watch([picks, () => props.liveState, rotationHeld], restartRotation)
-// The card remounts per deal to replay its pop; keep keyboard focus on the same control.
 let focusedIndex = -1
 onBeforeUpdate(() => {
   const card = preview.value

@@ -2,8 +2,6 @@
 import { TICKET_ICON_PATHS } from '@web/components/ticket-icon'
 import { computed } from 'vue'
 
-// Stroked 24x24 outline icons used across the shell. Always decorative: the button or text
-// next to the icon carries the accessible name.
 const ICONS = {
   ticket: TICKET_ICON_PATHS,
   calendar: ['M4 5h16v16H4z', 'M8 3v4', 'M16 3v4', 'M4 10h16'],

@@ -1,6 +1,5 @@
 import { formatMoneyMinor } from '@web/lib/format'
 
-// Illustration coordinates belong to the supplied raster, not to the geographic basemap.
 export const regions = [
   {
     name: 'North',

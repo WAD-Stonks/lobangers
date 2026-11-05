@@ -43,7 +43,6 @@ const navigate = (event: MouseEvent, href: string) => {
         <a class="admin-wordmark" href="/" aria-label="Lobangers home" />
         <ThemeToggle variant="admin" collapsed />
       </header>
-      <!-- Keep native session observation mounted through access changes. -->
       <header v-show="showSession" class="admin-topbar">
         <button v-if="authorized" :ref="(element) => toggleButton = element as HTMLButtonElement" class="admin-icon-button" type="button" :aria-label="mobile ? 'Open navigation' : sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'" aria-controls="admin-sidebar" :aria-expanded="mobile ? drawerOpen : !sidebarCollapsed" @click="mobile ? openDrawer() : sidebarCollapsed = !sidebarCollapsed"><AdminIcon name="sidebar" /></button>
         <div v-if="authorized" class="admin-breadcrumb"><span>Administration</span><span aria-hidden="true">/</span><strong>{{ context }}</strong></div>

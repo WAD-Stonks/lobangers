@@ -1,7 +1,6 @@
 import { gsap } from 'gsap'
 import { nextTick, onBeforeUnmount, onMounted, type Ref, ref, watch } from 'vue'
 
-/** A single entrance per mounted hero; result/filter updates never restart it. */
 export function useHeroEntrance(
   root: Ref<HTMLElement | null>,
   greeting: Ref<string>,
@@ -28,8 +27,6 @@ export function useHeroEntrance(
   const onPreferenceChange = () => {
     if (preference?.matches) reveal()
   }
-  // Updates after an entrance has been prepared should not replay it. Initial session
-  // resolution is handled before preparing the timeline so signed-in users animate too.
   watch(
     greeting,
     () => {
@@ -106,11 +103,9 @@ export function useHeroEntrance(
           { y: 0, opacity: 1, scale: 1, duration: 0.45, ease: 'back.out(1.2)' },
           1.2,
         )
-      // Return transform ownership to CSS for the CTA's hover and focus interactions.
       timeline.set(content, { clearProps: 'transform,opacity' }, 1.65)
     }, element)
 
-    // Keyboard users must never land on a CTA that is still visually entering.
     element.addEventListener('focusin', reveal)
     if (typeof IntersectionObserver === 'undefined') play()
     else {
@@ -132,7 +127,6 @@ export function useHeroEntrance(
       ready,
       async (resolved) => {
         if (!resolved) return
-        // The username can change the word count; animate the updated DOM, not guest spans.
         await nextTick()
         prepare()
       },

@@ -9,7 +9,6 @@ import { RouterLink, useRoute, useRouter } from 'vue-router'
 const route = useRoute()
 const router = useRouter()
 
-// Better Auth redirects here as /reset-password?token=... (or ?error=INVALID_TOKEN).
 const token = computed(() => (typeof route.query.token === 'string' ? route.query.token : ''))
 const linkInvalid = computed(() => !token.value || route.query.error !== undefined)
 
@@ -31,7 +30,6 @@ const errors = computed(() => ({
 
 type Field = 'password' | 'confirm'
 const showError = (field: Field) => touched[field] && errors.value[field] !== ''
-// Each field points at its own error, and the new password also at the request error.
 const describedBy = (field: Field) =>
   [
     showError(field) ? `reset-${field}-error` : '',
@@ -116,7 +114,6 @@ const submit = async () => {
         />
         <div id="reset-confirm-error" class="invalid-feedback">{{ errors.confirm }}</div>
       </div>
-      <!-- Always mounted so a new request error is announced. -->
       <div role="alert">
         <div v-if="errorMessage" id="reset-error" class="alert alert-danger py-2">
           {{ errorMessage }}

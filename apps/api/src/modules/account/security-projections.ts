@@ -15,7 +15,6 @@ export const readAccountSecurity = async (db: Database, userId: string, config: 
     select: { id: true, platformVersion: true, emailVerified: true, suspendedAt: true },
   })
   if (!user) throw new DomainError('NOT_FOUND', 'Account not found')
-  // Credentials are queried only to derive booleans; no auth payload is projected.
   const accounts = await db.account.findMany({
     where: { userId },
     select: { providerId: true, password: true },
@@ -71,7 +70,6 @@ export const readAccountSessions = async (
     ),
   }
 }
-// Never echo a hostile raw User-Agent, IP address or arbitrary session metadata.
 const deviceLabel = (agent: string | null) => {
   if (!agent) return 'Unknown device'
   const browser = /Edg\//.test(agent)

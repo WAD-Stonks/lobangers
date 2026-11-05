@@ -4,9 +4,6 @@ import { methodNotAllowed } from '@api/rest/policy'
 import { dealShareDates, dealShareVenue } from '@broke-oclock/contracts/deal-copy'
 import { Router } from 'express'
 
-// Chat apps fetch a shared deal link to draw its preview card. The web host sends those fetches
-// here (see apps/web/vercel.json), and this answers with the deal's picture, name, outlet and dates.
-// People who land here anyway are sent straight on to the deal page.
 const PREVIEW_CACHE_CONTROL = 'public, s-maxage=300, stale-while-revalidate=600'
 const OBJECT_ID = /^[a-f\d]{24}$/i
 
@@ -52,7 +49,6 @@ export const createShareRouter = (dependencies: RestDependencies): Router => {
       response.set('Cache-Control', PREVIEW_CACHE_CONTROL)
       response.type('html')
       if (!deal) {
-        // Gone or never public: the site's own card, pointing at all deals.
         response.status(404).send(
           previewPage({
             title: 'LoBangers',

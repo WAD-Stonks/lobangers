@@ -1,4 +1,3 @@
-/** Transport DTOs only. Every HTML field is untrusted evidence, never safe to render. */
 export interface SourcePost {
   externalId: string
   url: string
@@ -75,7 +74,6 @@ export const parseSourceDate = (value: unknown, gmt = false): string | null => {
     return fail('MALFORMED_RESPONSE')
   return date.toISOString()
 }
-/** Includes DNS, headers and the whole body operation in one abortable deadline. */
 export const withSourceDeadline = async <T>(
   ms: number,
   run: (signal: AbortSignal) => Promise<T>,
@@ -213,8 +211,6 @@ export interface SourceHtmlNode {
   end: number
   parent?: SourceHtmlNode
 }
-/** Bounded, non-executing scanner with matched nested elements and raw source offsets.
- * Not a browser HTML sanitizer. Provider markup outside this small well-formed subset fails closed. */
 export const scanSourceHtml = (html: string): SourceHtmlNode[] => {
   if (Buffer.byteLength(html) > 1_048_576) return fail('TOO_LARGE')
   const nodes: SourceHtmlNode[] = []
@@ -300,7 +296,6 @@ export const sourceNodeText = (html: string): string =>
     html.replace(/<br\s*\/?\s*>|<\/(?:div|p|li|h[1-6])\s*>/gi, '\n').replace(/<[^>]*>/g, ''),
   )
 
-/** Exact provider-specific media paths. The downloader separately validates DNS and every redirect. */
 export const sourceImageUrl = (value: string, source: SourceKind): URL => {
   if (
     value.length > 8_192 ||
@@ -357,7 +352,7 @@ export const extractSourceImages = (
   const seen = new Set<string>()
   for (const node of scanSourceHtml(html)) {
     let original: string | undefined
-    if (node.tag === 'img' && source === 'telegram') continue // Widget avatars are not promotion photos.
+    if (node.tag === 'img' && source === 'telegram') continue
     if (node.tag === 'img') {
       const width = Number(node.attrs['data-orig-size']?.split(',')[0] ?? node.attrs.width)
       const height = Number(node.attrs['data-orig-size']?.split(',')[1] ?? node.attrs.height)
@@ -385,9 +380,7 @@ export const extractSourceImages = (
       seen.add(checked.href)
       result.push({ url: value, ...(node.attrs.alt ? { altText: node.attrs.alt } : {}) })
       if (result.length === 5) break
-    } catch {
-      /* Untrusted links are not candidates for fetching. */
-    }
+    } catch {}
   }
   return result
 }

@@ -1,9 +1,6 @@
 import { loadDeals } from '@api/modules/squad/state'
 import { describe, expect, it } from 'vitest'
 
-// The room's deal card should lead with the same photo the map shows: a merchant upload if
-// there is one, otherwise the imported post's hero. All deals here are SYNTHETIC.
-
 const NOW = new Date('2026-11-01T10:00:00.000Z')
 const hosted = (key: string) => `https://a2rucyxaq8.ufs.sh/f/${key}`
 

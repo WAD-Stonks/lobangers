@@ -1,10 +1,4 @@
 /* biome-ignore-all lint/style/noDescendingSpecificity: Dark overrides follow the light rules they replace, section by section. */
-/* Dark landing page: the same warm "paper at night" as the app. assets/dark-theme.css puts the
-   shared tokens on .lobangers-landing, so the deal cards and account menus follow on their own;
-   this file covers the landing page's own colours. The paintings keep their colours (the map
-   swaps to a copy with its paper cut out, see IllustratedMap.vue); everything around them goes
-   dark. Sunny yellow stays the call to action, always with dark text. Every rule mirrors the
-   light selector it replaces, so the theme prefix always wins without !important. */
 :root[data-theme="dark"] .lobangers-landing {
   --landing-paper: #141412;
   --landing-ink: #f3f1ec;
@@ -22,7 +16,6 @@
     outline-color: var(--focus-ring);
   }
 
-  /* Navigation */
   .landing-skip {
     background: var(--dark-card);
   }
@@ -44,7 +37,6 @@
     color: var(--landing-coral-ink);
   }
 
-  /* Buttons */
   .landing-button.primary,
   .landing-card-primary,
   .hero-copy > .landing-button,
@@ -78,7 +70,6 @@
     background: var(--dark-chip);
   }
 
-  /* Hero */
   .hero-paper-background {
     background: radial-gradient(ellipse at 17% 56%, rgb(255 218 83 / 0.06), transparent 49%);
   }
@@ -99,7 +90,6 @@
   .hero-subtitle {
     color: var(--dark-soft-ink);
   }
-  /* The cut-out map needs no blending; multiply would darken it into the page. */
   .hero-map-scene > .illustrated-map,
   .island-art {
     mix-blend-mode: normal;
@@ -124,7 +114,6 @@
     outline-color: var(--focus-ring);
   }
 
-  /* Hero deal card */
   .hero-deal,
   .hero-map-area > .hero-live-card,
   .hero-map-area > .hero-live-card.hero-card-docked {
@@ -163,7 +152,6 @@
     background: var(--dark-chip);
   }
 
-  /* Story intro */
   .story-intro {
     background: radial-gradient(ellipse at 50% 70%, rgb(255 218 83 / 0.04), transparent 65%);
   }
@@ -171,8 +159,6 @@
     color: #7d7a70;
   }
 
-  /* Scroll story. ScrollStory.vue shifts --story-paper from cream to sea blue as the map hands
-     off; a small share of it keeps that shift as a tint on the dark page. */
   .scroll-story {
     background: var(--landing-paper);
   }
@@ -238,7 +224,6 @@
     border-color: rgb(255 255 255 / 0.08);
   }
 
-  /* Social posts */
   .social-post {
     background: var(--dark-card);
     border-color: var(--dark-edge);
@@ -270,7 +255,6 @@
     color: var(--landing-coral-ink);
   }
 
-  /* The travelling deal card, through the story and onto the stall */
   .travelling-deal,
   .cinematic-story .travelling-deal {
     background: var(--dark-card);
@@ -297,7 +281,6 @@
     color: var(--tag-build-ink);
   }
 
-  /* Community freshness */
   .community-freshness {
     --community-green: #8fd3a5;
     --community-brown: #e3c08f;
@@ -420,7 +403,6 @@
     }
   }
 
-  /* Deals carousel */
   .cuisine-discovery {
     background: radial-gradient(ellipse at 50% 0, rgb(255 255 255 / 0.03), transparent 45%);
   }
@@ -467,15 +449,12 @@
     color: var(--landing-ink);
   }
 
-  /* Footer: already dark, so it only needs an edge to part from the page. */
   .landing-footer {
     background: #0d0d0c;
     border-top: 1px solid var(--dark-edge);
   }
 }
 
-/* The circular theme reveal from the navbar switch (LandingNavbar.vue). The new page is drawn
-   over the old one at full strength; only its growing circle shows. */
 :root.theme-reveal::view-transition-old(root),
 :root.theme-reveal::view-transition-new(root) {
   animation: none;

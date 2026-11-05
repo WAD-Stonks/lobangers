@@ -20,8 +20,6 @@ import { assistantChatResponseSchema } from '@broke-oclock/contracts/assistant'
 import type { DealPin } from '@broke-oclock/contracts/deals'
 import { describe, expect, it } from 'vitest'
 
-// Synthetic deals and outlets for tests; not real merchants or prices.
-// 12:00 on Thu 30 Oct 2026 in Singapore.
 const NOW = new Date('2026-10-30T04:00:00.000Z')
 const HERE = { lat: 1.3, lng: 103.85 }
 const NEAR = { id: 'a'.repeat(24), name: 'Synthetic Kopi Corner', lat: 1.3005, lng: 103.85 }
@@ -55,7 +53,6 @@ const NOODLES = deal({
   cuisine: 'CHINESE',
   label: '$7',
   priceMinor: 700,
-  // Ends at 10pm tonight, Singapore time.
   validUntil: '2026-10-30T14:00:00.000Z',
   venues: [FAR, NEAR],
 })
@@ -311,7 +308,6 @@ describe('Lobbie answers', () => {
     expect(meetsFilters(far, { ...NO_FILTERS, maxWalkMinutes: 15 })).toBe(false)
     expect(meetsFilters(near, { ...NO_FILTERS, categories: ['FOOD'] })).toBe(false)
     expect(meetsFilters(far, { ...NO_FILTERS, cuisines: ['CHINESE'] })).toBe(true)
-    // An unknown walk (not located) is not a reason to drop a deal.
     expect(meetsFilters(toEntry(RICE, null, NOW), { ...NO_FILTERS, maxWalkMinutes: 5 })).toBe(true)
   })
 

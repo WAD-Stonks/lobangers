@@ -67,7 +67,6 @@ const viewport = (width: number) => {
 }
 beforeEach(() => {
   viewport(1024)
-  // JSDOM has no dialog top layer; browser-native modality is reviewed separately.
   Object.defineProperties(HTMLDialogElement.prototype, {
     showModal: {
       configurable: true,
@@ -122,7 +121,6 @@ it('contains mobile drawer keyboard focus, dismisses via Escape/backdrop and ret
   await flushPromises()
   await dialog.trigger('click')
   expect(dialog.element.open).toBe(false)
-  // A queued native close event from the previous opening must not close a new one.
   await toggle.trigger('click')
   await dialog.trigger('close')
   expect(dialog.element.open).toBe(true)

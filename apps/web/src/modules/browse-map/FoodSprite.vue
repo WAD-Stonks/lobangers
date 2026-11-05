@@ -4,7 +4,6 @@ import { applyFoodSprite, FOOD_SPRITE_CLASS } from '@web/modules/browse-map/food
 import '@web/modules/browse-map/food-sprite.css'
 import { onMounted, ref, watch } from 'vue'
 
-// One 3D food (see food-sprite.ts). Decorative, so it is hidden from assistive technology.
 const props = withDefaults(defineProps<{ kind: FoodKind; animated?: boolean; large?: boolean }>(), {
   animated: false,
   large: false,
@@ -14,7 +13,6 @@ const el = ref<HTMLSpanElement | null>(null)
 
 const paint = () => {
   if (!el.value) return
-  // Reset only what the sprite owns; the parent's sizing class must survive.
   el.value.classList.remove(
     FOOD_SPRITE_CLASS,
     `${FOOD_SPRITE_CLASS}--alt`,

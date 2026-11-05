@@ -12,8 +12,6 @@ const json = async (path) => JSON.parse(await readFile(join(root, path), 'utf8')
 for (const app of ['api', 'web']) {
   test(`${app} enables automatic Git deployments only for main`, async () => {
     const config = await json(`apps/${app}/vercel.json`)
-    // Vercel uses minimatch: ** also denies slash-separated branches.
-    // A matching true rule takes precedence, so only the exact main branch is enabled.
     assert.deepEqual(config.git.deploymentEnabled, { '**': false, main: true })
   })
 }
@@ -53,7 +51,6 @@ test('real API build declares exactly one daily cron across source and output', 
   const source = await json('apps/api/vercel.json')
   const web = await json('apps/web/vercel.json')
   assert.equal(output.version, 3)
-  // Vercel combines project config and Build Output API crons, rather than deduplicating them.
   const effectiveCrons = [...(source.crons ?? []), ...(output.crons ?? []), ...(web.crons ?? [])]
   assert.equal(
     effectiveCrons.length,
@@ -79,7 +76,6 @@ test('real API build declares exactly one daily cron across source and output', 
     launcherType: 'Nodejs',
     shouldAddHelpers: true,
     maxDuration: 300,
-    // Beside the Singapore MongoDB Atlas cluster; each query is a round trip to it.
     regions: ['sin1'],
   })
 })

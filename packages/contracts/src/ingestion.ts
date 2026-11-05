@@ -93,7 +93,6 @@ export type IngestionOutletAssociationResponse = z.infer<
   typeof ingestionOutletAssociationResponseSchema
 >
 
-// Reviewers correct the importer's guessed category on a pending draft at a known version.
 export const ingestionCategoryParamsSchema = z.strictObject({ dealId: objectIdSchema })
 export const ingestionCategoryRequestSchema = z.strictObject({
   expectedOperationVersion: adminVersionSchema.default(0),
@@ -151,7 +150,6 @@ export const ingestionDraftSchema = z
       .optional(),
     reviewNote: z.string().nullable(),
     reviewReady: z.boolean(),
-    // Read-only server policy projections; these are never accepted by write schemas.
     approvalReady: z.boolean().optional(),
     scopeStatus: z.enum(['UNCONFIRMED', 'SOURCE_CONFIRMED', 'LEGACY_RETAINED']).optional(),
     physicalEligibilityReady: z.boolean().optional(),

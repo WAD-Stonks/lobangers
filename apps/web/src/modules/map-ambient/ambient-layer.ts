@@ -30,20 +30,16 @@ const PHONE_QUERY = '(max-width: 640px)'
 const STILL_SECONDS = 8
 const SPRITE_CLASS = 'ambient-sprite leaflet-zoom-animated'
 
-// `pos` is where it was last drawn, in layer pixels, so a zoom animation can carry it along.
 type Live = Mover & {
   el: HTMLDivElement
   pts: L.Point[]
   pos: L.Point | null
 }
 
-// Leaflet's own markers follow a zoom animation with this; it is not in the public typings.
 type ZoomProjector = {
   _latLngToNewLayerPoint: (at: L.LatLng, zoom: number, center: L.LatLng) => L.Point
 }
 
-// Mid-zoom pose: the sprite keeps its drawn size and is moved and scaled by transform alone,
-// which the `leaflet-zoom-animated` class transitions in step with the tiles.
 const followZoom = (
   el: HTMLDivElement,
   meta: Manifest[keyof Manifest],
@@ -66,10 +62,6 @@ const drawMover = (m: Live, meta: Manifest[keyof Manifest], seconds: number, zoo
   placeSprite(m.el, meta, { x: at.x, y: at.y, scale: zoomScale(zoom) * m.scale, frame, opacity })
 }
 
-// Mounts the landmarks and ferry in a Leaflet pane under the deal pins, so everything sits at
-// real map coordinates and pans with the map. One loop animates them; it only pauses while a
-// zoom animation runs (Leaflet hides the pane then) or the tab is hidden. Reduced motion
-// draws a single still frame.
 export const mountAmbient = (map: L.Map, options: Options): Ambient => {
   let disposed = false
   let cleanup = () => {}
@@ -102,7 +94,6 @@ export const mountAmbient = (map: L.Map, options: Options): Ambient => {
       let zooming = false
       let frameId = 0
 
-      // Layer pixels only change when the zoom changes, so routes are projected once per zoom.
       const reproject = () => {
         for (const l of landmarks) l.pt = toLayer(l.at)
         for (const m of movers) m.pts = m.route.map(toLayer)
@@ -135,7 +126,6 @@ export const mountAmbient = (map: L.Map, options: Options): Ambient => {
       const onZoomStart = () => {
         zooming = true
       }
-      // Sprites ride the zoom animation like markers instead of vanishing and reappearing.
       const onZoomAnim = (e: L.ZoomAnimEvent) => {
         if (map.getZoom() < GROUND_MIN_ZOOM) return
         const projector = map as unknown as ZoomProjector
@@ -174,7 +164,6 @@ export const mountAmbient = (map: L.Map, options: Options): Ambient => {
       }
     })
     .catch((error: unknown) => {
-      // Decoration only: the map works without it.
       console.warn('Map ambience disabled', error)
     })
 

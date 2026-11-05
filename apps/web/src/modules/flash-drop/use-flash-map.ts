@@ -11,10 +11,6 @@ import type { FlashDrops } from '@web/modules/flash-drop/use-flash-drops'
 import type L from 'leaflet'
 import { onBeforeUnmount, type Ref, shallowRef, watch } from 'vue'
 
-// Puts live Flash Drops on the map and decides when the banner shows: only after the visitor
-// has left the map alone for a moment, while no deal is open, for at most five seconds
-// (paused while hovered or focused). A drop off screen docks its banner to the map's edge,
-// pointing the way, instead of popping up somewhere the visitor cannot see.
 const CHECK_MS = 400
 const EDGE_MARGIN_PX = 16
 const ACTIVITY_EVENTS = ['pointerdown', 'keydown', 'wheel', 'touchstart'] as const
@@ -58,7 +54,6 @@ export const useFlashMap = (options: {
     layer?.hideBanner()
     edge.value = null
     shownCount += 1
-    // The next banner waits for a fresh stretch of quiet.
     lastActivity = Date.now()
   }
 
@@ -119,7 +114,6 @@ export const useFlashMap = (options: {
   )
   watch([store.drops, store.now], ([drops, now]) => {
     layer?.update(drops, now)
-    // A drop that leaves the live list takes its banner with it, rather than leaving it at 0:00.
     if (showing && !drops.some((drop) => drop.id === shownDropId)) hide()
   })
   watch(options.enabled, (enabled) => {

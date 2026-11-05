@@ -14,13 +14,10 @@ const access = ref<'loading' | 'allowed' | 'closed' | 'error' | 'UNAUTHORIZED' |
 )
 const route = inject(routeLocationKey, null)
 const router = inject(routerKey, null)
-// Deep links such as /admin/flash-drops?view=scheduled open a tab; anything unknown falls back
-// to live.
 const initialView = computed(() => {
   const parsed = flashDropViewSchema.safeParse(route?.query.view)
   return parsed.success ? parsed.data : 'live'
 })
-// Keeps ?view= in step with the open tab; live is the default and needs no query.
 const syncView = (view: FlashDropView) => {
   if (!router || !route || initialView.value === view) return
   const { view: _old, ...rest } = route.query

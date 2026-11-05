@@ -16,9 +16,6 @@ export const normalizeVersion = (value: number | null | undefined): number => {
   return value
 }
 
-// Spread into updateMany.where; SET expected + 1, do not increment null/missing.
-// Require count === 1 or throw CONFLICT. Authorization, claim, write and audit
-// belong in the caller's same transaction. This predicate never acquires a fence.
 export const legacyVersionWhere = <Field extends AdminVersionField>(
   field: Field,
   expected: number,

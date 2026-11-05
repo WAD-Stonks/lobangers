@@ -24,7 +24,6 @@ const advance = (date: Date) => {
   return new Date(Math.max(Date.now(), time + 1))
 }
 
-/** Single-use native issuance capability. Only the native hook can attach its private symbol. */
 export const createSessionAdmissionFence = () => {
   const key = Symbol('native-session-admission')
   const observations = new WeakMap<Request, Observation>()
@@ -192,7 +191,6 @@ export const createSessionAdmissionFence = () => {
         tx: DBTransactionAdapter,
         args: Parameters<DBTransactionAdapter['update']>[0],
       ) => {
-        // Native renewal and Google's exact session timestamp fence only. Broad/OR updates fail closed.
         if (
           !args.where?.some(
             (p) =>
@@ -214,7 +212,6 @@ export const createSessionAdmissionFence = () => {
         const active = await readActiveNativeSession(tx, session.id, session.userId)
         if (!active) throw securityFailure()
         const user = active.user
-        // Reuse a meaningful owner fence already taken by the composed Google account guard.
         if (
           !fencedUsers.get(tx)?.has(user.id) &&
           (await tx.updateMany({
@@ -271,7 +268,6 @@ export const createSessionAdmissionFence = () => {
         const userId = observation.userId
         const where = args.where
         const count = await inBoundary(async (tx) => {
-          // Native delete hooks snapshot only the first page. Prove the exact parent is actually in the deletion predicate, even when it was beyond that page.
           if (
             !(await tx.findOne({
               model: 'session',

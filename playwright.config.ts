@@ -4,8 +4,6 @@ export default defineConfig({
   testDir: './e2e',
   fullyParallel: true,
   forbidOnly: Boolean(process.env.CI),
-  // One retry absorbs timing flakes when every CPU core is busy (map animations are the usual
-  // cause). A test that only passes on retry is reported as "flaky", not hidden.
   retries: 1,
   reporter: [
     ['list'],

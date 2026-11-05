@@ -15,7 +15,6 @@ import {
   type EmailTemplate,
 } from '@broke-oclock/email/server'
 
-// Wraps the Resend client so a delivery failure is logged (without details) and swallowed.
 const createEmailSender = (email: NonNullable<AppConfig['email']>): AuthEmailSender => {
   const client = createEmailClient({ apiKey: email.apiKey, from: email.from })
   const deliver = async (to: string, template: EmailTemplate) => {

@@ -1,6 +1,5 @@
 import { expect, test } from '@playwright/test'
 
-// Synthetic API fixtures exercise the actual landing page, client, routing and responsive CSS.
 const venueId = 'a'.repeat(24)
 const address = '1 Woodlands Square, Singapore 738099'
 const venueResponse = {
@@ -61,20 +60,16 @@ for (const width of [320, 390, 1440]) {
       'href',
       `/venues/${venueId}`,
     )
-    // The site menu opens the same drawer as on every other page.
     await page.getByTestId('nav-toggle').click()
     await expect(page.getByTestId('nav-menu')).toBeVisible()
     await page.keyboard.press('Escape')
     await expect(page.getByTestId('nav-menu')).toHaveCount(0)
-    // Phones fold the bar's links away; wider screens keep How it works in the bar.
     if (width >= 800) {
       const how = page.getByRole('link', { name: 'How it works', exact: true })
       await expect(how).toHaveAttribute('href', '#story')
       await how.click()
     }
     await page.locator('#cuisines').scrollIntoViewIfNeeded()
-    // The All Deals card: the whole card opens the deal over the All Deals list.
-    // One row per page, as many cards as the width fits.
     const perPage = width < 600 ? 2 : 5
     const cards = page.locator('.food-deal-card')
     await expect(cards).toHaveCount(perPage)
@@ -160,7 +155,6 @@ test('failed deals can retry, with skeletons until the replacement response arri
   await page.goto('/')
   const section = page.locator('#cuisines')
   await section.getByRole('button', { name: 'Retry loading deals' }).click()
-  // One row of skeletons, as many as the width fits; the loaded cards replace them one for one.
   const skeletons = await section.locator('.landing-skeleton-card').count()
   expect(skeletons).toBeGreaterThanOrEqual(2)
   await expect(page.locator('.hero-loading-card')).toHaveAttribute('role', 'status')

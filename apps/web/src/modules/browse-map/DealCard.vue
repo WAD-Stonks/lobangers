@@ -10,8 +10,6 @@ import { computed, ref } from 'vue'
 import type { RouteLocationRaw } from 'vue-router'
 import { RouterLink } from 'vue-router'
 
-// One ticket-style card in list mode. With a photo, the top takes the photo's own shape (a tall
-// poster makes a tall card); without one, or if it fails, it stays the short tinted ticket top.
 const props = defineProps<{ row: DealRow; to: RouteLocationRaw }>()
 const emit = defineEmits<{ hover: [venueId: string | null] }>()
 
@@ -94,7 +92,6 @@ const moreOutlets = computed(() => formatMoreOutlets(props.row.outletCount))
   background: var(--card-tint);
 }
 
-/* The photo sets the height; the labels float in its top corners. */
 .deal-cards__top--photo {
   aspect-ratio: var(--photo-ratio);
   min-height: 0;

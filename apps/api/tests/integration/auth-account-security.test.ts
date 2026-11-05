@@ -180,7 +180,6 @@ beforeAll(async () => {
   const databaseUrl = mongo.getUri(`native_security_${randomUUID().replaceAll('-', '')}`)
   vi.stubEnv('DATABASE_URL', databaseUrl)
   vi.stubEnv('NODE_ENV', 'test')
-  // Scratch cwd/schema prevents dotenv discovery and shared generation.
   await mkdir(scratch, { recursive: true })
   await copyFile(`${root}/packages/db/prisma/schema.prisma`, `${scratch}/schema.prisma`)
   await promisify(execFile)(
@@ -401,7 +400,6 @@ describe('native account-security admission with disposable Mongo and real HTTP'
     expect(get.status).toBe(200)
     expect((await get.json()).needsRefresh).toBe(true)
     const head = await request('/get-session', undefined, cookie, 'HEAD')
-    // Keep the pinned router's native HEAD handling; unsupported HEAD must still be read-only.
     expect([200, 404, 405]).toContain(head.status)
     expect(await db.session.findUnique({ where: { id: session.id } })).toEqual(before)
     const post = await request('/get-session', undefined, cookie, 'POST')
@@ -1067,7 +1065,6 @@ describe('native account-security admission with disposable Mongo and real HTTP'
       gate.release()
     }
     const response = await pending
-    // The pinned explicit existing-account callback lets adapter APIErrors surface natively.
     expect([302, 401]).toContain(response.status)
     if (response.status === 302)
       expect(

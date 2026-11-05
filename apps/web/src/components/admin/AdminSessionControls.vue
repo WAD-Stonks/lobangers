@@ -6,11 +6,9 @@ import { onMounted, onUnmounted, watch } from 'vue'
 
 const props = withDefaults(defineProps<{ refreshKey?: number }>(), { refreshKey: 0 })
 const emit = defineEmits<{ closing: []; signedOut: []; accessReload: [] }>()
-// Public Vue hook must run in setup so native lifecycle subscriptions are owned.
 const nativeState = authClient.useSession()
 const state = createAdminSession({ closing: () => emit('closing'), signedOut: () => emit('signedOut'), accessReload: () => emit('accessReload') }, async () => {
   await nativeState.value.refetch({ query: { disableCookieCache: true } })
-  // Refetch resolves void; failures live on the reactive atom, not its return value.
   if (nativeState.value.error) throw new Error('Native session could not be confirmed')
 })
 const { session, loading, pending, uncertain, accessRequired, notice } = state

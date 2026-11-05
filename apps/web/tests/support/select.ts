@@ -1,6 +1,5 @@
 import { flushPromises, type VueWrapper } from '@vue/test-utils'
 
-// Picks an option in an AppSelect the way a person would: open it, then click the option.
 export const chooseOption = async (wrapper: VueWrapper, selector: string, value: string) => {
   const trigger = wrapper.get(selector)
   if (trigger.attributes('aria-expanded') !== 'true') await trigger.trigger('click')
@@ -16,7 +15,6 @@ export const chooseOption = async (wrapper: VueWrapper, selector: string, value:
 export const selectedValue = (wrapper: VueWrapper, selector: string) =>
   wrapper.get(selector).attributes('data-value')
 
-// Reads the option labels by opening the list, then closes it again.
 export const optionLabels = async (wrapper: VueWrapper, selector: string) => {
   const trigger = wrapper.get(selector)
   await trigger.trigger('click')

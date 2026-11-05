@@ -17,8 +17,6 @@ let db!: typeof import('@broke-oclock/db').db
 
 type MailInput = { to: string | readonly string[]; subject: string; text?: string }
 
-// Fake email provider: never touches the network, and takes a moment to "deliver" so the tests
-// can tell whether Better Auth really waited for the email to be sent.
 const mail = vi.hoisted(() => ({
   delayMs: 0,
   delivered: [] as { to: string; subject: string; text: string }[],
@@ -56,7 +54,6 @@ beforeAll(async () => {
   mongo = await MongoMemoryReplSet.create({
     replSet: { count: 1, storageEngine: 'wiredTiger', ip: '127.0.0.1' },
   })
-  // Always a fresh disposable replica set; never a configured DATABASE_URL.
   const databaseUrl = mongo.getUri(`integration_${randomUUID().replaceAll('-', '')}`)
   vi.stubEnv('DATABASE_URL', databaseUrl)
   vi.stubEnv('NODE_ENV', 'test')
@@ -82,7 +79,6 @@ beforeAll(async () => {
         BETTER_AUTH_SECRET: randomBytes(32).toString('hex'),
         BETTER_AUTH_URL: baseURL,
         WEB_ORIGIN: origin,
-        // Email switched on (the fake client above receives everything).
         RESEND_API_KEY: 're_test_key',
         EMAIL_FROM: 'Deals <deals@example.test>',
       }),
@@ -108,7 +104,6 @@ describe('account emails with email switched on', () => {
       body: { name: 'Verify Me', email, password: randomBytes(24).toString('base64url') },
     })
     expect(response.status).toBe(200)
-    // If the hook did not wait, the 300 ms delivery would still be running here.
     const sent = emailsTo(email)
     expect(sent).toHaveLength(1)
     expect(sent[0]?.subject).toBe('Verify your email address')
@@ -123,7 +118,6 @@ describe('account emails with email switched on', () => {
       body: { name: 'Reset Me', email, password },
     })
     expect(signUp.status).toBe(200)
-    // Email verification is required while email is on, so mark this synthetic user verified.
     await db.user.update({ where: { email }, data: { emailVerified: true } })
 
     const signIn = await call('POST', '/api/auth/sign-in/email', { body: { email, password } })
@@ -137,7 +131,6 @@ describe('account emails with email switched on', () => {
     })
     expect(requested.status).toBe(200)
     const resetEmail = emailsTo(email).find((message) => message.subject === 'Reset your password')
-    // Present already: the request did not return until delivery finished.
     expect(resetEmail).toBeDefined()
     const token = /reset-password\/([^?\s]+)/u.exec(resetEmail?.text ?? '')?.[1]
     expect(token).toBeTruthy()
@@ -146,7 +139,6 @@ describe('account emails with email switched on', () => {
       body: { newPassword: randomBytes(24).toString('base64url'), token },
     })
     expect(reset.status).toBe(200)
-    // The cookie from before the reset must no longer work (stolen sessions are cut off).
     expect((await call('GET', '/api/account/profile', { cookie: oldCookie })).status).toBe(401)
   })
 

@@ -29,8 +29,6 @@ const fitHeading = async () => {
   const request = ++fitRequest
   const heroWidth = hero.value?.clientWidth ?? 0
   if (heroWidth > 0) {
-    // Preserve a large illustration and crop its far-right scenery before adding a row.
-    // At narrower widths, keep all three pins clear by moving the artwork below the copy.
     stacked.value = heroWidth < 900
   }
   headingSize.value = 36
@@ -85,8 +83,6 @@ onBeforeUnmount(() => { fitRequest++; resizeObserver?.disconnect() })
   font-style: normal;
   font-display: swap;
 }
-/* Banner colours as local roles: cream with black type by day, a warm dark-gold card with light
-   type at night. The yellow and coral strokes are brand artwork and stay put. */
 .all-deals-hero { --hero-radius: 26px; --hero-edge: #f5e9bd; --hero-glow: #fffbed; --hero-title: #000; --hero-body: #454a44; position: relative; isolation: isolate; overflow: hidden; display: flex; align-items: center; min-height: var(--hero-min-height, 230px); border: 1px solid var(--hero-edge); border-radius: var(--hero-radius); background: var(--hero-background, #fff9e6); }
 .app-palette[data-theme='dark'] .all-deals-hero { --hero-edge: #3d3620; --hero-glow: var(--hero-background); --hero-title: var(--ink); --hero-body: #cfc9b8; }
 .all-deals-hero__copy { position: relative; z-index: 1; text-shadow: 0 1px 8px var(--hero-glow), 0 0 16px var(--hero-glow); width: 50%; max-width: 760px; padding: 18px 36px 18px 44px; }
@@ -101,8 +97,6 @@ h2 { position: relative; margin: 0 0 10px; font-family: "Lobang Pop", "Arial Bla
 .all-deals-hero__accent--coral { width: 30px; height: 36px; top: -10px; left: -32px; stroke: #f77559; }
 .all-deals-hero__accent--yellow { width: 33px; height: 33px; right: -36px; top: -16px; stroke: #ffda58; }
 p { margin: 0 0 12px; font-size: 1rem; line-height: 1.45; color: var(--hero-body); font-weight: 550; }
-/* Keep the pin cluster inside the banner: fixed artwork size, enough vertical clearance,
-   and a stacked layout before the image would collide with the heading. */
 .all-deals-hero__art { position: absolute; right: clamp(-280px, calc(50% - 730px), -20px); bottom: -24px; width: var(--hero-art-width, 760px); max-width: none; height: auto; min-height: 0; object-position: right bottom; pointer-events: none; }
 .all-deals-hero__actions { display: flex; align-items: center; flex-wrap: wrap; gap: 12px 26px; }
 .all-deals-hero__actions .lb-btn { gap: 12px; min-width: 200px; min-height: 44px; justify-content: center; padding: 9px 22px; color: var(--on-accent); background: var(--sunny); border-color: var(--sunny); border-radius: var(--hero-radius); font-size: 1rem; font-weight: 750; }
@@ -115,10 +109,8 @@ p { margin: 0 0 12px; font-size: 1rem; line-height: 1.45; color: var(--hero-body
   .all-deals-hero__actions .lb-btn:hover .all-deals-hero__arrow { transform: translateX(4px) rotate(180deg); }
 }
 .all-deals-hero__actions .lb-btn:active { transform: translateY(0); box-shadow: none; }
-/* Expand downwards whenever the side-by-side artwork would enter the copy's space. */
 .all-deals-hero--stacked { flex-direction: column; align-items: stretch; min-height: 0; }
 .all-deals-hero--stacked .all-deals-hero__copy { width: 100%; max-width: none; }
-/* Stacked, the artwork spans the card edge to edge and shows whole: no crop, no overhang. */
 .all-deals-hero--stacked .all-deals-hero__art { position: relative; inset: auto; width: 100%; height: auto; object-fit: contain; align-self: stretch; flex-shrink: 0; margin-top: -12px; }
 
 @media (max-width: 699.98px) {
@@ -127,8 +119,6 @@ p { margin: 0 0 12px; font-size: 1rem; line-height: 1.45; color: var(--hero-body
   .all-deals-hero .all-deals-hero__art { position: relative; inset: auto; align-self: stretch; width: 100%; height: auto; flex-shrink: 0; margin-top: 0; object-fit: contain; }
   .all-deals-hero__accent--coral { width: 20px; height: 28px; left: -22px; top: -10px; }
   .all-deals-hero__accent--yellow { display: none; }
-  /* The headline says it already, so the banner leaves room for the first deals on a phone
-     screen; the art shows whole, never cropped. */
   .all-deals-hero p[data-hero-subtitle] { display: none; }
   .all-deals-hero h2 { margin-bottom: 14px; }
   .all-deals-hero .all-deals-hero__actions { margin-bottom: 14px; }

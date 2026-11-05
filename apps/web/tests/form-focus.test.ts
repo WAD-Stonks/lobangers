@@ -1,7 +1,6 @@
 import { focusFirstInvalid, trapTabKey } from '@web/lib/form-focus'
 import { afterEach, describe, expect, it } from 'vitest'
 
-// jsdom has no layout, so give every element a client rect for the visibility check.
 const visible = (element: HTMLElement) => {
   element.getClientRects = () => [new DOMRect(0, 0, 10, 10)] as unknown as DOMRectList
   return element

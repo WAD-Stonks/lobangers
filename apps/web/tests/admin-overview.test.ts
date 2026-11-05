@@ -8,8 +8,7 @@ import { chooseOption } from '@web-tests/support/select'
 import { beforeEach, expect, it, vi } from 'vitest'
 import { createMemoryHistory, createRouter } from 'vue-router'
 
-// Synthetic REST/native boundaries: SPA projection and races, not live authentication.
-// The overview never mounts the landing page; avoid its unrelated Windows public-asset transform.
+// Skips the landing page's public-asset transform, which breaks on Windows.
 vi.mock('@web/pages/LandingPage.vue', () => ({ default: { template: '<div />' } }))
 const rest = vi.hoisted(() => ({
   overview: vi.fn(),

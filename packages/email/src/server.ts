@@ -165,7 +165,6 @@ export const createEmailClient = (options: CreateEmailClientOptions = {}): Email
     const controller = new AbortController()
     const timeout = setTimeout(() => controller.abort(), timeoutMs)
     try {
-      // POST email delivery is a side effect; deliberately make one attempt only.
       const response = await requestFetch(RESEND_EMAILS_URL, {
         method: 'POST',
         redirect: 'error',

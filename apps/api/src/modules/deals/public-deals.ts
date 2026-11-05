@@ -24,18 +24,13 @@ type Database = typeof db
 
 const CENTS_PER_DOLLAR = 100
 const DAY_MS = 86_400_000
-// "While stocks last" and launch offers rarely publish an end, so they get a quiet shelf life.
 export const OPEN_ENDED_IMPORT_DAYS = 60
 
 type DealWhere = NonNullable<NonNullable<Parameters<Database['deal']['findMany']>[0]>['where']>
 
-// On MongoDB a field that was never written is "missing", not null, and Prisma's `null`
-// filter matches only an explicit null. Every optional-date check needs both branches.
+// On Mongo a never-written field is missing, not null, and Prisma's `null` filter only matches explicit null.
 const nullOrMissing = (field: string) => [{ [field]: null }, { [field]: { isSet: false } }]
 
-// An imported claim with no end is a limited promotion, shown for OPEN_ENDED_IMPORT_DAYS from
-// its known start, or from its source post when the start is unknown. The cut-off is never
-// stored or shown as an end date.
 const importedOpenEndedWhere = (now: Date): DealWhere => {
   const shelfStart = new Date(now.getTime() - OPEN_ENDED_IMPORT_DAYS * DAY_MS)
   return {
@@ -57,8 +52,6 @@ const importedOpenEndedWhere = (now: Date): DealWhere => {
   }
 }
 
-// Imported current claims need a supported finite window or a recent limited-promotion start.
-// Genuine user open-ended submissions retain their existing policy; no timestamp is invented.
 export const publicCurrentWindowWhere = (now: Date): DealWhere => ({
   OR: [
     { origin: 'IMPORTED', validFrom: { not: null, lte: now }, validUntil: { not: null, gt: now } },
@@ -73,7 +66,6 @@ export const publicCurrentWindowWhere = (now: Date): DealWhere => ({
   ],
 })
 
-// Only approved, published, undeleted deals that can be placed on the map.
 const eligibleDealWhere: DealWhere = {
   OR: nullOrMissing('deletedAt'),
   reviewStatus: 'APPROVED',
@@ -101,7 +93,6 @@ export const publicOutletVenueSelect = {
   deletedAt: true,
 } as const
 
-// Never filter selected edges before hashing: even a deleted outlet is part of the scope.
 export const publicOutletScopeSelect = {
   id: true,
   merchantId: true,
@@ -117,13 +108,10 @@ export const publicOutletScopeSelect = {
   },
 } as const
 
-// The visitor's filters on top of eligibility. Imported windows need the source post's date,
-// so this stays a database filter rather than being replayed in memory.
 const publicDealFilterWhere = (query: DealsQuery, now: Date): DealWhere => ({
   ...eligibleDealWhere,
   ...(query.category ? { category: query.category } : {}),
   AND: [
-    // A price cap keeps deals without a fixed price, such as 1-for-1 offers.
     ...(query.priceMaxMinor === undefined
       ? []
       : [{ OR: [{ priceMinor: null }, { priceMinor: { lte: query.priceMaxMinor } }] }]),
@@ -131,11 +119,8 @@ const publicDealFilterWhere = (query: DealsQuery, now: Date): DealWhere => ({
   ],
 })
 
-// Imports publish in batches with the same timestamp; the id keeps their order stable.
 const newestFirst = [{ publishedAt: 'desc' as const }, { id: 'desc' as const }]
 
-// Scalars only. On MongoDB each nested relation would be another round trip run after its
-// parent, so the loaders in deal-relations fetch outlets, images and votes side by side.
 const publicDealScalarSelect = {
   id: true,
   merchantId: true,
@@ -157,11 +142,9 @@ const publicDealScalarSelect = {
   validFrom: true,
   validUntil: true,
   rawValidityText: true,
-  // Only comments that are neither deleted by their author nor hidden by moderation.
   _count: { select: { comments: { where: visibleCommentWhere } } },
 } as const
 
-// Ids of the eligible deals that match the visitor's filters, newest first.
 export const findPublicDeals = (database: Database, query: DealsQuery, now: Date) =>
   database.deal.findMany({
     where: publicDealFilterWhere(query, now),
@@ -175,7 +158,6 @@ const findDealScalars = (database: Database, where: DealWhere) =>
 type DealScalarRow = Awaited<ReturnType<typeof findDealScalars>>[number]
 type ScopedDealRow = Awaited<ReturnType<typeof withOutletScopes<DealScalarRow>>>[number]
 
-// Image sources and current-window votes for the deals that may become pins.
 const findPinRelations = async (
   database: Database,
   deals: readonly DealScalarRow[],
@@ -205,7 +187,6 @@ const toPins = (
     })
     .filter((deal) => deal.venues.length > 0)
 
-// Category options come from every eligible deal that can be drawn, not just the filtered ones.
 const categoriesOf = (deals: readonly ScopedDealRow[]): string[] =>
   [
     ...new Set(
@@ -220,7 +201,6 @@ const formatPrice = (priceMinor: number): string => {
   return Number.isInteger(dollars) ? `$${dollars}` : `$${dollars.toFixed(2)}`
 }
 
-// Short text for the coral pin: price, percentage, 1-for-1, or the title as a last resort.
 export const pinLabelFor = (deal: PublicDealRow): string => {
   if (deal.offerType === 'FIXED_PRICE' && deal.priceMinor !== null)
     return formatPrice(deal.priceMinor)
@@ -247,8 +227,6 @@ const scopeArgs = (deal: PublicOutletScopeRow) =>
 export const publicVenuesFor = (deal: PublicOutletScopeRow) =>
   eligibleVenuesForScope(...scopeArgs(deal))
 
-// Confirmed outlets when there are any. Otherwise every outlet the deal could cover, except
-// those its terms rule out, flagged so the visitor knows the deal may not apply there.
 export const mapVenuesFor = (deal: PublicOutletScopeRow & { terms?: string | null }) => {
   const confirmed = publicVenuesFor(deal)
   if (confirmed.length > 0) return { venues: confirmed, outletUnconfirmed: false }
@@ -259,7 +237,6 @@ export const mapVenuesFor = (deal: PublicOutletScopeRow & { terms?: string | nul
   return { venues, outletUnconfirmed: true }
 }
 
-// Labels an imported offer with no published end, without revealing its shelf-life cut-off.
 export const isLimitedTime = (deal: {
   origin: 'IMPORTED' | 'USER_SUBMITTED'
   validUntil: Date | null
@@ -270,7 +247,6 @@ export const isCurrentApproval = (deal: {
   reviewedVersion: number | null
 }): boolean => deal.reviewedVersion === deal.contentVersion
 
-// Deal-wide tallies of the current votes; each user holds at most one vote per deal.
 export const countVotes = (votes: readonly { value: 'ALIVE' | 'DEAD' }[]): DealVoteSummary => ({
   alive: votes.filter((vote) => vote.value === 'ALIVE').length,
   dead: votes.filter((vote) => vote.value === 'DEAD').length,
@@ -281,7 +257,6 @@ const currentVotes = (deal: PublicDealRow) => {
   return countVotes(deal.votes.filter((vote) => vote.updatedAt >= publication))
 }
 
-// Pins for the visitor's filters. Outlets, images and votes load together once the deals are known.
 export const findPublicDealPins = async (
   database: Database,
   query: DealsQuery,
@@ -298,8 +273,6 @@ export const findPublicDealPins = async (
   return toPins(scoped, relations, policy, now)
 }
 
-// The browse response. Categories need outlet scopes for every eligible deal, which already
-// cover the filtered ones, so scopes load once and the filter is a cheap id-only read.
 export const findPublicBrowse = async (
   database: Database,
   query: DealsQuery,
@@ -324,7 +297,6 @@ export const findPublicBrowse = async (
   return { items: toPins(scoped, relations, policy, now), categories: categoriesOf(scoped) }
 }
 
-// One public deal by id, as browse would show it; null when it is not public.
 export const findPublicDealPin = async (
   database: Database,
   dealId: string,

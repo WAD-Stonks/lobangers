@@ -48,8 +48,6 @@ import type L from 'leaflet'
 import { computed, nextTick, onBeforeUnmount, onMounted, provide, ref, shallowRef, watch } from 'vue'
 import { type RouteLocationNormalizedLoaded, RouterView, useRoute, useRouter } from 'vue-router'
 
-// The map is mounted once and never leaves. Every feature is a child route rendered in the
-// panel slot over it, so moving between features never reloads the map.
 const route = useRoute()
 const router = useRouter()
 const toast = provideToastQueue()
@@ -75,19 +73,15 @@ const sheetOpen = ref(false)
 const direction = ref<NavDirection>('none')
 const focusHeadingOnMount = ref(false)
 const locateFocus = shallowRef<Coordinates | null>(null)
-// Desktop only: the visitor tucked the panel away to see the whole map.
 const panelHidden = ref(false)
 provide(PANEL_FOCUS_KEY, focusHeadingOnMount)
 
 const isBrowse = computed(() => (route.name === 'browse' || route.name === 'saved'))
 const isLobbie = computed(() => route.name === 'lobbie')
-// Makan Squad screens are dark, so the sheet around them (and its grip) goes dark too.
 const isSquadPanel = computed(() => String(route.name ?? '').startsWith('squad'))
 const dealsExperience = computed(
   () => ['browse', 'saved', 'deal', 'venue', 'place'].includes(String(route.name)) && route.query.discovery === '1',
 )
-// The shell has two layouts: the All Deals page (deal browsing in list view) and the map
-// workspace, with the navigation rail and the panel on the left, for everything else.
 const dealsPage = computed(() => shell.view.value === 'list')
 const mapWorkspace = computed(() => !dealsPage.value)
 const desktopMap = computed(() => mapWorkspace.value && breakpoint.value === 'desktop')
@@ -108,9 +102,6 @@ const collapsed = computed(() => !authPrompt.value && panelHidden.value && break
 const resultsPreviewHeight = ref<number | null>(null)
 const layout = useShellLayout({ breakpoint, wide, header, collapsed, leftPanel: desktopMap, railVisible: mapPreferences.sidebarVisible, bottomNavigation, resultsPreviewHeight, flush: dealsPage })
 
-// A panel behind the session check (Room, Profile, Saved) waits on the network before the URL
-// changes. Past a short beat, open the panel with a loader so the click visibly lands; quick
-// navigations finish first and never flash it.
 const PANEL_LOADER_DELAY_MS = 100
 const pendingNavigation = pendingNavigationFor(router)
 const panelLoading = ref(false)
@@ -127,7 +118,6 @@ watch(pendingNavigation, (to) => {
   }, PANEL_LOADER_DELAY_MS)
 })
 onBeforeUnmount(() => clearTimeout(panelLoaderTimer))
-// Lets a panel (the Squad room) tuck the phone sheet down to its peek height and back.
 provide(SHEET_CONTROL_KEY, {
   mode: layout.mode,
   minimised: computed(() => layout.mode.value === 'sheet' && layout.snap.value === 0),
@@ -139,7 +129,6 @@ provide(SHEET_CONTROL_KEY, {
   },
 })
 const panelRef = ref<InstanceType<typeof ShellPanel> | null>(null)
-// Size the initial mobile preview to the first result row, including its toolbar.
 watch(
   [panelRef, () => route.name, shell.status, shell.rows, shell.cardMode, shell.locationMessage, breakpoint, dealsPage],
   async (_, __, onCleanup) => {
@@ -173,14 +162,11 @@ watch(
   { immediate: true, flush: 'post' },
 )
 
-// The outlet the panel is about: a deal's outlet or the venue being viewed.
 const selected = computed<SelectedDeal | null>(() =>
   route.name === 'deal'
     ? shell.findDeal(String(route.params.dealId ?? ''), typeof route.query.at === 'string' ? route.query.at : null)
     : null,
 )
-// A live Makan Squad room: its current deal is the map's selection, so the camera pans to each
-// new deal, and other pins are locked until the visitor leaves the room.
 const inSquad = computed(() => route.name === 'squad-room' && squad.state.value?.status === 'LIVE' && !squad.state.value.me?.left)
 const squadVenueId = computed(() => (inSquad.value ? (squad.currentDeal.value?.venueId ?? null) : null))
 const selectedVenueId = computed(() => {
@@ -188,25 +174,15 @@ const selectedVenueId = computed(() => {
   if (route.name === 'deal') return selected.value?.venue.id ?? null
   return route.name === 'venue' ? String(route.params.venueId ?? '') : null
 })
-// A place (one building's outlets) has no single selected pin; the map marks its stack instead
-// and centres on its first outlet.
 const placeVenueIds = computed(() => (route.name === 'place' ? readPlaceIds(route.params.venueIds) : []))
 const focusVenueId = computed(() => selectedVenueId.value ?? placeVenueIds.value[0] ?? null)
 const selectedPin = computed(() => (focusVenueId.value ? shell.findVenuePin(focusVenueId.value) : null))
 const lobbiePins = computed(() => (isLobbie.value ? lobbie.resultPins.value : []))
 const mapFramed = computed(() => lobbiePins.value.length > 0)
-// On a phone the Lobbie chat opens at full height, which leaves only a sliver of map above it.
-// When Lobbie answers with picks, drop the sheet to half so the framed pins can be seen. This
-// runs before the map hears about the picks, so it frames them for the lower sheet.
 watch(lobbiePins, (pins) => {
   if (pins.length > 0 && layout.mode.value === 'sheet') layout.snap.value = Math.min(layout.snap.value, 1)
 })
 
-// A filter can hide the deal being viewed; its pin still shows so the map matches the panel.
-// A stall running a Flash Drop is drawn by the drop's coral pin instead of its usual one, so the
-// two never stack on the same spot. Its usual pin comes back when the drop ends.
-// Kept identical while the same stalls have drops, since the countdown clock ticks every second
-// and a new set would redraw every pin each time.
 const flashVenueIds = computed<ReadonlySet<string>>((previous) => {
   const next = new Set(flash.drops.value.map((drop) => drop.venueId))
   const same = previous && previous.size === next.size && [...next].every((id) => previous.has(id))
@@ -223,9 +199,6 @@ const mapPins = computed(() => {
     ? pins
     : pins.filter((candidate) => !flashVenueIds.value.has(candidate.id))
 })
-// Recomputed only when the focused outlet or the panel changes, so reloading deals never re-flies
-// the map. A new panel re-flies even to the same outlet: on a phone the Squad room covers the map,
-// so opening its deal (a shorter sheet) must bring the pin into the part left showing.
 const panelFocus = computed<{ readonly focus: Coordinates; readonly panel: string } | null>((previous) => {
   const pin = selectedPin.value
   if (!pin) return null
@@ -235,13 +208,9 @@ const panelFocus = computed<{ readonly focus: Coordinates; readonly panel: strin
     : { focus: { lat: pin.lat, lng: pin.lng }, panel }
 })
 const selectedFocus = computed<Coordinates | null>(() => panelFocus.value?.focus ?? null)
-// "Near me" outranks the open deal until the next navigation clears it, so the latest ask wins.
 const mapFocus = computed<Coordinates | null>(() => locateFocus.value ?? selectedFocus.value)
 const mapFocusZoom = computed(() => locateFocus.value ? LOCATE_ZOOM : FOCUS_ZOOM)
 
-// Below the header the control column needs this much map (Near me + Nearby, then the zoom
-// pair, plus the 16px margin and some clearance). When the sheet leaves less, zoom goes first
-// (touch screens can pinch), then the whole column, so nothing slides under the header.
 const CONTROLS_BASE_ROOM_PX = 124
 const CONTROLS_ZOOM_ROOM_PX = 104
 const showControls = computed(
@@ -255,7 +224,6 @@ const showZoom = computed(
 )
 const panelLabel = computed(() => authPrompt.value ? 'Log in or sign up' : (typeof route.meta.panelLabel === 'string' ? route.meta.panelLabel : 'Results'))
 
-// The modal blocks interaction with the page behind it at every screen size.
 const modalInert = computed(() => (sheetOpen.value || (dealDialogOpen.value && !authPrompt.value) || tutorialActive.value ? true : undefined))
 const backgroundInert = computed(() => (modalInert.value || navigationOpen.value ? true : undefined))
 const navigationInert = computed(() => bottomNavigation.value ? backgroundInert.value : modalInert.value)
@@ -270,7 +238,6 @@ const applyFilters = (next: BrowseFilters, mode: 'push' | 'replace') => {
   void shell.applyFilters(next, mode)
 }
 
-// Focus waits a tick: the header stays inert until the closed dialog has re-rendered.
 const closeSheet = async () => {
   sheetOpen.value = false
   await nextTick()
@@ -340,7 +307,6 @@ watch(mapPreferences.sidebarVisible, async () => {
   document.querySelector<HTMLElement>('[data-testid="nav-toggle"]')?.focus()
 })
 
-// From a pin: an outlet with one deal opens that deal; with several, the outlet's panel.
 const resultsQuery = computed(() => ({ ...route.query, ...(shell.savedOnly.value ? { collection: 'saved' } : {}) }))
 const openVenue = (venueId: string) => {
   if (inSquad.value) {
@@ -364,21 +330,15 @@ const openPlace = (venueIds: string[]) => {
   void router.push(placeLocation(resultsQuery.value, venueIds))
 }
 
-// On the All Deals page Lobbie lives in a floating window behind the "Ask Lobbie" button in the
-// bottom-right corner; the conversation is the shell's, so closing and reopening it keeps it. On
-// the map the Ask Lobbie chip beside Filters opens the chat panel instead.
 const lobbieWindowOpen = ref(false)
 const lobbieLauncher = ref<InstanceType<typeof LobbieLauncher> | null>(null)
 const showLobbieLauncher = computed(() => !authPrompt.value && dealsPage.value && isBrowse.value)
 const toggleLobbieWindow = () => { lobbieWindowOpen.value = !lobbieWindowOpen.value }
 const closeLobbieWindow = () => {
   lobbieWindowOpen.value = false
-  // On phones the button is hidden behind the open window until the next render.
   void nextTick(() => lobbieLauncher.value?.focus())
 }
 
-// While the message box has focus on a touch screen, the window sits on top of the on-screen
-// keyboard and takes the space left above it, so the box is never hidden behind the keys.
 const lobbieTyping = ref(false)
 const lobbieFocusChange = (event: FocusEvent) => {
   lobbieTyping.value = !finePointer.value && event.type === 'focusin' && event.target instanceof HTMLInputElement
@@ -389,26 +349,18 @@ const lobbieWindowStyle = computed(() => lobbieViewport.value && {
   '--lobbie-visible-h': `${lobbieViewport.value.height}px`,
 })
 
-// A deal opened from the chat shows over the list; the window waits behind it and is still open
-// when the deal closes. Leaving the list for anywhere else puts it away.
 const lobbieKept = computed(() => !authPrompt.value && dealsPage.value && (isBrowse.value || dealDialogOpen.value))
 watch(lobbieKept, (kept) => { if (!kept) lobbieWindowOpen.value = false })
-// Escape closes the window even when focus has left it (a picked suggestion disappears from
-// under the pointer), unless the filter sheet or a deal is open over it and should close first.
 const closeLobbieOnEscape = (event: KeyboardEvent) => {
   if (event.key === 'Escape' && !sheetOpen.value && !dealDialogOpen.value) closeLobbieWindow()
 }
 watch(lobbieWindowOpen, (open) => {
-  // A window removed with focus inside it never reports the focus leaving.
   if (!open) lobbieTyping.value = false
   if (open) document.addEventListener('keydown', closeLobbieOnEscape)
   else document.removeEventListener('keydown', closeLobbieOnEscape)
 })
 onBeforeUnmount(() => document.removeEventListener('keydown', closeLobbieOnEscape))
 
-// The map's Ask Lobbie chip opens the chat panel, or closes it back to the results when it is open.
-// Opening the chat clears the quick chips and the filter sheet, so Lobbie starts from all
-// deals; the search text stays. Closing it returns to the results as they are.
 const toggleLobbie = () => {
   if (isLobbie.value) return router.push(browseLocation(route.query))
   const cleared = { ...createDefaultFilters(), q: shell.filters.value.q }
@@ -418,13 +370,10 @@ const toggleLobbie = () => {
 const nearMe = async () => {
   const startedAt = route.path
   const located = await shell.locate()
-  // A slow answer must not pull the map away from a panel opened in the meantime.
   if (route.path !== startedAt) return
   locateFocus.value = located
 }
 
-// Flash Drops draw on the Leaflet map once it exists. Their banner only pops up over the plain
-// map: never while a deal, the filter sheet or any other panel has the visitor's attention.
 const leaflet = shallowRef<L.Map | null>(null)
 const flashMap = useFlashMap({
   map: leaflet,
@@ -435,13 +384,10 @@ const flashMap = useFlashMap({
   reducedMotion,
   open: (drop) => router.push(dealLocation(route.query, drop.dealId, drop.venueId)),
 })
-// Everyone with the site open hears when a flash deal goes live; "Show me" opens it.
 watchFlashAlerts(flash, toast, (drop) =>
   router.push(dealLocation(route.query, drop.dealId, drop.venueId)),
 )
-// A flash deal's deal is published when it goes live, so fetch it rather than open "Deal not found".
 watchFlashDeals(flash, shell)
-// Hungry Nearby: opt-in lobangers on the same Leaflet map; the toggle lives in MapControls.
 provideHungryNearby({ session, map: leaflet, position: shell.position, locate: shell.locate })
 
 const visibleMapArea = shallowRef<Parameters<typeof shell.setArea>[0]>(null)
@@ -455,7 +401,6 @@ watch(mapWorkspace, (visible) => {
 
 const keyFor = (child: RouteLocationNormalizedLoaded) => child.path
 
-// Keyed on a string so query-only changes (filters, sort) never count as navigation.
 let previous = { name: route.name, path: route.path }
 watch(
   () => `${String(route.name)}|${route.path}`,
@@ -465,21 +410,16 @@ watch(
     previous = next
     focusHeadingOnMount.value = true
     locateFocus.value = null
-    // Opening a pin, deal or any other panel brings a tucked-away panel back.
     panelHidden.value = false
-    // A filter change from a deal or venue lands on browse with the sheet still in use. Any
-    // other navigation closes it, and the new panel's heading takes focus.
     if (route.name !== 'browse') sheetOpen.value = false
   },
 )
 watch(mapOnly, (only) => { panelHidden.value = only }, { immediate: true })
 watch(shell.split, (split) => { if (split) panelHidden.value = false })
-// Switching to the list needs the panel, so it slides back in.
 watch(wide, (isWide) => {
   if (isWide) panelHidden.value = false
 })
 watch(authPrompt, (prompt) => { if (prompt) layout.snap.value = Math.max(1, layout.snap.value) })
-// Each panel opens at a height that suits it; the visitor can drag from there.
 watch(
   () => [route.name, shell.view.value, dealsPage.value] as const,
   ([name, view, page]) => {
@@ -488,10 +428,6 @@ watch(
   { immediate: true },
 )
 
-// A new visitor should not land on the whole island: once their position is known (and they are
-// in Singapore) and the map is showing with nothing else in focus, centre on them a single time.
-// `locateFocus` flies through `focusOffset`, so they land in the visible part beside the panel.
-// After that the camera is theirs; Near me remains the way to come back.
 const visitorHere = shallowRef<Coordinates | null>(null)
 let centredOnArrival = false
 watch(
@@ -518,10 +454,8 @@ onBeforeUnmount(() => document.documentElement.classList.remove('is-canvas'))
     :style="shellStyle"
     data-testid="map-shell"
   >
-    <!-- First stop for keyboard users: jump past the navigation and header to the results. -->
     <a class="map-shell__skip" href="#shell-main" :inert="backgroundInert">Skip to content</a>
     <MapNavigation v-if="desktopMap && mapPreferences.sidebarVisible.value && !bottomNavigation" :inert="navigationInert" :panel-open="!collapsed" @open-panel="panelHidden = false; layout.snap.value = Math.max(1, layout.snap.value)" @menu-change="navigationOpen = $event" />
-    <!-- Header first so keyboard users reach the menu and search before the map. -->
     <ShellHeader
       :inert="headerInert"
       ref="headerRef"
@@ -544,7 +478,6 @@ onBeforeUnmount(() => document.documentElement.classList.remove('is-canvas'))
       @menu-change="navigationOpen = $event"
       @ask-lobbie="toggleLobbie"
     />
-    <!-- The map is a named region; the panel's content below is the page's main landmark. -->
     <section class="map-shell__map" aria-label="Deal map" :inert="backgroundInert">
       <DealMap
         ref="dealMap"
@@ -611,7 +544,6 @@ onBeforeUnmount(() => document.documentElement.classList.remove('is-canvas'))
       <ShellIcon :name="collapsed ? 'chevronRight' : 'chevronLeft'" :size="16" />
     </button>
 
-    <!-- An unstyled wrapper: the panel is positioned against .map-shell, so layout is unchanged. -->
     <main id="shell-main" class="map-shell__main" tabindex="-1">
     <ShellPanel
       id="shell-panel"
@@ -675,7 +607,6 @@ onBeforeUnmount(() => document.documentElement.classList.remove('is-canvas'))
       @close="closeSheet"
     />
 
-    <!-- The bottom tab bar comes after the header and panel in the tab order, as it sits below them. -->
     <MapNavigation v-if="bottomNavigation" bottom :inert="navigationInert" :panel-open="!mapOnly" @open-panel="panelHidden = false; layout.snap.value = Math.max(1, layout.snap.value)" @menu-change="navigationOpen = $event" />
 
     <MapTutorial
@@ -695,8 +626,6 @@ onBeforeUnmount(() => document.documentElement.classList.remove('is-canvas'))
 <style scoped>
 .map-shell__panel-route { height: 100%; }
 
-/* Lobbie's launcher and chat window float in the bottom-right corner of the All Deals page,
-   above the bottom tab bar on phones and tablets. */
 .map-shell__lobbie-launcher {
   position: fixed;
   right: calc(24px + env(safe-area-inset-right, 0px));
@@ -712,8 +641,6 @@ onBeforeUnmount(() => document.documentElement.classList.remove('is-canvas'))
   height: min(620px, calc(100dvh - var(--bottom-nav-h, 0px) - 140px));
   transform-origin: bottom right;
 }
-/* Phones: the window takes the whole screen above the tab bar, and its own close button stands
-   in for the corner one, which hides while it is open. */
 @media (max-width: 599.98px) {
   .map-shell__lobbie-launcher { right: 16px; bottom: calc(16px + var(--bottom-nav-h, 0px) + env(safe-area-inset-bottom, 0px)); }
   .map-shell__lobbie-launcher.is-covered { visibility: hidden; }
@@ -725,7 +652,6 @@ onBeforeUnmount(() => document.documentElement.classList.remove('is-canvas'))
     transform-origin: bottom center;
   }
 }
-/* Typing on a touch screen: sit just above the keyboard, over the tab bar, and fill what's left. */
 .map-shell__lobbie-window.is-typing {
   bottom: calc(8px + var(--lobbie-keyboard-inset, 0px));
   z-index: 41;
@@ -751,23 +677,17 @@ onBeforeUnmount(() => document.documentElement.classList.remove('is-canvas'))
   color: var(--ink-muted);
 }
 
-/* The splash screen's tumbling ticket, in sunny against the panel's paper. */
 .map-shell__ticket { color: var(--sunny-deep); }
-/* Keep the bottom inset for the part of the sheet below the screen, or its last rows (the account
-   links and the Dark mode switch) cannot be scrolled into view. */
 .map-shell :deep(.auth-prompt__content) { padding: 28px 22px calc(28px + var(--sheet-offset, 0px) + env(safe-area-inset-bottom, 0px)); }
 .map-shell--map-workspace.map-shell--side :deep(.auth-prompt__content) { padding-top: calc(var(--shell-header-bottom) + 20px); }
 .map-shell {
   --shell-gutter: var(--space-4);
-  /* Desktop, as on the Prototype board: the header floats top left, the panel is a card on the
-     right, and the map controls and pills centre on the part of the map left of the panel. */
-  --panel-w: 380px; /* fallback; use-shell-layout.ts sets the live value inline */
+  --panel-w: 380px;
   --header-w: max-content;
   --map-centre-x: calc((100% - var(--panel-w) - 2 * var(--shell-gutter)) / 2);
   --toast-bottom: 84px;
   position: relative;
   height: 100vh;
-  /* clip, not hidden: focus and scrollIntoView can still scroll a hidden box. */
   overflow: clip;
   font-family: var(--font-sans);
   color: var(--ink);
@@ -780,7 +700,6 @@ onBeforeUnmount(() => document.documentElement.classList.remove('is-canvas'))
   }
 }
 
-/* Hidden until focused, then shown above the header in the top-left corner. */
 .map-shell__skip {
   position: absolute;
   top: calc(env(safe-area-inset-top, 0px) + var(--space-2));
@@ -800,12 +719,10 @@ onBeforeUnmount(() => document.documentElement.classList.remove('is-canvas'))
   transform: none;
 }
 
-/* Programmatic focus target for the skip link; the panel inside shows where focus went. */
 .map-shell__main:focus {
   outline: none;
 }
 
-/* Leaflet's panes use z-indexes up to 1000; isolating the map keeps them under the overlays. */
 .map-shell__map {
   position: absolute;
   inset: 0;
@@ -820,8 +737,6 @@ onBeforeUnmount(() => document.documentElement.classList.remove('is-canvas'))
   z-index: 10;
 }
 
-/* A tab on the drawer's right edge hides it; it stays beside the rail to bring it back. Placed
-   with top, not a transform, because the list/map morph slides it with transform. */
 .map-shell__panel-tab {
   position: absolute;
   top: calc(50% - 28px);
@@ -860,8 +775,6 @@ onBeforeUnmount(() => document.documentElement.classList.remove('is-canvas'))
 
 
 
-/* The deals route is a dedicated browse page. Keep the map mounted for fast toggling, but
-   let the cards use the full canvas until the visitor explicitly asks for a map. */
 .map-shell--deals-page:not(.map-shell--map-only) .map-shell__map {
   visibility: hidden;
   pointer-events: none;
@@ -872,8 +785,6 @@ onBeforeUnmount(() => document.documentElement.classList.remove('is-canvas'))
   background: var(--page-background, var(--paper-white));
 }
 
-/* The panel starts at the header's edge and its gap above the list is padding inside the scroller,
-   so cards scroll up under the header instead of vanishing into an empty strip below it. */
 .map-shell--deals-page:not(.map-shell--map-only) .shell-panel--side {
   top: var(--shell-header-bottom);
   right: var(--shell-gutter);
@@ -916,15 +827,11 @@ onBeforeUnmount(() => document.documentElement.classList.remove('is-canvas'))
   bottom: var(--bottom-nav-h);
 }
 
-/* The dark sheet adds a light edge; the All deals list meets the header with no card edge. */
 .app-palette[data-theme='dark'] .map-shell--deals-page .shell-panel {
   box-shadow: none;
 }
 
-/* Below 992px the panel is a bottom sheet: the header spans the screen, and the controls ride
-   just above the visible part of the sheet. */
 .map-shell--sheet {
-  /* 16px, the same as the All Deals header, so the map and list views line up. */
   --shell-gutter: var(--space-4);
   --header-w: calc(100% - 2 * var(--shell-gutter));
   --map-centre-x: 50%;
@@ -940,7 +847,6 @@ onBeforeUnmount(() => document.documentElement.classList.remove('is-canvas'))
 }
 
 .map-shell--map-only.map-shell--sheet .map-shell__controls {
-  /* Full-bleed map: clear the home indicator as well as the bottom tab bar. */
   bottom: calc(var(--space-4) + var(--bottom-nav-h, 0px) + env(safe-area-inset-bottom, 0px));
   transform: none;
 }
@@ -958,7 +864,6 @@ onBeforeUnmount(() => document.documentElement.classList.remove('is-canvas'))
   }
 }
 
-/* Desktop map workspace: navigation rail, left results drawer and an uninterrupted map. */
 .map-shell--map-workspace {
   --map-centre-x: calc((100% + var(--map-rail-w) + var(--panel-w)) / 2);
 }
@@ -968,7 +873,6 @@ onBeforeUnmount(() => document.documentElement.classList.remove('is-canvas'))
 }
 
 .map-shell--map-workspace.map-shell--side .shell-panel--side {
-  /* The scroll container fills the drawer, including the space behind search. */
   top: 0;
   padding-top: 0;
   right: auto;
@@ -986,38 +890,30 @@ onBeforeUnmount(() => document.documentElement.classList.remove('is-canvas'))
 }
 
 .map-shell--map-workspace.map-shell--side :deep(.panel-frame__body) {
-  /* Initial clearance scrolls away with the content instead of clipping its top edge. */
   padding-top: calc(var(--shell-header-bottom) + 8px);
   scroll-padding-top: calc(var(--shell-header-bottom) + 8px);
 }
 
-/* Squad screens (create, join, room) bring their own scrolling body instead of PanelFrame's, so
-   they need the same clearance under the floating search field and Room button. */
 .map-shell--map-workspace.map-shell--side :deep(.squad-room__body) {
   padding-top: calc(var(--shell-header-bottom) + 8px);
   scroll-padding-top: calc(var(--shell-header-bottom) + 8px);
 }
 
-/* The back link's negative top margin would tuck it under the floating search field. */
 .map-shell--map-workspace.map-shell--side :deep(.panel-frame__back) {
   margin-top: 0;
 }
 
-/* Give the results count more breathing room below the floating search field. */
 .map-shell--map-workspace.map-shell--side :deep(.browse-list .panel-frame__body) {
   padding-top: calc(var(--shell-header-bottom) + 24px);
   scroll-padding-top: calc(var(--shell-header-bottom) + 24px);
 }
 
-/* Compact cards in the desktop results drawer; full posters remain uncropped. Up to three
-   columns, dropping to two when a narrow drawer would squeeze a card under 170px. */
 .map-shell--map-workspace :deep(.food-deal-grid) {
   --masonry-row-gap: 16px;
   grid-template-columns: repeat(auto-fill, minmax(min(100%, max(170px, calc((100% - 2 * 12px) / 3))), 1fr));
   column-gap: 12px;
 }
 
-/* The venue page asks for two wider cards instead. */
 .map-shell--map-workspace :deep(.food-deal-grid--two) {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }

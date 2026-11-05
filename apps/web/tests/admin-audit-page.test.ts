@@ -3,7 +3,6 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { reactive } from 'vue'
 import { routeLocationKey } from 'vue-router'
 
-// Synthetic native and REST boundaries. Does not establish live auth acceptance.
 const rest = vi.hoisted(() => ({
   audit: vi.fn(),
   session: vi.fn(),

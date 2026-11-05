@@ -123,8 +123,6 @@ export const usePostInvestigation = (postId: Ref<string>, denied: (code: string)
         result.value = recovery
         lock.recoveryId = recovery.id
         lock.stale = false
-        // This response's target query may precede its terminal recovery query.
-        // Latch the first observation; only a later-started read can reconcile.
         observeTerminal(lock, recovery)
       }
       const unrelatedUnresolved =
@@ -199,13 +197,10 @@ export const usePostInvestigation = (postId: Ref<string>, denied: (code: string)
           : recovery.id !== lock.previousRecoveryId)
       ) {
         lock.recoveryId = recovery.id
-        // A matching receipt can survive child unmount, not attempt replacement
-        // or workspace denial. It never restores protected component state.
         observeTerminal(lock, recovery)
       }
       if (closed || epoch !== generation || id !== postId.value) return
       result.value = recovery
-      // Always require an explicit fresh read after a mutation, even a known outcome.
     } catch (failure) {
       if (closed || epoch !== generation || id !== postId.value) return
       if (deny(failure)) return

@@ -3,7 +3,6 @@ import { useToast } from '@web/modules/map-shell/use-toast'
 import { shareRoom } from '@web/modules/squad/share-room'
 import { computed } from 'vue'
 
-// The room code as four big tiles, with a copy of the invite link and the phone's share sheet.
 const props = defineProps<{ code: string }>()
 const toast = useToast()
 const letters = computed(() => props.code.split(''))

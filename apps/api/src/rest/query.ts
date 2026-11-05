@@ -1,8 +1,6 @@
 import { ApiErrorException } from '@api/errors'
 import type { RequestHandler } from 'express'
 
-// Express's bounded simple parser counts empty segments against maxKeys=1000.
-// Reject before accessing request.query so it cannot hide later invalid fields.
 export const requireBoundedRestQuery: RequestHandler = (request, _response, next) => {
   const question = request.originalUrl.indexOf('?')
   if (question !== -1) {

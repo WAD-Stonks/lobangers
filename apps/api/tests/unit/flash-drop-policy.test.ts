@@ -37,7 +37,6 @@ describe('displayStatus', () => {
       'DRAFT',
     )
     expect(displayStatus(drop({ status: 'DRAFT', endsAt: at(-1) }), NOW)).toBe('DRAFT')
-    // Left over from the old review flow: both read as drafts.
     expect(displayStatus(drop({ status: 'PENDING' }), NOW)).toBe('DRAFT')
     expect(displayStatus(drop({ status: 'SENT_BACK' }), NOW)).toBe('DRAFT')
     expect(displayStatus(drop({ status: 'STOPPED' }), NOW)).toBe('STOPPED')
@@ -90,7 +89,6 @@ describe('newClaimCode', () => {
 })
 
 describe('codesExpireAt', () => {
-  // 6:30 pm in Singapore.
   const closes = new Date('2026-11-01T10:30:00.000Z')
 
   it('counts from when claiming closes', () => {
@@ -101,7 +99,6 @@ describe('codesExpireAt', () => {
 
   it('ends a same-day code at 11:59 pm Singapore time', () => {
     expect(codesExpireAt(closes, 'END_OF_DAY').toISOString()).toBe('2026-11-01T15:59:59.999Z')
-    // 1:00 am in Singapore is already the next Singapore day.
     const lateNight = new Date('2026-11-01T17:00:00.000Z')
     expect(codesExpireAt(lateNight, 'END_OF_DAY').toISOString()).toBe('2026-11-02T15:59:59.999Z')
   })

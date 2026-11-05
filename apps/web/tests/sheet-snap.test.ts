@@ -1,7 +1,6 @@
 import { FLICK_VELOCITY, snapIndex } from '@web/modules/map-shell/sheet-snap'
 import { describe, expect, it } from 'vitest'
 
-// Peek, half and full heights of a 800px tall phone.
 const HEIGHTS = [120, 400, 680]
 
 describe('bottom sheet snapping', () => {

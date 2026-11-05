@@ -16,7 +16,6 @@ export type SampleReport = Readonly<{
   observedAt: number
 }>
 
-// A fixed fictional clock keeps the example reproducible. These are never live reports.
 export const SAMPLE_REPORT_TIME = Date.parse('2026-10-19T04:00:00Z')
 const minutes = (n: number) => SAMPLE_REPORT_TIME - n * 60_000
 export const sampleReports = [
@@ -45,7 +44,7 @@ export const sampleReports = [
     id: 'ended',
     userId: 'sample-dana',
     kind: 'ended',
-    message: 'Might have ended — check first.',
+    message: 'Might have ended, check first.',
     observedAt: minutes(1920),
   },
   {
@@ -66,7 +65,7 @@ export function deriveCommunityStatus(reports: readonly SampleReport[], now = SA
   const recent = reports.filter((r) => r.observedAt <= now && r.observedAt > cutoff)
   const current = new Map<string, SampleReport>()
   for (const report of recent) {
-    if (report.kind === 'changed') continue // A comment about terms is not an availability vote.
+    if (report.kind === 'changed') continue
     const previous = current.get(report.userId)
     if (!previous || report.observedAt >= previous.observedAt) current.set(report.userId, report)
   }

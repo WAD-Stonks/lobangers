@@ -6,8 +6,6 @@ import { foodKindFor } from '@web/modules/browse-map/food-kind'
 import { computed, ref } from 'vue'
 import type { RouteLocationRaw } from 'vue-router'
 
-// The deal the room is voting on. The photo is where yay stickers land; tapping the card opens
-// the deal's full details (a real link, so it can open in a new tab), and Back returns to the room.
 const props = defineProps<{ deal: SquadDeal; position: string; to: RouteLocationRaw }>()
 
 const photo = ref<HTMLElement | null>(null)

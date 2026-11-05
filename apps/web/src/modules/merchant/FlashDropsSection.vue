@@ -4,9 +4,6 @@ import FlashDropList from '@web/modules/merchant/FlashDropList.vue'
 import type { MerchantFlashDrop } from '@web/modules/merchant/flash-drop-api'
 import type { MerchantFlashDrops } from '@web/modules/merchant/use-merchant-flash-drops'
 
-// The dashboard's Flash deals tab: drafts, live and scheduled, and past flash deals, each under
-// its own heading. The state lives in useMerchantFlashDrops (the page also shows it in the stats);
-// Edit on a draft is passed up so the page can open its form.
 defineProps<{ store: MerchantFlashDrops }>()
 const emit = defineEmits<{ edit: [drop: MerchantFlashDrop] }>()
 </script>
@@ -93,7 +90,6 @@ const emit = defineEmits<{ edit: [drop: MerchantFlashDrop] }>()
   font-weight: 700;
   text-align: center;
 }
-/* Shows claims are arriving live, not on a timer. */
 .flash-tab__live {
   display: inline-flex;
   align-items: center;

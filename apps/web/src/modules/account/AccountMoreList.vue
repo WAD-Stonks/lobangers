@@ -7,9 +7,6 @@ import { useShellNavigation } from '@web/modules/map-shell/use-shell-navigation'
 import { computed } from 'vue'
 import { RouterLink } from 'vue-router'
 
-// The site menu's rows on the Account page, for layouts with a bottom nav (which drop the menu
-// button). Rows the bottom nav or the Account tabs already cover (Map, All deals, Saved, Share,
-// Submitted) are left out; Squad has its own header button.
 const navigationTo = useShellNavigation()
 const mapPreferences = useMapPreferences()
 const { user, activeCodeCount, codesText, menuGroups, logOut } = useMenuLinks()
@@ -49,7 +46,6 @@ const links = computed(() =>
   flex-direction: column;
 }
 
-/* Same rows as the brand menu, so the two read as one list. */
 .account-more__row {
   display: flex;
   align-items: center;

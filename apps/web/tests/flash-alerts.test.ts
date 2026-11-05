@@ -5,7 +5,6 @@ import type { ToastQueue } from '@web/modules/map-shell/use-toast'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { nextTick, shallowRef } from 'vue'
 
-// Labelled synthetic fixtures: none of these are real stalls or flash deals.
 const NOW = Date.parse('2026-11-03T10:00:00.000Z')
 const live = (id: string, overrides: Partial<PublicFlashDrop> = {}): PublicFlashDrop => ({
   id: id.padEnd(24, '0'),
@@ -56,7 +55,6 @@ describe('flash deal alerts', () => {
     options.action.run()
     expect(open).toHaveBeenCalledWith(first)
 
-    // The next refresh brings the same flash deal again: no second toast.
     drops.value = [{ ...first, codesLeft: 9 }]
     await nextTick()
     expect(toast.show).toHaveBeenCalledOnce()

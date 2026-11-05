@@ -3,7 +3,6 @@ import { money, type SampleDeal } from '@web/modules/landing/deals'
 import * as T from 'three'
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js'
 
-// One world space: +Z is the shop front; camera sees the front and left side.
 export function createHawker(canvas: HTMLCanvasElement, deal: SampleDeal, area: string) {
   const renderer = new T.WebGLRenderer({
     canvas,
@@ -159,7 +158,6 @@ export function createHawker(canvas: HTMLCanvasElement, deal: SampleDeal, area: 
     coral = '#ee6946',
     gold = '#ffc438',
     brown = '#795336'
-  // Rounded tiled miniature platform and contact shadow.
   box(groups.base, 0, 0.12, 0, 7.8, 0.28, 4.8, '#e7b65f', 0.24)
   box(groups.base, 0, 0.28, 0, 7.8, 0.14, 4.8, cream, 0.22)
   box(groups.base, 0, 0.36, 0, 7.25, 0.035, 4.28, '#d9c9ac', 0.15)
@@ -184,7 +182,6 @@ export function createHawker(canvas: HTMLCanvasElement, deal: SampleDeal, area: 
   )
   shadow.rotation.x = -Math.PI / 2
   shadow.castShadow = false
-  // Physical walls, side tiles, four posts, and substantial roof cap.
   box(groups.walls, 0, 2.05, -1.1, 5.5, 3.35, 0.18, '#d9d6b2')
   box(groups.walls, -2.65, 2.05, -0.12, 0.16, 3.35, 2.15, '#e9dbbd')
   for (let y = 0.65; y < 3.7; y += 0.37) {
@@ -198,14 +195,12 @@ export function createHawker(canvas: HTMLCanvasElement, deal: SampleDeal, area: 
       box(groups.walls, x, z > 0 ? 1.94 : 2.12, z, 0.25, z > 0 ? 3.14 : 3.5, 0.26, green)
   box(groups.walls, 0, 3.85, -0.56, 5.9, 0.26, 1.7, '#dca83e', 0.1)
   box(groups.walls, 0, 4.01, -0.56, 6.05, 0.16, 1.8, '#f5ce86', 0.1)
-  // Front counter, cream rounded top, inset trim, branding.
   box(groups.counter, 0, 1.05, 1, 5.55, 1.35, 1.02, '#bd6a36', 0.12)
   box(groups.counter, 0, 1.08, 1.54, 5.3, 1.13, 0.07, cream, 0.09)
   box(groups.counter, 0, 1.08, 1.588, 5.1, 0.95, 0.035, '#ef9d50', 0.06)
   box(groups.counter, 0, 1.77, 1.01, 5.85, 0.16, 1.24, cream, 0.08)
   plaque(groups.counter, -0.55, 1.08, 1.612, 2.8, 0.35, 'FRESH LOBANGS', '#ef9d50', '#fff0cd', 140)
   for (const x of [-2.08, 2.08]) box(groups.counter, x, 1.08, 1.62, 0.42, 0.035, 0.025, cream, 0.01)
-  // Sloping fabric stripes, each with real thickness and a curved front valance.
   for (let i = 0; i < 9; i++) {
     const x = -3.05 + ((i + 0.5) * 6.1) / 9,
       c = i % 2 ? gold : coral
@@ -235,7 +230,6 @@ export function createHawker(canvas: HTMLCanvasElement, deal: SampleDeal, area: 
     )
   }
   rod(groups.awning, [-3.08, 3.98, -0.52], [3.08, 3.98, -0.52], 0.075, brown)
-  // Selected deal rendered into a real illuminated board; HTML mirrors its content.
   box(groups.sign, 0, 4.52, -0.36, 5.4, 1.05, 0.24, green, 0.13)
   box(groups.sign, 0, 4.52, -0.2, 5.42, 1.05, 0.15, '#eac16e', 0.13)
   const signMap = texture(1536, 320, (c) => {
@@ -283,7 +277,6 @@ export function createHawker(canvas: HTMLCanvasElement, deal: SampleDeal, area: 
       emissiveIntensity: 1.5,
     })
   }
-  // Menu board and utensils on the rear wall.
   box(groups.food, -0.93, 2.02, -0.86, 1.85, 1.65, 0.12, '#ad8755', 0.08)
   box(groups.food, -0.93, 2.02, -0.78, 1.69, 1.49, 0.04, cream, 0.06)
   plaque(groups.food, -0.93, 2.25, -0.75, 1.5, 0.3, "TODAY'S MENU", cream, brown, 120)
@@ -317,7 +310,6 @@ export function createHawker(canvas: HTMLCanvasElement, deal: SampleDeal, area: 
   const interiorLight = new T.PointLight('#ffcc68', 0.8, 2.5)
   interiorLight.position.set(0.25, 2.45, 0.1)
   pendant.add(interiorLight)
-  // Hollow ceramic bowls with a rim, countertop rice, sliced chicken and greens.
   const bowl = (p: T.Object3D, x: number, y: number, z: number, r: number) => {
     const points = [
       new T.Vector2(0, 0),
@@ -351,7 +343,6 @@ export function createHawker(canvas: HTMLCanvasElement, deal: SampleDeal, area: 
       sphere(groups.food, x - 0.23 + i * 0.07, y + 0.33, z - 0.16, 0.06, 0.035, 0.045, '#5e943e')
   }
   meal(-0.85, 1.86, 1.17)
-  // Transparent cabinet and hanging stylised chickens, all on the same worktop.
   const glass = new T.MeshStandardMaterial({
     color: '#d9ede1',
     transparent: true,
@@ -377,7 +368,6 @@ export function createHawker(canvas: HTMLCanvasElement, deal: SampleDeal, area: 
     }
   }
   meal(1.7, 1.9, 0.57)
-  // Bowl stacks, sauces and chopstick pot.
   for (let i = 0; i < 4; i++) bowl(groups.food, 0.62, 1.86 + i * 0.085, 1.2, 0.22)
   for (let i = 0; i < 3; i++)
     cylinder(groups.food, -1.9, 1.89 + i * 0.045, 0.75, 0.28, 0.28, 0.045, cream)
@@ -397,7 +387,6 @@ export function createHawker(canvas: HTMLCanvasElement, deal: SampleDeal, area: 
     cylinder(groups.food, x, 2.04, 1.19, 0.09, 0.11, 0.35, c)
     cylinder(groups.food, x, 2.26, 1.19, 0.042, 0.045, 0.14, '#e68c55')
   }
-  // Side sign, stools and plants frame the reference composition.
   box(groups.decor, -2.91, 2.44, 0.82, 0.13, 1.53, 0.51, '#ad8052', 0.07)
   const sideMap = texture(256, 768, (c) => {
     c.fillStyle = cream
@@ -464,8 +453,6 @@ export function createHawker(canvas: HTMLCanvasElement, deal: SampleDeal, area: 
   tree(3.55, 0.35)
   for (const x of [-3.15, -2.8, 2.9, 3.4])
     sphere(groups.decor, x, 0.53, -1.33, 0.29, 0.27, 0.28, '#9cba61')
-  // Give every assembly its own pivot and opacity. Large structures settle in
-  // place instead of scaling from the world origin and drifting across the shop.
   const sourceMaterials = new Set<T.Material>()
   const pivots = new Map<T.Group, T.Vector3>()
   const fades = new Map<T.Group, { material: T.Material; opacity: number }[]>()

@@ -54,13 +54,11 @@ const pick = async (id: string) => {
   state.select(id)
   await nextTick()
   if (typeof window.matchMedia !== 'function') return
-  // Stacked layout only: bring the chosen drop's detail into view below the list.
   if (!window.matchMedia('(max-width: 1199.98px)').matches) return
   const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches
   detailRef.value?.scrollIntoView?.({ block: 'start', behavior: reduced ? 'auto' : 'smooth' })
 }
 onMounted(() => state.load(props.initialView ?? 'live'))
-// The page mirrors the open view into ?view= so it can be shared and survives a reload.
 watch(view, (current) => emit('viewChange', current))
 onUnmounted(state.dispose)
 </script>

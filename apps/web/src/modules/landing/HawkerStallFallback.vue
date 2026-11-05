@@ -113,7 +113,6 @@ const plant = project(-151,0,-5)
       <path :d="`M${face([[30,177,72],[30,143,72]]).replace(' ','L')}`" stroke="#66543b" stroke-width="2" />
       <path :d="`M${pendant.x-13} ${pendant.y}q0-21 13-21t13 21Z`" :fill="paint('coral')" stroke="#dc8653" stroke-width="1" />
       <ellipse :cx="pendant.x" :cy="pendant.y" rx="13" ry="3" fill="#fff1b0" />
-      <!-- Empty glass service display: deliberately independent of a food category. -->
       <polygon :points="box(62,88,46,66,58,22).front" fill="#d7eee0" fill-opacity=".18" stroke="#aaa995" stroke-width="2" />
       <polygon :points="box(62,88,46,66,58,22).left" fill="#dce8dc" fill-opacity=".16" stroke="#a5a48f" stroke-width="2" />
       <polygon :points="box(60,146,44,70,4,26).top" :fill="paint('metal')" /><polygon :points="box(60,146,44,70,4,26).front" fill="#b9b6a1" />
@@ -129,7 +128,6 @@ const plant = project(-151,0,-5)
         <polygon :points="box(x+3,117,23,5,3,5).top" fill="#db7852" />
       </g>
       <ellipse :cx="project(52,89,3).x" :cy="project(52,89,3).y" rx="10" ry="4" :fill="paint('ceramic')" stroke="#cdbc94" /><ellipse :cx="project(52,90,3).x" :cy="project(52,90,3).y" rx="7" ry="2" fill="#b97544" />
-      <!-- The selected photograph sits on this counter-mounted menu stand. -->
       <polygon :points="box(-26,88,16,52,2,22).top" fill="#b7a37a" />
       <polygon :points="box(-3,89,25,6,32,5).front" fill="#b7a37a" />
     </g>

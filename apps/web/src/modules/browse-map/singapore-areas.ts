@@ -1,8 +1,5 @@
 import type { Coordinates } from '@web/modules/browse-map/types'
 
-// Rough centre points of the neighbourhoods people name when they talk about where to eat.
-// Group pills take the nearest one, so names only need to be recognisable, not surveyed.
-// Regions follow URA's five planning regions, which is why Holland and Toa Payoh are Central.
 export const SINGAPORE_REGIONS = ['Central', 'East', 'North', 'North-East', 'West'] as const
 export type SingaporeRegion = (typeof SINGAPORE_REGIONS)[number]
 

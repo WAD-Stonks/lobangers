@@ -45,8 +45,6 @@ const reload = async () => {
       anonymous()
       return
     }
-    // Native identity only permits mounting the reader. The moderation GET performs
-    // the authoritative current ADMIN check; browser role never grants access.
     confirmAdminIdentity(identity.data)
     if (!fence.current(ticket)) return
     access.value = 'allowed'

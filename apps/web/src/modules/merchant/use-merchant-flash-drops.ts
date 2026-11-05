@@ -17,20 +17,11 @@ import { whenText } from '@web/modules/merchant/flash-drop-rules'
 import type { NoticeTone } from '@web/modules/merchant/merchant-notice'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 
-// The merchant's own flash deals for the dashboard: drafts, the ones that have gone live, and
-// past ones, kept fresh by live pushes (or polling without them). The stats tiles and the Flash
-// deals tab both read from here. Drafts are made and edited on their own form page.
-
-// How often the "min left" text and the statuses refresh.
 const TICK_MS = 4000
-// Claims and changes are pushed live; without a live connection, a running flash deal's claim
-// count is re-read this often instead.
 const POLL_MS = 30_000
-// At most one re-read a second however many claims arrive at once.
 const PUSH_REFRESH_MS = 1000
 
 export const useMerchantFlashDrops = (notify: (tone: NoticeTone, text: string) => void) => {
-  // The dashboard mounts the app's confirm dialog; these ask through it.
   const { ask } = useConfirm()
   const session = authClient.useSession()
 
@@ -39,7 +30,6 @@ export const useMerchantFlashDrops = (notify: (tone: NoticeTone, text: string) =
   const loadError = ref('')
   const now = ref(new Date())
   const busyId = ref<string | null>(null)
-  // True while claims arrive over the live connection.
   const live = ref(false)
 
   const drafts = computed(() => drops.value.filter((drop) => drop.status === 'DRAFT'))
@@ -62,8 +52,6 @@ export const useMerchantFlashDrops = (notify: (tone: NoticeTone, text: string) =
     }
   }
 
-  // Re-reads the list in place, without the loading state, for live updates and polling. A
-  // failed re-read keeps what is shown; the next push or poll tries again.
   let latestRead = 0
   const reloadQuietly = async () => {
     const read = ++latestRead
@@ -76,7 +64,6 @@ export const useMerchantFlashDrops = (notify: (tone: NoticeTone, text: string) =
   }
   const pushedReload = coalesce(() => void reloadQuietly(), PUSH_REFRESH_MS)
 
-  // Swap one flash deal in the list for its updated copy (or add it at the top if it is new).
   const putDrop = (updated: MerchantFlashDrop) => {
     const known = drops.value.some((drop) => drop.id === updated.id)
     drops.value = known
@@ -84,7 +71,6 @@ export const useMerchantFlashDrops = (notify: (tone: NoticeTone, text: string) =
       : [updated, ...drops.value]
   }
 
-  // Runs one request for a flash deal, with its buttons disabled meanwhile.
   const act = async (drop: MerchantFlashDrop, work: () => Promise<string>, failure: string) => {
     busyId.value = drop.id
     try {
@@ -118,7 +104,6 @@ export const useMerchantFlashDrops = (notify: (tone: NoticeTone, text: string) =
     )
   }
 
-  // Deletes a draft, or takes a past flash deal out of the merchant's history.
   const remove = async (drop: MerchantFlashDrop) => {
     const draft = drop.status === 'DRAFT'
     const confirmed = await ask(
@@ -172,8 +157,6 @@ export const useMerchantFlashDrops = (notify: (tone: NoticeTone, text: string) =
   let pollTimer: ReturnType<typeof setInterval> | undefined
   let closeChannel: CloseChannel | null = null
 
-  // Listens on the merchant's own channel; a reconnect re-reads, since pushes sent while it was
-  // down are lost.
   const listen = (userId: string) => {
     let connectedBefore = false
     closeChannel = openMerchantFlashChannel(userId, {
@@ -205,8 +188,6 @@ export const useMerchantFlashDrops = (notify: (tone: NoticeTone, text: string) =
     timer = setInterval(() => {
       now.value = new Date()
     }, TICK_MS)
-    // The fallback when there is no live connection: only while something is running, and only
-    // while the tab is visible.
     pollTimer = setInterval(() => {
       if (!live.value && running.value.length > 0 && !document.hidden) void reloadQuietly()
     }, POLL_MS)

@@ -19,7 +19,6 @@ const logOut = async () => {
   <template v-else-if="session.data">
     <RouterLink class="nav-link px-0" :to="navigationTo('/saved')">Saved</RouterLink>
     <RouterLink class="nav-link px-0" :to="navigationTo('/me/submissions')">My deal submissions</RouterLink>
-    <!-- Only regular users are offered merchant access; merchants get their dashboard instead. -->
     <RouterLink
       v-if="session.data.user.role === 'USER'"
       class="nav-link px-0"
@@ -27,7 +26,6 @@ const logOut = async () => {
     >
       Merchant access
     </RouterLink>
-    <!-- Only merchants see this link. The /merchant route also blocks everyone else. -->
     <RouterLink
       v-if="session.data.user.role === 'MERCHANT'"
       class="nav-link px-0"

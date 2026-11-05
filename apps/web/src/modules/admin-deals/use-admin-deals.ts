@@ -249,7 +249,7 @@ export const useAdminDeals = (
       }
       recovery.settle(id, attempt, completed)
       if (!alive || !recovery.current() || epoch !== generation) return
-      if (target.value !== id || ticket !== detailTicket) return // A late success never unlocks a different selection.
+      if (target.value !== id || ticket !== detailTicket) return
       if (result.id === id && mark(result)) {
         recovery.settle(id, completed, null)
         selected.value = result

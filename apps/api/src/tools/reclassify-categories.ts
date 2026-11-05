@@ -7,13 +7,9 @@ import {
   DEFAULT_DEAL_CATEGORY,
 } from '@broke-oclock/contracts/deal-categories'
 
-// One-off backfill: every imported deal was stored as FOOD before the parser classified
-// categories. Dry run by default; pass --apply to write. Category is material content:
-// changed deals advance a version, lose publication/scope and require fresh moderation.
 const APPLY_FLAG = '--apply'
 const TITLE_PREVIEW_CHARS = 60
 
-// Later imports stored the default in lower case ("food"), which no category code matches.
 const UNCLASSIFIED = [DEFAULT_DEAL_CATEGORY, DEFAULT_DEAL_CATEGORY.toLowerCase()]
 
 const planChanges = async (db: Database) => {
@@ -92,7 +88,6 @@ export const reclassifyCategories = async (db: Database, apply: boolean) => {
   console.log(`Updated ${changes.length} deal(s).`)
 }
 
-// Importing the writer never constructs the ambient client or dispatches the CLI.
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const { db } = await import('@broke-oclock/db')
   try {

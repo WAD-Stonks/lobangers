@@ -13,8 +13,6 @@ import { useToast } from '@web/modules/map-shell/use-toast'
 import { computed, nextTick, onBeforeUnmount, ref, useId, watch } from 'vue'
 import { useRouter } from 'vue-router'
 
-// Lives in the deal panel's action bar: a deal is shared once it has been opened. A small menu
-// offers the link and the chat apps; More… opens the device's share sheet with the picture.
 const props = defineProps<{
   dealId: string
   venueId: string
@@ -33,14 +31,12 @@ const place = ref({ top: 0, right: 0, up: false })
 const canShareNatively = typeof navigator !== 'undefined' && typeof navigator.share === 'function'
 const label = computed(() => `Share ${props.title}`)
 
-// The deal's own page at this outlet, without the sharer's filters.
 const share = computed<DealShare>(() => ({
   title: props.title,
   venueName: props.venueName,
   dates: props.dates,
   url: new URL(router.resolve(dealLocation({}, props.dealId, props.venueId)).href, window.location.origin).href,
 }))
-// Ready before the tap, so the share sheet can open with the photo attached.
 const image = ref<File | null>(null)
 watch(
   () => props.imageUrl,
@@ -61,7 +57,6 @@ const onOutside = (event: Event) => {
   const target = event.target as Node
   if (!menu.value?.contains(target) && !button.value?.contains(target)) close(false)
 }
-// The menu is pinned to where the button was, so it goes rather than drift off it.
 const onMove = () => close(false)
 const listen = (on: boolean) => {
   const method = on ? 'addEventListener' : 'removeEventListener'
@@ -80,7 +75,6 @@ const close = (refocus = true) => {
 const openMenu = async () => {
   const box = button.value?.getBoundingClientRect()
   if (!box) return
-  // Opens upward near the bottom of the screen, as in the panel's action bar.
   const up = window.innerHeight - box.bottom < 220
   place.value = { top: up ? box.top - 8 : box.bottom + 8, right: Math.max(8, window.innerWidth - box.right), up }
   open.value = true

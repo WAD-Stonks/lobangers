@@ -20,11 +20,8 @@ import {
 } from '@web/modules/merchant/flash-drop-rules'
 import { computed } from 'vue'
 
-// The flash part of the deal form: codes, when it starts, how long people can claim, how long a
-// claimed code then works, and who sees the banner. The flash offer itself is the deal form's own Offer type above. The deal form owns the
-// state and checks it; this only shows it.
 const props = defineProps<{
-  title: string // the deal's title, for the banner preview
+  title: string
   offer: Pick<MerchantFlashDrop, 'offerType' | 'discountPercent' | 'flashPriceCents'>
   problem: FlashProblem | null
 }>()
@@ -65,7 +62,6 @@ const changeCodes = (direction: 1 | -1) => {
     </p>
 
     <div class="row g-3 mb-3">
-      <!-- Only a fixed flash price has a usual price to show the saving against. -->
       <div v-if="offer.offerType === 'FIXED_PRICE'" class="col-sm-6">
         <label for="flash-usual" class="form-label">Usual price ($, optional)</label>
         <input
@@ -172,7 +168,6 @@ const changeCodes = (direction: 1 | -1) => {
 </template>
 
 <style scoped>
-/* A coral edge marks the flash part apart from the rest of the deal form. */
 .flash-fields {
   padding-left: 12px;
   border-left: 4px solid var(--coral);
@@ -191,7 +186,6 @@ const changeCodes = (direction: 1 | -1) => {
   font-weight: 700;
   font-variant-numeric: tabular-nums;
 }
-/* Dark banner like the one on the map. */
 .banner {
   padding: 10px 14px;
   border-radius: 14px;

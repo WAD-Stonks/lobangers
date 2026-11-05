@@ -98,7 +98,6 @@ const liveDealAt = (index: number): DealPin => {
   return deal
 }
 const heroProps = { live: liveDeals, liveState: 'ready' as const }
-// Enough deals for two carousel pages of five: the five regional deals, then three more North ones.
 const pagedDeals: DealPin[] = [
   ...liveDeals,
   ...[1, 2, 3].map((n) => ({
@@ -416,7 +415,6 @@ describe('live cuisine discovery', () => {
     )
     await flushPromises()
     expect(wrapper.findAll('.food-deal-card')).toHaveLength(5)
-    // jsdom has no ResizeObserver, so the carousel keeps its default of five columns.
     expect(wrapper.get('#landing-deal-carousel').attributes('style')).toContain('--deal-columns: 5')
     expect(wrapper.get('.landing-carousel-status').text()).toContain('Showing 1–5')
     await wrapper.get('[aria-label="Next deals"]').trigger('click')

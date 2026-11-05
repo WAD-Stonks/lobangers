@@ -1,6 +1,4 @@
 <script setup lang="ts">
-// The merchant dashboard's deal cards in rows: 4 across on wide screens, 3 on laptops, 2 on
-// tablets and 1 on phones, so a card never gets too narrow to read. Put each card in an <li>.
 </script>
 
 <template>

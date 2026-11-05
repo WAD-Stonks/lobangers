@@ -6,19 +6,15 @@ import { afterLoginPath, safeRedirect } from '@web/router/guards'
 import { computed } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 
-// Successful login opens All Deals (or the Squad room an invite came from); otherwise the
-// original destination only explains the prompt.
 const route = useRoute()
 const router = useRouter()
 const toast = useToast()
 
-// Fixed messages only: the ?notice= value picks one, it is never shown itself.
 const NOTICES: Record<string, string> = {
   verified: 'Your email is verified. You can log in now.',
   verify: 'Check your email for a link to verify your account, then log in.',
   reset: 'Your password was changed. Log in with the new one.',
 }
-// Why the visitor was sent here, from where the guard bounced them.
 const REASONS: readonly [prefix: string, title: string][] = [
   ['/add', 'Log in to add a deal'],
   ['/saved', 'Log in to see your saved deals'],

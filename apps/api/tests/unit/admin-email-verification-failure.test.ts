@@ -1,7 +1,6 @@
 import { createAuth } from '@broke-oclock/auth/server'
 import { describe, expect, it, vi } from 'vitest'
 
-// Callback-level characterization in addition to the native HTTP/disposable DB regression.
 describe('verification preparation safe failure boundary', () => {
   it.each([
     ['CONFLICT', 'CONFLICT'],

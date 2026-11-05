@@ -3,7 +3,6 @@ import { usePanelScrollReset } from '@web/modules/map-shell/use-panel-scroll'
 import { describe, expect, it } from 'vitest'
 import { defineComponent, h, nextTick, ref } from 'vue'
 
-// Content keys reset the scroll; per-item state (votes, saves) does not.
 const setup = () => {
   const state = ref({ dealId: 'd1', tab: 'now', step: 1, filters: 'q=', votes: 0, saved: false })
   const Panel = defineComponent({

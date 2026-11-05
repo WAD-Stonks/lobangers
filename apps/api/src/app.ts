@@ -40,8 +40,6 @@ export const createApp = (
       .status(404)
       .json({ error: { code: 'NOT_FOUND', message: 'Not found' } } satisfies ApiError)
   })
-  // These same-origin resources reject unsupported methods before global CORS preflight.
-  // Preserve preflight behavior on the existing native SDK and REST routes.
   app.options(
     ['/api/auth-methods', '/api/admin/overview', '/api/admin/analytics/users'],
     methodNotAllowed('GET'),

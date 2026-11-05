@@ -4,7 +4,6 @@ export type SelectOption = {
   readonly disabled?: boolean
 }
 
-// For lists whose shown text is the value itself, like OPEN / RESOLVED.
 export const optionsFromValues = (values: readonly string[]): readonly SelectOption[] =>
   values.map((value) => ({ value, label: value }))
 

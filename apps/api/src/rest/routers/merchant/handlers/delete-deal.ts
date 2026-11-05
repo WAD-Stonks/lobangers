@@ -12,7 +12,6 @@ import {
   merchantEmptyQuerySchema,
 } from '@broke-oclock/contracts/merchant'
 
-// Deletes a scheduled or ended deal. Live deals have to be ended first.
 export const deleteDeal = (dependencies: RestDependencies) =>
   createRestHandler(dependencies, async (request, response, context) => {
     requireTrustedOrigin(request.get('Origin'), dependencies.config.webOrigin)

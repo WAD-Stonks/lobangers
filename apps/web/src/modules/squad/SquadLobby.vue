@@ -11,9 +11,6 @@ import type { SquadRoom } from '@web/modules/squad/use-squad-room'
 import { computed, onBeforeUnmount, ref } from 'vue'
 import { useRouter } from 'vue-router'
 
-// The lobby before voting starts. The host shares the code, sees friends arrive, removes
-// anyone who should not be there and starts the room once a friend is in. Guests wait for the
-// host. The room store's polling flips the panel to the live room when the host starts.
 const props = defineProps<{ room: SquadRoom }>()
 const router = useRouter()
 const toast = useToast()
@@ -32,7 +29,6 @@ const dealsText = computed(() => {
   return `${count} ${count === 1 ? 'deal' : 'deals'} queued`
 })
 
-// The server's clock, so a phone set a few minutes off still counts down correctly.
 const now = ref(Date.now())
 const timer = setInterval(() => {
   now.value = Date.now()
@@ -55,7 +51,6 @@ const alone = computed(
 type Confirming = { kind: 'close' } | { kind: 'remove'; member: SquadMember } | null
 const confirming = ref<Confirming>(null)
 const leaving = ref(false)
-// The button that opened a sheet, so focus goes back there when the sheet closes.
 const sheetTrigger = ref<HTMLElement | null>(null)
 const others = computed(() =>
   players.value.filter((member) => member.id !== state.value?.me?.memberId).map((member) => member.name),

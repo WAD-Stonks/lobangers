@@ -17,8 +17,6 @@ import {
 import { updateMerchantDrop } from '@api/rest/routers/flash-drops/handlers/update-merchant-drop'
 import { Router } from 'express'
 
-// Flash deals: public map reads and claims, live update sign-in, the merchant's own flash deals (drafts, Go live,
-// end), and admin removal.
 export const createFlashDropsRouter = (dependencies: RestDependencies): Router => {
   const router = Router()
   router.use('/admin/flash-drops', (_request, response, next) => {

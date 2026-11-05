@@ -8,7 +8,6 @@ const router = createRouter({
   history: createWebHistory(),
   routes,
 })
-// Before authGuard, so the shell knows where the visitor is going while the session loads.
 trackPendingNavigation(router)
 router.beforeEach(authGuard)
 trackPageTitle(router)

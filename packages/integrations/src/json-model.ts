@@ -1,5 +1,3 @@
-// What every JSON chat model transport takes and how it fails, so the API can swap or fall back
-// between providers without knowing which one answered.
 export type JsonModelErrorCode =
   | 'INVALID_INPUT'
   | 'RATE_LIMITED'

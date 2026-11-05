@@ -16,7 +16,6 @@ export const listSubmissions = (dependencies: RestDependencies) =>
     const input = parseRestInput(accountPageQuerySchema, request.query)
     const cursorFilter = input.cursor ? { id: { lt: input.cursor } } : {}
 
-    // Deals submitted by THIS user. activeRecord skips deals that were soft-deleted.
     const rows = await context.db.deal.findMany({
       where: { submittedById: session.user.id, ...activeRecord, ...cursorFilter },
       orderBy: { id: 'desc' },

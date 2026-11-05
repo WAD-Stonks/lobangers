@@ -16,7 +16,6 @@ afterEach(() => {
   vi.clearAllMocks()
 })
 
-// Labelled synthetic fixtures: none of these are real stalls or deals.
 const deal = {
   title: 'Synthetic 1-for-1',
   description: 'Two plates for one.',

@@ -66,8 +66,6 @@ const storeImage = async (
     row.status === 'UNKNOWN' ||
     (row.status === 'UPLOADING' && row.uploadExpiresAt && row.uploadExpiresAt <= runtime.now())
   ) {
-    // An expired/uncertain upload is NOT permission to resend. A custom ID is a
-    // lookup key, not a provider uniqueness guarantee. Absence stays UNKNOWN.
     const receipt = await runtime.imageStorage.resolve(customId)
     if (receipt) {
       const resolved = hosted(receipt)

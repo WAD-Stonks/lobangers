@@ -3,12 +3,10 @@ export const DEFAULT_COMMUNITY_POLICY = {
   positivePercent: 80,
   windowHours: 24,
 } as const
-// Fixed defaults for the illustrative landing story. Live endpoints use the configured policy.
 export const COMMUNITY_POLICY = DEFAULT_COMMUNITY_POLICY
 export type CommunityPolicy = { minAlive: number; positivePercent: number; windowHours: number }
 export type CommunityStatus = 'NO_RECENT_REPORTS' | 'UNCERTAIN' | 'LIKELY_STILL_ON' | 'EXPIRED'
 
-// Counts must already be limited to each user's current vote in the freshness window.
 export const communityStatus = (
   votes: { alive: number; dead: number },
   validUntil: string | null,

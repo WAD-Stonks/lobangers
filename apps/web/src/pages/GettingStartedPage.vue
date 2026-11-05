@@ -36,7 +36,6 @@ const features = [
   },
 ]
 
-// Merchants add deals from their dashboard, so the Share a deal row is not for them.
 const canAddDeal = useCanAddDeal()
 const shownFeatures = computed(() =>
   features.filter((feature) => feature.path !== '/add' || canAddDeal.value),

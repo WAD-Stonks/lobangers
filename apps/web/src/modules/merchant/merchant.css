@@ -1,7 +1,3 @@
-/* Pieces shared by the merchant dashboard and its deal form pages. Buttons, chips and tabs are
-   the app's own (lb-btn, lb-chip, lb-tab in shell-ui.css); these add what those don't have. */
-
-/* The page column: as wide as four deal cards, with the site's page padding. */
 .merchant-page {
   box-sizing: border-box;
   width: 100%;
@@ -10,7 +6,6 @@
   padding: clamp(16px, 4vw, 32px) clamp(16px, 4vw, 24px) 48px;
 }
 
-/* Back link above a page title, like My deal submissions. */
 .merchant-back {
   display: inline-flex;
   align-items: center;
@@ -42,7 +37,6 @@
   line-height: 1.1;
 }
 
-/* A red-text button for End, Delete and the like, on the app's white pill. */
 .lb-btn.merchant-btn--danger {
   color: var(--tag-end-ink, #a8321f);
 }
@@ -50,7 +44,6 @@
   color: var(--tag-end-ink, #a8321f);
   background: var(--tag-end-bg, #fdf0ee);
 }
-/* Card buttons: a notch smaller on a mouse, still a full touch target on phones. */
 .merchant-btn--sm {
   min-height: 40px;
   padding: 0 14px;
@@ -61,7 +54,6 @@
   }
 }
 
-/* Messages: a soft green or red box with rounded corners. */
 .merchant-alert {
   display: flex;
   align-items: center;

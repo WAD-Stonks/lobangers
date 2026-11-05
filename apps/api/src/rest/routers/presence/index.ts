@@ -5,7 +5,6 @@ import { listNearby } from '@api/rest/routers/presence/handlers/list-nearby'
 import { shareMe } from '@api/rest/routers/presence/handlers/share-me'
 import { Router } from 'express'
 
-// Hungry Nearby: anyone may see who is around; only signed-in people may appear.
 export const createPresenceRouter = (dependencies: RestDependencies): Router => {
   const router = Router()
   router.use('/presence', (_request, response, next) => {

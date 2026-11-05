@@ -8,7 +8,6 @@ import {
   presenceEmptyQuerySchema,
 } from '@broke-oclock/contracts/presence'
 
-// "Show me too" and every heartbeat after it. The raw point is fuzzed before it is stored.
 export const shareMe = (dependencies: RestDependencies) =>
   createRestHandler(dependencies, async (request, response, context) => {
     requireTrustedOrigin(request.get('Origin'), dependencies.config.webOrigin)

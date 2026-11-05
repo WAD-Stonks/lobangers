@@ -1,9 +1,3 @@
-/* Flash Drop on the map (flash-layer.ts): the dashed coral circle of who sees the banner, the
-   coral pin with its countdown, and the black banner that pops up over the circle. Global
-   because Leaflet draws these outside any component. */
-
-/* The banner and pin are dark by day and invert to light on the dark basemap (as the deal pins
-   do), so their secondary colours swap to darker partners there. Shared with FlashEdgeBanner. */
 :root {
   --flash-kicker: #f3a58e;
   --flash-meta: #c9c6bf;
@@ -29,7 +23,6 @@
   stroke-opacity: 0.75;
   stroke-width: 2.5;
   stroke-dasharray: 8 7;
-  /* Ripples out from the pin just after it lands, so the circle reads as the pin's reach. */
   transform-box: fill-box;
   transform-origin: center;
   animation:
@@ -37,7 +30,6 @@
     flash-zone-spin 14s linear infinite;
 }
 
-/* Spin stays second in both lists so the dashes keep turning while the circle leaves. */
 .flash-zone.is-leaving {
   animation:
     flash-zone-out 360ms var(--ease-in-out) both,
@@ -77,7 +69,6 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  /* Placed with `translate` so `transform` is free to grow the pin up out of its dot. */
   translate: -50% calc(-100% + 5.5px);
   transform-origin: 50% calc(100% - 5.5px);
   animation: flash-pin-in 560ms linear both;
@@ -91,7 +82,6 @@
   animation: flash-pin-out 360ms var(--ease-in-out) both;
 }
 
-/* Falls onto its dot, squashes a touch on landing, then settles. */
 @keyframes flash-pin-in {
   0% {
     opacity: 0;
@@ -112,7 +102,6 @@
   }
 }
 
-/* Lifts slightly, then sinks into its dot; stays solid long enough to be seen going. */
 @keyframes flash-pin-out {
   30% {
     opacity: 1;
@@ -184,7 +173,6 @@
   border-radius: 50%;
 }
 
-/* A single coral ring spreads from the dot as the pin lands. */
 .flash-pin__dot::after {
   position: absolute;
   inset: -3px;
@@ -207,14 +195,12 @@
   }
 }
 
-/* The banner sits on the circle's top edge with its tail pointing down at it. */
 .flash-banner-wrap {
   position: absolute;
   left: 0;
   transform: translateX(calc(-50% + var(--flash-shift, 0px)));
 }
 
-/* Under the circle, tail pointing up, when the top is too close to the header. */
 .flash-banner-wrap--above {
   bottom: 8px;
 }
@@ -345,7 +331,6 @@
   border-radius: 9px;
 }
 
-/* How long the banner has left before it closes itself; hovering pauses it. */
 .flash-banner__life {
   position: absolute;
   right: 14px;
@@ -369,7 +354,6 @@
   animation-play-state: paused;
 }
 
-/* "Fake deal": every demonstration drop says so wherever it shows. */
 .flash-fake {
   display: inline-flex;
   align-items: center;

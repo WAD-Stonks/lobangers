@@ -48,8 +48,6 @@ const root = ref<HTMLElement | null>(null)
 const commentsHeading = ref<HTMLElement | null>(null)
 const viewAllButton = ref<HTMLButtonElement | null>(null)
 type Comment = (typeof comments.value)[number]
-// Newest first applies to top-level comments only. Each brings its replies, oldest first and
-// depth first, as the server sends them. A reply whose comment is not loaded stands on its own.
 const threads = computed(() => {
   const items = comments.value
   const ids = new Set(items.map((comment) => comment.id))
@@ -60,7 +58,6 @@ const threads = computed(() => {
     .map((root) => ({ root, replies: repliesTo(root.id) }))
 })
 const shownThreads = computed(() => (props.allComments ? threads.value : threads.value.slice(0, 3)))
-// More than this many replies fold away under "View N replies".
 const REPLIES_SHOWN = 2
 const openThreads = ref(new Set<string>())
 const repliesFolded = (thread: { root: Comment; replies: Comment[] }) =>
@@ -373,20 +370,16 @@ const commentLimit = formatCount(COMMENT_MAX)
   .deal-community-last-update { min-height: 3.2em; }
   .deal-community-report-dialog, .deal-community-explanation-dialog { padding: 18px; }
 }
-/* 320px: the report link drops under the explanation instead of squeezing it. */
 @media (max-width: 359.98px) {
   .deal-community-verification-links { flex-wrap: wrap; }
   .deal-community-report-link { margin-left: 0; }
 }
-/* The disclosure gets a drawn chevron instead of the browser's black triangle. */
 .deal-community-explanation summary { display: flex; align-items: center; justify-content: space-between; gap: 8px; list-style: none; }
 .deal-community-explanation summary::-webkit-details-marker { display: none; }
 .deal-community-explanation summary::after { content: ''; flex: none; width: 7px; height: 7px; margin-right: 4px; border-right: 2px solid var(--ink-muted); border-bottom: 2px solid var(--ink-muted); transform: translateY(-2px) rotate(45deg); transition: transform 160ms var(--ease-out); }
 .deal-community-explanation[open] summary::after { transform: translateY(2px) rotate(-135deg); }
 @media (prefers-reduced-motion: reduce) { .deal-community-explanation summary::after { transition: none; } }
-/* Phones: the sign-in line is plain text under the empty state instead of a second box. */
 @media (max-width: 767.98px) {
-  /* No report yet means no "Last update" line, so it gives back the space it reserves. */
   .deal-community-last-update:empty { display: none; }
   .deal-community-empty { order: 1; padding: 18px 12px; }
   .deal-community-sign-in { order: 2; padding: 0; border: 0; text-align: center; justify-items: center; }

@@ -12,7 +12,6 @@ import {
 } from '@web/modules/admin-flash-drops/flash-drop-format'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-// Synthetic, clearly labelled fixtures. They prove the Vue projection only, not server rules.
 const drop = (extra: Partial<AdminFlashDrop> = {}): AdminFlashDrop => ({
   id: 'aaaaaaaaaaaaaaaaaaaaaaa1',
   dealId: 'bbbbbbbbbbbbbbbbbbbbbbb1',
@@ -154,7 +153,6 @@ describe('FlashDropsPanel', () => {
     const submit = wrapper.get('[data-testid="flash-decision-submit"]')
     expect(submit.text()).toBe('Remove flash deal')
     await wrapper.get('input[name="confirm"]').setValue(true)
-    // A note is required.
     expect(submit.attributes('disabled')).toBeDefined()
     await wrapper.get('textarea[name="note"]').setValue('  Misleading price  ')
     expect(submit.attributes('disabled')).toBeUndefined()

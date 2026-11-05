@@ -17,13 +17,6 @@ import {
 export interface TelegramClientOptions extends SourceClientOptions {
   previewUrl?: string
 }
-/** This is URL syntax validation, not username registration/availability validation.
- * Telegram documents basic names as 5–32 but also supports shorter collectibles.
- * Do not invent a collectible minimum: accept a nonempty bounded ASCII candidate;
- * the same-identity active preview marker and widget IDs then prove provider identity.
- * Registry identity is lowercase; returned post IDs retain literal data-post casing.
- * References: https://core.telegram.org/method/account.checkUsername
- * https://core.telegram.org/api/fragment and https://telegram.org/faq#q-what-can-i-use-as-my-username */
 export const parseTelegramPreviewUrl = (
   value: string,
 ): { previewUrl: string; username: string; sourceExternalId: string } => {
@@ -58,9 +51,6 @@ export const parseTelegramPreviewUrl = (
   return { previewUrl: value, username, sourceExternalId: username.toLowerCase() }
 }
 
-/** Public preview only, configured by the persisted source registry, not environment.
- * Default exists for backward compatibility only; production must pass previewUrl.
- * page > 1 requires the previous literal message-ID cursor; callers scope it per source. */
 export const createTelegramClient = (options: TelegramClientOptions = {}): SourceClient => {
   boundedInteger(options.timeoutMs ?? 15_000, 15_000)
   const identity = parseTelegramPreviewUrl(options.previewUrl ?? 'https://t.me/s/ThisCounted')

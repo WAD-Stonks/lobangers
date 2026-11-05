@@ -4,7 +4,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { h, ref } from 'vue'
 import { createMemoryHistory, createRouter } from 'vue-router'
 
-// Synthetic auth client: these tests check the menu, not real authentication.
 const auth = vi.hoisted(() => ({ useSession: vi.fn(), signOut: vi.fn() }))
 vi.mock('@web/lib/auth-client', () => ({
   authClient: { useSession: auth.useSession, signOut: auth.signOut },

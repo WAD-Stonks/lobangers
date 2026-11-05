@@ -22,8 +22,6 @@ import type { AxiosInstance } from 'axios'
 
 const room = (code: string) => `/squad/rooms/${validateInput(squadCodeParamsSchema, { code }).code}`
 
-// Makan Squad rooms: hosting, joining, the lobby controls, voting, the sync heartbeat and the
-// live channel handshake.
 export const createSquadClient = (http: AxiosInstance) => ({
   realtimeConfig: () => request(http.get('/squad/realtime'), squadRealtimeConfigSchema),
   realtimeAuth: (input: SquadRealtimeAuth) =>

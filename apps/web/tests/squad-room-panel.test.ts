@@ -5,7 +5,6 @@ import { describe, expect, it, vi } from 'vitest'
 import { computed, h, ref, shallowRef } from 'vue'
 import { createMemoryHistory, createRouter } from 'vue-router'
 
-// The room panel around the lobby and live vote. The room, its member and the sheet are fakes.
 const fakes = vi.hoisted(() => ({ room: null as unknown }))
 
 vi.mock('@web/lib/auth-client', () => ({

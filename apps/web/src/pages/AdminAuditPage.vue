@@ -34,8 +34,6 @@ const reload = async () => {
     if (!fence.current(ticket)) return
     if (identity.error) { access.value = 'error'; return }
     if (!identity.data?.user) { confirmAdminIdentity(null); anonymous(); return }
-    // Native identity only permits mounting the reader. The audit GET performs
-    // the authoritative current ADMIN check; browser role never grants access.
     confirmAdminIdentity(identity.data)
     if (!fence.current(ticket)) return
     access.value = 'allowed'

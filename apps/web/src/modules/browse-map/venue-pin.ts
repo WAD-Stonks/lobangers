@@ -16,7 +16,6 @@ export type PinState = {
 }
 
 export const pinLabel = (deal: Pick<DealPin, 'title' | 'label'>): string => {
-  // An empty label (no price or offer text yet) falls back to the title.
   const text = deal.label.trim() || deal.title.trim()
   if (text.length <= DEAL_PIN_LABEL_MAX_CHARS) return text
   return `${text.slice(0, DEAL_PIN_LABEL_MAX_CHARS - 1).trimEnd()}${ELLIPSIS}`
@@ -33,7 +32,6 @@ const cheapest = (deals: readonly PinOffer[]): PinOffer | undefined =>
       undefined,
     )
 
-// One deal: its price or offer. Several: the cheapest price, or how many there are.
 export const pinBadgeText = (deals: readonly PinOffer[]): string => {
   const [first] = deals
   if (deals.length === 1 && first) return pinLabel(first)
@@ -43,8 +41,6 @@ export const pinBadgeText = (deals: readonly PinOffer[]): string => {
 
 export type PinTag = { readonly text: string; readonly tone: 'promo' | 'plain' }
 
-// The small box beside the price: the kind of offer in yellow, or the outlet's deal count in
-// white. Never repeats what the badge already says.
 export const pinTag = (deals: readonly PinOffer[]): PinTag | null => {
   const [first] = deals
   if (!first) return null
@@ -57,7 +53,6 @@ export const pinTag = (deals: readonly PinOffer[]): PinTag | null => {
   return null
 }
 
-// Small corner flags: "ending today" wins over "verified" so the urgent one is never hidden.
 export const pinFlag = (
   deals: readonly Pick<DealPin, 'validUntil' | 'votes'>[],
   now: Date,
@@ -109,7 +104,6 @@ const stateClasses = (state: PinState) =>
     .filter(Boolean)
     .join(' ')
 
-// The dish the outlet's first deal names, or its category's default model.
 export const pinFoodKind = (pin: Pick<VenuePin, 'deals'> & Partial<Pick<VenuePin, 'name'>>) => {
   const first = pin.deals[0]
   return foodKindFor({
@@ -119,8 +113,6 @@ export const pinFoodKind = (pin: Pick<VenuePin, 'deals'> & Partial<Pick<VenuePin
   })
 }
 
-// Stable 0..1 from text, so a pin always starts its animation at the same point but neighbours
-// differ.
 const phaseOf = (text: string): number =>
   ([...text].reduce((hash, ch) => (hash * 31 + ch.charCodeAt(0)) % 997, 7) % 100) / 100
 
@@ -131,7 +123,6 @@ const part = (name: string, text?: string): HTMLSpanElement => {
   return element
 }
 
-// "Chicken rice at Ah Seng, $4.50" or "3 deals at Ah Seng, from $3.00".
 export const venuePinLabel = (
   pin: Pick<VenuePin, 'deals'> & Partial<Pick<VenuePin, 'name'>>,
 ): string => {
@@ -141,9 +132,6 @@ export const venuePinLabel = (
   return `${what}${where}, ${pinBadgeText(pin.deals)}`
 }
 
-// A dark oval with the first deal's animated 3D food standing out of its top-left corner, the
-// price, and a yellow or white tag, on a stem down to a dot that marks the outlet. Built from DOM
-// nodes so deal text is never parsed as HTML.
 export const createVenuePinIcon = (
   pin: Pick<VenuePin, 'deals'> & Partial<Pick<VenuePin, 'name'>>,
   state: PinState = {},
@@ -164,8 +152,6 @@ export const createVenuePinIcon = (
   }
 
   const root = part('stack')
-  // Leaflet names the marker's role="button" from its content, not its title, so the stack
-  // carries a full label; on its own the price and tag ("$4.50 1-for-1") say little.
   root.setAttribute('aria-label', venuePinLabel(pin))
   root.append(bubble, part('stem'), part('dot'))
   return L.divIcon({

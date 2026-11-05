@@ -1,10 +1,5 @@
 import type { PresenceAvatar } from '@broke-oclock/contracts/presence'
 
-// How many people the map draws at each zoom. Up close, everyone stands on the map. Further
-// out, people sharing a patch of screen become one small chip of overlapping faces with a
-// count, so they never pile up over the deal pills; at island view everyone in a wide patch
-// is summed up, and at most a dozen single avatars are ever drawn.
-
 export type ScreenPerson = {
   readonly token: string
   readonly avatar: PresenceAvatar
@@ -53,7 +48,6 @@ export const planPeople = (people: readonly ScreenPerson[], zoom: number): Peopl
     return new Map(acc).set(key, [...(acc.get(key) ?? []), person])
   }, new Map())
   const groups = [...cells.values()]
-  // Island view always sums up; in between, a person alone in their patch still stands.
   const singles =
     zoom >= PEOPLE_AREA_FROM_ZOOM
       ? groups.filter((members) => members.length === 1).slice(0, MAX_LOOSE_WHEN_GROUPED)

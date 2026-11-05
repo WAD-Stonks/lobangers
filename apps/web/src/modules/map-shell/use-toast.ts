@@ -11,7 +11,6 @@ import {
 export const TOAST_MS = 4200
 
 export type ToastTone = 'info' | 'error'
-// An optional single action, such as Undo after removing a saved deal. Pressing it dismisses the toast.
 export type ToastAction = { readonly label: string; readonly run: () => void }
 export type Toast = {
   readonly id: number
@@ -28,7 +27,6 @@ export type ToastQueue = {
   readonly dispose: () => void
 }
 
-// One toast at a time: a new one replaces the current toast and restarts the timer.
 export const createToastQueue = (): ToastQueue => {
   const current = shallowRef<Toast | null>(null)
   let nextId = 1
@@ -58,7 +56,6 @@ export const createToastQueue = (): ToastQueue => {
 
 const TOAST_KEY: InjectionKey<ToastQueue> = Symbol('toast-queue')
 
-// Creates the shell's queue, shares it with every panel and clears its timer on unmount.
 export const provideToastQueue = (): ToastQueue => {
   const queue = createToastQueue()
   provide(TOAST_KEY, queue)
@@ -66,7 +63,6 @@ export const provideToastQueue = (): ToastQueue => {
   return queue
 }
 
-// Outside the shell (a panel mounted alone in a test) toasts go nowhere rather than throwing.
 const SILENT_QUEUE: ToastQueue = {
   current: readonly(shallowRef(null)),
   show: () => undefined,

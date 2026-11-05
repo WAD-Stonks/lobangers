@@ -3,7 +3,6 @@ import ConfirmDialog from '@web/components/ConfirmDialog.vue'
 import { useConfirm } from '@web/lib/use-confirm'
 import { afterEach, describe, expect, it } from 'vitest'
 
-// The app's own confirm dialog, which replaces window.confirm on the merchant dashboard.
 const open = () => {
   const wrapper = mount(ConfirmDialog, { attachTo: document.body })
   const { ask } = useConfirm()

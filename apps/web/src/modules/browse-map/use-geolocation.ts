@@ -3,7 +3,6 @@ import { readonly, ref } from 'vue'
 
 export type GeolocationStatus = 'idle' | 'locating' | 'granted' | 'denied' | 'unavailable'
 
-// GeolocationPositionError.PERMISSION_DENIED; compared by value so fakes need no prototype.
 const PERMISSION_DENIED_CODE = 1
 const POSITION_OPTIONS: PositionOptions = {
   enableHighAccuracy: false,
@@ -11,14 +10,11 @@ const POSITION_OPTIONS: PositionOptions = {
   maximumAge: 60_000,
 }
 
-// Wraps the browser Geolocation API. Callers decide the fallback (for example the Singapore
-// bounds) when the result is null; this composable never invents a position.
 export function useGeolocation(
   geolocation: Geolocation | undefined = globalThis.navigator?.geolocation,
 ) {
   const status = ref<GeolocationStatus>('idle')
   const position = ref<Coordinates | null>(null)
-  // Radius in metres the browser reports around `position`; drawn as the accuracy circle.
   const accuracyMetres = ref<number | null>(null)
 
   const locate = () =>

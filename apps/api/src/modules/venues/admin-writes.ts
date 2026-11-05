@@ -190,7 +190,6 @@ export const patchCatalogueVenue = (
       },
     })
     if (result.count !== 1) throw conflict()
-    // catalogueKey participates in subject hashes but is not an audit allowlist field.
     const changedFields = Object.keys(fields).filter(
       (key) => key !== 'catalogueKey',
     ) as NonNullable<

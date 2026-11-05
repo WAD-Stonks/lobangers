@@ -23,7 +23,6 @@ export const createRestRouter = (dependencies: RestDependencies): Router => {
   const router = Router()
   router.use(createInfrastructureRouter(dependencies))
   router.use(createCommunityRouter(dependencies))
-  // Before the merchant router, whose /merchant mount would otherwise answer 404 first.
   router.use(createFlashDropsRouter(dependencies))
   router.use(createSquadRouter(dependencies))
   router.use(createPresenceRouter(dependencies))

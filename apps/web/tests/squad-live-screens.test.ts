@@ -4,8 +4,6 @@ import { describe, expect, it } from 'vitest'
 import { h } from 'vue'
 import { createMemoryHistory, createRouter } from 'vue-router'
 
-// The live room's pieces: the dock after a match, the member row and the room options. Every
-// member, room and deal here is synthetic.
 const member = (id: string, name: string, overrides: Partial<SquadMember> = {}): SquadMember => ({
   id: id.repeat(24),
   name,

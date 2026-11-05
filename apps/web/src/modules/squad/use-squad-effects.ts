@@ -1,11 +1,6 @@
 import type { SquadAvatar } from '@broke-oclock/contracts/squad'
 import { shallowRef } from 'vue'
 
-// The room's effects: a yay flies the voter's face from their seat and sticks it onto the deal
-// photo with a "YAY!!" burst; a nah spills thumbs-down from the top; choosing to vote again,
-// move on or keep looking after a match whooshes a chip across. Stickers only land on the photo, so text stays readable, and
-// every list is capped so spamming never piles up work.
-
 const MAX_STICKERS = 14
 const MAX_DROPS = 40
 const BURST_MS = 700
@@ -26,7 +21,6 @@ export type Burst = { readonly id: number; readonly x: number; readonly y: numbe
 export type Drop = {
   readonly id: number
   readonly x: number
-  /** 0–1 down the room: where the thumb shows when motion is reduced and it cannot fall. */
   readonly y: number
   readonly delay: number
   readonly rotate: number
@@ -34,7 +28,6 @@ export type Drop = {
 export type WhooshKind = 'again' | 'next' | 'look'
 export type Whoosh = { readonly id: number; readonly text: string; readonly kind: WhooshKind }
 
-// "You want", but "Ashley wants".
 const wants = (name: string) => `${name} ${name === 'You' ? 'want' : 'wants'}`
 
 const WHOOSH_TEXT: Record<WhooshKind, (name: string) => string> = {
@@ -54,7 +47,6 @@ export const useSquadEffects = (random: () => number = Math.random) => {
 
   const later = (ms: number, work: () => void) => setTimeout(work, ms)
 
-  // `photo` is where stickers may land; `from` is the voter's seat, both relative to the room.
   const yay = (avatar: SquadAvatar, photo: Box, from: { x: number; y: number }) => {
     const id = nextId++
     const margin = 22
@@ -102,7 +94,6 @@ export const useSquadEffects = (random: () => number = Math.random) => {
     })
   }
 
-  // A new deal or round starts with a clean photo.
   const clearStickers = () => {
     stickers.value = []
   }

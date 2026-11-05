@@ -14,19 +14,18 @@ import MerchantDealCard, { type CardTone } from '@web/modules/merchant/MerchantD
 
 defineProps<{
   drops: MerchantFlashDrop[]
-  busyId: string | null // the flash deal with a request in progress
+  busyId: string | null
   now: Date
-  empty: string // what to say when the list is empty
+  empty: string
 }>()
 
 const emit = defineEmits<{
   edit: [drop: MerchantFlashDrop]
   goLive: [drop: MerchantFlashDrop]
-  remove: [drop: MerchantFlashDrop] // delete a draft, or a past flash deal from the history
+  remove: [drop: MerchantFlashDrop]
   end: [drop: MerchantFlashDrop]
 }>()
 
-// Badge colours for each status.
 const TONES: Record<FlashDropDisplayStatus, CardTone> = {
   DRAFT: 'draft',
   SCHEDULED: 'scheduled',
@@ -35,7 +34,6 @@ const TONES: Record<FlashDropDisplayStatus, CardTone> = {
   STOPPED: 'removed',
 }
 
-// The flash offer, with the usual price it beats for a fixed price: "$1.50 (usually $4.00)".
 const offerOf = (drop: MerchantFlashDrop) => {
   const offer = flashOfferText(drop) || 'Flash deal'
   return drop.offerType === 'FIXED_PRICE' && drop.usualPriceCents
@@ -140,7 +138,6 @@ const claimedPercent = (drop: MerchantFlashDrop) =>
 </template>
 
 <style scoped>
-/* Smaller details under the location: reach, status and codes claimed. */
 .flash-extra {
   margin: 0;
   color: var(--ink-muted);
@@ -154,7 +151,6 @@ const claimedPercent = (drop: MerchantFlashDrop) =>
   color: var(--ink-muted);
   font-size: var(--text-sm);
 }
-/* How many codes are claimed: a coral bar on a sunk track, like the dashboard's stats. */
 .claimed-track {
   height: 8px;
   overflow: hidden;

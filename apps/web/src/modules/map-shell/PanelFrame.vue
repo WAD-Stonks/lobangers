@@ -5,9 +5,6 @@ import { usePanelScrollReset } from '@web/modules/map-shell/use-panel-scroll'
 import { onMounted, ref, useId, useSlots } from 'vue'
 import { type RouteLocationRaw, RouterLink } from 'vue-router'
 
-// The frame every panel fills: optional back link, the panel's h1, a scrolling body and an
-// optional sticky action bar. `scrollKey` lists whatever changes the content (tab, step, sort,
-// filters); when it changes the body jumps back to the top.
 const props = withDefaults(
   defineProps<{
     title: string
@@ -31,7 +28,6 @@ usePanelScrollReset(body, [() => props.scrollKey])
 onMounted(() => {
   if (!focusOnMount.value) return
   heading.value?.focus({ preventScroll: true })
-  // Once per navigation: a panel swapping loading for loaded content must not steal focus.
   focusOnMount.value = false
 })
 </script>
@@ -73,8 +69,6 @@ onMounted(() => {
   min-height: 0;
 }
 
-/* The only thing that scrolls. Bottom padding clears the part of a bottom sheet that sits
-   below the screen edge (--sheet-offset), so the last item is always reachable. */
 .panel-frame__body {
   display: flex;
   flex: 1 1 auto;
@@ -86,8 +80,6 @@ onMounted(() => {
   overscroll-behavior: contain;
 }
 
-/* Content keeps its height and the body scrolls. Without this, a child that is itself a
-   scroll container (a tab strip) would shrink to fit and be painted over. */
 .panel-frame__body > :deep(*) {
   flex-shrink: 0;
 }
@@ -139,7 +131,6 @@ onMounted(() => {
   border-radius: 4px;
 }
 
-/* Sticky action bar. In a bottom sheet it rises with the visible part of the sheet. */
 .panel-frame__actions {
   display: grid;
   grid-auto-flow: column;
@@ -151,8 +142,6 @@ onMounted(() => {
   transform: translateY(calc(-1 * var(--sheet-offset, 0px)));
 }
 
-/* Phones: a bottom sheet shows only part of the screen, so the frame spends less on spacing and
-   the title, and tightens again on short screens (an iPhone in Safari leaves about 660px). */
 @media (max-width: 767.98px) {
   .panel-frame__body {
     gap: clamp(10px, 1.8vh, 16px);

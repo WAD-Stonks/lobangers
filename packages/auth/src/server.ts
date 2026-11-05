@@ -30,15 +30,12 @@ import { type EmailOTPOptions, emailOTP } from 'better-auth/plugins/email-otp'
 export type NativeDatabaseHooks = NonNullable<BetterAuthOptions['databaseHooks']>
 export type AuthEmailMessage = { name: string; email: string; url: string }
 
-// Supplied by the API (which owns the email provider). Implementations must never throw:
-// a failed email must not break sign-up or the password-reset request.
 export type AuthEmailSender = {
   sendVerification: (message: AuthEmailMessage) => Promise<void>
   sendPasswordReset: (message: AuthEmailMessage) => Promise<void>
 }
 
 export type EmailOTPData = Parameters<EmailOTPOptions['sendVerificationOTP']>[0]
-// Server-only native facts; never accepted from public request bodies.
 type VerifiedIdentity = {
   userId: string
   email: string
@@ -51,11 +48,9 @@ export type AuthConfig = {
   baseURL: string
   secret: string
   trustedOrigin: string
-  // Present only when the email provider is configured.
   email?: AuthEmailSender
   google?: { clientId: string; clientSecret: string }
   sendEmailOTP?: (data: EmailOTPData) => Promise<void>
-  // Called only from native standalone verification after ownership proof, before its user write.
   prepareEmailVerification?: (identity: VerifiedIdentity) => Promise<VerifiedIdentity | null>
   onVerifiedAuthentication?: (
     event: VerifiedAuthenticationEvent,
@@ -71,7 +66,6 @@ const linkFailure = () =>
 
 type EmailHookData = { user: { name: string; email: string }; url: string }
 
-// The consuming API validates environment values before calling this factory.
 export const createAuth = (config: AuthConfig) => {
   const sender = config.email
   const googleFence = createGoogleAccountFence()
@@ -92,7 +86,6 @@ export const createAuth = (config: AuthConfig) => {
         platformVersion: generation(user?.platformVersion),
       })
   }
-  // Public native Request identity survives endpoint/hook contexts; shared AuthContext does not own proof.
   const googleEmails = new WeakMap<
     Request,
     Readonly<{
@@ -109,7 +102,6 @@ export const createAuth = (config: AuthConfig) => {
     rateLimit: { enabled: true, window: 60, max: 100 },
     secret: config.secret,
     trustedOrigins: [config.trustedOrigin],
-    // Native diagnostics can include OAuth state and provider errors. Keep level/event only.
     logger: {
       level: 'warn',
       log: (level) => {
@@ -167,9 +159,7 @@ export const createAuth = (config: AuthConfig) => {
                   { field: 'expiresAt', value: row.expiresAt },
                 ],
               })
-            } catch {
-              /* Failure must still reach native dispatch even if cleanup fails. */
-            }
+            } catch {}
             throw deliveryFailure()
           }
         },
@@ -178,8 +168,6 @@ export const createAuth = (config: AuthConfig) => {
     ],
     hooks: {
       before: createAuthMiddleware(async (ctx) => {
-        // The public dispatch context identifies pathless native server-only operations.
-        // Challenge helpers are independent system APIs, not authenticated-session issuers.
         const operationId: unknown = Reflect.get(ctx, 'operationId')
         const independentChallenge =
           operationId === 'createEmailVerificationOTP' || operationId === 'getEmailVerificationOTP'
@@ -199,7 +187,6 @@ export const createAuth = (config: AuthConfig) => {
               code: 'UNAUTHORIZED',
               message: 'Unauthorized',
             })
-          // Admission reads do not mint a capability to acquire writing actor fences.
           if (!['GET', 'HEAD'].includes(ctx.request?.method ?? ctx.method))
             nativeOperations.authorize(ctx.request, active)
         }
@@ -246,7 +233,6 @@ export const createAuth = (config: AuthConfig) => {
         if (ctx.path === '/link-social' && ctx.body?.provider === 'google') {
           const session = await getAuthoritativeSessionFromCtx(ctx)
           if (!session?.user.emailVerified) throw linkFailure()
-          // Pinned 1.7.5 direct ID-token linking skips validateUserInfo. Use its public native verifier.
           if (ctx.body.idToken) {
             const provider = ctx.context.socialProviders.find(
               (candidate) => candidate.id === 'google',
@@ -296,11 +282,6 @@ export const createAuth = (config: AuthConfig) => {
           return {
             context: {
               context: {
-                // Pinned 1.7.5 calls refreshAccessToken when expiry is <5s away.
-                // Refuse at that exact native decision, not a racy preflight clock check.
-                // Native refuses with FAILED_TO_GET_ACCESS_TOKEN; callers must POST
-                // /refresh-token (or /get-access-token) before retrying this read.
-                // Clone per-dispatch providers; never change the shared POST provider.
                 socialProviders: ctx.context.socialProviders.map((provider) => ({
                   ...provider,
                   ...(provider.refreshAccessToken
@@ -319,8 +300,6 @@ export const createAuth = (config: AuthConfig) => {
           }
       }),
       after: createAuthMiddleware(async (ctx) => {
-        // Native server dispatch ignores a falsy before-hook result (including null).
-        // HTTP is stopped above; server GETs need their native value filtered here too.
         if (ctx.path === '/get-session') {
           const result = ctx.context.returned as {
             session?: { id?: string }
@@ -339,7 +318,6 @@ export const createAuth = (config: AuthConfig) => {
         verified.delete(ctx.request)
         preparedVerification.delete(ctx.request)
         const returned = ctx.context.returned
-        // OAuth success redirects are APIErrors too. Never replace their status/Location.
         if (
           returned instanceof APIError &&
           (returned.statusCode < 300 || returned.statusCode >= 400)
@@ -384,7 +362,6 @@ export const createAuth = (config: AuthConfig) => {
           )
             return ctx.json({ ...returned, user: { ...returned.user, role: result.role } })
         } catch {
-          // Authentication already committed; an unconfirmed privilege grant is never retried here.
           console.warn(JSON.stringify({ event: 'admin-email-provisioning-not-confirmed' }))
         }
       }),
@@ -435,7 +412,6 @@ export const createAuth = (config: AuthConfig) => {
             observeAdmission(ctx.request, target, user.email)
           }
         }
-        // Returning sign-in creates no account. A standalone provisioning policy probe mints no proof.
         if (source.action === 'sign-in' || (source.action === 'create-user' && !ctx)) return
         if (!ctx?.request || typeof user.email !== 'string' || !user.email)
           return {
@@ -509,8 +485,6 @@ export const createAuth = (config: AuthConfig) => {
       requireEmailVerification: Boolean(sender),
       ...(sender
         ? {
-            // Awaited: on Vercel, work still running after the response can be stopped, so the
-            // email must be finished (the sender never throws) before this hook returns.
             sendResetPassword: async ({ user, url }: EmailHookData) => {
               await sender.sendPasswordReset({ name: user.name, email: user.email, url })
             },
@@ -522,7 +496,6 @@ export const createAuth = (config: AuthConfig) => {
       beforeEmailVerification: async (user, request) => {
         if (!request || user.emailVerified || !config.prepareEmailVerification) return
         const security = user as typeof user & Partial<SecurityUser>
-        // Rejection is deliberately fatal: no native verified transition after failed cleanup.
         const prepared = await config
           .prepareEmailVerification({
             userId: user.id,
@@ -531,7 +504,6 @@ export const createAuth = (config: AuthConfig) => {
             platformVersion: generation(security.platformVersion),
           })
           .catch((error: unknown) => {
-            // Log only an allowlisted classification. Error messages/stacks can contain secrets.
             const code =
               typeof error === 'object' && error !== null && 'code' in error ? error.code : null
             const category =
@@ -554,7 +526,6 @@ export const createAuth = (config: AuthConfig) => {
         const prepared = preparedVerification.get(request)
         preparedVerification.delete(request)
         const security = user as typeof user & Partial<SecurityUser>
-        // Never upgrade skipped preparation, replays, foreign Requests or a changed generation.
         if (
           !prepared ||
           !user.emailVerified ||
@@ -576,7 +547,6 @@ export const createAuth = (config: AuthConfig) => {
           }
         : {}),
     },
-    // Staff authorization must use fresh DB sessions. GET preserves DB; native POST renews.
     session: {
       cookieCache: { enabled: false },
       deferSessionRefresh: true,
@@ -644,7 +614,6 @@ export const createAuth = (config: AuthConfig) => {
             googleEmails.delete(ctx.request)
             if (!proof || (proof.userId !== null && proof.userId !== account.userId))
               throw linkFailure()
-            // Includes native transaction-local newly created OAuth users, never global/cached identity.
             const adapter = await getCurrentAdapter(ctx.context.adapter)
             const local = await adapter.findOne<SecurityUser>({
               model: 'user',
@@ -683,7 +652,6 @@ export const createAuth = (config: AuthConfig) => {
       },
     },
     advanced: {
-      // Keep security checks identical under NODE_ENV=test and production.
       disableOriginCheck: false,
       disableCSRFCheck: false,
       database: { generateId: false },

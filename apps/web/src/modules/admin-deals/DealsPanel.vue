@@ -306,7 +306,6 @@ const saveContent = () => {
   try {
     for (const key of fields) {
       const raw = editor[key] ?? ''
-      // Preserve untouched legacy values and timestamp precision, even when their display differs.
       if (raw === initialEditor[key]) continue
       const value = key === 'priceMinor' ? priceInputToMinor(raw)
         : key === 'validFrom' || key === 'validUntil' ? singaporeInputToIso(raw)
@@ -372,7 +371,6 @@ const submitAction = () => {
     void state.write((id, envelope) => client.unpublish(id, envelope))
   else if (chosen === 'reopen') void state.write((id, envelope) => client.reopen(id, envelope))
 }
-// "$12.90"; an unrecognised currency code keeps the stored code and the raw minor units.
 const amount = (minor: number | null, currency: string) => {
   if (minor == null) return 'Not recorded'
   try {

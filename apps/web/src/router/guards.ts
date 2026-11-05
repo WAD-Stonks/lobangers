@@ -3,18 +3,13 @@ import type { RouteLocationNormalized, RouteLocationRaw } from 'vue-router'
 
 declare module 'vue-router' {
   interface RouteMeta {
-    /** Visitor must be signed in. */
     requiresAuth?: boolean
-    /** Signed-in users are bounced away (e.g. the login page). */
     guestOnly?: boolean
-    /** If set, the signed-in user's role must be one of these. */
     roles?: readonly string[]
-    /** Signed-in users with one of these roles are sent to the given path instead. */
     roleRedirects?: Readonly<Record<string, string>>
   }
 }
 
-// Only same-site paths: blocks https://evil.example and //evil.example open redirects.
 export const safeRedirect = (value: unknown, fallback = '/'): string =>
   typeof value === 'string' &&
   value.startsWith('/') &&
@@ -24,15 +19,11 @@ export const safeRedirect = (value: unknown, fallback = '/'): string =>
     ? value
     : fallback
 
-// Logging in normally opens All Deals. Squad invites are the exception: the friend who tapped
-// the link came to join that room, so they go straight back to it.
 export const afterLoginPath = (redirect: unknown): string => {
   const destination = safeRedirect(redirect, '/deals')
   return destination.startsWith('/squad/') ? destination : '/deals'
 }
 
-// UX ONLY. The browser can be tampered with; the API (protectedProcedure and the
-// database-backed role checks) is what actually enforces access.
 export const authGuard = async (
   to: RouteLocationNormalized,
   from?: RouteLocationNormalized,
@@ -43,11 +34,8 @@ export const authGuard = async (
 
   let session: CachedSession | null = null
   try {
-    // Cached briefly so moving between protected panels does not wait on the network each time.
     session = await routerSession.get()
-  } catch {
-    // Network failure: treat as signed out; the API will still reject real calls.
-  }
+  } catch {}
 
   if (isHome) return session ? '/deals' : true
   const needsPrompt =

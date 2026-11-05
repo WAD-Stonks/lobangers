@@ -12,10 +12,8 @@ const saved = useSavedDeals()
 const toast = useToast()
 const route = useRoute()
 const router = useRouter()
-// Bumped on each save so the icon remounts and replays its pop.
 const popKey = ref(0)
 const isSaved = computed(() => saved.isSaved(props.dealId))
-// A fixed name with aria-pressed: the pressed state already says whether it is saved.
 const label = computed(() => `Save ${props.title}`)
 const undoUnsave = () => {
   saved.toggle(props.dealId).catch((error: unknown) => {
@@ -23,8 +21,6 @@ const undoUnsave = () => {
     toast.show('Could not restore that deal. Try again.', { tone: 'error' })
   })
 }
-// Never locked: taps queue per deal in useSavedDeals, and the toast confirms at once
-// because the icon already shows the result.
 const toggle = async () => {
   if (!session.value.data) {
     await router.push({ name: 'auth-required', query: { ...route.query, tab: 'profile', redirect: route.fullPath } })

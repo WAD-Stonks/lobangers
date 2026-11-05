@@ -2,8 +2,6 @@ import { expect, test } from '@playwright/test'
 // biome-ignore lint/style/noRestrictedImports: E2E-only helper; no E2E alias exists.
 import { chooseOption } from './choose-option'
 
-// Synthetic browser fixtures exercise the real SPA/client. Real cookie/Prisma persistence
-// and concurrency are separately covered by integration/community.test.ts.
 const id = 'c'.repeat(24)
 const userId = 'a'.repeat(24)
 const venue = { id: 'b'.repeat(24), name: 'Synthetic community outlet', lat: 1.3, lng: 103.8 }
@@ -193,7 +191,6 @@ for (const width of [320, 390, 1280]) {
       .locator('button:visible')
       .evaluateAll((buttons) => buttons.map((button) => button.getBoundingClientRect().height))
     expect(touchTargets.every((height) => height >= 44)).toBe(true)
-    // Delete lives in the posted comment's options menu.
     await community
       .locator('article', { hasText: 'The synthetic outlet honoured this deal.' })
       .getByRole('button', { name: 'Comment options', exact: true })

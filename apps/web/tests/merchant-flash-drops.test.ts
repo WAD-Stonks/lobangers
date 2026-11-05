@@ -23,11 +23,9 @@ import { ref } from 'vue'
 
 enableAutoUnmount(afterEach)
 
-// Labelled synthetic fixtures: none of these are real outlets, deals or flash deals.
 const NOW = new Date('2026-11-02T10:00:00+08:00')
 const HOUR = 3_600_000
-const USUAL = 350 // the usual price a $1.50 flash price beats
-// When the fixture's codes expire, in words, in whatever time zone the tests run in.
+const USUAL = 350
 const CODES_UNTIL = () =>
   whenText(new Date(NOW.getTime() + 10 * HOUR).toISOString(), NOW).toLowerCase()
 
@@ -36,7 +34,6 @@ const fields = (overrides: Partial<FlashFieldsState> = {}): FlashFieldsState => 
   usualDollars: 3.5,
   ...overrides,
 })
-// The flash offer comes from the deal form's own Offer type.
 const fixed = { offerType: 'FIXED_PRICE' as const, priceCents: 150 }
 
 const drop = (overrides: Partial<MerchantFlashDrop> = {}): MerchantFlashDrop => ({
@@ -52,7 +49,6 @@ const drop = (overrides: Partial<MerchantFlashDrop> = {}): MerchantFlashDrop => 
   startsAt: new Date(NOW.getTime() + 2 * HOUR).toISOString(),
   endsAt: new Date(NOW.getTime() + 2.5 * HOUR).toISOString(),
   codeValidity: 'END_OF_DAY',
-  // 8:00 pm today: codes claimed in the window still work this evening.
   codesExpireAt: new Date(NOW.getTime() + 10 * HOUR).toISOString(),
   radiusMetres: 500,
   codeLimit: 40,
@@ -90,7 +86,6 @@ describe('flashFieldsProblem', () => {
     expect(flashFieldsProblem(fields({ usualDollars: 0 }), fixed, NOW)?.message).toMatch(
       /Enter the usual price/,
     )
-    // Other offers have no usual price to check.
     const bogo = { offerType: 'BUY_ONE_GET_ONE' as const, priceCents: null }
     expect(flashFieldsProblem(fields({ usualDollars: 0 }), bogo, NOW)).toBeNull()
   })
@@ -150,7 +145,6 @@ describe('flash deal helpers', () => {
     const startLocal = toLocalInput(new Date(NOW.getTime() + HOUR))
     const timed = toFlashDropBody(deal, 'outlet-a', fields({ startMode: 'LATER', startLocal }))
     expect(timed.startsAt).toBe(new Date(startLocal).toISOString())
-    // A usual price only goes with a fixed flash price.
     const bogo = { ...deal, offerType: 'BUY_ONE_GET_ONE' as const, priceCents: null }
     expect(toFlashDropBody(bogo, 'outlet-a', fields()).usualPriceCents).toBeNull()
   })
@@ -167,7 +161,6 @@ describe('flash deal helpers', () => {
     expect(flashFieldsFromDrop(drop({ codeValidity: 'SEVEN_DAYS' })).codeValidity).toBe(
       'SEVEN_DAYS',
     )
-    // Older flash deals had no choice; a copy gets the default.
     expect(flashFieldsFromDrop(drop({ codeValidity: null })).codeValidity).toBe('END_OF_DAY')
   })
 
@@ -345,7 +338,6 @@ describe('FlashDropList', () => {
     mount(FlashDropList, { props: { drops, busyId: null, now: NOW, empty: 'Nothing.' } })
   const card = (wrapper: ReturnType<typeof mountList>, id: string) =>
     wrapper.get(`[data-testid="flash-drop-${id}"]`)
-  // The visible label only, without the screen-reader text that names the deal.
   const buttons = (wrapper: ReturnType<typeof mountList>, id: string) =>
     card(wrapper, id)
       .findAll('button')
@@ -356,7 +348,6 @@ describe('FlashDropList', () => {
     expect(buttons(wrapper, 'draft')).toEqual(['Go live', 'Edit', 'Delete draft'])
     expect(buttons(wrapper, 'scheduled')).toEqual(['End now'])
     expect(buttons(wrapper, 'live')).toEqual(['End now'])
-    // Past flash deals can be deleted from the history.
     expect(buttons(wrapper, 'ended')).toEqual(['Delete'])
     expect(buttons(wrapper, 'removed')).toEqual(['Delete'])
     expect(card(wrapper, 'live').text()).toContain('12 of 40 claimed')

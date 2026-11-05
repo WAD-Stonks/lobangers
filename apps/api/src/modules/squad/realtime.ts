@@ -8,11 +8,7 @@ import {
 } from '@broke-oclock/contracts/squad'
 import Pusher from 'pusher'
 
-// Pushes every committed room event to the room's private Pusher channel, so members see taps
-// and phase changes live instead of polling for them. Vercel functions cannot hold sockets, so
-// Pusher holds them and the API only makes one HTTPS call per write. Without Pusher configured
-// nothing is pushed and members fall back to polling the sync heartbeat.
-
+// Vercel functions can't hold sockets, so Pusher does. Without Pusher, members poll the sync heartbeat.
 export type SquadPublisher = {
   trigger: (channel: string, event: string, data: SquadPush) => Promise<unknown>
   authorizeChannel: (socketId: string, channel: string) => { auth: string }
@@ -20,7 +16,6 @@ export type SquadPublisher = {
 
 export type WrittenEvent = { code: string; event: SquadEvent }
 
-// A push that hangs must not hold the vote response; the heartbeat catches members up.
 const PUBLISH_TIMEOUT_MS = 2_000
 const EVENTS_PER_PUSH = 50
 
@@ -68,12 +63,10 @@ const trigger = (target: SquadPublisher, code: string, data: SquadPush) =>
     },
   )
 
-// A tap batch's new ballot, so the others' tallies move without anyone re-reading the room.
 export const publishBallot = async (code: string, ballot: SquadBallot) => {
   if (publisher) await trigger(publisher, code, { events: [], ballot })
 }
 
-// Never throws: the write already committed, and a lost push only delays the others' view.
 export const publishEvents = async (written: readonly WrittenEvent[]) => {
   const target = publisher
   if (!target || written.length === 0) return

@@ -193,8 +193,6 @@ const button = async (w: ReturnType<typeof mount>, text: string) => {
   await b.trigger('click')
   await flushPromises()
 }
-// The catalogue opens on its verification queue and shows a merchant read-only. Reach the
-// merchant directory, open the merchant and, unless told not to, its name form.
 const openMerchant = async (w: ReturnType<typeof mount>, edit = true) => {
   if (!w.find(`button[data-open-row="${merchant.name}"]`).exists()) {
     const tab = w.findAll('[role="tab"]').find((candidate) => candidate.text() === 'Merchants')
@@ -338,7 +336,6 @@ const act = async (w: ReturnType<typeof mount>, kind: (typeof mountedCases)[numb
       .get(kind === 'deals' ? '[data-testid="select-deal"]' : '[data-testid="inspect-report"]')
       .trigger('click')
   await flushPromises()
-  // A locked catalogue record keeps Edit name disabled, so there may be no form to fill.
   if ((kind === 'catalogue' || kind === 'create') && !w.find('[name="merchantName"]').exists())
     return
   if (kind === 'catalogue' || kind === 'create')
@@ -562,7 +559,6 @@ it.each(['catalogue', 'create', 'deals', 'moderation'] as const)(
       await flushPromises()
       await w.get('[data-testid="admin-access-reload"]').trigger('click')
       await flushPromises()
-      // Same target/version is permitted for a genuinely new native owner after real client reads.
       delayWrite = null
       await act(w, kind)
       expect(writes).toHaveLength(2)
@@ -892,7 +888,6 @@ it.each(['catalogue', 'deals', 'moderation'] as const)(
     const ledger = adminRecovery(kind)
     expect(ledger.attempts.size).toBe(1)
     first.unmount()
-    // The parent starts its native GET before the shell finishes native renewal.
     auth.getSession.mockResolvedValueOnce({ data: null, error: null })
     auth.getSession.mockResolvedValue({
       data: null,
@@ -910,7 +905,6 @@ it.each(['catalogue', 'deals', 'moderation'] as const)(
   },
 )
 
-// Real original parents/router/typed clients; only native SDK and HTTP are synthetic.
 const absenceParents = [
   {
     kind: 'audit',
@@ -987,8 +981,6 @@ it.each(
   }
   try {
     await act(w, 'create')
-    // New merchant switches the page to the merchant directory, which is a read of its own.
-    // What matters is that nothing is read once the session is in doubt.
     reads.length = 0
     const { adminRecovery } = await import('@web/lib/admin-recovery')
     const old = adminRecovery('catalogue')
@@ -1166,7 +1158,6 @@ it.each(
       await router.push(parent.path)
       await flushPromises()
       expect(protectedReads).toEqual([parent.read])
-      // Native failure closes/fences the original in-flight protected reader.
       auth.getSession.mockResolvedValue(nativeUnknown)
       window.dispatchEvent(new Event('focus'))
       await flushPromises()

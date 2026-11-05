@@ -1,6 +1,5 @@
 import { ref } from 'vue'
 
-// Presentation preference survives page-owned shell remounts, never an access decision.
 export const sidebarCollapsed = ref(false)
 export const adminNavigation = [
   { href: '/admin', label: 'Overview', icon: 'overview', group: 'Workspace' },

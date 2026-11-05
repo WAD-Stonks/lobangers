@@ -6,7 +6,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { h, ref } from 'vue'
 import { createMemoryHistory, createRouter } from 'vue-router'
 
-// Synthetic auth client: these tests check the layout, not real authentication.
 const auth = vi.hoisted(() => ({ useSession: vi.fn() }))
 vi.mock('@web/lib/auth-client', () => ({ authClient: { useSession: auth.useSession } }))
 
@@ -81,7 +80,6 @@ describe('MerchantDealCard', () => {
     const terms = card(null).get('.merchant-card__terms')
     expect(terms.get('strong').text()).toBe('TERMS AND CONDITIONS')
     expect(terms.get('p').text()).toBe('Dine-in only.\nWhile stocks last.')
-    // After the location, before the buttons.
     const body = card(null).get('.merchant-card__body').element
     const order = [...body.children].map((child) => child.className)
     expect(order.indexOf('merchant-card__terms')).toBe(order.indexOf('merchant-card__location') + 1)
@@ -91,7 +89,6 @@ describe('MerchantDealCard', () => {
   it('keeps the Draft badge text dark in both themes', async () => {
     const { default: source } = await import('@web/modules/merchant/MerchantDealCard.vue?raw')
     const rule = source.match(/\.merchant-card__badge--draft \{([^}]*)\}/)?.[1] ?? ''
-    // --ink turns light in dark mode, which is unreadable on yellow; --on-accent stays dark.
     expect(rule).toContain('color: var(--on-accent)')
   })
 
@@ -110,7 +107,6 @@ describe('MapNavigation on a phone', () => {
     const stub = { render: () => h('div') }
     const router = createRouter({
       history: createMemoryHistory(),
-      // The bar links to these routes by name.
       routes: [
         ['/', 'home'],
         ['/deals', 'deals'],

@@ -15,7 +15,6 @@ export const publicDealVisibilitySelect = {
   terms: true,
 } as const
 
-// Single definition of "a signed-in user may see this deal's content".
 export type DealVisibilityFields = PublicOutletScopeRow & {
   reviewStatus: string
   deletedAt: Date | null
@@ -25,12 +24,11 @@ export type DealVisibilityFields = PublicOutletScopeRow & {
   terms?: string | null
 }
 
-// A deal is public only when ALL of these are true (see docs/database-schema.md).
 export const isPubliclyVisible = (deal: DealVisibilityFields): boolean => {
-  if (deal.reviewStatus !== 'APPROVED') return false // staff must have approved it
-  if (deal.deletedAt) return false // not deleted
-  if (!deal.publishedAt) return false // has been published
-  if (!isCurrentApproval(deal)) return false // approved text is the current text
+  if (deal.reviewStatus !== 'APPROVED') return false
+  if (deal.deletedAt) return false
+  if (!deal.publishedAt) return false
+  if (!isCurrentApproval(deal)) return false
   if (deal.applicability === 'ONLINE' || deal.applicability === 'NO_FIXED_LOCATION') {
     return (
       (!deal.merchantId || (!!deal.merchant && deal.merchant.deletedAt == null)) &&
@@ -40,6 +38,5 @@ export const isPubliclyVisible = (deal: DealVisibilityFields): boolean => {
       })
     )
   }
-  // Same rule as the map, so any deal a visitor can see there can also be bookmarked.
   return mapVenuesFor(deal).venues.length > 0
 }

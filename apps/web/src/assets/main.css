@@ -1,6 +1,4 @@
 :root {
-  /* "Paper" palette: white cards floating over a light paper-coloured map, ink text and a
-     single coral accent for prices, pins and active states. */
   --paper-white: #ffffff;
   --paper: #f3f2ef;
   --ink: #1b1b1f;
@@ -11,18 +9,13 @@
   --coral-soft: rgba(216, 96, 63, 0.16);
   --coral-ring: rgba(216, 96, 63, 0.45);
 
-  /* "Bubbly" accents: sunny yellow for primary actions, sky blue for the visitor's dot and
-     soft category tints behind the pin icons. */
   --sunny: #f6d64b;
   --sunny-deep: #e9c62a;
   --sunny-soft: rgba(246, 214, 75, 0.35);
   --sunny-ring: rgba(246, 214, 75, 0.85);
-  /* Deep mustard keyboard focus ring: 4:1 or more on paper, white and sunny fills (the sunny
-     ring alone is about 1.4:1). dark-theme.css lifts it for charcoal surfaces. */
   --focus-ring: #9a6f00;
   --sky: #4f7df3;
   --sky-soft: rgba(79, 125, 243, 0.16);
-  /* Deeper sky for filled surfaces with white text (5.9:1). */
   --sky-strong: #2f5bd3;
   --sky-strong-hover: #2850bd;
   --tint-drinks: #a9def4;
@@ -40,7 +33,6 @@
   --text-md: 1.0625rem;
   --text-lg: 1.375rem;
   --text-xl: 2.25rem;
-  /* Use one family throughout the app. The landing page overrides this locally. */
   --font-display: var(--font-sans);
 
   --space-1: 0.25rem;
@@ -58,7 +50,6 @@
   --shadow-card: 0 12px 32px rgba(27, 27, 31, 0.1), 0 1px 2px rgba(27, 27, 31, 0.05);
   --shadow-pill: 0 6px 18px rgba(27, 27, 31, 0.14);
 
-  /* Secondary surfaces from the map-shell design: hover washes, tags and switches. */
   --ink-strong: #1d1d22;
   --ink-strong-hover: #2c2c33;
   --paper-hover: #f6f5f2;
@@ -79,32 +70,25 @@
   --tag-build-ink: #5f4a00;
   --radius-sheet: 1.75rem;
 
-  /* Theme-stable roles. --on-accent is text on sunny, coral and tint fills, which stay light in
-     both themes; --on-ink is text on an --ink-strong fill, which inverts with the theme. */
   --on-accent: #1b1b1f;
   --on-ink: #ffffff;
   --switch-knob: #ffffff;
   --scrim: rgb(29 29 34 / 0.4);
   --scrim-strong: rgb(29 29 34 / 0.85);
-  /* Frosted chips over map tiles and photos. */
   --glass: rgb(255 255 255 / 0.85);
 
-  /* Motion: two curves, UI under 300ms. */
-  --ease-out: cubic-bezier(0.23, 1, 0.32, 1); /* things entering */
-  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1); /* things moving on screen */
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
   --dur-press: 140ms;
-  --dur-small: 180ms; /* chips, menu, toggles */
-  --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1); /* sheets and panels that resize */
-  --dur-panel: 260ms; /* panel slides */
-  --dur-sheet: 400ms; /* sheet snaps */
+  --dur-small: 180ms;
+  --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+  --dur-panel: 260ms;
+  --dur-sheet: 400ms;
 
-  /* Control sizes: a 44px touch target and the 52px header pills. Desktop tightens both below. */
   --hit: 44px;
   --control-h: 52px;
 
-  /* Shown behind map tiles while they load; matches the paper land colour so nothing flashes. */
   --map-canvas: var(--paper);
-  /* Bootstrap reads these on <body>; keeping them in sync lets BootstrapVueNext pages match. */
   --bs-body-font-family: var(--font-sans);
   --bs-body-color: var(--ink);
   --bs-body-bg: var(--paper);
@@ -114,7 +98,6 @@
   background: var(--paper);
 }
 
-/* Shared application surfaces; the landing page keeps its existing palette. */
 :root.app-palette {
   --paper: #fcfbf8;
   --page-background: #fcfbf8;
@@ -127,7 +110,6 @@
   --sunny-wash: #fff9e6;
   --bs-body-bg: var(--page-background);
   --bs-light-bg-subtle: var(--page-background);
-  /* Preserve the tile-loading colour independently of page surfaces. */
   --map-canvas: #f3f2ef;
 }
 
@@ -135,10 +117,6 @@ html.app-palette body {
   background: var(--page-background);
 }
 
-/* Desktop with a mouse reads better a notch denser: the map shell's rem-based type and spacing
-   drop to 90%, and controls to a 40px target (still well above WCAG's 24px minimum for a fine
-   pointer). Touch screens keep the full size. The font scale is scoped to the map shell so the
-   admin and landing pages keep their 16px rem base. */
 @media (min-width: 992px) and (pointer: fine) {
   html.is-canvas {
     font-size: 90%;
@@ -156,11 +134,9 @@ body {
   margin: 0;
 }
 
-/* The map shell owns the viewport: only its panel scrolls, never the page. */
 html.is-canvas,
 html.is-canvas body {
   height: 100%;
-  /* clip, not hidden: focus and scrollIntoView can still scroll a hidden box. */
   overflow: clip;
   scroll-behavior: auto;
 }
@@ -172,14 +148,12 @@ button:focus-visible,
   outline-offset: 3px;
 }
 
-/* White floating surface shared by the header, filters, list panel and status chips. */
 .paper-card {
   background: var(--paper-white);
   border-radius: var(--radius-card);
   box-shadow: var(--shadow-card);
 }
 
-/* Floating pill button: white by default, sunny yellow for the primary action. */
 .browse-pill {
   display: inline-flex;
   touch-action: manipulation;
@@ -237,11 +211,9 @@ button:focus-visible,
   background: var(--ink-strong-hover);
 }
 
-/* Round white back button that sits over a photo or at the top of a panel section. */
 .browse-back {
   display: inline-grid;
   place-items: center;
-  /* 40px on desktop; touch screens get the full --hit target. */
   width: max(2.5rem, var(--hit));
   height: max(2.5rem, var(--hit));
   padding: 0;
@@ -258,7 +230,6 @@ button:focus-visible,
   background: var(--paper);
 }
 
-/* Small inline icon inside a pill or row. */
 .browse-icon {
   flex: 0 0 auto;
   width: 1.125rem;
@@ -285,7 +256,6 @@ button:focus-visible,
   border-bottom: 1px solid var(--bs-border-color);
 }
 
-/* Finger-sized links on the Getting started page. */
 .module-list dt a,
 .setup-back {
   display: inline-flex;
@@ -304,7 +274,6 @@ button:focus-visible,
   }
 }
 
-/* Match Bootstrap-backed forms to the same primary action palette. */
 .app-palette .btn-primary {
   --bs-btn-color: var(--on-accent);
   --bs-btn-bg: var(--sunny);

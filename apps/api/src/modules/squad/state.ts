@@ -5,9 +5,6 @@ import { isAway, isPresent, LOBBY_LIFETIME_MS, tally, voters } from '@api/module
 import type { RoomRow, SeatRow, Tx } from '@api/modules/squad/store'
 import type { SquadAvatar, SquadDeal, SquadState } from '@broke-oclock/contracts/squad'
 
-// The room as one member sees it: the deals, everyone's current stance, the tally and their own
-// seat. Names and avatars are what members typed and picked; no account details leave here.
-
 type Reader = Tx | Database
 
 const CENTS = 100
@@ -42,7 +39,6 @@ export const loadDeals = async (
       validUntil: true,
       deletedAt: true,
       reviewStatus: true,
-      // A merchant upload leads; otherwise the imported post's hero, as on the map.
       images: {
         where: activeRecord,
         orderBy: { createdAt: 'asc' },

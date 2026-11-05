@@ -2,9 +2,6 @@
 import ConfirmSheet from '@web/components/ConfirmSheet.vue'
 import { useConfirm } from '@web/lib/use-confirm'
 
-// The app's own confirm dialog, in place of the browser's window.confirm. A page mounts one
-// and asks through useConfirm().ask(); the sheet uses the app's theme tokens, so it follows
-// light and dark mode like the rest of the site.
 const { current, confirm, cancel } = useConfirm()
 </script>
 
@@ -17,8 +14,6 @@ const { current, confirm, cancel } = useConfirm()
 </template>
 
 <style>
-/* Not scoped: the dialog is teleported to <body>. Colours, type and corners come from the app's
-   theme tokens, so it follows light and dark mode like the rest of the site. */
 .confirm-overlay {
   position: fixed;
   inset: 0;
@@ -98,7 +93,6 @@ const { current, confirm, cancel } = useConfirm()
   background: var(--paper-hover);
 }
 
-/* Same colours as the app's other danger buttons. */
 .confirm-dialog__button--danger {
   background: var(--coral);
   color: var(--on-ink);
@@ -117,7 +111,6 @@ const { current, confirm, cancel } = useConfirm()
   background: var(--ink-strong-hover);
 }
 
-/* Full-width buttons are easier to hit with a thumb on a phone. */
 @media (max-width: 480px) {
   .confirm-dialog__actions {
     flex-direction: column-reverse;

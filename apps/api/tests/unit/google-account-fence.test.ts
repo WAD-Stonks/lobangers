@@ -2,7 +2,6 @@ import { createAuth } from '@api/auth'
 import { parseConfig } from '@api/config'
 import { describe, expect, it, vi } from 'vitest'
 
-// Direct filesystem source harness; production imports remain the shared public factory.
 const fenceSource = new URL(
   '../../../../packages/auth/src/google-account-fence.ts',
   import.meta.url,

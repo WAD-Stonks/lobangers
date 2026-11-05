@@ -3,7 +3,6 @@ import { parseMoneyDigestPost } from '@api/modules/ingestion/parser'
 import { isReviewReady } from '@api/modules/ingestion/review-policy'
 import { describe, expect, it, vi } from 'vitest'
 
-// Entirely synthetic examples; these are not captured/reused publisher articles.
 const post = (
   content = '<p>Singapore pizza 1-for-1 promotion. Valid until 31 December 2026.</p>',
 ) => ({
@@ -75,7 +74,6 @@ const expectNoOfferRescue = (mutation: string, titlePaddingRepeats = 90) => {
     }
   }
 }
-// Includes literal/decoded NBSP and HTML/newline boundaries before scanning.
 const whitespace = ['', ' ', '  ', '\t', '\n', '\u00a0', '&nbsp;', '&#160;', '&#xA0;', '<br>']
 
 describe('MoneyDigest conservative parser', () => {
@@ -485,7 +483,6 @@ describe('MoneyDigest conservative parser', () => {
     '1-forone',
     'onefor-1',
     '1-forx',
-    // Delete either/both separators; insert malformed separators independently.
     'onefor-one',
     'oneforone',
     '1for-1',
@@ -503,7 +500,6 @@ describe('MoneyDigest conservative parser', () => {
     'one-for_one',
     '1_for-1',
     '1-for_1',
-    // Asymmetric merges, missing operands, and junk in the operator/operands.
     'forone',
     'onefor',
     'for1',
@@ -638,7 +634,6 @@ describe('MoneyDigest conservative parser', () => {
     } finally {
       spy.mockRestore()
     }
-    // Operation budget, not a hardware-dependent millisecond assertion.
     expect(inspectedCharacters).toBeLessThanOrEqual(input.content.rendered.length * 4)
   })
   it.each([
@@ -835,7 +830,6 @@ describe('MoneyDigest conservative parser', () => {
       ]) {
         const parsed = parseMoneyDigestPost(post(content))
         expect(readyAtReviewTime(parsed), content).toBe(false)
-        // Appending an exact supported duplicate cannot restore lost readiness.
         expect(readyAtReviewTime(parseMoneyDigestPost(post(`${content} ${base}.`))), content).toBe(
           false,
         )
@@ -1279,8 +1273,6 @@ describe('MoneyDigest conservative parser', () => {
     const parsed = parseMoneyDigestPost(
       post(`${offer}. Valid from 1 October 2026 until 31 December 2026.`),
     )
-    // These second-item offers are outside the deliberately narrow BOGO grammar.
-    // Ignoring them avoids both a false free-item BOGO and a whole-order percent offer.
     expect(parsed).toMatchObject({ status: 'IGNORED', draft: null })
   })
   it('does not mistake an explicit validity start for a variable offer price', () => {

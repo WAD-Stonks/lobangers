@@ -240,7 +240,6 @@ it('queues browser route changes until a captured write finishes and resets cons
     })
     expect(rest.merchant).toHaveBeenCalledWith(otherMerchant.id)
     expect(wrapper.get('[data-testid="catalogue-detail-heading"]').text()).toBe(otherMerchant.name)
-    // The new target opens read-only: no reason or confirmation carries over.
     expect(wrapper.find('[name="note"]').exists()).toBe(false)
     expect(wrapper.find('[name="confirmed"]').exists()).toBe(false)
   } finally {
@@ -291,7 +290,6 @@ it('retains an unknown-result lock after a queued route change and a return to t
     await router.push(`/admin/catalogue?recordId=${merchant.id}`)
     await flushPromises()
     expect(wrapper.text()).toContain('outcome could not be confirmed')
-    // Locked: the form cannot be reopened, so nothing can be resubmitted.
     expect(wrapper.find('[name="note"]').exists()).toBe(false)
     const edit = wrapper.findAll('button').find((button) => button.text() === 'Edit name')
     expect(edit?.attributes('disabled')).toBeDefined()

@@ -39,8 +39,6 @@ export const citationImageSchema = z.strictObject({
   id: evidenceId,
   sha256: z.string(),
   sourceUrl: z.string(),
-  // Historical immutable citations may predate redirect provenance capture.
-  // Null is unavailable evidence, never an invitation to substitute sourceUrl.
   finalUrl: z.string().nullable(),
   altText: z.string().nullable(),
   url: z.string().nullable(),

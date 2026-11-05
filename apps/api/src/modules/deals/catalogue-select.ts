@@ -1,4 +1,3 @@
-// Complete policy tuple; never verify a picker using only the stored state enum.
 export const catalogueVenueSelect = {
   id: true,
   merchantId: true,
@@ -15,7 +14,6 @@ export const catalogueVenueSelect = {
   merchant: { select: { name: true, deletedAt: true } },
 } as const
 
-// This is only a coarse positive indexable filter. Always validate the subject hash after loading.
 export const selectableCatalogueWhere = {
   occupancyEvidence: {
     is: {

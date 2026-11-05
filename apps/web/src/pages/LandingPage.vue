@@ -28,7 +28,6 @@ const { deals, status, retry } = useLandingDeals()
     <div class="landing-reading-progress" :style="{ transform: `scaleX(${pageProgress})` }" aria-hidden="true" />
     <a class="landing-skip" href="#main">Skip to content</a>
     <LandingNavbar />
-    <!-- The page's own main landmark: the navbar and footer sit outside it. -->
     <main id="main" tabindex="-1" class="landing-main">
     <HeroSection :live="deals" :live-state="status" @retry="retry" />
     <div class="story-intro" data-reveal data-scroll-reveal>
@@ -52,7 +51,6 @@ const { deals, status, retry } = useLandingDeals()
 </template>
 
 <style scoped>
-/* Focus target for the skip link; the content after it shows where focus landed. */
 .landing-main:focus {
   outline: none;
 }

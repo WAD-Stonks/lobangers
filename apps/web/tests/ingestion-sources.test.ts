@@ -6,7 +6,6 @@ import IngestionAdminPage from '@web/pages/IngestionAdminPage.vue'
 import { AxiosError, type InternalAxiosRequestConfig } from 'axios'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 
-// Real Vue page, DOM and shared Axios client; network/native identity below are synthetic.
 vi.mock('@web/lib/auth-client', () => ({
   authClient: {
     getSession: vi.fn(async () => ({
@@ -153,7 +152,6 @@ it('requires explicit permission confirmation, prevents duplicate toggles and di
   await flushPromises()
   expect(row().text()).toContain('Enabled')
   expect(row().find('input[type="checkbox"]').exists()).toBe(false)
-  // Disabling asks for confirmation first.
   const confirmSpy = vi.spyOn(window, 'confirm')
   handler = (config) =>
     config.method === 'patch'

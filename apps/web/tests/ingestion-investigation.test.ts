@@ -666,8 +666,6 @@ it('keeps recovery locks through original DraftQueue selection/filter and keyed 
     await postPanel().get('form').trigger('submit')
     await flushPromises()
     expect(calls.recover).toHaveBeenCalledTimes(1)
-    // Session/access closure removes every protected owner. A later identity gets
-    // no in-memory attempt or protected form; durable reads remain authoritative.
     await w.get('[data-testid="close"]').trigger('click')
     await flushPromises()
     await w.get('[data-testid="close"]').trigger('click')
@@ -894,7 +892,6 @@ it('does not bind a late superseded write receipt to a newer attempt for the sam
 it('F8 keeps unchanged mixed HTTP JSON locked until a target read started after its first terminal observation', async () => {
   const PostInvestigation = (await import('@web/modules/ingestion-admin/PostInvestigation.vue'))
     .default
-  // Real HTTP runs provide the unmodified receipt; fallback permits standalone mounted tests.
   const terminal = recovery({
     mode: 'REFRESH_SOURCE_WINDOW',
     status: 'SUCCEEDED',

@@ -32,15 +32,9 @@ import type {
   FlashDropView,
 } from '@broke-oclock/contracts/flash-drops'
 
-// Admin oversight of merchant flash deals. Merchants send their own flash deals live; admins see
-// every one once it has gone live (scheduled, live or ended) and can remove it, which stops it at
-// once and hides it from the map while keeping the record and its claimed codes. Each removal is
-// written to the platform audit log in the same transaction. Drafts stay the merchant's own.
-
 const MAX_LISTED = 100
 const DAY_MS = 86_400_000
 const SINGAPORE_OFFSET_MS = 8 * 3_600_000
-// Ended drops stay in the Ended tab for a week.
 const ENDED_WINDOW_DAYS = 7
 
 const readAsAdmin = <T>(
@@ -113,7 +107,6 @@ const toAdminDrop = async (
     checks: {
       merchantHoldsOutlet: !!grant && !grant.revokedAt,
       outletLocated: !!venue?.geographyEvidence,
-      // Only a fixed flash price with a usual price can be compared.
       priceLower:
         usual === null || offer.flashPriceCents === null ? null : offer.flashPriceCents < usual,
       manyCodes: manyCodes(row.codeLimit),
@@ -149,7 +142,6 @@ export const listAdminFlashDrops = (
           : a.startsAt.getTime() - b.startsAt.getTime(),
       )
       .slice(0, MAX_LISTED)
-    // Overlaps are checked against every drop that could still run, not just this tab.
     const rivals = rows.filter((row) => row.status === 'APPROVED' && row.endsAt > now)
     const context = await loadContext(tx, [...listed, ...rivals])
     const claimedToday = await tx.flashDropClaim.count({
@@ -161,7 +153,6 @@ export const listAdminFlashDrops = (
     }
   })
 
-// Only a flash deal that is scheduled or live can be removed.
 const REMOVABLE = ['SCHEDULED', 'LIVE']
 
 export const decideFlashDrop = (
@@ -174,7 +165,6 @@ export const decideFlashDrop = (
   accessTransaction(database, async (tx) => {
     const admin = await requireCurrentAdmin(tx, actor)
     const current = await tx.flashDrop.findUnique({ where: { id: dropId }, select: dropSelect })
-    // Drafts are the merchant's own and read as missing.
     if (!current || isDraft(current.status))
       throw new DomainError('NOT_FOUND', 'Flash deal not found')
     if (current.version !== input.version) throw conflict()
@@ -196,7 +186,6 @@ export const decideFlashDrop = (
       },
     })
     if (result.count !== 1) throw conflict()
-    // Its deal is taken off the map too.
     await tx.deal.updateMany({
       where: { id: current.dealId },
       data: { validUntil: now, publishedAt: null },
@@ -223,7 +212,6 @@ export const decideFlashDrop = (
       select: dropSelect,
     })
     const context = await loadContext(tx, [row, ...rivals])
-    // The merchant is told live, so their dashboard shows it was removed.
     return {
       drop: await toAdminDrop(tx, row, context, rivals, now),
       merchantUserId: row.merchantUserId,

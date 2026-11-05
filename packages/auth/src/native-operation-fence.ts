@@ -20,7 +20,6 @@ const advance = (date: Date) => {
   if (!Number.isFinite(value)) throw securityFailure()
   return new Date(Math.max(Date.now(), value + 1))
 }
-/** Session-authorized profile/credential writes compete with revocation on both exact persisted rows. */
 export const createNativeOperationFence = () => {
   const key = Symbol('native-account-operation')
   const requests = new WeakMap<Request, Authorization>()
@@ -195,7 +194,6 @@ export const createNativeOperationFence = () => {
           throw securityFailure()
         const where = args.where
         const run = async (tx: DBTransactionAdapter) => {
-          // Keep native predicate identity: the composed replacement guard owns this same capability.
           where.push({ field: 'userId', value: proof.authorization.userId })
           if (!(await tx.findOne({ model: args.model, where }))) throw securityFailure()
           const raw = await fence(tx, proof.authorization)

@@ -43,14 +43,10 @@ const chapters = [
 const chapterIndex = computed(() => props.reduced ? 2 : progress.value < .35 ? 0 : progress.value < .7 ? 1 : 2)
 const chapter = computed(() => chapters[chapterIndex.value])
 const card = ref<HTMLElement | null>(null)
-// While it travels to the stall the card fades out; the chapter copy waits until it has all but
-// gone, so the card never sits over that text either.
 const cardOpacity = computed(() => props.offer * (modelReady.value ? 1 - segment(motion.value.handoff, .72, 1) : 1))
 const introStyle = computed(() => ({
   opacity: props.reduced ? 1 : segment(progress.value, .1, .22) * ((layout.value.mobile || props.viewport.height <= 850) ? 1 - motion.value.cta : 1) * (motion.value.handoff < 1 ? 1 - segment(cardOpacity.value, 0, .05) : 1),
 }))
-// Where the story's "A deal near you" copy ends, in the card's coordinates, so the card can start
-// below it however the heading wraps. Read each frame: the copy slides and wraps with the viewport.
 const belowStoryCopy = () => {
   const el = card.value
   const copy = el?.closest('.cinematic-story')?.querySelector('.portal-food-copy')

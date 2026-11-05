@@ -1,6 +1,5 @@
 import type { BetterAuthPlugin } from 'better-auth'
 
-/** All configured native tasks must finish; failures must reach native HTTP dispatch. */
 export const awaitAuthTasks = () =>
   ({
     id: 'await-auth-tasks',

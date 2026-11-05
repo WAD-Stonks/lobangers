@@ -13,7 +13,6 @@ export const listMerchantRequests = (dependencies: RestDependencies) =>
     const input = parseRestInput(accountPageQuerySchema, request.query)
     const cursorFilter = input.cursor ? { id: { lt: input.cursor } } : {}
 
-    // Only THIS user's requests, newest first.
     const rows = await context.db.merchantAccessRequest.findMany({
       where: { userId: session.user.id, ...cursorFilter },
       orderBy: { id: 'desc' },

@@ -18,8 +18,6 @@ import ShellIcon from '@web/modules/map-shell/ShellIcon.vue'
 import type { Breakpoint } from '@web/modules/map-shell/use-breakpoint'
 import { computed, nextTick, ref, watch } from 'vue'
 
-// Filter changes stay local until "Show N deals" is pressed. Closing discards the draft.
-// A centred modal with a scrolling body; header and actions stay visible.
 const props = defineProps<{
   open: boolean
   breakpoint: Breakpoint
@@ -75,7 +73,6 @@ const priceHistogram = computed(() => {
 const fixedPriceCount = computed(() => priceHistogram.value.reduce((sum, bin) => sum + bin.count, 0))
 const budgetProgress = computed(() => Math.max(0, Math.min(100, (budget.value - BUDGET_MIN) / (BUDGET_MAX - BUDGET_MIN) * 100)))
 const total = computed(() => props.countFor(draft.value))
-// Position of the sliding pill in each segmented control.
 const walkSegment = computed(() => ({
   '--seg-count': WALK_MINUTE_OPTIONS.length + 1,
   '--seg-index': (WALK_MINUTE_OPTIONS as readonly (number | null)[]).indexOf(draft.value.walkMinutes) + 1,
@@ -89,8 +86,6 @@ const updateDraft = (next: BrowseFilters) => {
   draft.value = next
 }
 
-// "(n)" next to an option: how many deals there would be after tapping it. An option that would
-// leave nothing is disabled rather than letting the visitor filter themselves into an empty list.
 const chipOption = <T>(value: T, label: string, on: boolean, next: BrowseFilters) => {
   const matches = on ? null : props.countFor(next)
   return { value, label, on, next, count: matches === null ? '' : `(${matches})`, empty: matches === 0 }
@@ -129,7 +124,6 @@ const focusables = () =>
     (element) => !element.hasAttribute('disabled'),
   )
 
-// Escape closes; Tab cycles inside the dialog at every screen size.
 const onKeydown = (event: KeyboardEvent) => {
   if (event.key === 'Escape') {
     event.stopPropagation()
@@ -276,7 +270,6 @@ watch(
           </div>
         </fieldset>
 
-        <!-- Hidden, not disabled, until the visitor shares a location (open question 3). -->
         <fieldset v-if="locationKnown" class="filter-sheet__group">
           <legend class="visually-hidden">Walking distance</legend>
           <span class="filter-sheet__label" aria-hidden="true">Walking distance</span>
@@ -425,7 +418,6 @@ watch(
   transform: translate(-50%, -50%);
 }
 
-/* Keep a small inset on phones while giving the filter controls most of the screen. */
 .filter-sheet--phone {
   width: calc(100vw - 16px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px));
   height: calc(100dvh - 16px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
@@ -511,7 +503,6 @@ watch(
 .filter-sheet__budget-chart { padding: 12px 12px 0; }
 .filter-sheet__histogram { display: flex; align-items: end; gap: 3px; height: 100px; padding: 0 1px; margin-bottom: -12px; }
 .filter-sheet__price-bar { flex: 1; min-width: 0; background: var(--paper-sunk); border-radius: 3px 3px 0 0; transform-origin: bottom; transition: background-color 120ms ease; animation: price-bar-grow 240ms var(--ease-out) backwards; animation-delay: calc(var(--i, 0) * 8ms); }
-/* Bars rise from the baseline, left to right, as the sheet opens. */
 @keyframes price-bar-grow { from { opacity: 0; transform: scaleY(0.15); } }
 .filter-sheet__price-bar.is-selected { background: var(--coral-deep); }
 .filter-sheet__histogram-empty { margin: 0 0 12px; }
@@ -527,7 +518,6 @@ watch(
   gap: var(--space-2);
 }
 
-/* Segmented control: equal buttons on a sunk track, the chosen one lifts out. */
 .filter-sheet__seg {
   position: relative;
   isolation: isolate;
@@ -543,8 +533,6 @@ watch(
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
-/* One pill slides under the chosen option instead of each button lighting up on its own.
-   translateX percentages are the pill's own width, so each step is one width plus the 4px gap. */
 .filter-sheet__seg::before {
   content: '';
   position: absolute;
@@ -588,7 +576,6 @@ watch(
   gap: 2px;
 }
 
-/* 48x28 switch drawn inside a 48x44 target. */
 .filter-sheet__switch {
   position: relative;
   flex: none;

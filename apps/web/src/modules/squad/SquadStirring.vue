@@ -1,8 +1,6 @@
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, ref } from 'vue'
 
-// "3, 2, 1… Stirring the pot": a short beat over the room as the host starts it, so nobody is
-// dropped straight into the vote. Numbers pop with transform and opacity only.
 const props = withDefaults(defineProps<{ hostName?: string | null; isHost?: boolean }>(), {
   hostName: null,
   isHost: false,

@@ -1,7 +1,6 @@
 import { createMoneyDigestClient } from '@integrations/server'
 import { describe, expect, it } from 'vitest'
 
-// Synthetic fixtures only: no live source access or content-reuse permission implied.
 const post = {
   id: 42,
   link: 'https://www.moneydigest.sg/synthetic-post/',

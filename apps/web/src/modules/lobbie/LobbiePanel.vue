@@ -13,7 +13,6 @@ import { useFinePointer, usePrefersReducedMotion } from '@web/modules/map-shell/
 import { computed, nextTick, onMounted, ref, useId, watch } from 'vue'
 import { useRoute } from 'vue-router'
 
-// The map's side panel by default; `windowed` is the floating chat window on the All Deals page.
 const props = withDefaults(defineProps<{ windowed?: boolean }>(), { windowed: false })
 const emit = defineEmits<{ close: [] }>()
 
@@ -38,13 +37,10 @@ onMounted(() => {
   if (props.windowed && finePointer.value) input.value?.focus({ preventScroll: true })
 })
 
-// From the window a deal opens over the list, so its back link returns to the list, not the chat.
 const toDeal = (row: DealRow) => props.windowed
   ? dealLocation(route.query, row.deal.id, row.venue.id)
   : lobbieDealLocation(route.query, row.deal.id, row.venue.id)
 
-// The composer stays focusable while Lobbie replies (readonly, not disabled), so this guard is
-// what stops a second message going out mid-reply.
 const submit = () => {
   if (!canSend.value) return
   const text = draft.value
@@ -258,7 +254,6 @@ watch(
   animation: lobbie-pop var(--dur-small) var(--ease-out);
 }
 
-/* While Lobbie thinks, it bobs gently. */
 .lobbie__avatar--thinking {
   animation: lobbie-bob 1.6s ease-in-out infinite;
 }
@@ -368,7 +363,6 @@ watch(
   gap: var(--space-2);
   align-items: center;
   min-width: 0;
-  /* When the keyboard opens, scrolling the composer into view leaves room for the home bar. */
   scroll-margin-bottom: max(var(--space-3), env(safe-area-inset-bottom));
 }
 
@@ -399,7 +393,7 @@ watch(
   opacity: 0.7;
 }
 
-/* 16px on touch screens so iOS does not zoom the page when the composer takes focus. */
+/* stops iOS zooming in on focus */
 @media (pointer: coarse) {
   .lobbie__input {
     font-size: max(1rem, var(--text-sm));

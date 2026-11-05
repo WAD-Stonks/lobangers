@@ -18,8 +18,6 @@ export const searchVenues = (dependencies: RestDependencies) =>
     let cursor: string | undefined
     let scanned = 0
     let exhausted = false
-    // The legacy array contract has no continuation token. Scan coarse-positive pages until
-    // ten real matches or exhaustion; a spent budget is an explicit error, never a false empty page.
     while (results.length < 10 && scanned < 1000) {
       const rows = await context.db.venue.findMany({
         where: {

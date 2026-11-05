@@ -9,7 +9,6 @@ const fileLimit = { maxFileSize: '4MB', maxFileCount: 1, minFileCount: 0 } as co
 
 export type PhotoUploadAdmission = { userId: string; sessionId: string; authVersion: number }
 
-// What the API is told after each finished upload, so it can record who owns the file.
 export type CompletedPhotoUpload = {
   userId: string
   key: string
@@ -55,7 +54,6 @@ const createFileRouter = (
         }
         return admission
       })
-      // The consuming API fences and persists ownership together; this package stays database-free.
       .onUploadComplete(async ({ metadata, file }) => {
         if (
           !(await canComplete(metadata, {
@@ -80,8 +78,6 @@ export type PhotoStorageOptions = {
   callbackUrl: string
 }
 
-// The consuming API supplies already-authenticated, request-scoped identity.
-// This package never imports an app, reads env, or authenticates sessions itself.
 export const createPhotoUploadHandler = (
   options: PhotoStorageOptions,
   getAdmission: (request: Request) => Promise<PhotoUploadAdmission | undefined>,

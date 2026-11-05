@@ -18,7 +18,6 @@ import {
   merchantFlashRealtimeAuthSchema,
 } from '@broke-oclock/contracts/flash-drops'
 
-// The public Pusher key the map and dashboard connect with; null tells them to poll instead.
 export const flashRealtimeConfig = (dependencies: RestDependencies) =>
   createPublicRestHandler(dependencies, async (request, response) => {
     parseRestInput(flashDropEmptyQuerySchema, request.query)
@@ -31,8 +30,6 @@ export const flashRealtimeConfig = (dependencies: RestDependencies) =>
     )
   })
 
-// Pusher's private-channel handshake for a merchant's own flash deal updates. A merchant can
-// only join their own channel, so nobody can watch another stall's claims.
 export const merchantFlashRealtimeAuth = (dependencies: RestDependencies) =>
   createRestHandler(dependencies, async (request, response, context) => {
     requireTrustedOrigin(request.get('Origin'), dependencies.config.webOrigin)

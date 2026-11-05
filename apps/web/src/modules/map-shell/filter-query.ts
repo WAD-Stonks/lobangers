@@ -10,10 +10,6 @@ import {
 } from '@web/modules/browse-map/filters'
 import type { LocationQuery, LocationQueryRaw } from 'vue-router'
 
-// Filters <-> route query, e.g. ?q=laksa&cat=food&cuisine=japanese&max=5&now=1. Pure functions: a shared link
-// reproduces the view, and the back button undoes a filter change. Defaults are left out so the
-// plain map has a clean URL. Anything unknown or malformed falls back to the default.
-
 export type ShellView = 'map' | 'list'
 
 export const FILTER_QUERY_KEYS = [
@@ -116,7 +112,6 @@ export const filtersToQuery = (filters: BrowseFilters): Record<string, string> =
   ...(filters.verifiedOnly ? { verified: '1' } : {}),
 })
 
-// The current query with its filter keys replaced; view, sort and anything else survive.
 export const withFilters = (query: LocationQuery, filters: BrowseFilters): LocationQueryRaw => {
   const kept = Object.fromEntries(
     Object.entries(query).filter(

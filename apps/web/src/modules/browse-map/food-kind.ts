@@ -1,6 +1,3 @@
-// Which 3D food a deal shows. Each category has a default model; food and drinks deals can name
-// a more specific dish in their title or venue ("PastaMania", "Haidilao Hot Pot"), so the map
-// is not one bowl of laksa. Display only: the stored category is never changed.
 export type FoodKind =
   | 'laksa'
   | 'kopi'
@@ -25,8 +22,6 @@ const CATEGORY_KIND: Record<string, FoodKind> = {
 }
 const FALLBACK_KIND: FoodKind = 'ticket'
 
-// Cues match at the start of a word, so brands with apostrophes and plurals still hit
-// ("McDonald’s", "pizzas"). Earlier entries win when a deal names two dishes.
 const DISH_CUES: Record<string, readonly (readonly [FoodKind, readonly string[]])[]> = {
   FOOD: [
     ['hotpot', ['hotpot', 'hot pot', 'haidilao', 'steamboat', 'mala', 'shabu']],

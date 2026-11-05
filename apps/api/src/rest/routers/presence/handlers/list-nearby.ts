@@ -3,7 +3,6 @@ import { createRestHandler, type RestDependencies } from '@api/rest/context'
 import { parseRestInput } from '@api/rest/validation'
 import { nearbyPeopleResponseSchema, presenceQuerySchema } from '@broke-oclock/contracts/presence'
 
-// Public and read-only: who is shown around a point, anonymously, without the viewer.
 export const listNearby = (dependencies: RestDependencies) =>
   createRestHandler(dependencies, async (request, response, context) => {
     const centre = parseRestInput(presenceQuerySchema, request.query)

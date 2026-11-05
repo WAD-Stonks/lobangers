@@ -101,7 +101,6 @@ export const fencePhysicalScope = async (tx: AccessTransaction, deal: AdminDealR
   const merchant = await tx.merchant.findUnique({ where: { id: deal.merchantId } })
   if (!merchant || merchant.deletedAt)
     throw new DomainError('PRECONDITION_FAILED', 'Active merchant required')
-  // Touch parent before querying dynamic membership: all catalogue writers must touch this parent too.
   await tx.merchant.update({
     where: { id: merchant.id },
     data: { updatedAt: new Date(Math.max(Date.now(), merchant.updatedAt.getTime() + 1)) },

@@ -3,9 +3,6 @@ import { useOpenRoomCode } from '@web/modules/squad/open-room-code'
 import { computed } from 'vue'
 import { RouterLink } from 'vue-router'
 
-// The way into Makan Squad from the map header: "Room" starts one, and while the visitor is in
-// an open room it reads "Room KOPI" and takes them back to it. Compact (with a bottom nav, where
-// it takes the menu button's place) it is a round icon, plus the code while in a room.
 defineProps<{ compact?: boolean }>()
 const openCode = useOpenRoomCode()
 const to = computed(() =>
@@ -60,7 +57,6 @@ const label = computed(() => (openCode.value ? `Back to Squad room ${openCode.va
   outline-offset: 2px;
 }
 
-/* In a room: dark like the room itself, with the code in sunny. */
 .squad-nav.is-in {
   color: var(--on-ink);
   background: var(--ink-strong);
@@ -71,7 +67,6 @@ const label = computed(() => (openCode.value ? `Back to Squad room ${openCode.va
   background: var(--ink-strong-hover);
 }
 
-/* At night the room is charcoal, not inverted, so the chip matches it and the code stays sunny. */
 .app-palette[data-theme='dark'] .squad-nav.is-in {
   color: var(--ink);
   background: var(--paper-sunk);
@@ -88,7 +83,6 @@ const label = computed(() => (openCode.value ? `Back to Squad room ${openCode.va
   color: var(--sunny);
 }
 
-/* Narrow phones: tighter padding so the search keeps room to type. */
 @media (max-width: 399.98px) {
   .squad-nav {
     gap: 4px;
@@ -96,7 +90,6 @@ const label = computed(() => (openCode.value ? `Back to Squad room ${openCode.va
   }
 }
 
-/* Round like the header's other buttons; it grows into a pill only to show a room code. */
 .squad-nav--compact {
   justify-content: center;
   min-width: var(--hit);

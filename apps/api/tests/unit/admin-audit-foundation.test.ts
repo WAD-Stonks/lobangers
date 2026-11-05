@@ -2,7 +2,6 @@ import { legacyVersionWhere, normalizeVersion } from '@api/modules/platform-admi
 import { adminAuditDetailsSchema } from '@broke-oclock/contracts/admin-common'
 import { expect, it } from 'vitest'
 
-// Characterization of the frozen new helpers after their initial export/real-DB checks.
 it('normalizes legacy zero and rejects invalid or overflowing counters', () => {
   for (const value of [null, undefined, 0]) expect(normalizeVersion(value)).toBe(0)
   expect(normalizeVersion(2_147_483_647)).toBe(2_147_483_647)

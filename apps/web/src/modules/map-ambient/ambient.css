@@ -1,4 +1,3 @@
-/* SPIKE: ambient map decoration. Never takes pointer input; sits under the deal pins. */
 .ambient-pane {
   pointer-events: none;
   transition: opacity 400ms ease;

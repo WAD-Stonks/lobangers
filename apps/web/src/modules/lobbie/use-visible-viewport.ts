@@ -2,9 +2,7 @@ import { onBeforeUnmount, type Ref, readonly, ref, watch } from 'vue'
 
 export type VisibleViewport = { height: number; keyboardInset: number }
 
-// The part of the page the on-screen keyboard leaves visible, while `active`. iOS Safari keeps the
-// layout viewport full height under the keyboard (and pans it), so fixed elements need the visual
-// viewport to sit just above it; where the browser resizes the page instead, the inset stays 0.
+// iOS Safari keeps the layout viewport full height under the keyboard, so follow the visual viewport.
 export const useVisibleViewport = (
   active: Readonly<Ref<boolean>>,
 ): Readonly<Ref<VisibleViewport | null>> => {

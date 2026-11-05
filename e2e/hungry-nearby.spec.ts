@@ -4,12 +4,9 @@ import * as fixtures from './community-fixtures'
 
 const { HOME, mockPublicApi, mockSignedIn } = fixtures
 
-// Hungry Nearby on the map: other people as small lobangers, poking them, and showing or hiding
-// yourself. The presence API is mocked with labelled SYNTHETIC people; nobody here is real.
 test.use({ geolocation: HOME, permissions: ['geolocation'] })
 
 const AVATARS = ['bao', 'chickenrice', 'kaya', 'kopi', 'ondeh', 'teh'] as const
-// Synthetic fuzzed spots a short walk around HOME, between the synthetic deal pins.
 const SYNTHETIC_PEOPLE = [
   [0.0011, -0.0004],
   [-0.0009, 0.0012],
@@ -72,16 +69,13 @@ test('people stand on the map from the start, and turning it off clears them', a
   const toggle = page.getByTestId('nearby-toggle')
   await expect(toggle).toHaveAttribute('aria-pressed', 'true')
   await expect(people(page)).toHaveCount(SYNTHETIC_PEOPLE.length)
-  // A signed-out visitor is not asked anything unprompted.
   await expect(page.getByTestId('nearby-popover')).toHaveCount(0)
   await toggle.click()
   await expect(toggle).toHaveAttribute('aria-pressed', 'false')
   await expect(people(page)).toHaveCount(0)
-  // The choice to stop looking survives a reload.
   await openMap(page)
   await expect(toggle).toHaveAttribute('aria-pressed', 'false')
   await expect(people(page)).toHaveCount(0)
-  // Looking alone never writes anything.
   expect(calls.put).toHaveLength(0)
   expect(calls.deletes).toBe(0)
 })
@@ -100,7 +94,6 @@ test('hovering says "Another lobanger" and tapping pokes them', async ({ page })
   await expect(first.locator('.nearby-person')).toHaveClass(/is-poked/)
   await expect(first.locator('img')).toHaveAttribute('src', /-poked\.webp$/)
   await expect(first.locator('img')).toHaveAttribute('src', /-idle\.webp$/)
-  // Nothing about the person beyond the label.
   await expect(first).not.toContainText('synthetic')
 })
 
@@ -109,7 +102,6 @@ test('a signed-out visitor is asked to log in to show themselves', async ({ page
   const calls = await mockPresence(page)
   await openMap(page)
   const toggle = page.getByTestId('nearby-toggle')
-  // Already on, so off and on again opens the choice.
   await toggle.click()
   await toggle.click()
   const popover = page.getByTestId('nearby-popover')
@@ -141,7 +133,6 @@ test('Show me too shares a spot, and Hide me stops at once', async ({ page }) =>
   const calls = await mockPresence(page)
   await page.setViewportSize({ width: 1280, height: 844 })
   await openMap(page)
-  // Asked unprompted on arrival, with Show me too as the main choice.
   const popover = page.getByTestId('nearby-popover')
   await popover.getByRole('button', { name: 'Teh' }).click()
   await popover.getByTestId('nearby-show-me').click()
@@ -152,14 +143,12 @@ test('Show me too shares a spot, and Hide me stops at once', async ({ page }) =>
   await expect(self).toBeVisible()
   await expect(self).toContainText('You')
   await expect(self.locator('img')).toHaveAttribute('src', '/lobangers/teh-idle.webp')
-  // The viewer never appears in their own list of other people.
   await expect(people(page)).toHaveCount(SYNTHETIC_PEOPLE.length)
   await expect(popover.getByTestId('nearby-hide-me')).toBeVisible()
   await popover.getByTestId('nearby-hide-me').click()
   await expect.poll(() => calls.deletes).toBe(1)
   await expect(self).toHaveCount(0)
   await expect(page.getByText('You are hidden.')).toBeVisible()
-  // The choice is remembered without sharing.
   const stored = await page.evaluate(() => window.localStorage.getItem('lobangers-nearby'))
   expect(JSON.parse(stored ?? '{}')).toMatchObject({
     looking: true,

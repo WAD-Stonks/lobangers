@@ -17,17 +17,10 @@ import { RouterLink, useRoute } from 'vue-router'
 
 const navigationTo = useShellNavigation()
 const route = useRoute()
-// The All Deals page's way onto the map, with the results list alongside it.
 const mapTo = computed(() => ({ name: 'browse', query: { ...shellQuery(route.query), view: 'map', split: '1', results: 'list' } }))
 
-// Floating header: menu button, search and the Squad room button on the first row, quick
-// chips underneath. On desktop it sits over the left drawer, beside the navigation rail (All
-// Deals has its own full-width header); below 992px it spans the screen.
 const session = authClient.useSession()
-// Merchants already have access, and staff can't request it, so only visitors and regular
-// accounts are offered it.
 const offerMerchantAccess = computed(() => !session.value.data || session.value.data.user.role === 'USER')
-// Merchants get their dashboard in the same spot, so it is one click away and not only in menus.
 const isMerchant = computed(() => session.value.data?.user.role === 'MERCHANT')
 const props = withDefaults(
   defineProps<{
@@ -38,7 +31,6 @@ const props = withDefaults(
     dealsHeader?: boolean
     mapLayout?: boolean
     sidebarVisible?: boolean
-    /** A bottom nav is showing: the menu's rows live on the Account page, and Squad takes its slot. */
     bottomNav?: boolean
     mapTools?: boolean
     showLocation?: boolean
@@ -60,7 +52,6 @@ const mobileFilters = ref<HTMLButtonElement | null>(null)
 const filterCount = computed(() => countSheetFilters(props.filters))
 const chips = ref<{ focusAllFilters: () => void } | null>(null)
 
-// The first search adds a history entry; refining it replaces that entry.
 const onSearch = (q: string) =>
   emit('apply', updateFilters(props.filters, 'q', q), props.filters.q ? 'replace' : 'push')
 
@@ -97,7 +88,6 @@ defineExpose({ focusAllFilters: () => {
     <template v-else>
       <SquadHeaderButton v-if="bottomNav" compact class="shell-header__squad" />
       <BrandMenu v-else-if="!mapLayout" :map-tools="mapTools" @menu-change="(open) => emit('menuChange', open)" />
-      <!-- Search and Room share one grid cell so each header layout keeps its columns. -->
       <div class="shell-header__search-row">
         <SearchField :value="filters.q" @search="onSearch" />
         <SquadHeaderButton v-if="!bottomNav" class="shell-header__room" />
@@ -134,7 +124,6 @@ defineExpose({ focusAllFilters: () => {
 
 .shell-header {
   position: absolute;
-  /* Clear the status bar and notch (the page uses viewport-fit=cover). */
   top: calc(var(--shell-gutter) + env(safe-area-inset-top, 0px));
   left: var(--shell-gutter);
   z-index: 30;
@@ -167,18 +156,15 @@ defineExpose({ focusAllFilters: () => {
   min-width: 0;
 }
 
-/* Inside the combined pill card, Room sits flush with the card's right edge. */
 .shell-header__combined-search .shell-header__room {
   height: var(--hit);
   margin-right: 4px;
 }
 
-/* In a room the Squad button widens to show its code; the grid column follows it. */
 .shell-header__squad {
   justify-self: start;
 }
 
-/* The smallest phones: a tighter gap so the search keeps a usable width beside Room. */
 @media (max-width: 399.98px) {
   .shell-header {
     --header-gap: 8px;
@@ -312,7 +298,6 @@ defineExpose({ focusAllFilters: () => {
     min-width: 0;
   }
 
-  /* Size the inside so the card border never shrinks the menu toggle below a touch target. */
   .shell-header :deep(.brand-menu__button) {
     box-sizing: content-box;
     width: var(--hit);
@@ -321,23 +306,18 @@ defineExpose({ focusAllFilters: () => {
     padding: 0;
   }
 
-  /* The whole home link goes, not just its artwork, so no empty link takes keyboard focus. */
   .shell-header :deep(.brand-menu__home),
   .shell-header :deep(.brand-menu__mark),
   .shell-header :deep(.brand-menu__word) {
     display: none;
   }
 }
-/* All Deals uses a full-width two-row header with a centred search.
-   KEEP IN SYNC with components/PageHeader.vue, the same header on pages outside the map
-   (Add deal, merchant access). Change the order, spacing or buttons in both files. */
 .shell-header--deals {
   top: 0;
   left: 0;
   width: 100%;
   box-sizing: border-box;
   padding: calc(20px + env(safe-area-inset-top, 0px)) clamp(20px, 3vw, 56px) 16px;
-  /* Side columns never shrink below their contents, so Room and the account can't spill over the search. */
   grid-template-columns: minmax(min-content, 1fr) minmax(240px, 560px) minmax(max-content, 1fr);
   gap: 20px 24px;
   transform: none;
@@ -347,22 +327,18 @@ defineExpose({ focusAllFilters: () => {
 }
 .shell-header__start { justify-self: start; display: flex; align-items: center; gap: 12px; }
 .shell-header__brand { display: flex; align-items: center; }
-/* A fixed width: a percentage max-width collapses to nothing in a content-sized column. */
 .shell-header__brand img { display: block; flex: none; width: 160px; height: auto; }
 .shell-header__actions { display: flex; align-items: center; justify-content: flex-end; gap: 12px; min-width: 0; }
 .shell-header__contribute { color: var(--ink); font-size: var(--text-sm); font-weight: 650; text-decoration: none; white-space: nowrap; padding: 10px; border-radius: var(--radius-pill); }
 .shell-header__contribute:hover { background: var(--paper-hover); }
 .shell-header__account { display: grid; place-items: center; width: 44px; height: 44px; flex: none; border-radius: 50%; color: var(--ink); background: var(--paper-sunk); }
 .shell-header--deals :deep(.search-field) { flex: 1; min-width: 0; }
-/* Desktop's All Deals search is a bit shorter, with a yellow submit button; with a bottom nav it
-   matches the map's search exactly. */
 @media (min-width: 992px) { .shell-header--deals :deep(.search-field) { height: 48px; box-shadow: 0 2px 8px rgb(0 0 0 / 0.08); } }
 .shell-header__main-search { display: flex; align-items: center; gap: 10px; min-width: 0; }
 .shell-header__map { display: inline-flex; flex: none; align-items: center; gap: 6px; box-sizing: border-box; height: 48px; padding: 0 18px 0 16px; font: 700 0.9375rem/1 var(--font-sans); color: var(--on-accent); text-decoration: none; white-space: nowrap; background: var(--sunny); border: 1px solid var(--sunny-deep); border-radius: var(--radius-pill); transition: transform var(--dur-press) var(--ease-out), background-color 150ms ease; }
 .shell-header__map:hover { color: var(--on-accent); background: var(--sunny-deep); }
 .shell-header__map:active { transform: scale(0.97); }
 .shell-header__map:focus-visible { outline: 3px solid var(--sky); outline-offset: 2px; }
-/* Narrow desktops: icon only, so the search keeps its width. */
 @media (min-width: 992px) and (max-width: 1279.98px) {
   .shell-header__map { width: 48px; padding: 0; justify-content: center; }
   .shell-header__map span { display: none; }
@@ -379,9 +355,6 @@ defineExpose({ focusAllFilters: () => {
   .shell-header--deals .shell-header__mobile-filters { position: relative; display: grid; place-items: center; grid-column: 3; grid-row: 1; width: 44px; height: 44px; padding: 0; border: 0; border-radius: 50%; color: var(--ink); background: var(--paper-white); }
   .shell-header--deals .shell-header__chips { grid-column: 1 / -1; grid-row: 2; }
 }
-/* Phones: the compact chip row sits as close to the search as it does on the map, and the header
-   ends 12px below the chips (9px here plus the row's 3px focus-ring inset) so the bar doesn't
-   look bottom-heavy. */
 @media (max-width: 767.98px) {
   .shell-header--deals { row-gap: 6px; padding-bottom: 9px; }
 }

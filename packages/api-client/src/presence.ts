@@ -11,7 +11,6 @@ import type { AxiosInstance } from 'axios'
 
 type Point = { readonly lat: number; readonly lng: number }
 
-// Hungry Nearby: who is shown around a point, showing yourself (and heartbeats), and hiding.
 export const createPresenceClient = (http: AxiosInstance) => ({
   nearby: (centre: Point) =>
     request(

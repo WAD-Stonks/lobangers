@@ -1,4 +1,3 @@
-// Imported media must use hosted HTTPS URLs, never active schemes or credentialed URLs.
 export const safeMediaUrl = (value: string | null | undefined): string | null => {
   if (!value) return null
   try {

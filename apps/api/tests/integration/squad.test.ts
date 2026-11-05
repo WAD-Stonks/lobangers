@@ -7,9 +7,6 @@ import { parseConfig } from '@api/config'
 import { MongoMemoryReplSet } from 'mongodb-memory-server'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 
-// Makan Squad rooms through real HTTP against a disposable replica set: hosting, joining,
-// voting, deciding and leaving. All deals and people are SYNTHETIC.
-
 const origin = 'http://localhost:5173'
 const root = fileURLToPath(new URL('../../../../', import.meta.url))
 let mongo: MongoMemoryReplSet | undefined
@@ -24,7 +21,6 @@ let damien: Account
 let noah: Account
 let late: Account
 
-// Stands in for Pusher: records what each committed write pushes and signs any socket.
 type Push = {
   channel: string
   event: string
@@ -45,7 +41,6 @@ let signUps = 1
 const signUp = async (name: string): Promise<Account> => {
   const response = await fetch(`${baseURL}/api/auth/sign-up/email`, {
     method: 'POST',
-    // A distinct synthetic client address per sign-up keeps the auth rate limit per person.
     headers: {
       'Content-Type': 'application/json',
       Origin: origin,
@@ -79,7 +74,6 @@ const call = async (account: Account | null, method: string, path: string, body?
   return { status: response.status, body: await response.json() }
 }
 
-// A published synthetic deal at one outlet, the way the public map sees it.
 const publishedDeal = async (title: string, validUntil: Date | null = null) => {
   const brand = await db.merchant.create({ data: { name: `Synthetic ${title} brand` } })
   const venue = await db.venue.create({
@@ -117,7 +111,6 @@ const voteAs = (account: Account, code: string, stance: 'YAY' | 'NAH', taps = 1)
 const chooseAs = (account: Account, code: string, choice: 'AGAIN' | 'NEXT') =>
   call(account, 'POST', room(code, '/choices'), { choice })
 
-// A started room with the host, Ashley and Damien voting on the given deals.
 const liveRoom = async (dealIds: string[], capacity = 4) => {
   const created = await call(host, 'POST', '/squad/rooms', {
     dealIds,

@@ -1,5 +1,4 @@
 /* biome-ignore-all lint/style/noDescendingSpecificity: Independent hero elements share tag names but do not overlap selectors. */
-/* Composition follows the supplied hero reference; discovery and motion stay shared. */
 .landing-hero {
   max-width: 1920px;
   grid-template-columns: 44% 56%;
@@ -84,8 +83,6 @@
 }
 @media (min-width: 801px) {
   .hero-map-area {
-    /* Let the eastern waterfront bleed to the edge, like the reference,
-       while keeping the pins and animated landmarks inside the viewport. */
     padding-bottom: 0;
   }
 }
@@ -174,7 +171,6 @@
     margin: 30px auto 5px;
   }
   .hero-map-scene {
-    /* Extend the artwork through the hero's right padding. */
     width: calc(100% + 7vw);
   }
   .hero-map-scene .island-marker {
@@ -241,7 +237,6 @@
   }
 }
 
-/* Reference-style food pins: white pictograms, teardrop silhouette and ground dots. */
 .hero-food-pin,
 .food-map-pin {
   display: block;
@@ -296,7 +291,6 @@
   transform: translate(-50%, -50%);
 }
 
-/* The underline finishes first, followed by the coral and yellow rays. */
 .accent-coral path,
 .accent-yellow path {
   stroke-dasharray: 1;
@@ -333,7 +327,6 @@
   }
 }
 
-/* Hover the nested artwork so pin entrance and story zoom transforms stay independent. */
 .hero-food-pin {
   flex-shrink: 0;
   transform-origin: 50% 90%;
@@ -386,7 +379,6 @@
   }
 }
 
-/* Selection scaling has its own wrapper so entrance animation cannot freeze its size. */
 .pin-selection {
   display: block;
   flex-shrink: 0;
@@ -481,7 +473,6 @@
   outline-offset: 5px;
 }
 
-/* The selected hero bitmap includes the full lower-right ocean itself. */
 @media (min-width: 1151px) {
   .landing-hero {
     overflow: clip;
@@ -492,7 +483,6 @@
   mask: url("/landing/hero-water-edge-mask.svg") center / 100% 100% no-repeat;
 }
 
-/* Blend the artwork's white paper into the page, including on mobile. */
 .hero-map-scene > .illustrated-map {
   isolation: auto;
   background: transparent;

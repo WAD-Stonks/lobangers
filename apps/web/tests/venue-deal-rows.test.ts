@@ -3,7 +3,6 @@ import { toVenueDealRows } from '@web/modules/venues-feed/venue-deal-rows'
 import { HAWKER_VENUE, KOPI_VENUE, makeDeal } from '@web-tests/support/shell-fixtures'
 import { describe, expect, it } from 'vitest'
 
-// Synthetic venue-detail deals, shaped like the venue API response.
 const VENUE = { id: KOPI_VENUE.id, name: KOPI_VENUE.name }
 const summary = (overrides: Partial<VenueDealSummary>): VenueDealSummary => ({
   id: 'c'.repeat(24),

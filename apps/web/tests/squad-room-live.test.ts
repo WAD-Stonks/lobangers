@@ -2,9 +2,6 @@ import type { SquadEvent, SquadState } from '@broke-oclock/contracts/squad'
 import type { ChannelHandlers } from '@web/modules/squad/room-channel'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-// The room composable over a fake live channel: pushed taps play once and at once, a burst
-// of pushes becomes one state read, and the heartbeat slows down only while the channel is live.
-
 const sync = vi.fn()
 const vote = vi.fn()
 vi.mock('@web/lib/api-client', () => ({

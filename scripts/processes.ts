@@ -11,13 +11,10 @@ interface Command {
 
 const signalExitCode = (signal: NodeJS.Signals) => 128 + constants.signals[signal]
 
-// Own a process group on POSIX so pnpm's shells/watchers cannot outlive the runner.
-// Windows falls back to direct child signalling; POSIX is the supported dev/CI host.
 export const runCommands = async (commands: Command[]): Promise<number> => {
   if (commands.length === 0) throw new Error('At least one command is required')
   const grouped = process.platform !== 'win32'
   const children = commands.map(({ command, args, cwd, env }) => {
-    // Windows exposes pnpm as a .cmd shim, which only resolves through a shell.
     const child = grouped
       ? spawn(command, args, { cwd, env, stdio: 'inherit', detached: true })
       : spawn([command, ...args].join(' '), { cwd, env, stdio: 'inherit', shell: true })

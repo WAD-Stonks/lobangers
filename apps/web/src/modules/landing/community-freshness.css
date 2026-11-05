@@ -1,5 +1,4 @@
 /* biome-ignore-all lint/style/noDescendingSpecificity: Component descendants and responsive overrides do not target the same elements. */
-/* The existing story owns scroll progress. This scene only paints deterministic frames. */
 .community-freshness {
   position: absolute;
   inset: 0;
@@ -647,7 +646,6 @@
   }
 }
 
-/* Completed, unpinned 2.5D layout: no renderer, timers, orbit or camera required. */
 .cinematic-story.story-reduced {
   height: auto;
   padding: 50px 5%;
@@ -842,7 +840,6 @@
   object-fit: cover;
 }
 
-/* The discovered deal settles into a broad cream-and-gold shop fascia. */
 @media (min-width: 1101px) {
   .community-freshness.has-community:not(.is-static) .shared-deal-sign {
     border-color: #d5aa61;
@@ -890,7 +887,6 @@
   }
 }
 
-/* Real orthographic miniature. The canvas renders only when the shared scroll frame changes. */
 .hawker-renderer {
   position: relative;
   width: 100%;
@@ -958,7 +954,6 @@
   }
 }
 
-/* Both faces share one reversible, scroll-driven flip; no separate timer. */
 .community-status-panel {
   position: absolute;
   z-index: 6;

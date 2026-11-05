@@ -52,7 +52,6 @@ export const useAdminFlashDrops = (
   const activeDecision = computed<DecisionKind | null>(() =>
     choices.value.includes(decision.value) ? decision.value : (choices.value[0] ?? null),
   )
-  // Removing a flash deal always needs a note for the merchant.
   const noteRequired = computed(() => activeDecision.value !== null)
   const canSubmit = computed(
     () =>
@@ -141,7 +140,6 @@ export const useAdminFlashDrops = (
       resetForm()
       pending.value = false
       notice.value = DONE_COPY[kind]
-      // The list read below advances the ticket; the decision itself is already settled.
       await load()
     } catch (error) {
       if (!alive || epoch !== ticket || handleDenied(error)) return

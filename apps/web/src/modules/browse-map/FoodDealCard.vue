@@ -8,13 +8,9 @@ import { computed, ref, watch } from 'vue'
 import type { RouteLocationRaw } from 'vue-router'
 import { RouterLink } from 'vue-router'
 
-// `naturalRatio` lets the photo frame take the photo's own shape (the masonry grid); otherwise the
-// frame stays a fixed poster so cards in a row line up (the landing carousel).
 const props = defineProps<{ row: DealRow; to: RouteLocationRaw; naturalRatio?: boolean }>()
 const emit = defineEmits<{ hover: [venueId: string | null] }>()
 
-// Extreme banners and long posters are capped so one card can't swamp a column; `contain` still
-// shows the whole photo inside the capped frame.
 const MIN_PHOTO_RATIO = 1 / 2
 const MAX_PHOTO_RATIO = 3
 
@@ -54,7 +50,6 @@ const photoStyle = computed(() => (photoRatio.value ? { '--photo-ratio': String(
     <div class="food-deal-card__body">
       <p class="food-deal-card__description">{{ props.row.deal.title }}</p>
       <p class="food-deal-card__restaurant">{{ props.row.venue.name }}</p>
-      <!-- A guessed outlet carries its warning wherever the outlet is named. -->
       <span v-if="props.row.deal.outletUnconfirmed" class="food-deal-card__unsure" data-testid="outlet-unconfirmed">{{ OUTLET_NOT_CONFIRMED }}</span>
       <span v-if="props.row.outletCount > 1" class="food-deal-card__outlets">
         {{ formatMoreOutlets(props.row.outletCount) }}
@@ -85,7 +80,6 @@ const photoStyle = computed(() => (photoRatio.value ? { '--photo-ratio': String(
   transition: transform 180ms ease, box-shadow 180ms ease;
 }
 
-/* In the masonry grid each card is as tall as its photo and text need. */
 .food-deal-card--natural {
   height: auto;
 }
@@ -114,8 +108,6 @@ const photoStyle = computed(() => (photoRatio.value ? { '--photo-ratio': String(
   background: var(--paper-sunk);
 }
 
-/* Keep the photo frame independent of the amount of text below it. A poster shape holds the
-   space until the photo loads and reports its own ratio. */
 .food-deal-card__photo::before {
   content: '';
   display: block;
@@ -156,13 +148,9 @@ const photoStyle = computed(() => (photoRatio.value ? { '--photo-ratio': String(
   text-overflow: ellipsis;
   white-space: nowrap;
   border-radius: var(--radius-pill);
-  /* Lifts the tag off any photo, light or dark. */
   box-shadow: 0 1px 4px rgb(27 27 31 / 0.14);
 }
 
-/* The same status colours as the list rows and the deal panel (lb-tag tones in shell-ui.css):
-   green when the community says it is still on, coral when it ends today, has mixed reports or
-   has expired, and grey while unverified. */
 .food-deal-card__status--ok { color: var(--tag-ok-ink); background: var(--tag-ok-bg); }
 .food-deal-card__status--end { color: var(--tag-end-ink); background: var(--tag-end-bg); }
 .food-deal-card__status--new { color: var(--tag-new-ink); background: var(--tag-new-bg); }

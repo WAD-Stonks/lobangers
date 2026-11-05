@@ -57,7 +57,6 @@ describe('browse filters', () => {
     const base = createDefaultFilters()
     expect(countSheetFilters(base)).toBe(0)
     expect(countSheetFilters({ ...base, location: 'Bedok' })).toBe(1)
-    // Both quick selections count; the search text does not.
     expect(
       countSheetFilters({ ...base, q: 'kopi', priceMaxMinor: QUICK_PRICE_MINOR, ending: 'today' }),
     ).toBe(2)

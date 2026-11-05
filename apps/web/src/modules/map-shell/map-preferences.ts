@@ -6,9 +6,7 @@ export const createMapPreferences = (storage?: Pick<Storage, 'getItem' | 'setIte
   let visible = true
   try {
     visible = storage?.getItem(MAP_SIDEBAR_STORAGE_KEY) !== '0'
-  } catch {
-    /* Storage may be unavailable. */
-  }
+  } catch {}
   const sidebarVisible = ref(visible)
   const tutorialStep = ref<number | null>(null)
   watch(
@@ -16,9 +14,7 @@ export const createMapPreferences = (storage?: Pick<Storage, 'getItem' | 'setIte
     (show) => {
       try {
         storage?.setItem(MAP_SIDEBAR_STORAGE_KEY, show ? '1' : '0')
-      } catch {
-        /* Keep the in-memory choice. */
-      }
+      } catch {}
     },
     { flush: 'sync' },
   )
@@ -37,9 +33,7 @@ export const provideMapPreferences = () => {
   let storage: Storage | undefined
   try {
     storage = window.localStorage
-  } catch {
-    /* Browsing still works without storage. */
-  }
+  } catch {}
   const preferences = createMapPreferences(storage)
   provide(KEY, preferences)
   return preferences

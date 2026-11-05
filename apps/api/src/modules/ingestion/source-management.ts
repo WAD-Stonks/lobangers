@@ -40,8 +40,6 @@ export const setIngestionSourceEnabled = async (
     const updatedAt = new Date(Math.max(now.getTime(), source.updatedAt.getTime() + 1))
     const result = await tx.importSource.updateMany({
       where: { id: source.id, provider: 'TELEGRAM', updatedAt: source.updatedAt },
-      // Keep cursor and foreign lease ownership. Workers must fence enabled AND
-      // their lease before persisting; disabling invalidates their next write.
       data: { enabled: input.enabled, updatedAt },
     })
     if (result.count !== 1)
@@ -64,8 +62,6 @@ const registered = (row: ImportSource) =>
     row.externalId === MONEYDIGEST_SOURCE.externalId &&
     row.url === MONEYDIGEST_SOURCE.url)
 export const listIngestionSources = async (db: Database, input: IngestionSourcesQuery) => {
-  // Bound the scanned page as well as the response. Invalid legacy rows are not
-  // projected; a continuation may therefore accompany a short/empty page.
   const rows = await db.importSource.findMany({
     where: {
       ...(input.cursor ? { id: { gt: input.cursor } } : {}),

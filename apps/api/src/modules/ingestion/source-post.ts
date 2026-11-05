@@ -39,7 +39,6 @@ export const parseSourceIdentity = (input: unknown, source: SourceDefinition) =>
 }
 export type SourcePost = z.infer<typeof sourcePostSchema>
 export const parseSourcePost = (input: unknown, source: SourceDefinition) => {
-  // Legacy MoneyDigest callers retain their exact post snapshot and hash contract.
   if (source.kind === 'moneydigest' && typeof input === 'object' && input && 'id' in input) {
     const parsed = parseMoneyDigestPost(input)
     return {

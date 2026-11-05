@@ -15,7 +15,6 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 enableAutoUnmount(afterEach)
 afterEach(() => backgroundImport.reset())
 
-// Synthetic REST boundary only: these component tests preserve UI races but do not prove backend policy.
 const rest = vi.hoisted(() => ({
   dashboard: vi.fn(),
   signIn: vi.fn(),
@@ -60,7 +59,6 @@ vi.mock('@web/lib/api-client', () => ({
   },
 }))
 
-// Native identity is synthetic here, not real authentication proof.
 vi.mock('@web/lib/auth-client', () => ({
   authClient: {
     useSession: () => ({ value: { refetch: async () => {}, error: null } }),
@@ -626,7 +624,6 @@ it.each(['draft-1', 'replacement-draft'])(
       title: 'Current source revision',
       description: 'Current source evidence',
     }
-    // A source revision rejects the old pending draft and creates a different-ID replacement.
     const superseded = {
       ...datedDraft,
       contentVersion: 8,
@@ -1136,7 +1133,6 @@ it('does not restore ingestion after a newer child permission denial closes a pe
         release = resolve
       }),
   )
-  // Exercise the source panel changed/denied protocol on the real page.
   w.getComponent(SourcesPanel).vm.$emit('changed')
   await flushPromises()
   w.getComponent(SourcesPanel).vm.$emit('denied', 'FORBIDDEN')

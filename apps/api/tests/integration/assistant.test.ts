@@ -17,7 +17,6 @@ import axios from 'axios'
 import { MongoMemoryReplSet } from 'mongodb-memory-server'
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
-// Real HTTP and database; only Gemini is replaced, at the runtime boundary.
 const root = fileURLToPath(new URL('../../../../', import.meta.url))
 const DAY_MS = 86_400_000
 const WEB_ORIGIN = 'http://localhost:5173'
@@ -58,7 +57,6 @@ const runtime: AssistantRuntime = {
       return allow
     },
   },
-  // As on Vercel, where the proxy sets this header and a client cannot forge it.
   clientIpHeader: 'x-real-ip',
   now: () => new Date(),
 }
@@ -136,7 +134,6 @@ beforeAll(async () => {
       ...approved,
     },
   })
-  // Not approved, so the public map never shows it and Lobbie may not either.
   const pending = await db.deal.create({
     data: {
       title: 'Synthetic pending teh',
@@ -297,16 +294,13 @@ describe('POST /api/assistant/chat', () => {
     expect((await ask(question)).data).toMatchObject({ reply: 'Groq here!' })
     expect(answeredBy).toEqual(['groq'])
 
-    // No fallback to Gemini when Groq was chosen on its own.
     answeredBy = []
     groqOutput = new GroqClientError('HTTP_ERROR')
     expect((await ask(question)).status).toBe(502)
     expect(answeredBy).toEqual(['groq'])
 
-    // Choosing a provider without a key is "not available", not a silent switch.
     runtime.providers = { gemini: fakeGemini }
     expect((await ask(question)).status).toBe(502)
-    // The request cannot pick the AI; the field is not part of the contract.
     expect((await ask({ ...question, provider: 'gemini' })).status).toBe(400)
   })
 })

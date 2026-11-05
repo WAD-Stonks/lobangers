@@ -1,11 +1,7 @@
 import type { FoodKind } from '@web/modules/browse-map/food-kind'
 
-// Animated 3D food for each food kind (see food-kind.ts): pre-rendered three.js frames in one horizontal strip
-// (public/food-anim, 128px frames for 2x screens). Looping strips run once round; `alternate`
-// strips hold half a loop and play forward then back. Styled in food-sprite.css.
 export type FoodSprite = {
   readonly src: string
-  // Same frames at 256px, for heroes drawn large enough that the 128px strip looks soft.
   readonly srcLarge: string
   readonly frames: number
   readonly seconds: number
@@ -26,8 +22,6 @@ const strip = (name: string, frames: number, seconds: number, alternate: boolean
   alternate,
 })
 
-// Kept in step with public/food-anim/food-anim.json and food-anim-extra.json, which the render
-// scripts write. The first six files are named after the category they were made for.
 const FOOD_SPRITES: Record<FoodKind, FoodSprite> = {
   kopi: strip('drinks', 24, 2.4, false),
   laksa: strip('food', 24, 2.4, false),
@@ -46,14 +40,11 @@ const FOOD_SPRITES: Record<FoodKind, FoodSprite> = {
 
 export const foodSpriteFor = (kind: FoodKind): FoodSprite => FOOD_SPRITES[kind]
 
-// Where the background must travel so every CSS step lands exactly on a frame: a loop takes n
-// steps over n/(n-1) of the strip; a back-and-forth takes n positions from 0% to 100%.
 const endPosition = (sprite: FoodSprite): string =>
   sprite.alternate ? '100%' : `${((sprite.frames / (sprite.frames - 1)) * 100).toFixed(4)}%`
 
 type Options = {
   readonly animated: boolean
-  // 0..1 through the loop to start at, so neighbouring pins never move in lockstep.
   readonly phase: number
   readonly large?: boolean
 }
@@ -72,7 +63,6 @@ export const applyFoodSprite = (
   el.style.setProperty('--food-end', endPosition(sprite))
   el.style.setProperty('--food-seconds', `${sprite.seconds}s`)
   if (animated && phase > 0) {
-    // A negative delay starts the loop part-way through.
     const lead = Number((phase * sprite.seconds).toFixed(3))
     el.style.animationDelay = `${-lead}s`
   }

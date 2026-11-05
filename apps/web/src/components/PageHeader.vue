@@ -11,25 +11,14 @@ import SquadHeaderButton from '@web/modules/squad/SquadHeaderButton.vue'
 import { computed } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
 
-// The All Deals header for pages outside the map: menu, logo, search, Room and account.
-// KEEP IN SYNC with the `deals` variant of ShellHeader.vue (All Deals page): same order of
-// items, same search bar, same phone layout. A change to one header is a change to both.
-// Searching opens All Deals with the results.
 const session = authClient.useSession()
-// Merchants already have access, and staff can't request it, so only visitors and regular
-// accounts are offered it.
 const offerMerchantAccess = computed(() => !session.value.data || session.value.data.user.role === 'USER')
-// Merchants get their dashboard in the same spot, so it is one click away and not only in menus.
 const isMerchant = computed(() => session.value.data?.user.role === 'MERCHANT')
-// The menu shows the saved-deals count, which lives in the map shell everywhere else.
 provideSavedDeals(session)
 const router = useRouter()
-// Below desktop the bottom nav carries All deals, Map and the menu's rows, so the header is
-// just Room and search, as on All Deals.
 const breakpoint = useBreakpoint()
 const bottomNav = computed(() => breakpoint.value !== 'desktop')
 const allDeals = { name: 'browse', query: { view: 'list', discovery: '1' } } as const
-// The map with the results list alongside it.
 const mapTo = { name: 'browse', query: { view: 'map', split: '1', results: 'list', discovery: '1' } } as const
 const onSearch = (q: string) =>
   router.push({ ...allDeals, query: { ...allDeals.query, ...(q ? { q } : {}) } })
@@ -59,13 +48,11 @@ const onSearch = (q: string) =>
 </template>
 
 <style scoped>
-/* Matches the All Deals page header (ShellHeader's deals variant), minus the filter chips. */
 .page-header {
   position: sticky;
   top: 0;
   z-index: 1100;
   display: grid;
-  /* Side columns never shrink below their contents, so Room and the account can't spill over the search. */
   grid-template-columns: minmax(min-content, 1fr) minmax(240px, 560px) minmax(max-content, 1fr);
   gap: 24px;
   align-items: center;
@@ -77,7 +64,6 @@ const onSearch = (q: string) =>
 }
 .page-header__start { justify-self: start; display: flex; align-items: center; gap: 12px; }
 .page-header__brand { display: flex; align-items: center; }
-/* A fixed width: a percentage max-width collapses to nothing in a content-sized column. */
 .page-header__brand img { display: block; flex: none; width: 160px; height: auto; }
 .page-header__search { display: flex; align-items: center; gap: 10px; min-width: 0; }
 .page-header__search :deep(.search-field) { flex: 1; min-width: 0; }
@@ -86,7 +72,6 @@ const onSearch = (q: string) =>
 .page-header__deals:hover { color: var(--on-accent); background: var(--sunny-deep); }
 .page-header__deals:active { transform: scale(0.97); }
 .page-header__deals:focus-visible { outline: 3px solid var(--sky); outline-offset: 2px; }
-/* Narrow desktops: icon only, so the search keeps its width. */
 @media (min-width: 992px) and (max-width: 1279.98px) {
   .page-header__deals { width: 48px; padding: 0; justify-content: center; }
   .page-header__deals span { display: none; }
@@ -104,8 +89,6 @@ const onSearch = (q: string) =>
   .page-header__actions { grid-column: 1; grid-row: 1; }
   .page-header__search { grid-column: 2; grid-row: 1; }
 }
-/* Map pages (All Deals) run at a 90% rem base on desktop with a mouse (html.is-canvas in
-   main.css); this page doesn't, so the header's rem-based text is scaled to match. */
 @media (min-width: 992px) and (pointer: fine) {
   .page-header :deep(.search-field__input) { font-size: 0.9rem; }
   .page-header :deep(.squad-nav),

@@ -6,11 +6,7 @@ import type { db } from '@broke-oclock/db'
 
 type Database = typeof db
 
-// On MongoDB, Prisma resolves every nested relation of a select as its own query, one after
-// another, so a deal with four relations costs four or more round trips. These loaders select
-// the deal's scalars first and then fetch each relation directly, side by side.
-
-// The scalar half of publicOutletScopeSelect; withOutletScopes supplies the relations.
+// Prisma on Mongo runs each nested relation as its own sequential query, so relations are loaded separately in parallel.
 export const outletScopeKeysSelect = {
   id: true,
   merchantId: true,
@@ -25,7 +21,6 @@ const groupBy = <Row, Key>(rows: readonly Row[], keyOf: (row: Row) => Key) =>
     return groups.set(key, [...(groups.get(key) ?? []), row])
   }, new Map<Key, Row[]>())
 
-// Adds the `venues` and `merchant` relations that mapVenuesFor reads, in two round trips.
 export const withOutletScopes = async <Deal extends { id: string; merchantId: string | null }>(
   database: Database,
   deals: readonly Deal[],
@@ -65,7 +60,6 @@ export const withOutletScopes = async <Deal extends { id: string; merchantId: st
 
 const MS_PER_HOUR = 3_600_000
 
-// Votes cast inside the community window, grouped by deal, in one round trip.
 export const findRecentVotes = async (
   database: Database,
   dealIds: readonly string[],
@@ -83,7 +77,6 @@ export const findRecentVotes = async (
   return groupBy(votes, (vote) => vote.dealId)
 }
 
-// Each deal's imported image sources (as publicImportedImageSelect), keyed by deal id.
 export const findDealSources = async (database: Database, dealIds: readonly string[]) => {
   const sources =
     dealIds.length === 0
@@ -100,7 +93,6 @@ export const findDealSources = async (database: Database, dealIds: readonly stri
       .map(({ importedPost, images }) => ({ importedPost, images }))
 }
 
-// Adds `sources` (as publicImportedImageSelect) and the first active upload as `images`.
 export const withDealMedia = async <Deal extends { id: string }>(
   database: Database,
   deals: readonly Deal[],

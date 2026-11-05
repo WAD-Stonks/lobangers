@@ -6,7 +6,6 @@ import AuthPage from '@web/pages/AuthPage.vue'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { createMemoryHistory, createRouter } from 'vue-router'
 
-// Synthetic SDK boundaries only, not live authentication or email delivery.
 const sdk = vi.hoisted(() => ({
   methods: vi.fn(),
   password: vi.fn(),

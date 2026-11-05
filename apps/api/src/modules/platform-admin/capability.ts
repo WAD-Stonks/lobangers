@@ -9,9 +9,6 @@ import {
 } from '@api/modules/platform-admin/transaction'
 import { activeVenue } from '@api/modules/platform-admin/venues'
 
-// Call INSIDE the same interactive transaction as the merchant's eventual write.
-// This is not a read/query helper: it fences against revocation and role changes.
-// No future merchant endpoint is protected until it adopts this helper.
 export const requireMerchantStall = async (
   tx: AccessTransaction,
   actor: AuthenticatedActor,

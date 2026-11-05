@@ -28,10 +28,9 @@ const refreshingRequests = ref(true)
 const submitting = ref(false)
 const successMessage = ref('')
 const errorMessage = ref('')
-const attempted = ref(false) // inline errors only appear after the first Send
+const attempted = ref(false)
 const formEl = ref<HTMLFormElement | null>(null)
 
-// Send stays enabled; a submit with a missing field shows the inline errors and focuses the first.
 const venueError = computed(() =>
   attempted.value && venueId.value === '' ? 'Choose the stall you run.' : '',
 )
@@ -40,8 +39,6 @@ const messageError = computed(() =>
 )
 const isValid = computed(() => venueId.value !== '' && message.value.trim() !== '')
 
-// Every search gets a number. Only the newest search may change the page, so a slow older
-// search finishing last can't replace newer results or clear the stall the user already chose.
 let latestSearch = 0
 const findVenues = async () => {
   const thisSearch = ++latestSearch
@@ -50,7 +47,7 @@ const findVenues = async () => {
     const result = await api.account.venues({ search: search.value })
     if (thisSearch !== latestSearch) return
     venues.value = result
-    venueId.value = '' // the old choice may not be in the new list
+    venueId.value = ''
   } catch {
     if (thisSearch !== latestSearch) return
     errorMessage.value = 'Could not search stalls. Please try again.'
@@ -59,14 +56,11 @@ const findVenues = async () => {
   }
 }
 
-// Each refresh of the first page starts a new "generation" of the list. A response that belongs
-// to an older generation (for example a slow Load more that was started before a request was
-// sent) is thrown away, so it can't append stale items or move the cursor.
 let requestsGeneration = 0
 const loadMyRequests = async () => {
   const generation = ++requestsGeneration
   refreshingRequests.value = true
-  loadingMoreRequests.value = false // any Load more still running belongs to the old list
+  loadingMoreRequests.value = false
   try {
     const result = await api.account.merchantRequests()
     if (generation !== requestsGeneration) return
@@ -80,7 +74,6 @@ const loadMyRequests = async () => {
   }
 }
 
-// Older requests: the API returns 20 at a time plus a cursor for the next page.
 const loadMoreRequests = async () => {
   if (!requestsCursor.value || loadingMoreRequests.value || refreshingRequests.value) return
   const generation = requestsGeneration
@@ -115,7 +108,7 @@ const sendRequest = async () => {
     message.value = ''
     venueId.value = ''
     attempted.value = false
-    await loadMyRequests() // refresh the list so the new request shows up
+    await loadMyRequests()
   } catch (error) {
     const code = errorCode(error)
     if (code === 'CONFLICT') {
@@ -155,7 +148,6 @@ const goBack = () => {
     <form ref="formEl" class="card card-body mb-4" novalidate @submit.prevent="sendRequest">
       <label for="venue-search" class="form-label">Find your stall</label>
       <div class="input-group mb-3">
-        <!-- Enter here runs the search; it must not submit the access request. -->
         <input
           id="venue-search"
           v-model="search"
@@ -241,7 +233,6 @@ const goBack = () => {
 </template>
 
 <style scoped>
-/* A readable form width on wide screens; Bootstrap's container still handles phone gutters. */
 .merchant-access {
   max-width: 52rem;
 }

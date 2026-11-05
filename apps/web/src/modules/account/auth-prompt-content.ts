@@ -1,6 +1,5 @@
 import type { ShellIconName } from '@web/modules/map-shell/ShellIcon.vue'
 
-// Icons the ShellIcon set lacks are drawn inline by AuthPrompt.
 export type BenefitIcon = ShellIconName | 'share' | 'clock' | 'people'
 
 export interface PromptBenefit {
@@ -10,7 +9,6 @@ export interface PromptBenefit {
 }
 
 export interface PromptContent {
-  /** The shape beside the deal card in the illustration. */
   readonly illustration: 'bookmark' | 'arrow'
   readonly heading: string
   readonly intro: string
@@ -89,7 +87,6 @@ const SQUAD: PromptContent = {
   ],
 }
 
-// Every other protected page (account, submissions, merchant tools) shares one prompt.
 const ACCOUNT: PromptContent = {
   illustration: 'bookmark',
   heading: 'Make every deal count',

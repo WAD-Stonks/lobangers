@@ -28,10 +28,6 @@ import {
   type SquadVoteInput,
 } from '@broke-oclock/contracts/squad'
 
-// Voting in a live room. Yay and Nah can be tapped again and again: every tap counts and shows
-// as an effect for everyone, and the latest one is the member's stance. Once a round is decided
-// everyone picks "vote again" or "next deal". Sync is the heartbeat and the polling fallback.
-
 const ballotKey = (roomId: string, memberId: string, dealIndex: number, round: number) => ({
   roomId_memberId_dealIndex_round: { roomId, memberId, dealIndex, round },
 })
@@ -45,12 +41,9 @@ const requireVoter = <T extends { spectator: boolean }>(seat: T) => {
   return seat
 }
 
-// Seats as the room should count them right now: whoever just acted is here.
 const withSeen = (seats: readonly SeatRow[], seatId: string, now: Date) =>
   seats.map((seat) => (seat.id === seatId ? { ...seat, lastSeenAt: now } : seat))
 
-// Marks a seat as still here outside any transaction, and only when the last mark is stale, so
-// a member's heartbeat never clashes with their own votes. Returns the seats as now seen.
 const markSeen = async (
   database: Database,
   seats: readonly SeatRow[],
@@ -64,9 +57,6 @@ const markSeen = async (
   return withSeen(seats, seatId, now)
 }
 
-// Adds a batch of taps to the member's ballot in one atomic upsert, with no transaction: spamming
-// Yay and Nah sends overlapping requests from the same member, and transactions writing the same
-// ballot abort each other. The tally is capped in the same update. Returns the new ballot.
 const addTaps = async (
   database: Database,
   room: RoomRow,
@@ -108,8 +98,6 @@ const addTaps = async (
   return { memberId, stance: input.stance, yays }
 }
 
-// Moves the room along when it is due, in a transaction only then. Returns the room and seats to
-// build the reply from, counting the member who just acted as here.
 const settleIfDue = async (
   database: Database,
   room: RoomRow,
@@ -138,8 +126,6 @@ export const vote = async (
   if (room.status !== 'LIVE' || room.phase !== 'VOTING')
     throw new DomainError('PRECONDITION_FAILED', 'Voting on this deal has finished')
   const ballot = await addTaps(database, room, seat.id, input, now)
-  // With a live channel the tap effects already went browser to browser, so only the new
-  // ballot is pushed. Without one, the effects go in the event log for others to poll.
   if (squadRealtimeEnabled()) await publishBallot(room.code, ballot)
   else
     await emitEvents(
@@ -167,7 +153,6 @@ export const choose = async (
     const room = await requireRoom(tx, code)
     const seats = await seatsOf(tx, room.id)
     const seat = requireVoter(requireMember(seats, actor.userId))
-    // After a match the only choice is to keep looking.
     if (room.status !== 'LIVE' || (room.phase !== 'DECIDING' && room.phase !== 'MATCHED'))
       throw new DomainError('PRECONDITION_FAILED', 'The room has already moved on')
     if (room.phase === 'MATCHED' && input.choice !== 'NEXT')
@@ -202,10 +187,6 @@ const stateAfter = async (
   return buildState(database, room, seats, userId, now)
 }
 
-// The heartbeat: marks the member as still here, moves the room along if it is due, and returns
-// the state plus every effect since `after`. Most beats only read; a transaction runs only when
-// the room actually has to change. Someone who left can still sync, so they see "still voting"
-// and can rejoin.
 export const sync = async (
   database: Database,
   actor: AuthenticatedActor,
@@ -233,12 +214,10 @@ export const sync = async (
       dealIndex: event.dealIndex ?? null,
       at: event.createdAt.toISOString(),
     })),
-    // The newest event actually stored, so a number still being written is never skipped.
     nextSeq: fresh[0]?.seq ?? after,
   }
 }
 
-// What the join screen needs before someone joins: is the room open, has it started, is it full.
 export const peekRoom = async (database: Database, code: string, now: Date) => {
   const room = await requireRoom(database, code)
   const seats = await seatsOf(database, room.id)

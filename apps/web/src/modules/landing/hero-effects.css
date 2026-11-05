@@ -1,4 +1,3 @@
-/* Hero entrances and interactions; no scroll-driven transforms. */
 .hero-waterfront,
 .waterfront-art {
   position: absolute;
@@ -22,7 +21,6 @@
 .hero-ferry-bob {
   animation: waterfront-bob 3s ease-in-out infinite;
 }
-/* Match the 28s sailing cycle; reverse the wake during the mid-trip pause. */
 .hero-ferry-wake-direction {
   transform-box: view-box;
   transform-origin: 0 0;
@@ -92,7 +90,6 @@
   border-radius: 40%;
   -webkit-tap-highlight-color: transparent;
 }
-/* Expand touch targets without changing the artwork's geometry. */
 .hero-landmark::before {
   content: "";
   position: absolute;
@@ -269,7 +266,6 @@
   }
 }
 
-/* A tap sends a visible pressure surge into a spray and two spreading rings. */
 .merlion-burst {
   pointer-events: none;
 }
@@ -365,7 +361,6 @@
   transform-origin: 0 0;
   animation: waterfront-cable-sway 3.2s ease-in-out infinite;
 }
-/* Samples follow the cable quadratic, with easing baked into the trip. */
 @keyframes waterfront-cable-car {
   0%,
   100% {

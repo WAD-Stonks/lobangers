@@ -18,8 +18,6 @@ import { fileURLToPath } from 'node:url'
 
 const root = fileURLToPath(new URL('../../', import.meta.url))
 
-// Exercise the actual launcher, pnpm and Vitest in an isolated repository. Never
-// read or change the checkout's .env, and never import an application DB client.
 for (const [workspace, script, inherited, stripsDatasource] of [
   ['apps/api', 'test:integration', true, true],
   ['apps/api', 'test:integration', false, true],

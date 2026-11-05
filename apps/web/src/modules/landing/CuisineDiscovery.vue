@@ -13,7 +13,6 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { RouterLink } from 'vue-router'
 
 const emit = defineEmits<{ retry: [] }>()
-// The cards are the All Deals page's, and their save buttons need the visitor's saved deals.
 provideSavedDeals(authClient.useSession())
 const cuisine = ref('All Cuisines')
 const area = ref('all')
@@ -35,8 +34,6 @@ const filtered = computed(() =>
   ),
 )
 const page = ref(0)
-// One row of cards per page, as many as fit at a comfortable card width (two to five), so cards
-// never balloon on a narrower screen or turn skinny on a wide one.
 const CARD_MIN_PX = 210
 const CARD_GAP_PX = 20
 const grid = ref<HTMLElement | null>(null)
@@ -45,7 +42,6 @@ let resizer: ResizeObserver | undefined
 const fitColumns = (width: number) => {
   const next = Math.min(5, Math.max(2, Math.floor((width + CARD_GAP_PX) / (CARD_MIN_PX + CARD_GAP_PX))))
   if (next === pageSize.value) return
-  // Keep the first card on screen in view when the page size changes.
   page.value = Math.floor((page.value * pageSize.value) / next)
   pageSize.value = next
 }
@@ -75,8 +71,6 @@ const endSwipe = (event: TouchEvent) => {
 }
 const pageCount = computed(() => Math.ceil(filtered.value.length / pageSize.value))
 const visibleDeals = computed(() => filtered.value.slice(page.value * pageSize.value, (page.value + 1) * pageSize.value))
-// Each card shows the deal at the outlet the region filter picked (its first outlet otherwise).
-// A deal with no listed outlet still shows, named as such, and links to the deal alone.
 const NO_OUTLET = { id: '', name: 'Restaurant details unavailable', lat: 0, lng: 0 }
 const visibleRows = computed<DealRow[]>(() =>
   visibleDeals.value.map((deal) => ({

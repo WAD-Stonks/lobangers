@@ -11,9 +11,6 @@ import { computed, inject, ref, watch } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 import '@web/modules/squad/squad.css'
 
-// A Makan Squad room in the panel: the lobby before it starts, the live vote, or how it ended.
-// On a phone the sheet can be tucked down to a live bar so the map shows; tapping the bar or
-// the room's pin brings it back.
 const route = useRoute()
 const room = useSquadRoom()
 const sheet = inject(SHEET_CONTROL_KEY, null)
@@ -37,8 +34,6 @@ watch(
   { immediate: true },
 )
 
-// The moment a lobby goes live, the sheet opens to full screen (even if it was dragged down or
-// minimised in the lobby) and a short 3-2-1 plays over the room (skipped for reduced motion).
 const stirring = ref(false)
 const reducedMotion = () =>
   typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches

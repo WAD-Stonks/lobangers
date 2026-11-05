@@ -4,8 +4,6 @@ import { safeMediaUrl } from '@web/lib/media-url'
 import ShellIcon from '@web/modules/map-shell/ShellIcon.vue'
 import { computed, nextTick, ref, watch } from 'vue'
 
-// Full-size view of a deal photo on the native modal dialog, so focus trapping, Escape and the
-// backdrop behave as the platform expects. Arrow keys and buttons step through several photos.
 const props = defineProps<{
   images: readonly DealImage[]
   index: number | null
@@ -22,7 +20,6 @@ watch(
   async (open) => {
     await nextTick()
     const element = dialog.value
-    // jsdom has no showModal; the photo still renders, only the modal behaviour is missing.
     if (open && element && !element.open) element.showModal?.()
     if (!open && element?.open) element.close()
   },
@@ -39,7 +36,6 @@ const onKeydown = (event: KeyboardEvent) => {
   else if (event.key === 'ArrowRight') step(1)
 }
 
-// A click on the dialog itself, outside the photo and controls, is a click on the backdrop.
 const onClick = (event: MouseEvent) => {
   if (event.target === dialog.value) dialog.value?.close()
 }
@@ -85,7 +81,6 @@ const onClick = (event: MouseEvent) => {
   max-width: 100vw;
   height: 100dvh;
   max-height: 100dvh;
-  /* Keep the photo and its controls clear of the notch and the home indicator. */
   padding:
     calc(56px + env(safe-area-inset-top, 0px))
     calc(16px + env(safe-area-inset-right, 0px))
@@ -107,7 +102,6 @@ const onClick = (event: MouseEvent) => {
   background: var(--scrim-strong);
 }
 
-/* Occasional modal: a short fade so the photo does not snap in over the page. */
 .photo-viewer[open],
 .photo-viewer[open]::backdrop {
   opacity: 1;

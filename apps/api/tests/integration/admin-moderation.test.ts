@@ -454,7 +454,6 @@ it.each(['GET', 'HEAD'])(
       where: { id: operator.id },
       data: { role: 'ADMIN', updatedAt: new Date('2020-01-01T00:00:00Z') },
     })
-    // An old refresh timestamp exercises the actual native auth read configuration.
     await db.session.updateMany({
       where: { userId: operator.id },
       data: { updatedAt: new Date('2020-01-01T00:00:00Z') },

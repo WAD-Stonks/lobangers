@@ -12,11 +12,7 @@ type Transport = {
   runs: () => Promise<IngestionRunsResponse>
   subscribe?: (changed: () => void, unavailable: () => void) => () => void
 }
-// The server admits work for 90 seconds. A lost response must not immediately
-// enable another submission, including between sequential source runs.
 const RECONCILE_MS = 120_000
-// Server leases never renew and fence writes after 120s. Allow 30s for clock
-// skew before treating a historical RUNNING row as expired, not completed.
 const LEASE_WINDOW_MS = 150_000
 const hasLiveLease = (run: SourceRun) =>
   run.status === 'RUNNING' &&
@@ -84,8 +80,6 @@ export const createBackgroundImport = (transport: Transport) => {
   const schedule = () => {
     stop()
     if (!active.value) return
-    // One expiry reconciliation, never a repeating progress poll. Pushes and
-    // reconnects refresh sooner; failed reads require an explicit retry.
     const expiry = Math.max(
       startedAt + RECONCILE_MS,
       ...state.runs.filter(hasLiveLease).map((run) => Date.parse(run.startedAt) + LEASE_WINDOW_MS),
@@ -151,7 +145,6 @@ export const createBackgroundImport = (transport: Transport) => {
     state.phase = 'running'
     listen()
     state.message = 'Checking sources before starting…'
-    // Snapshot before submission so old runs are never presented as new progress.
     try {
       const before = await transport.runs()
       if (ticket !== generation) return
@@ -240,8 +233,6 @@ export const createBackgroundImport = (transport: Transport) => {
   return { state, active, start, refresh, reset, resume, dismiss }
 }
 
-// SPA-owned rather than page-owned: changing admin routes never drops the
-// request, progress subscription or duplicate-submission guard. No credentials persist.
 export const backgroundImport = createBackgroundImport({
   run: () => api.ingestion.run(),
   runs: () => api.ingestion.runs({ limit: 20 }),

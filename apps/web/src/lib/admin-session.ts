@@ -2,7 +2,6 @@ import { confirmAdminIdentity, onAdminIdentityEnd } from '@web/lib/admin-recover
 import { authClient } from '@web/lib/auth-client'
 import { ref, shallowRef } from 'vue'
 
-// Exact SPA destinations only. Query strings, fragments and arbitrary origins are not redirects.
 export const safeAuthDestination = (destination: string, origin: string): string => {
   const allowed = [
     '/',
@@ -18,7 +17,6 @@ export const safeAuthDestination = (destination: string, origin: string): string
   return new URL(allowed.includes(destination) ? destination : '/', origin).href
 }
 
-// Account login owns its same-site redirect query; admin callers still strip it by default.
 export const consumeOAuthError = (preserveAccountRedirect = false): string => {
   const url = new URL(window.location.href)
   const code = url.searchParams.get('error')
@@ -55,7 +53,6 @@ export const consumeOAuthError = (preserveAccountRedirect = false): string => {
     : ''
 }
 
-// Local native session presentation only, never an authorization or token store.
 export const createAdminSession = (
   events: {
     closing: () => void
@@ -100,8 +97,6 @@ export const createAdminSession = (
     loading.value = true
     session.value = null
     try {
-      // The native atom handles read-only GET -> trusted POST renewal. Its data
-      // never authorizes access; keep renewal inside this same generation fence.
       if (renew) {
         await renew()
         if (!alive || current !== generation) return
@@ -114,8 +109,6 @@ export const createAdminSession = (
         notice.value = result.error
           ? 'The current session could not be confirmed. Access remains closed.'
           : 'No active session was found.'
-        // Confirmed anonymous is distinct from an unknown/failed session probe.
-        // Native renewal can finish after the page probe; restore its sign-in UI.
         if (!result.error) {
           confirm(null)
           uncertain.value = false
@@ -151,7 +144,7 @@ export const createAdminSession = (
     session.value = null
     notice.value = ''
     uncertain.value = false
-    events.closing() // Must clear page evidence synchronously BEFORE invoking the native SDK.
+    events.closing()
     try {
       const result = await authClient.signOut()
       if (!alive || current !== generation) return
@@ -200,7 +193,6 @@ export const createAdminSession = (
   }
 }
 
-// D2 may use this fence around protected reads and mutation follow-ups.
 export const createAdminReadFence = () => {
   let generation = 0
   let alive = true

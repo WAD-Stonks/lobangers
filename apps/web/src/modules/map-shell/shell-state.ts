@@ -38,10 +38,8 @@ import {
 import type { LocationQuery, RouteLocationNormalizedLoaded, Router } from 'vue-router'
 
 export type DealsStatus = 'loading' | 'ready' | 'error'
-// push adds a history entry (Back undoes it); replace refines the current one.
 export type HistoryMode = 'push' | 'replace'
 
-// "Ending today" must move on while a tab stays open.
 const CLOCK_TICK_MS = 60_000
 const LOCATION_MESSAGES: Partial<Record<GeolocationStatus, string>> = {
   denied: 'Location access was refused, so the map shows all of Singapore.',
@@ -69,7 +67,6 @@ export const createShellState = ({
 }: Deps) => {
   const deals = shallowRef<readonly DealPin[]>([])
   const categories = shallowRef<readonly string[]>([])
-  // Cuisine options follow the fixed list's order, limited to cuisines some loaded deal has.
   const cuisines = computed(() =>
     DEAL_CUISINES.filter((cuisine) => deals.value.some((deal) => deal.cuisine === cuisine)),
   )
@@ -87,7 +84,6 @@ export const createShellState = ({
   })
   const sort = computed(() => readSort(route.query))
   const split = computed(() => readSplit(route.query))
-  // All Deals uses cards; map results start as a list unless Cards is explicitly selected.
   const cardMode = computed(
     () =>
       route.query.results === 'cards' || (route.query.results !== 'list' && view.value === 'list'),
@@ -112,7 +108,6 @@ export const createShellState = ({
   const context = computed<FilterContext>(() => ({
     now: clock.value,
     position: geo.position.value,
-    // Saved deals are a personal collection, independent of the visible map bounds.
     area: savedOnly.value ? null : area.value,
   }))
 
@@ -129,14 +124,11 @@ export const createShellState = ({
       context.value,
     )
 
-  // Every outlet with any loaded deal, unfiltered: deal and venue panels still resolve their
-  // target when a filter hides it from the list.
   const allPins = computed(() => toVenuePins(deals.value))
   const pins = computed(() => pinsFor(filters.value))
   const rows = computed(() => {
     const nearby = toDealRows(pins.value, geo.position.value)
     if (sort.value === 'newest' || (sort.value === 'near' && !geo.position.value)) {
-      // The API returns newest first; preserve that order while retaining each nearest outlet.
       const order = new Map(deals.value.map((deal, index) => [deal.id, index]))
       return [...nearby].sort((a, b) => (order.get(a.deal.id) ?? 0) - (order.get(b.deal.id) ?? 0))
     }
@@ -169,8 +161,6 @@ export const createShellState = ({
   const reload = () => load(filters.value.validNow)
   watch(() => filters.value.validNow, load, { immediate: true })
 
-  // From another panel, filters land on browse as a new history entry (Back returns to the
-  // panel) and only shell keys travel along, never `at`, `redirect` or `notice`.
   const navigate = (query: Record<string, unknown>, mode: HistoryMode) => {
     if (route.name !== 'browse' && route.name !== 'saved') {
       return router.push({
@@ -208,7 +198,6 @@ export const createShellState = ({
     return navigate(next ? { ...rest, view: 'map', split: '1' } : rest, 'push')
   }
 
-  // Centre on the visitor when they are in Singapore; otherwise keep the island and say why.
   const locate = async (): Promise<Coordinates | null> => {
     const located = await geo.locate()
     outsideSingapore.value = located !== null && !isWithinSingapore(located)
@@ -217,7 +206,6 @@ export const createShellState = ({
 
   const findVenuePin = (venueId: string) => allPins.value.find((pin) => pin.id === venueId) ?? null
 
-  // A deal at a chosen outlet, else at its first loaded outlet.
   const findDeal = (dealId: string, venueId?: string | null): SelectedDeal | null => {
     const venues = allPins.value.filter((pin) => pin.deals.some((deal) => deal.id === dealId))
     const venue = venues.find((pin) => pin.id === venueId) ?? venues[0]

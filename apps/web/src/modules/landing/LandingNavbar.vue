@@ -10,15 +10,10 @@ import { computed, nextTick } from 'vue'
 import { RouterLink } from 'vue-router'
 
 const session = authClient.useSession()
-// Merchants get their dashboard in the top links, not only in the avatar menu.
 const isMerchant = computed(() => session.value.data?.user.role === 'MERCHANT')
-// The site menu is the same drawer as on every other page; it shows the saved-deals count.
 provideSavedDeals(session)
 const { isDark, toggle: toggleTheme } = useTheme()
 
-// The new theme spreads out in a circle from the switch. The browser snapshots the page, the
-// theme changes underneath, and the new snapshot is revealed through a growing clip-path. Without
-// View Transitions, or with reduced motion, the theme simply switches.
 const switchTheme = async (event: MouseEvent) => {
   const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches
   if (!document.startViewTransition || reduce) {
@@ -35,7 +30,6 @@ const switchTheme = async (event: MouseEvent) => {
   const transition = document.startViewTransition(async () => {
     toggleTheme()
     await nextTick()
-    // The map swaps to its other painting; give it a moment to decode so the circle reveals it.
     const art = [...document.querySelectorAll<HTMLImageElement>('.lobangers-landing .island-art')]
     await Promise.race([
       Promise.allSettled(art.map((image) => image.decode())),
@@ -48,11 +42,8 @@ const switchTheme = async (event: MouseEvent) => {
       { clipPath: [`circle(0px at ${x}px ${y}px)`, `circle(${radius}px at ${x}px ${y}px)`] },
       { duration: 650, easing: 'cubic-bezier(0.4, 0, 0.2, 1)', fill: 'forwards', pseudoElement: '::view-transition-new(root)' },
     )
-    // Wait for the whole transition, not just the circle: dropping the class while the snapshots
-    // are still up brings back the browser's default cross-fade, which replays the switch.
     await transition.finished
   } catch {
-    /* A skipped transition still switched the theme. */
   } finally {
     root.classList.remove('theme-reveal')
   }
@@ -73,7 +64,6 @@ const switchTheme = async (event: MouseEvent) => {
         <a v-else href="#story">How it works</a>
         <RouterLink v-if="isMerchant" to="/merchant" data-testid="landing-merchant-dashboard">Merchant dashboard</RouterLink>
       </div>
-      <!-- Shows what a press switches to: the moon in light mode, the sun in dark. -->
       <button
         class="landing-theme"
         type="button"

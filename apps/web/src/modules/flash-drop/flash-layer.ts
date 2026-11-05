@@ -10,12 +10,7 @@ import {
 import L from 'leaflet'
 import '@web/modules/flash-drop/flash-drop.css'
 
-// Draws each live Flash Drop on the map: a dashed coral circle for who sees the banner, a coral
-// pin with a countdown, and on request the black banner over the circle. Built from DOM nodes,
-// so deal text is never parsed as HTML. Countdowns update their text in place every second.
-
 const METRES_PER_DEGREE_LAT = 111_320
-// Matches the pin and circle exit animations in flash-drop.css.
 const LEAVE_MS = 380
 
 const el = <K extends keyof HTMLElementTagNameMap>(tag: K, className: string, text?: string) => {
@@ -44,15 +39,9 @@ const bannerLabel = (drop: PublicFlashDrop, now: number) =>
 
 const pinIcon = (drop: PublicFlashDrop, now: number) => {
   const oval = el('span', 'flash-pin__oval')
-  oval.append(
-    foodFor(drop, 'pin'),
-    // The offer in a few characters; an "other" offer just says Flash.
-    el('span', 'flash-pin__price', offerText(drop) || 'Flash'),
-  )
+  oval.append(foodFor(drop, 'pin'), el('span', 'flash-pin__price', offerText(drop) || 'Flash'))
   oval.append(el('span', 'flash-pin__timer', countdown(drop.endsAt, now)))
   const stack = el('span', 'flash-pin__stack')
-  // Leaflet names the marker's role="button" from its content, not its title, so the stack
-  // carries the full label (the visible price and countdown alone mean little when read out).
   stack.setAttribute('aria-label', pinLabel(drop))
   stack.append(oval, el('span', 'flash-pin__stem'), el('span', 'flash-pin__dot'))
   return L.divIcon({ className: 'flash-pin', html: stack, iconSize: [0, 0], iconAnchor: [0, 0] })
@@ -64,8 +53,6 @@ export type BannerHandlers = {
   readonly lifeMs: number
 }
 
-// Above or below the circle; or, when the circle is bigger than the visible map at street zoom,
-// just above or just under the drop's own pin.
 export type BannerPlacement = 'above' | 'below' | 'pin' | 'under'
 
 const bannerIcon = (
@@ -108,7 +95,6 @@ const bannerIcon = (
     })
   button.classList.add(`flash-banner--${placement}`)
   const wrap = el('div', `flash-banner-wrap flash-banner-wrap--${placement}`)
-  // Slides sideways to stay on screen; the tail keeps pointing at the circle.
   wrap.style.setProperty('--flash-shift', `${shiftPx}px`)
   wrap.append(button)
   return L.divIcon({
@@ -119,7 +105,6 @@ const bannerIcon = (
   })
 }
 
-// Where the banner's tail points: the circle's top or bottom edge, or the pin itself.
 const zoneEdge = (drop: PublicFlashDrop, placement: BannerPlacement) =>
   placement === 'pin' || placement === 'under'
     ? L.latLng(drop.lat, drop.lng)
@@ -128,9 +113,7 @@ const zoneEdge = (drop: PublicFlashDrop, placement: BannerPlacement) =>
         drop.lng,
       )
 
-// Room the banner needs beside the circle, and how far it may run towards the screen's sides.
 const BANNER_ROOM_PX = 96
-// The pin's height above its dot, which the perched banner clears.
 const PIN_HEIGHT_PX = 72
 const BANNER_HALF_WIDTH_PX = 165
 const SIDE_MARGIN_PX = 8
@@ -140,7 +123,6 @@ type Padding = { top: number; right: number; bottom: number; left: number }
 export type EdgePoint = {
   readonly x: number
   readonly y: number
-  // Which way the drop lies from the docked banner, in degrees (0 = right, 90 = down).
   readonly angle: number
 }
 
@@ -155,7 +137,6 @@ export const mountFlashLayer = (map: L.Map, onOpen: (drop: PublicFlashDrop) => v
     for (const [id, entry] of entries) {
       if (wanted.has(id)) continue
       entries.delete(id)
-      // The pin sinks into its dot and the circle draws back in, then both leave.
       entry.pin.getElement()?.querySelector('.flash-pin__stack')?.classList.add('is-leaving')
       entry.zone.getElement()?.classList.add('is-leaving')
       setTimeout(() => {
@@ -170,7 +151,6 @@ export const mountFlashLayer = (map: L.Map, onOpen: (drop: PublicFlashDrop) => v
         const element = kept.pin.getElement()
         const timer = element?.querySelector('.flash-pin__timer')
         if (timer) timer.textContent = countdown(drop.endsAt, now)
-        // Codes left can change between refreshes; keep the spoken label current.
         element?.querySelector('.flash-pin__stack')?.setAttribute('aria-label', pinLabel(drop))
         continue
       }
@@ -209,7 +189,6 @@ export const mountFlashLayer = (map: L.Map, onOpen: (drop: PublicFlashDrop) => v
       layer.removeLayer(marker)
       return
     }
-    // Shrinks back into the circle, then leaves.
     element.classList.add('is-leaving')
     setTimeout(() => layer.removeLayer(marker), 200)
   }
@@ -236,8 +215,6 @@ export const mountFlashLayer = (map: L.Map, onOpen: (drop: PublicFlashDrop) => v
     }).addTo(layer)
   }
 
-  // Above the circle when there is room under the header, below it otherwise, else over the pin;
-  // null when the drop is off screen or nothing fits, so the banner docks to the edge instead.
   const placementFor = (drop: PublicFlashDrop, padding: Padding): BannerPlacement | null => {
     if (!inView(drop, padding)) return null
     const size = map.getSize()
@@ -251,7 +228,6 @@ export const mountFlashLayer = (map: L.Map, onOpen: (drop: PublicFlashDrop) => v
     return null
   }
 
-  // True when the drop's pin is inside the part of the map the visitor can see.
   const inView = (drop: PublicFlashDrop, padding: Padding) => {
     const size = map.getSize()
     const point = map.latLngToContainerPoint([drop.lat, drop.lng])
@@ -263,7 +239,6 @@ export const mountFlashLayer = (map: L.Map, onOpen: (drop: PublicFlashDrop) => v
     )
   }
 
-  // Where to dock a banner for a drop off screen: on the visible area's edge, towards the drop.
   const edgeFor = (
     drop: PublicFlashDrop,
     padding: { top: number; right: number; bottom: number; left: number },

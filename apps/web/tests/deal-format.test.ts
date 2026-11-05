@@ -47,7 +47,7 @@ describe('formatMoreOutlets', () => {
 })
 
 describe('formatEnding', () => {
-  const now = new Date('2026-10-20T02:00:00.000Z') // 10am in Singapore
+  const now = new Date('2026-10-20T02:00:00.000Z')
 
   it('gives the time for deals ending today and the day otherwise', () => {
     expect(formatEnding('2026-10-20T14:00:00.000Z', now)).toMatch(/^Ends today, 10:00\s?pm$/i)

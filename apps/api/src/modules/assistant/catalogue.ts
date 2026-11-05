@@ -89,7 +89,6 @@ const keywordScore = (entry: CatalogueEntry, keywords: readonly string[]): numbe
 const endTime = (entry: CatalogueEntry) =>
   entry.deal.validUntil === null ? Number.POSITIVE_INFINITY : Date.parse(entry.deal.validUntil)
 
-// Nearest first when the visitor is located, otherwise soonest ending first.
 const byRelevance = (a: CatalogueEntry, b: CatalogueEntry) =>
   a.distanceMetres !== null && b.distanceMetres !== null
     ? a.distanceMetres - b.distanceMetres

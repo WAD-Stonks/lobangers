@@ -2,7 +2,6 @@
 import ShellIcon from '@web/modules/map-shell/ShellIcon.vue'
 import { type ToastAction, useToast } from '@web/modules/map-shell/use-toast'
 
-// The live region is always in the page so screen readers announce each new toast.
 const toast = useToast()
 
 const runAction = (action: ToastAction) => {
@@ -47,7 +46,6 @@ const runAction = (action: ToastAction) => {
 }
 
 .shell-toast {
-  /* The pill inverts in dark mode (light fill), so the icon colours need darker partners there. */
   --toast-icon: var(--sunny);
   --toast-error-icon: var(--tag-end-bg);
   position: absolute;
@@ -58,7 +56,6 @@ const runAction = (action: ToastAction) => {
   align-items: center;
   gap: var(--space-3);
   box-sizing: border-box;
-  /* Sized to its text, not to the room right of the map centre, so words never split. */
   width: max-content;
   max-width: min(28rem, calc(100vw - 2 * var(--shell-gutter)));
   min-height: 48px;
@@ -91,7 +88,6 @@ const runAction = (action: ToastAction) => {
   overflow-wrap: break-word;
 }
 
-/* Text button inside the pill; the padding makes a 44px target without growing the pill. */
 .shell-toast__action {
   flex: none;
   min-height: var(--hit);

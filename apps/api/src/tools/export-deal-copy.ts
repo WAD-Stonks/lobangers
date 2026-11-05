@@ -3,18 +3,11 @@ import { dirname, resolve } from 'node:path'
 import { REPO_ROOT, readAllDealCopyBatches } from '@api/tools/deal-copy/batch'
 import { db } from '@broke-oclock/db'
 
-// Step 1 of the deal tidy-up (.claude/skills/tidy-deals/SKILL.md): writes the imported deals no
-// committed batch has touched yet, with the source article text, to a local JSON file. Read-only.
-//
-//   pnpm deals:copy-export                 deals not yet in any batch
-//   pnpm deals:copy-export --all           every imported deal
-//   pnpm deals:copy-export --out <path>    somewhere other than .local/deal-copy/
 const ALL_FLAG = '--all'
 const OUT_FLAG = '--out'
 const SOURCE_TEXT_CHARS = 4000
 const DEFAULT_OUT_DIR = resolve(REPO_ROOT, '.local/deal-copy')
 
-// Crude text extraction for a reader, never for rendering: the snapshot is untrusted HTML.
 const plainText = (html: string) =>
   html
     .replace(/<(script|style)\b[^>]*>[\s\S]*?<\/\1\s*>/gi, ' ')
@@ -36,8 +29,6 @@ const snapshotHtml = (snapshot: string): string | null => {
   }
 }
 
-// Older imports pinned the WordPress post JSON in the snapshot. Newer ones pin a fact summary
-// there and keep the article HTML on the imported post instead. Telegram posts carry no text.
 const sourceText = (snapshot: string, rawContent: string | undefined): string | null => {
   const html =
     snapshotHtml(snapshot) ?? (rawContent?.trimStart().startsWith('<') ? rawContent : null)

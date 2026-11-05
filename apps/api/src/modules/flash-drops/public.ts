@@ -15,8 +15,6 @@ import type {
   PublicFlashDrop,
 } from '@broke-oclock/contracts/flash-drops'
 
-// What visitors see: approved drops running right now, one claim code each, and their codes.
-
 const MAX_ACTIVE = 50
 const MAX_CODES = 100
 const CODE_ATTEMPTS = 4
@@ -33,7 +31,6 @@ export const listActiveFlashDrops = async (
     select: dropSelect,
   })
   const live = rows.filter((row) => isLive(row, now))
-  // Most of the time nothing is running; skip the three lookups that would find nothing.
   if (live.length === 0) return { serverTime: now.toISOString(), items: [] }
   const context = await loadContext(database, live)
   const items = live.flatMap((row): PublicFlashDrop[] => {
@@ -85,7 +82,6 @@ const loadDrops = async (database: Database, dropIds: readonly string[]) => {
   }
 }
 
-// A claimed code shows the flash offer but not the usual price.
 const withoutUsual = ({ usualPriceCents: _usual, ...offer }: ReturnType<typeof flashOfferOf>) =>
   offer
 
@@ -102,7 +98,6 @@ const toCode = (claim: ClaimRow, { byId, context }: DropRows, now: Date): FlashC
     claimedAt: claim.createdAt.toISOString(),
     endsAt: drop.endsAt.toISOString(),
     expiresAt: codesExpireAtOf(drop),
-    // It no longer matters if codes ran out or claiming has closed.
     active: codeIsActive(drop, now),
     demo: drop.demo,
   }
@@ -111,8 +106,6 @@ const toCode = (claim: ClaimRow, { byId, context }: DropRows, now: Date): FlashC
 const claimRow = (database: Database, dropId: string, userId: string) =>
   database.flashDropClaim.findUnique({ where: { dropId_userId: { dropId, userId } } })
 
-// Writes the code for a count already taken, trying a fresh code on the rare collision. A
-// double tap by the same person returns their first code and gives the count back.
 const writeClaim = async (database: Database, dropId: string, userId: string) => {
   for (let attempt = 1; attempt <= CODE_ATTEMPTS; attempt += 1) {
     try {
@@ -134,9 +127,6 @@ const writeClaim = async (database: Database, dropId: string, userId: string) =>
   throw new DomainError('CONFLICT', 'Could not make a code. Try again.')
 }
 
-// One code per person per drop; claiming again returns the same code. The count goes up in one
-// atomic "only while codes are left" update, so a crowd tapping at once never gets more codes
-// than the limit and nobody is turned away while codes remain.
 export const claimFlashCode = async (
   database: Database,
   actor: AuthenticatedActor,
@@ -151,7 +141,6 @@ export const claimFlashCode = async (
           where: { id: dropId },
           select: dropSelect,
         })
-        // Drafts are the merchant's own, so they read as missing.
         if (!drop || isDraft(drop.status))
           throw new DomainError('NOT_FOUND', 'Flash drop not found')
         if (!isLive(drop, now)) {

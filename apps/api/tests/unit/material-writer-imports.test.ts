@@ -1,7 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
 
-// Importing a callable writer must not construct the ambient database or run its CLI.
-// Throw before construction: even a regression cannot access an external datasource.
 vi.mock('@broke-oclock/db', () => {
   throw new Error('Ambient database import forbidden in callable writer tests')
 })

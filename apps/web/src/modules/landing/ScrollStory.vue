@@ -15,7 +15,7 @@ const compactStill = computed(() => viewport.value.height < 700 || viewport.valu
 const reduced = computed(() => systemReduced.value || compactStill.value)
 const playbackToggle = ref<HTMLButtonElement | null>(null)
 const { playing, play } = useStoryPlayback(root, reduced, playbackToggle)
-const selected = 4 // Central is the fixed setting for the illustrative neighbourhood story.
+const selected = 4
 const deal = computed(() => samples[selected] ?? samples[0])
 const region = computed(() => regions[selected] ?? regions[0])
 const motion = computed(() => storyTimeline(progress.value, reduced.value))
@@ -25,7 +25,7 @@ const scenes = [
     label: '01 / THE SCATTER',
     title: 'Lost in the feed.',
     description:
-      'From Telegram chats to TikTok clips, Instagram posts and food blogs — great deals are scattered across different feeds.',
+      'From Telegram chats to TikTok clips, Instagram posts and food blogs, great deals are scattered across different feeds.',
     hint: 'Drag a post. Let it drift. Then scroll to gather the lobangs. ↓',
   },
   {
@@ -40,7 +40,7 @@ const scenes = [
     title: 'One island. Every lobang.',
     description:
       'The same map follows you. From scattered posts to a whole island of possibilities.',
-    hint: 'Keep scrolling — your neighbourhood is next. ↓',
+    hint: 'Keep scrolling, your neighbourhood is next. ↓',
   },
   {
     label: '04 / THE NEIGHBOURHOOD',
@@ -92,7 +92,6 @@ const geometry = computed(() => {
   const t = motion.value.handoff
   const width = startWidth + (fullWidth - startWidth) * t
   const startX = mobile ? w * 0.02 : w * 0.39
-  // Keep the opening cards near the copy even on tall mobile viewports.
   const startY = mobile ? (w <= 480 ? 340 : 360) : (h - startWidth / 1.5) * 0.5
   const fullY = mobile ? h * 0.4 : (h - fullWidth / 1.5) * 0.5
   const x = startX + ((w - fullWidth) / 2 - startX) * t
@@ -229,7 +228,6 @@ const chapters = [0, 0.1, 0.25, 0.34, 0.45, 0.54, 0.66, 0.81, 0.92, 1]
       <div class="story-found-ring" :style="foundStyle" aria-hidden="true">
         <span>✓ Sample lobang located</span>
       </div>
-      <!-- A per-frame percentage would flood screen readers, so this stays visual only. -->
       <div v-if="chapter === 4" class="story-scan-label">
         <small>Sample search · {{ region.area }}</small>
         <strong>{{ motion.scan > .85 ? 'Sample pin located' : 'Finding food deals near you…' }}</strong>
@@ -244,7 +242,6 @@ const chapters = [0, 0.1, 0.25, 0.34, 0.45, 0.54, 0.66, 0.81, 0.92, 1]
         </svg></span>
       </div>
       <div class="story-food-portal" :style="portalStyle" :aria-hidden="reduced || motion.portal < .98 || motion.transfer > .98">
-        <!-- Gone before the deal card leaves for the stall (from about .797), so it never passes over this copy. -->
         <div class="portal-food-copy" :style="{ opacity: motion.offer * (1 - segment(progress, .783, .796)), transform: `translateY(${55 * (1 - motion.offer)}px)` }">
           <h2>A deal near you.<br />
             <em>Lobang found.</em>

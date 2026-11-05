@@ -18,8 +18,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { h, ref, shallowRef } from 'vue'
 import { createMemoryHistory, createRouter } from 'vue-router'
 
-// Synthetic Makan Squad rooms, members and deals for the screens around the live vote. Nothing
-// here is a real person, room or price.
 const fakes = vi.hoisted(() => ({ room: null as unknown, shell: null as unknown, peek: vi.fn() }))
 
 vi.mock('@web/lib/auth-client', () => ({
@@ -173,7 +171,6 @@ describe('squad form helpers', () => {
     }))
     expect([...nearbyDealIds(rows, 10, () => 0)].sort()).toEqual(['a', 'b', 'c'])
     expect(nearbyDealIds(rows, 2, () => 0)).toHaveLength(2)
-    // No position: every deal counts as nearby.
     const unlocated = rows.map((row) => ({ ...row, distanceMetres: null }))
     expect([...nearbyDealIds(unlocated, 10, () => 0)].sort()).toEqual(['a', 'b', 'c', 'd'])
     expect(rows).toHaveLength(4)

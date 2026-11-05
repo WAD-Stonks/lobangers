@@ -9,7 +9,6 @@ import { promisify } from 'node:util'
 import { MongoMemoryReplSet } from 'mongodb-memory-server'
 import { afterAll, beforeAll, expect, it, vi } from 'vitest'
 
-// Derived from the independent SPEC-1 HTTP probe, not a replacement auth handler.
 const root = fileURLToPath(new URL('../../../../', import.meta.url))
 const origin = 'http://localhost:5173'
 const nativeFetch = globalThis.fetch
@@ -85,7 +84,6 @@ const identity = async (expiresInMs: number) => {
   })
   return { user, account, cookie, password }
 }
-// Every collection/document/field, not only selected timestamps or token columns.
 const snapshot = async () => {
   const inventory = (await db.$runCommandRaw({
     listCollections: 1,
@@ -162,7 +160,6 @@ beforeAll(async () => {
         expires_in: 3600,
       })
     }
-    // Existing signed idToken supplies user info; no real Google endpoint is contacted.
     providerReads++
     throw new Error(`Unexpected provider network: ${new URL(url).origin}`)
   })
@@ -303,7 +300,6 @@ it.each([-60_000, 4_000, 60_000])(
   'account-info HEAD preserves native method refusal and complete state for expiry %i',
   async (expiry) => {
     const local = await identity(expiry)
-    // Pinned native account-info exposes GET only; do not invent a HEAD endpoint.
     await assertReadonly(local, 'HEAD', 404)
   },
 )
@@ -373,7 +369,6 @@ it.each(['/refresh-token', '/get-access-token'])(
     ).toBe(tokens.accessToken)
     const userAfter = await db.user.findUniqueOrThrow({ where: { id: local.user.id } })
     const sessionAfter = await db.session.findUniqueOrThrow({ where: { id: sessionBefore.id } })
-    // Actor fences are meaningful writes on the actual persisted owner/exact session.
     expect(userAfter.updatedAt.getTime()).toBeGreaterThan(userBefore.updatedAt.getTime())
     expect(sessionAfter.updatedAt.getTime()).toBeGreaterThan(sessionBefore.updatedAt.getTime())
     expect({ ...userAfter, updatedAt: userBefore.updatedAt }).toEqual(userBefore)

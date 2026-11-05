@@ -4,14 +4,9 @@ import { avatarUrl } from '@web/modules/squad/avatar-art'
 import SquadSeatBadge from '@web/modules/squad/SquadSeatBadge.vue'
 import { computed } from 'vue'
 
-// Everyone in the room and where they stand: thumbs up or down while voting, again or next
-// while deciding (and "next" for keep looking after a match), "…" while thinking, and an eye for
-// people who joined late and are watching. Each seat is where that person's yay stickers fly
-// from. The host can tap anyone else's face to remove them.
 const props = defineProps<{ state: SquadState }>()
 const emit = defineEmits<{ remove: [member: SquadMember] }>()
 
-// Voters first, then watchers, so the faces that vote stay where they were.
 const seats = computed(() => [
   ...props.state.members.filter((member) => !member.spectator),
   ...props.state.members.filter((member) => member.spectator),

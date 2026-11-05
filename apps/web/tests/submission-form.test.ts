@@ -52,7 +52,6 @@ const stall = {
   address: '1 Stamford Rd',
 }
 
-// Renders the pop-up inline so its title and message can be read without a teleport.
 const BModalStub = {
   props: ['modelValue', 'title'],
   template: '<div v-if="modelValue" class="popup-stub"><h5>{{ title }}</h5><slot /></div>',
@@ -99,7 +98,6 @@ async function fillValidity(wrapper: FormWrapper) {
   await wrapper.get('#deal-end').setValue('2099-01-31')
   await wrapper.get('#deal-terms').setValue('  Dine-in only  ')
 }
-// Fills every step and stops on Review.
 async function fillValidForm(wrapper: FormWrapper) {
   await fillDetails(wrapper)
   await next(wrapper)

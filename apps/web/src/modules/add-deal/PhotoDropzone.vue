@@ -2,16 +2,11 @@
 import ShellIcon from '@web/modules/map-shell/ShellIcon.vue'
 import { ref } from 'vue'
 
-// The deal photo picker in both deal forms (Add a deal and the merchant dashboard): drop an
-// image on the box, or click it (or focus it and press Space) to browse. A dropped file goes
-// through the same file input and its change event, so the form's own checks (type, size) and
-// preview treat both the same. The input's id, name, aria and listeners come from the form.
 defineOptions({ inheritAttrs: false })
 defineProps<{ hasPhoto?: boolean }>()
 
 const input = ref<HTMLInputElement | null>(null)
 const dragging = ref(false)
-// Entering a child of the box fires dragleave on the box first; counting keeps the highlight on.
 let depth = 0
 
 const carriesFiles = (event: DragEvent) => event.dataTransfer?.types.includes('Files') ?? false
@@ -33,7 +28,6 @@ const drop = (event: DragEvent) => {
   const file = event.dataTransfer?.files[0]
   const element = input.value
   if (!file || !element) return
-  // One photo per deal: only the first of several dropped files is taken.
   const chosen = new DataTransfer()
   chosen.items.add(file)
   element.files = chosen.files
@@ -41,7 +35,6 @@ const drop = (event: DragEvent) => {
 }
 
 defineExpose({
-  // Empties the file box, so choosing the same file again still fires a change.
   clear: () => {
     if (input.value) input.value.value = ''
   },
@@ -85,7 +78,6 @@ defineExpose({
     border-color 150ms ease;
 }
 
-/* Hidden but still focusable, so keyboard users reach it and the box shows the focus ring. */
 .photo-drop__input {
   position: absolute;
   width: 1px;

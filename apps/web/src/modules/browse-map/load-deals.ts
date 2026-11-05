@@ -10,14 +10,10 @@ import type {
   VenuePin,
 } from '@web/modules/browse-map/types'
 
-// Only validity goes to the API: it also checks start dates the client never sees. Every other
-// filter runs client-side (apply-filters.ts) so the filter sheet can count matches live.
 export const toDealsQuery = (filters: Pick<BrowseFilters, 'validNow'>): DealsQuery => ({
   validNow: filters.validNow ? 'true' : 'false',
 })
 
-// Groups deals by outlet so an outlet with several deals gets one pin. Outlets keep the order
-// in which they first appear and each outlet's deals keep the query order.
 export const toVenuePins = (deals: readonly DealPin[]): readonly VenuePin[] => {
   const pins = new Map<string, VenuePin>()
   for (const deal of deals) {
@@ -36,9 +32,6 @@ export const toVenuePins = (deals: readonly DealPin[]): readonly VenuePin[] => {
 
 const rowKey = (deal: DealPin, venue: VenuePin) => `${deal.id}:${venue.id}`
 
-// One row per deal, so a chain deal at 60 outlets is one card, not 60. Each deal sits at its
-// nearest listed outlet when the visitor's position is known, otherwise at its first one, and
-// rows follow that outlet's order. The map keeps every outlet as its own pin.
 export const toDealRows = (
   pins: readonly VenuePin[],
   position: Coordinates | null,
@@ -71,7 +64,6 @@ export const toDealRows = (
 const distanceTo = (venue: VenuePin, position: Coordinates | null) =>
   position ? distanceMetres(position, venue) : null
 
-// Null when nothing is selected or the outlet left the list (for example after a filter change).
 export const findSelectedVenue = (
   pins: readonly VenuePin[],
   selection: Selection | null,
@@ -82,7 +74,6 @@ export const findSelectedVenue = (
   return venue ? { venue, distanceMetres: distanceTo(venue, position) } : null
 }
 
-// Null unless a specific deal at the selected outlet is open.
 export const findSelectedDeal = (
   pins: readonly VenuePin[],
   selection: Selection | null,

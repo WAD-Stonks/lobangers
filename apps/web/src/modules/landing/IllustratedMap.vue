@@ -19,8 +19,6 @@ const props = withDefaults(
 )
 defineEmits<{ select: [index: number] }>()
 
-// The paintings sit on white paper that the light page blends away with `multiply`. That would
-// turn them black on a dark page, so dark mode swaps in copies with the paper cut out ("-dark").
 const { isDark } = useTheme()
 const art = (src: string) => (isDark.value ? src.replace(/\.webp$/, '-dark.webp') : src)
 const heroSrcset = computed(() =>
@@ -29,7 +27,6 @@ const heroSrcset = computed(() =>
     : undefined,
 )
 
-// Hero coordinates refer to the raster itself, independent of preview layout.
 const markerRegions = computed(() => props.heroPins
   ? regions.map((region, index) => ({
     ...region,

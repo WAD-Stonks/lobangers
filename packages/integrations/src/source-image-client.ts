@@ -14,11 +14,9 @@ import {
 } from '@integrations/ingestion-source-post'
 
 export interface SourceImageClientOptions {
-  /** Trusted test seam only. The production default pins a validated DNS result in node:https. */
   fetch?: typeof fetch
   timeoutMs?: number
   maxBytes?: number
-  /** Trusted resolver seam for deterministic offline tests. Every returned address is checked. */
   resolveHost?: (hostname: string) => Promise<ReadonlyArray<{ address: string; family: number }>>
 }
 export interface SourceImage {
@@ -26,9 +24,7 @@ export interface SourceImage {
   mimeType: 'image/jpeg' | 'image/png' | 'image/webp'
   byteLength: number
   sha256: string
-  /** Exact source reference, including a legacy HTTP scheme. */
   url: string
-  /** Initial HTTPS fetch URL; upgrades only the known MoneyDigest upload path. */
   fetchUrl: string
   finalUrl: string
 }
@@ -49,7 +45,6 @@ export const isPublicSourceAddress = (address: string): boolean => {
     )
   }
   if (isIP(address) === 6) {
-    // Fail closed outside global-unicast 2000::/3, including IPv4-mapped addresses.
     const groups = address.toLowerCase().split(':')
     const first = Number.parseInt(groups[0] ?? '', 16)
     const second = Number.parseInt(groups[1] || '0', 16)
@@ -77,12 +72,9 @@ const pinnedFetch = async (
         agent: false,
         family: address.family,
         headers: { Accept: 'image/jpeg,image/png,image/webp', 'Accept-Encoding': 'identity' },
-        // TLS SNI/certificate validation remains bound to url.hostname. Only DNS is pinned.
         lookup: (_host, _options, callback) => callback(null, address.address, address.family),
       },
       (incoming) => {
-        // Keep native stream errors observed even when conversion fails before toWeb
-        // can own the stream. Never pass an error to destroy on an unowned response.
         incoming.on('error', () => reject(new SourceClientError('MALFORMED_RESPONSE')))
         try {
           const status = incoming.statusCode
@@ -94,8 +86,6 @@ const pinnedFetch = async (
               headers.set(name, Array.isArray(value) ? value.join(', ') : value)
           if ([204, 205, 304].includes(status)) {
             const response = new Response(null, { status, headers })
-            // These statuses cannot expose a WHATWG body to the caller, so no
-            // reader/byte limit can own or cancel a native body. Do not drain it.
             incoming.destroy()
             request.destroy()
             resolve(response)
@@ -108,8 +98,6 @@ const pinnedFetch = async (
             }),
           )
         } catch {
-          // Callback exceptions do not reject the outer promise automatically. A
-          // malformed response is not a transient network failure safe to resend.
           reject(new SourceClientError('MALFORMED_RESPONSE'))
           incoming.destroy()
           request.destroy()
@@ -117,7 +105,6 @@ const pinnedFetch = async (
       },
     )
     request.on('error', (error: NodeJS.ErrnoException) => {
-      // Certificate/TLS policy failures are never transient transport retries.
       const tlsFailure = /CERT|TLS|SSL|SELF_SIGNED|UNABLE_TO_VERIFY|DEPTH_ZERO/.test(
         error.code ?? '',
       )
@@ -143,10 +130,6 @@ const sniffImage = (bytes: Uint8Array): SourceImage['mimeType'] => {
     return 'image/webp'
   return fail('IMAGE_TYPE')
 }
-/** Real bounded image bytes, never uploads or fabricated storage records. Fixed source
- * CDN/path allowlist, all DNS answers checked and pinned by default, <=3 redirects,
- * <=2 transport attempts (only network/502/503/504; never rate-limit/security retries).
- * Callers own content rights, archive/storage, retention and downstream image decoding. */
 export const createSourceImageClient = (options: SourceImageClientOptions = {}) => {
   const timeoutMs = boundedInteger(options.timeoutMs ?? 15_000, 15_000)
   const maxBytes = boundedInteger(options.maxBytes ?? 8_388_608, 10_485_760)
@@ -220,7 +203,6 @@ export const createSourceImageClient = (options: SourceImageClientOptions = {}) 
             } catch {
               return fail('UNSAFE_URL')
             }
-            // Redirects must already be HTTPS, unlike explicitly recorded legacy originals.
             if (resolved.protocol !== 'https:') return fail('UNSAFE_URL')
             target = sourceImageUrl(resolved.href, input.source)
             continue

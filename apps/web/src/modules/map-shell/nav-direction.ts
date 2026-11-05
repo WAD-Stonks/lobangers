@@ -1,5 +1,3 @@
-// Which way a panel slides when the route changes: deeper routes come in from the right,
-// shallower ones from the left. Unknown routes count as depth 1, like a feature panel.
 export type NavDirection = 'forward' | 'back' | 'none'
 
 type RouteLike = { readonly name?: unknown; readonly path: string }

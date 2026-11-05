@@ -3,8 +3,6 @@ import { SQUAD_AVATARS, type SquadAvatar } from '@broke-oclock/contracts/squad'
 import { AVATAR_NAMES, avatarUrl } from '@web/modules/squad/avatar-art'
 import { useId } from 'vue'
 
-// Pick your face: the six lobangers as a radio group, so arrow keys move between them and a
-// screen reader hears each one's name.
 defineProps<{ modelValue: SquadAvatar; disabled?: boolean }>()
 const emit = defineEmits<{ 'update:modelValue': [avatar: SquadAvatar] }>()
 const group = useId()

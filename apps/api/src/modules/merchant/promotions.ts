@@ -15,12 +15,6 @@ import type {
   MerchantOutlet,
 } from '@broke-oclock/contracts/merchant'
 
-// Merchant promotions: deals a MERCHANT creates for outlets they hold an active stall grant
-// for. They publish immediately; the grants are recorded as the evidence that confirms the
-// deal's outlet scope, so the public map shows them once the outlets' occupancy is verified.
-// Every write re-checks each outlet's grant inside the write transaction (requireMerchantStall).
-
-// Marks a deal as created through the merchant dashboard; only these are listed and editable.
 const MERCHANT_EVIDENCE = 'merchant-grant:'
 const MAX_LISTED_DEALS = 200
 
@@ -38,7 +32,6 @@ const merchantDealSelect = {
   validUntil: true,
   contentVersion: true,
   venues: { select: { venueId: true } },
-  // The deal's current photo: its first upload that has not been removed.
   images: {
     where: activeRecord,
     orderBy: { createdAt: 'asc' },
@@ -90,7 +83,6 @@ const createdByMerchant = (userId: string) => ({
   scopeConfirmation: { is: { evidenceRef: { startsWith: MERCHANT_EVIDENCE } } },
 })
 
-// Reads re-check the current database role; a MERCHANT role alone grants no outlet.
 const requireMerchantRole = async (database: Database | AccessTransaction, userId: string) => {
   const user = await database.user.findUnique({ where: { id: userId }, select: { role: true } })
   if (user?.role !== 'MERCHANT') throw new DomainError('FORBIDDEN')
@@ -130,13 +122,11 @@ export const listMerchantDeals = async (
     take: MAX_LISTED_DEALS,
     select: merchantDealSelect,
   })
-  // A revoked grant hides the deals at that outlet from this merchant.
   return rows
     .filter((row) => row.venues.every((link) => granted.has(link.venueId)))
     .map((row) => toMerchantDeal(row, now))
 }
 
-// Checks the grant for every outlet inside the transaction, and that they share one merchant.
 const authorizeOutlets = async (
   tx: AccessTransaction,
   actor: AuthenticatedActor,
@@ -203,8 +193,6 @@ const rejectPastEnd = (input: MerchantDealBody, now: Date) => {
 
 const unsetOrNull = (field: string) => ({ OR: [{ [field]: null }, { [field]: { isSet: false } }] })
 
-// Attaches the photo only if it is still this merchant's unused upload, like community
-// submissions do.
 const claimPhoto = async (
   tx: AccessTransaction,
   userId: string,
@@ -223,8 +211,6 @@ const claimPhoto = async (
     throw new DomainError('BAD_REQUEST', 'The photo was not found. Please upload it again.')
 }
 
-// Leaving photoKey out, or sending the current photo's key, keeps it; a new key replaces it and
-// null removes it. A removed photo is marked deleted, not unlinked, so the deal's history keeps it.
 const changePhoto = async (
   tx: AccessTransaction,
   userId: string,
@@ -238,7 +224,6 @@ const changePhoto = async (
   if (photoKey) await claimPhoto(tx, userId, dealId, photoKey)
 }
 
-// Each change is a new content version that the merchant's grants approve at once.
 const approvedAs = (userId: string, version: number, now: Date) => ({
   contentVersion: version,
   reviewedVersion: version,
@@ -277,8 +262,6 @@ export const createMerchantDeal = async (
   return readMerchantDeal(database, dealId, now)
 }
 
-// Reads a deal back for the response once its write has committed, which keeps the
-// transaction short on a slow connection.
 const readMerchantDeal = async (database: Database, dealId: string, now: Date) =>
   toMerchantDeal(
     await database.deal.findUniqueOrThrow({ where: { id: dealId }, select: merchantDealSelect }),
@@ -286,13 +269,11 @@ const readMerchantDeal = async (database: Database, dealId: string, now: Date) =
   )
 
 const findOwnDeal = async (tx: AccessTransaction, userId: string, dealId: string) => {
-  // Non-merchants are refused outright, before anything about the deal is looked up.
   await requireMerchantRole(tx, userId)
   const deal = await tx.deal.findFirst({
     where: { id: dealId, ...createdByMerchant(userId) },
     select: merchantDealSelect,
   })
-  // Other people's deals are reported as missing, not forbidden, so they cannot be probed.
   if (!deal) throw new DomainError('NOT_FOUND', 'Deal not found')
   return deal
 }
@@ -310,7 +291,6 @@ export const updateMerchantDeal = async (
     const deal = await findOwnDeal(tx, userId, dealId)
     if (hasEnded(deal, now))
       throw new DomainError('PRECONDITION_FAILED', 'Ended deals cannot be edited')
-    // Moving a deal needs a grant for the outlets it leaves as well as the ones it joins.
     const oldOutletIds = deal.venues.map((link) => link.venueId)
     const { merchantId, grantIds } = await authorizeOutlets(tx, actor, [
       ...oldOutletIds,
@@ -363,9 +343,6 @@ export const endMerchantDeal = async (
     return toMerchantDeal(ended, now)
   })
 
-// Deletes a deal that is scheduled (not started yet) or has ended; a live deal is ended first.
-// It leaves the map and the merchant's dashboard at once, but the record is only marked deleted,
-// so its comments, saves and history stay intact.
 export const deleteMerchantDeal = async (
   database: Database,
   actor: AuthenticatedActor,
@@ -384,12 +361,6 @@ export const deleteMerchantDeal = async (
     )
     await tx.deal.update({ where: { id: dealId }, data: { deletedAt: now } })
   })
-
-// ----- The deal behind a flash deal -----
-// A flash deal saved from the deal form keeps its deal (the usual offer, title, photo) as an
-// approved but unpublished deal at its one outlet, and its own evidence prefix keeps it out of the
-// merchant's deal list. Go live publishes it for the flash window only (see flash-drops/merchant),
-// so it is never public on its own as an ordinary deal.
 
 const FLASH_EVIDENCE = 'merchant-flash:'
 
@@ -418,8 +389,6 @@ const flashContentOf = (input: FlashDealContent) => ({
   validUntil: null,
 })
 
-// Creates the hidden deal for a new flash deal and returns its id. Runs inside the flash deal's
-// own transaction, which has already fenced platform access.
 export const createFlashDeal = async (
   tx: AccessTransaction,
   actor: AuthenticatedActor,
@@ -447,7 +416,6 @@ export const createFlashDeal = async (
   return deal.id
 }
 
-// Updates the hidden deal of a flash deal draft, possibly moving it to another outlet.
 export const updateFlashDeal = async (
   tx: AccessTransaction,
   actor: AuthenticatedActor,

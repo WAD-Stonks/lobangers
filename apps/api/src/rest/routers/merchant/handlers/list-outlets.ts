@@ -6,7 +6,6 @@ import {
   merchantOutletsResponseSchema,
 } from '@broke-oclock/contracts/merchant'
 
-// The outlets this merchant may create deals for (active stall grants only).
 export const listOutlets = (dependencies: RestDependencies) =>
   createRestHandler(dependencies, async (request, response, context) => {
     parseRestInput(merchantEmptyQuerySchema, request.query)

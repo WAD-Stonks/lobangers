@@ -1,7 +1,6 @@
 import { SHEET_FULL, sheetHeights } from '@web/modules/map-shell/use-shell-layout'
 import { describe, expect, it } from 'vitest'
 
-// An 800px tall phone whose header ends 120px down.
 describe('bottom sheet heights', () => {
   it('stops below the header at full, then can cover the whole screen', () => {
     const heights = sheetHeights(800, 120, 0.58)

@@ -16,7 +16,6 @@ import {
 } from '@web/modules/hungry-nearby/nearby-prefs'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-// Synthetic people only.
 const person = (index: number, x: number, y: number): ScreenPerson => ({
   token: `synthetic-token-${String(index).padStart(4, '0')}`,
   avatar: AVATARS[index % AVATARS.length] ?? 'bao',
@@ -55,7 +54,6 @@ describe('nearby prefs', () => {
       avatar: 'teh',
       asked: true,
     })
-    // Someone who turned it off stays off, and is never asked again.
     expect(parsePrefs('{"looking":false,"sharing":true,"avatar":"cat"}')).toEqual({
       looking: false,
       sharing: false,

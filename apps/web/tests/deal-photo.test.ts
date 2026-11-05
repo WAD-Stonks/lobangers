@@ -7,7 +7,6 @@ import { describe, expect, it } from 'vitest'
 
 const URL_A = 'https://a2rucyxaq8.ufs.sh/f/a'
 
-// jsdom never decodes images, so report a size the way a real load event would.
 const loadImg = async (
   img: ReturnType<ReturnType<typeof mount>['get']>,
   width: number,

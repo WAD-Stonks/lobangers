@@ -8,8 +8,6 @@ import { MAX_FUZZ_METRES } from '@api/modules/presence/fuzz'
 import { MongoMemoryReplSet } from 'mongodb-memory-server'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 
-// Hungry Nearby through real HTTP against a disposable replica set. Every person is SYNTHETIC.
-
 const origin = 'http://localhost:5173'
 const root = fileURLToPath(new URL('../../../../', import.meta.url))
 let mongo: MongoMemoryReplSet | undefined
@@ -27,7 +25,6 @@ const signUp = async (name: string): Promise<Account> => {
   const email = `nearby-${randomUUID()}@example.test`
   const response = await fetch(`${baseURL}/api/auth/sign-up/email`, {
     method: 'POST',
-    // A distinct synthetic client address per sign-up keeps the auth rate limit per person.
     headers: {
       'Content-Type': 'application/json',
       Origin: origin,
@@ -129,7 +126,6 @@ describe('showing yourself', () => {
     const row = await db.nearbyPresence.findUniqueOrThrow({ where: { userId: person.id } })
     expect({ lat: row.lat, lng: row.lng }).toEqual({ lat: me.lat, lng: me.lng })
     expect(row.lat).not.toBe(HERE.lat)
-    // The heartbeat keeps the same anonymous token for the session.
     await db.nearbyPresence.update({
       where: { userId: person.id },
       data: { updatedAt: new Date(Date.now() - 60_000) },
@@ -184,7 +180,6 @@ describe('seeing who is nearby', () => {
     expect(anonymous.response.headers.get('Cache-Control')).toBe('no-store')
     expect(anonymous.body.me).toBeNull()
     expect(anonymous.body.items).toHaveLength(2)
-    // GET never writes.
     expect(await db.nearbyPresence.findMany()).toEqual(before)
 
     const seen = await list(alice)
@@ -197,7 +192,6 @@ describe('seeing who is nearby', () => {
     for (const item of seen.body.items)
       expect(Object.keys(item).sort()).toEqual(['avatar', 'lat', 'lng', 'token'])
 
-    // Someone far away is not listed around here.
     const far = await list(null, { lat: 1.4361, lng: 103.7861 })
     expect(far.body.items).toHaveLength(0)
 
@@ -230,7 +224,6 @@ describe('seeing who is nearby', () => {
     expect(hidden.body).toEqual({ ok: true })
     expect((await list(null)).body.items).toHaveLength(0)
     expect(await db.nearbyPresence.count({ where: { userId: person.id } })).toBe(0)
-    // Hiding twice is fine.
     expect((await call(person, 'DELETE', '/presence')).status).toBe(200)
   })
 

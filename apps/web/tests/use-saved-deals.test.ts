@@ -8,7 +8,6 @@ vi.mock('@web/lib/api-client', () => ({
   api: { account: { bookmarks: rest.bookmarks, saveDeal: rest.save, unsaveDeal: rest.unsave } },
 }))
 
-// Synthetic session and bookmark ids.
 type Session = { data: { user: { id?: string } } | null }
 const page = (ids: string[]) => ({ items: ids.map((dealId) => ({ dealId })), nextCursor: null })
 
@@ -75,7 +74,6 @@ describe('saved deals', () => {
     expect(saved.isSaved('d2')).toBe(true)
   })
 
-  // The API refuses overlapping account writes, so saves on different deals must not overlap.
   it('waits for one deal to finish saving before sending the next', async () => {
     rest.bookmarks.mockResolvedValue(page([]))
     let finishFirst: () => void = () => undefined

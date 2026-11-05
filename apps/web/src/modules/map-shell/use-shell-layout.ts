@@ -2,12 +2,6 @@ import type { MapOffset } from '@web/modules/browse-map/DealMap.vue'
 import type { Breakpoint } from '@web/modules/map-shell/use-breakpoint'
 import { computed, onBeforeUnmount, onMounted, type Ref, ref } from 'vue'
 
-// Geometry shared by the panel, controls, hot card and map: header height, the bottom sheet's
-// four snap heights and where the visible map centre is. Exposed as CSS custom properties so
-// the static layout stays in stylesheets and only these numbers are inline.
-// Panel and sheet sizes from the Prototype board: a right-hand card on desktop (narrower on
-// tablet landscape) and a bottom sheet that opens at 46% (tablet) or 58% (phone) of the screen.
-// Sized for the 90% desktop type scale in main.css (420 / 360 at full size).
 export const PANEL_WIDTH_PX = 380
 export const PANEL_WIDTH_COMPACT_PX = 340
 export const WIDE_PANEL_MAX_PX = 760
@@ -17,34 +11,26 @@ export const WIDE_PANEL_COMPACT_RATIO = 0.58
 const COMPACT_DESKTOP_MAX_PX = 1279
 const SHEET_HALF_RATIO = { phone: 0.58, tablet: 0.46 } as const
 export const SHEET_PEEK_PX = 120
-// Wide enough that the longest rail label ("Dashboard") sits on one line.
 export const MAP_RAIL_WIDTH_PX = 84
-// Keep in step with .map-navigation--bottom and App.vue's .page-layout--bottom-nav.
 export const BOTTOM_NAV_HEIGHT_PX = 58
 const SHEET_GAP_PX = 8
 const SHEET_MIN_STEP_PX = 60
 const DESKTOP_GUTTER_PX = 16
 const FALLBACK_HEADER_BOTTOM_PX = 128
 const FALLBACK_VIEWPORT = { width: 1280, height: 800 }
-// Snap indexes: peek, half, full (stops below the header) and expanded (covers the whole screen).
 export const SHEET_FULL = 2
 export const SHEET_EXPANDED = 3
 
 type Options = {
   readonly breakpoint: Readonly<Ref<Breakpoint>>
-  /** The panel's settled shape: the map frames itself for this. */
   readonly wide: Readonly<Ref<boolean>>
-  /** The width the panel is drawn at, which trails `wide` while it animates. Defaults to `wide`. */
   readonly panelWide?: Readonly<Ref<boolean>>
   readonly header: Readonly<Ref<HTMLElement | null>>
-  /** Desktop only: the panel is tucked off the right edge, so the whole map is visible. */
   readonly collapsed?: Readonly<Ref<boolean>>
-  /** Google Maps style workspace: results sit beside the navigation rail on the left. */
   readonly leftPanel?: Readonly<Ref<boolean>>
   readonly railVisible?: Readonly<Ref<boolean>>
   readonly bottomNavigation?: Readonly<Ref<boolean>>
   readonly resultsPreviewHeight?: Readonly<Ref<number | null>>
-  /** The sheet meets the header with no strip of map between them (the All deals list). */
   readonly flush?: Readonly<Ref<boolean>>
 }
 
@@ -109,7 +95,6 @@ export const useShellLayout = ({
     window.addEventListener('resize', measure)
     if (typeof ResizeObserver !== 'undefined' && header.value) {
       observer = new ResizeObserver(measure)
-      // Border box: the All Deals header adds padding without changing its content size.
       observer.observe(header.value, { box: 'border-box' })
     }
   })
@@ -132,7 +117,6 @@ export const useShellLayout = ({
   const sheetVisible = computed(() =>
     mode.value === 'sheet' ? (heights.value[snap.value] ?? 0) : 0,
   )
-  // The strip of map left between the header and the sheet, for controls that must not overlap either.
   const mapRoom = computed(
     () => viewport.value.height - navigationHeight.value - sheetVisible.value - headerBottom.value,
   )
@@ -145,7 +129,6 @@ export const useShellLayout = ({
   const panelWidth = computed(() => widthFor(wide.value))
   const railWidth = computed(() => (leftPanel.value && railVisible.value ? MAP_RAIL_WIDTH_PX : 0))
 
-  // How much of the map's right side the desktop panel covers; none while it is collapsed.
   const sideCover = computed(() =>
     leftPanel.value
       ? railWidth.value + (collapsed.value ? 0 : panelWidth.value)
@@ -154,15 +137,12 @@ export const useShellLayout = ({
         : panelWidth.value + 2 * DESKTOP_GUTTER_PX,
   )
 
-  // How far the visible map centre sits from the map's real centre.
   const focusOffset = computed<MapOffset>(() =>
     mode.value === 'side'
-      ? // The panel covers the right, so the visible centre sits left of the map's centre.
-        { x: (leftPanel.value ? 1 : -1) * Math.round(sideCover.value / 2), y: 0 }
+      ? { x: (leftPanel.value ? 1 : -1) * Math.round(sideCover.value / 2), y: 0 }
       : { x: 0, y: -Math.round((sheetVisible.value + navigationHeight.value) / 2) },
   )
 
-  // What covers the map: the panel on the right (desktop) or the header and sheet (below).
   const viewPadding = computed(() =>
     mode.value === 'side'
       ? {
@@ -179,7 +159,6 @@ export const useShellLayout = ({
         },
   )
 
-  // Searching follows the map viewport at its current zoom, even while the sheet covers it.
   const searchPadding = computed(() =>
     mode.value === 'sheet'
       ? { top: headerBottom.value, right: 0, bottom: navigationHeight.value, left: 0 }

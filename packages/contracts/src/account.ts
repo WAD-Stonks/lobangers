@@ -24,7 +24,6 @@ export const accountProfileSchema = z.object({
 
 export const bookmarkParamsSchema = z.strictObject({ dealId: platformObjectIdSchema })
 export const bookmarkStateSchema = z.object({ saved: z.boolean() })
-// deal is null when the bookmarked deal is no longer public; never expose its hidden content.
 export const bookmarkSchema = z.object({
   id: platformObjectIdSchema,
   dealId: platformObjectIdSchema,

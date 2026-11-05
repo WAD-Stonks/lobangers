@@ -1,7 +1,6 @@
 import { useGeolocation } from '@web/modules/browse-map/use-geolocation'
 import { describe, expect, it } from 'vitest'
 
-// Synthetic browser geolocation: each fake answers getCurrentPosition the way a test needs.
 const fakeGeolocation = (
   behave: (ok: PositionCallback, fail: PositionErrorCallback) => void,
 ): Geolocation =>

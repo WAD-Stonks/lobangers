@@ -12,8 +12,6 @@ import { type ErrorRequestHandler, json, type Request, Router } from 'express'
 type UploadSession = { user: { id: string }; session: { id: string } } | null
 type GetSession = (headers: Headers) => Promise<UploadSession>
 
-// Record who uploaded each photo, so a deal can later attach only its own submitter's file.
-// The provider may repeat a callback; the first owner of a key is kept.
 const recordUpload = async (
   database: Pick<typeof db, 'uploadedFile'>,
   upload: CompletedPhotoUpload,
@@ -49,7 +47,6 @@ export const createPhotoRouter = (config: AppConfig, getSession: GetSession) => 
         response.status(403).json({ error: 'Untrusted upload origin' })
         return
       }
-      // Resolve auth OUTSIDE Effect fibers; never read ambient request identity there.
       const session = await getSession(fromNodeHeaders(request.headers))
       if (!session) {
         response.status(401).json({ error: 'Sign in to upload photos' })
@@ -57,7 +54,6 @@ export const createPhotoRouter = (config: AppConfig, getSession: GetSession) => 
       }
       identities.set(request, { userId: session.user.id, sessionId: session.session.id })
     }
-    // Provider callbacks have no browser session. The SDK verifies their signature.
     next()
   })
   router.use(
@@ -82,8 +78,6 @@ export const createPhotoRouter = (config: AppConfig, getSession: GetSession) => 
         }
       },
       async (metadata, upload) => {
-        // SDK-authenticated metadata, never browser input. Revocation cannot undo an
-        // already-issued remote URL or bytes; it withholds useful completion only.
         if (!metadata || !Number.isInteger(metadata.authVersion) || metadata.authVersion < 0)
           return false
         try {
@@ -93,7 +87,6 @@ export const createPhotoRouter = (config: AppConfig, getSession: GetSession) => 
               sessionId: metadata.sessionId,
             })
             if ((active.user.authVersion ?? 0) !== metadata.authVersion) return false
-            // Persist ownership inside the same current-session fence as completion.
             await recordUpload(tx, upload)
             return true
           })

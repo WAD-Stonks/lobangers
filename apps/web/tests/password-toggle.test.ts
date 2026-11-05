@@ -8,7 +8,6 @@ import { createMemoryHistory, createRouter } from 'vue-router'
 vi.mock('@web/lib/auth-client', () => ({
   authClient: { signIn: { email: vi.fn() }, signUp: { email: vi.fn() } },
 }))
-// Password-only sign-in: SharedSignIn falls back to the password field when methods are unavailable.
 vi.mock('@web/lib/api-client', () => ({
   api: { infrastructure: { authMethods: vi.fn().mockRejectedValue(new Error('offline')) } },
 }))
@@ -30,7 +29,6 @@ const toggles = async (form: Component, fields: Record<string, string>) => {
     const field = wrapper.get(`#${input}`)
     const button = wrapper.get(`[data-testid="${toggle}"]`)
     expect(field.attributes('type')).toBe('password')
-    // The accessible name, since the login toggle is an eye icon with no visible text.
     expect(button.attributes('aria-label')).toMatch(/^Show /)
     await button.trigger('click')
     expect(field.attributes('type')).toBe('text')

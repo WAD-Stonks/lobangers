@@ -39,8 +39,6 @@ import SquadDealCta from '@web/modules/squad/SquadDealCta.vue'
 import { computed, ref, watch } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 
-// One deal, opened from a pin, a row or the hot card. Details scroll; Save and Get directions
-// stay in the sticky bar. Votes, comments and reports belong to the community module.
 const props = defineProps<{ dialog?: boolean }>()
 const shell = useShell()
 const saved = useSavedDeals()
@@ -59,11 +57,7 @@ const commentsOpen = ref(false)
 watch(dealId, () => { commentsOpen.value = false })
 const venueId = computed(() => (typeof route.query.at === 'string' ? route.query.at : null))
 const selected = computed(() => shell.findDeal(dealId.value, venueId.value))
-// A Flash Drop running for this deal right now, if any.
 const flashDrop = computed(() => flash?.liveForDeal(dealId.value) ?? null)
-// A deal opened from Lobbie's chat goes back to the chat; one opened from a Makan Squad room
-// goes back to the room (and hides links to other deals, which the room has locked); anything
-// else goes back to the list.
 const fromLobbie = computed(() => route.query.from === 'lobbie')
 const squadRoom = computed(() =>
   route.query.from === 'squad' && typeof route.query.room === 'string' && /^[A-Z]{4}$/.test(route.query.room)
@@ -87,7 +81,6 @@ const cuisineLabel = computed(() => {
   return isDealCuisine(cuisine) ? DEAL_CUISINE_LABELS[cuisine] : null
 })
 const photosShown = ref(false)
-// Transitional public readers may still provide only the legacy thumbnail fields.
 const photos = computed(() => {
   const deal = selected.value?.deal
   if (!deal) return []
@@ -126,7 +119,6 @@ const otherRows = computed<readonly DealRow[]>(() => {
   if (!current) return []
   return current.venue.deals
     .filter((deal) => deal.id !== current.deal.id)
-    // The section is about this one outlet, so no row offers the deal's other outlets.
     .map((deal) => ({
       key: `${deal.id}:${current.venue.id}`,
       deal,
@@ -157,13 +149,10 @@ const toggleSave = async () => {
     return
   }
   const wasSaved = isSaved.value
-  // Only saving celebrates; removing just drains the fill.
   if (!wasSaved) {
     popKey.value += 1
     buzz()
   }
-  // Never locked: taps queue per deal in useSavedDeals, and the toast confirms at once
-  // because the icon already shows the result.
   const request = saved.toggle(deal.id)
   toast.show(wasSaved ? 'Removed from saved' : 'Saved', wasSaved ? { action: { label: 'Undo', run: () => undoUnsave(deal.id) } } : {})
   try {
@@ -217,9 +206,7 @@ const toggleSave = async () => {
     <FlashClaimCard v-if="flashDrop" :drop="flashDrop" />
 
     <div class="deal-panel__tags">
-      <!-- Phones read top-down, so freshness joins the facts here instead of sitting alone above the title. -->
       <span v-if="phone && freshness" class="lb-tag" :class="freshnessClass">{{ freshness.label }}</span>
-      <!-- With a photo in the hero, these move here so they never cover the poster's text. -->
       <template v-if="heroTags.length">
         <span v-for="tag in heroTags" :key="tag" class="lb-tag lb-tag--new">{{ tag }}</span>
       </template>
@@ -305,9 +292,6 @@ const toggleSave = async () => {
 </template>
 
 <style scoped>
-/* One row, the same on the map and in the All deals popup: Save and Share are icon circles and
-   Get directions keeps its words. Get directions fills the rest of the row, so nothing spills
-   off a narrow phone. */
 .deal-panel :deep(.panel-frame__actions) {
   display: flex;
   flex-wrap: nowrap;
@@ -320,7 +304,6 @@ const toggleSave = async () => {
   min-width: 0;
 }
 
-/* The wide All deals popup keeps the row at the right instead of stretching one button across it. */
 .deal-panel--dialog:not(.deal-panel--phone) :deep(.panel-frame__actions) {
   justify-content: flex-end;
 }
@@ -329,7 +312,6 @@ const toggleSave = async () => {
   flex: 0 0 auto;
 }
 
-/* Phones: a shorter bar. */
 @media (max-width: 767.98px) {
   .deal-panel :deep(.panel-frame__actions) {
     gap: 8px;
@@ -338,11 +320,6 @@ const toggleSave = async () => {
   }
 }
 
-/* Phones, in the map sheet and the All deals popup alike, read top-down: what it is, where, when
-   it's valid, then the photo (capped so it gives way first, as in the Squad room), the fine
-   print, and only then the extras. The Squad card is the darkest thing on the page, so it waits
-   until after the terms instead of outshouting the deal. The doubled class outranks the popup's
-   own order and poster rules. */
 .deal-panel.deal-panel--phone :deep(.panel-frame__body > *) {
   order: 9;
 }
@@ -384,16 +361,12 @@ const toggleSave = async () => {
 .deal-panel:not(.deal-panel--dialog) :deep(.panel-frame__heading) { margin-bottom: -8px; }
 .deal-panel:not(.deal-panel--dialog) .deal-panel__status { margin-bottom: -10px; }
 .deal-panel :deep(.deal-gallery) { border-radius: 0; background: transparent; }
-/* The poster keeps its shape but stops at a height that leaves the deal's details in view, so a
-   tall poster in a wide panel doesn't fill the screen. The popup sizes its own. */
 .deal-panel:not(.deal-panel--dialog) :deep(.deal-gallery) {
   align-self: center;
   width: min(100%, calc(min(64dvh, 620px) * var(--frame-ratio)));
 }
 .deal-panel :deep(.deal-photo__img) { object-fit: contain; object-position: center top; }
 
-/* The poster sits in a quiet neutral frame sized to the photo, instead of floating with blank
-   sides (or, in the popup, above an empty band). */
 .deal-panel.deal-panel--phone :deep(.deal-gallery) {
   height: auto;
   max-height: min(240px, 34vh);
@@ -458,7 +431,6 @@ const toggleSave = async () => {
 }
 
 .deal-panel__venue {
-  /* A finger-sized tap area around the name without moving the text. */
   display: inline-block;
   min-width: 0;
   padding-block: 10px;
@@ -480,7 +452,6 @@ const toggleSave = async () => {
 .deal-panel__outlet-note {
   margin: 0;
 }
-/* One condition per line, so the fine print scans instead of reading as a paragraph. */
 .deal-panel__terms {
   display: grid;
   gap: 4px;
@@ -518,9 +489,6 @@ const toggleSave = async () => {
   animation: shell-pop 220ms var(--ease-out);
 }
 
-/* Phones (sheet and popup): one loud thing (the coral title), then quieter layers under it. The
-   outlet is a secondary line, not a second heading; validity reads as one fact row; section
-   headings share one size with the community sections below. */
 .deal-panel.deal-panel--phone :deep(.panel-frame__title) {
   font-size: 1.5rem;
 }

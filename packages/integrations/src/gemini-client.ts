@@ -41,7 +41,6 @@ const API_ORIGIN = 'https://generativelanguage.googleapis.com'
 const DEFAULT_TIMEOUT_MS = 15_000
 const MAX_RESPONSE_BYTES = 256 * 1024
 const MODEL_PATTERN = /^[a-z0-9][a-z0-9.-]{0,63}$/
-// Block anything medium-risk or worse in either direction; deal chat never needs it.
 const SAFETY_SETTINGS = [
   'HARM_CATEGORY_HARASSMENT',
   'HARM_CATEGORY_HATE_SPEECH',
@@ -60,7 +59,6 @@ const BLOCKED_FINISH_REASONS = new Set([
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value)
 
-// Text parts of the first candidate, skipping any thought summaries.
 const readCandidateText = (payload: unknown): string => {
   if (!isRecord(payload)) throw new GeminiClientError('MALFORMED_RESPONSE')
   if (isRecord(payload.promptFeedback) && payload.promptFeedback.blockReason)

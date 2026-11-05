@@ -1,9 +1,6 @@
 import { api } from '@web/lib/api-client'
 import { computed, type InjectionKey, inject, provide, type Ref, shallowRef, watch } from 'vue'
 
-// The visitor's saved deal ids, shared by the brand menu's count and every Save button. Loads
-// the first page of bookmarks when someone signs in; toggles are optimistic and roll back if
-// the API refuses, re-throwing so the caller can show an error toast.
 const BOOKMARK_PAGE_LIMIT = 50
 
 type Session = Readonly<Ref<{ data: { user: { id?: string } } | null }>>
@@ -12,7 +9,6 @@ export const createSavedDeals = (session: Session) => {
   const ids = shallowRef<ReadonlySet<string>>(new Set())
   const hasMore = shallowRef(false)
   const status = shallowRef<'loading' | 'ready' | 'error'>('ready')
-  // Bumped on every load and sign-out, so a slow response for an old session is dropped.
   let latestRequest = 0
 
   const replace = (next: Iterable<string>) => {
@@ -61,8 +57,6 @@ export const createSavedDeals = (session: Session) => {
 
   const isSaved = (dealId: string) => ids.value.has(dealId)
 
-  // Saves run one at a time, in tap order: the API rejects overlapping writes from one account,
-  // and the last tap on a deal decides its saved state.
   let queue: Promise<unknown> = Promise.resolve()
   const latestTap = new Map<string, Promise<unknown>>()
 
@@ -79,7 +73,6 @@ export const createSavedDeals = (session: Session) => {
       const result = await request
       return result.saved
     } catch (error) {
-      // Undo only this deal, and only if no later tap has already set its state.
       if (latestTap.get(dealId) === request) replace(withSaved(wasSaved))
       throw error
     } finally {
@@ -91,7 +84,6 @@ export const createSavedDeals = (session: Session) => {
     ids,
     status,
     count: computed(() => ids.value.size),
-    // "50+" when the visitor has more bookmarks than the first page holds.
     countLabel: computed(() => `${ids.value.size}${hasMore.value ? '+' : ''}`),
     isSaved,
     toggle,

@@ -1,9 +1,6 @@
 <script setup lang="ts">
 import { nextTick, onBeforeUnmount, ref, watch } from 'vue'
 
-// The room's options, behind one button so the header stays short: share the code, and for the
-// host, close the room at any point. Escape or a tap outside closes it, and focus goes back to
-// the button.
 defineProps<{ isHost: boolean }>()
 const emit = defineEmits<{ share: []; close: [] }>()
 

@@ -226,8 +226,6 @@
   font-size: var(--text-xs);
   line-height: 1.6;
 }
-/* An empty message takes no room, so fields sit close; it stays in the page so screen readers
-   still hear it when it appears. */
 .auth-flow .auth-field-error:empty {
   margin: 0;
 }
@@ -262,8 +260,6 @@
   }
 }
 
-/* Lobbie sits on the card's top edge; each sprite's view box ends exactly at that edge.
-   The nearest positioned ancestor is the card, so the sprite rises above it. */
 .auth-lobbie {
   position: absolute;
   bottom: 100%;
@@ -286,7 +282,6 @@
   opacity: 1;
   transform: none;
 }
-/* Where the top of his head starts in each sprite: the body copy shows below it, the antennae above. */
 .auth-lobbie__sprite[data-sprite="password-hidden"] {
   --head-top: 36%;
 }
@@ -300,7 +295,6 @@
   height: 100%;
   clip-path: inset(var(--head-top) 0 0 0);
 }
-/* Skewing from the strip's bottom edge keeps the antenna bases on his head while the tips wave. */
 .auth-lobbie__sprite img.auth-lobbie__antennae {
   clip-path: inset(0 0 calc(100% - var(--head-top)) 0);
   transform-origin: 50% var(--head-top);

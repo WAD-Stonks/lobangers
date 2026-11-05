@@ -39,14 +39,14 @@ beforeAll(async () => {
     replSet: { count: 1, storageEngine: 'wiredTiger', ip: '127.0.0.1' },
   })
   const databaseUrl = mongo.getUri(`schema_${randomUUID().replaceAll('-', '')}`)
-  // Do not block the event loop: the in-memory Mongo process needs its output drained.
+  // Don't block the event loop: the in-memory Mongo process needs its output drained.
   await promisify(execFile)('pnpm', ['--dir', 'packages/db', 'run', 'push'], {
     cwd: root,
     env: { ...process.env, DATABASE_URL: databaseUrl },
     encoding: 'utf8',
     timeout: 60_000,
   })
-  // Always pass the fresh test URI; never connect to the application's configured database.
+  // Never use the app's configured database, always the fresh test URI.
   db = new PrismaClient({ datasources: { db: { url: databaseUrl } } })
   const user = await db.user.create({
     data: {

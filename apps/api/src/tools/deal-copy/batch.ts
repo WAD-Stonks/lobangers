@@ -6,14 +6,10 @@ import { DEAL_COPY_LIMITS, splitTerms } from '@broke-oclock/contracts/deal-copy'
 import { DEAL_CUISINES } from '@broke-oclock/contracts/deal-cuisines'
 import { z } from 'zod'
 
-// A batch is one tidy-up pass over imported deal copy, kept in apps/api/deal-copy-batches so it
-// can be reviewed in a PR and reverted. Each rewrite records the value it replaces: the tool only
-// writes a field that still holds it, so edits made since are never overwritten.
 export const DEAL_COPY_BATCH_DIR = fileURLToPath(
   new URL('../../../deal-copy-batches/', import.meta.url),
 )
 
-// Paths given on the command line are relative to the repository root, wherever pnpm runs from.
 export const REPO_ROOT = fileURLToPath(new URL('../../../../../', import.meta.url))
 
 const OBJECT_ID = /^[0-9a-f]{24}$/
@@ -47,7 +43,6 @@ const terms = z
 const base = {
   id: z.string().regex(OBJECT_ID, 'Deal id must be a 24-character ObjectId'),
   from: z.string().nullable(),
-  // Earlier rewrites of the same field, accepted as a starting value so a later batch still applies.
   previously: z.array(z.string()).optional(),
 }
 
@@ -64,7 +59,6 @@ const rewriteSchema = z.discriminatedUnion('field', [
     field: z.literal('category'),
     to: z.enum(DEAL_CATEGORIES, { error: `Category must be one of ${DEAL_CATEGORIES.join(', ')}` }),
   }),
-  // null clears a cuisine that does not apply.
   z.object({
     ...base,
     field: z.literal('cuisine'),
@@ -93,7 +87,6 @@ export const parseDealCopyBatch = (input: unknown): DealCopyBatch => {
 export const readDealCopyBatch = (path: string): DealCopyBatch =>
   parseDealCopyBatch(JSON.parse(readFileSync(path, 'utf8')) as unknown)
 
-// Every committed batch, oldest first by file name (batches are named YYYY-MM-DD-<slug>.json).
 export const readAllDealCopyBatches = (): readonly DealCopyBatch[] =>
   readdirSync(DEAL_COPY_BATCH_DIR)
     .filter((name) => name.endsWith('.json'))

@@ -64,11 +64,9 @@ beforeAll(async () => {
   mongo = await MongoMemoryReplSet.create({
     replSet: { count: 1, storageEngine: 'wiredTiger', ip: '127.0.0.1' },
   })
-  // Never consume a configured DATABASE_URL: always use this fresh disposable replica set.
   const databaseUrl = mongo.getUri(`integration_${randomUUID().replaceAll('-', '')}`)
   vi.stubEnv('DATABASE_URL', databaseUrl)
   vi.stubEnv('NODE_ENV', 'test')
-  // Keep the event loop free to drain the disposable Mongo process output.
   await promisify(execFile)('pnpm', ['--dir', 'packages/db', 'run', 'push'], {
     cwd: root,
     env: { ...process.env, DATABASE_URL: databaseUrl },
@@ -202,7 +200,6 @@ describe('real Express + Better Auth + Prisma + MongoDB', () => {
   )
 
   it('rejects auth mutation from an untrusted origin', async () => {
-    // Reuse an authenticated account rather than exhausting the signup-specific limiter.
     const response = await request(
       '/api/auth/update-user',
       { name: 'Blocked' },

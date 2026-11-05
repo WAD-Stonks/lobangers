@@ -2,8 +2,6 @@
 import { useSheetFocus } from '@web/modules/squad/use-sheet-focus'
 import { ref } from 'vue'
 
-// "Leave Room KOPI?" Leaving lets the others carry on without you; the code still works while
-// the room is open. Escape or tapping outside keeps you in, and focus goes back to the trigger.
 const props = withDefaults(
   defineProps<{
     code: string
@@ -26,7 +24,6 @@ const { onKeydown } = useSheetFocus({
   onEscape: () => emit('stay'),
 })
 
-// The lobby has no votes yet, so it talks about waiting rather than voting.
 const othersText = () => {
   const names = props.others
   const doing = props.stage === 'lobby' ? 'waiting' : 'voting'

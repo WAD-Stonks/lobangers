@@ -1,11 +1,6 @@
 import { boundedQueryInteger } from '@contracts/query'
 import { z } from 'zod'
 
-// Validate the literal BEFORE URL parsing: no URL-parser repairs, percent escapes,
-// credentials, alternate hosts, ports, queries, fragments, or private/invite paths.
-// This is syntax validation, not username availability. Do not impose the
-// basic-username minimum on collectible usernames; provider preview identity is
-// checked separately when an enabled source is scraped.
 export const TELEGRAM_RESERVED_PREVIEW_NAMES = [
   'c',
   's',

@@ -3,8 +3,6 @@ import ShellIcon from '@web/modules/map-shell/ShellIcon.vue'
 import { onBeforeUnmount, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 
-// Search box over the map. Typing applies after a short pause, Enter applies at once, and the
-// clear button appears only when there is text.
 const SEARCH_PAUSE_MS = 250
 const MAX_LENGTH = 80
 
@@ -38,7 +36,6 @@ const clear = () => {
   input.value?.focus()
 }
 
-// Filters cleared elsewhere (Clear all, a removed token, Back) show up in the box too.
 watch(
   () => props.value,
   (next) => {
@@ -46,7 +43,6 @@ watch(
   },
 )
 
-// Opening a panel while typing drops the pending search instead of yanking the visitor back.
 const route = useRoute()
 watch(() => route.path, cancel)
 
@@ -102,7 +98,6 @@ onBeforeUnmount(cancel)
     box-shadow var(--dur-small) var(--ease-out);
 }
 
-/* Focus grows a soft coral halo around the pill. */
 .search-field:focus-within {
   border-color: var(--coral);
   box-shadow: var(--shadow-card), 0 0 0 4px var(--coral-soft);
@@ -128,7 +123,7 @@ onBeforeUnmount(cancel)
   color: var(--coral-deep);
 }
 
-/* 16px so iOS Safari doesn't zoom in on focus. */
+/* 16px so iOS doesn't zoom in on focus */
 .search-field__input {
   flex: 1 1 auto;
   min-width: 0;
@@ -144,7 +139,6 @@ onBeforeUnmount(cancel)
   display: none;
 }
 
-/* The visible circle is 32px; the button itself is a 44px target. */
 .search-field__clear {
   position: relative;
   display: inline-grid;

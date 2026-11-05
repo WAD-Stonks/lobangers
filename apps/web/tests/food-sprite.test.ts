@@ -31,7 +31,6 @@ describe('applyFoodSprite', () => {
     expect(el.classList.contains(FOOD_SPRITE_CLASS)).toBe(true)
     expect(el.style.backgroundImage).toContain('/food-anim/drinks-128.webp')
     expect(el.style.getPropertyValue('--food-frames')).toBe('24')
-    // A looping strip of n frames travels n/(n-1) of the way in n steps.
     expect(el.style.getPropertyValue('--food-end')).toBe('104.3478%')
     expect(el.style.getPropertyValue('--food-seconds')).toBe('2.4s')
   })

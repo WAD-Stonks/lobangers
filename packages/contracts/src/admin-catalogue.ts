@@ -43,7 +43,6 @@ export const catalogueVerificationFilterSchema = z.enum(['needed', 'ready'])
 export const catalogueVenuesQuerySchema = z.strictObject({
   ...pageFields,
   merchantId: adminObjectIdSchema.optional(),
-  // needed: active outlets that cannot be picked for deals yet. ready: ones that can.
   verification: catalogueVerificationFilterSchema.optional(),
 })
 const confirmation = { note: adminNoteSchema, confirmed: z.literal(true) }
@@ -187,9 +186,7 @@ export const catalogueVenuesResponseSchema = z.strictObject({
   nextCursor: adminObjectIdSchema.nullable(),
 })
 export const catalogueSummarySchema = z.strictObject({
-  // Active outlets of active merchants that cannot be picked for deals yet.
   needsVerification: count,
-  // The subset of those already linked to at least one deal.
   needsVerificationWithDeals: count,
 })
 export type CatalogueSummary = z.infer<typeof catalogueSummarySchema>

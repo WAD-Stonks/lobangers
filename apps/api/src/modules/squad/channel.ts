@@ -5,10 +5,6 @@ import { authorizeSquadChannel } from '@api/modules/squad/realtime'
 import { requireRoom, seatsOf } from '@api/modules/squad/store'
 import type { SquadRealtimeAuth } from '@broke-oclock/contracts/squad'
 
-// Signs a member into their room's private channel. Pusher only lets a browser subscribe with
-// this signature, so the live taps and phase changes reach the room's own members and no one
-// who merely guessed a code. Anyone with a seat may listen, as they may sync, unless removed.
-
 const CHANNEL_PREFIX = 'private-squad-'
 
 export const authorizeRoomChannel = async (

@@ -9,9 +9,6 @@ import * as squad from './squad-fake'
 const { HOME, mockPublicApi, mockSignedIn, VENUES } = fixtures
 const { fakeMember, mockSquadApi } = squad
 
-// Makan Squad screens around the live vote: starting a room from a deal or the header, the
-// host lobby, joining with a code (and every way that can go wrong), closing and the ended
-// screen. The squad API is an in-memory fake with labelled synthetic rooms and people.
 test.use({ geolocation: HOME, permissions: ['geolocation'] })
 
 const WIDTHS = [390, 834, 1280] as const
@@ -85,7 +82,6 @@ test('a deal starts a room with itself picked; the lobby waits for a friend', as
   await expect(page.getByTestId('squad-lobby-members')).toContainText('Synthetic Noah')
   await shoot(page, info, 'host-lobby')
 
-  // Closing asks first, then the ended screen offers a new room or the map.
   await page.getByTestId('squad-close').click()
   await expect(page.getByRole('dialog', { name: 'Close the lobby?' })).toBeVisible()
   await page.getByTestId('squad-confirm').click()

@@ -17,8 +17,6 @@ import { syncHandler } from '@api/rest/routers/squad/handlers/sync'
 import { voteHandler } from '@api/rest/routers/squad/handlers/vote'
 import { Router } from 'express'
 
-// Makan Squad rooms: create, join, the lobby controls, voting, the sync heartbeat, and the
-// live channel handshake.
 export const createSquadRouter = (dependencies: RestDependencies): Router => {
   const router = Router()
   router.get('/squad/realtime', realtimeConfigHandler(dependencies))

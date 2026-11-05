@@ -46,8 +46,6 @@ afterEach(() => {
   wrapper = undefined
 })
 
-// Port of deleted DealDetail's media, facts, community and navigation regressions.
-// Real current App/router/panel, synthetic API/session and stubbed layout-only map.
 it('shows a guarded legacy poster in the current panel without losing facts, cuisine, reviews or route links', async () => {
   const otherVenue = { ...KOPI_VENUE, id: 'b'.repeat(24), name: 'Synthetic second outlet' }
   const deal = makeDeal({
@@ -103,7 +101,6 @@ it('shows a guarded legacy poster in the current panel without losing facts, cui
   expect(panel.get('img').attributes('src')).toBe(deal.imageUrl)
   expect(panel.get('img').attributes('alt')).toBe(deal.imageAltText)
   expect(panel.get('img').attributes('referrerpolicy')).toBe('no-referrer')
-  // The panel leads with the terms; the imported description is not repeated.
   expect(panel.text()).not.toContain(deal.description)
   expect(panel.text()).toContain('Dine-in only')
   expect(panel.text()).toContain('31 Dec 2099')
@@ -125,7 +122,6 @@ it('shows a guarded legacy poster in the current panel without losing facts, cui
   expect(otherDeal.attributes('href')).toContain(`/deals/${toast.id}`)
   await panel.get('img').trigger('error')
   expect(panel.find('img').exists()).toBe(false)
-  // With no photo the panel drops the media block instead of showing placeholder art.
   expect(panel.find('.deal-panel--no-image').exists()).toBe(true)
   await otherDeal.trigger('click')
   await flushPromises()
@@ -150,7 +146,6 @@ it('keeps a no-photo deal explicit through category art, empty review messaging 
   wrapper = mounted.wrapper
   const panel = wrapper.get('[data-testid="shell-panel"]')
   expect(panel.find('img').exists()).toBe(false)
-  // With no photo the panel drops the media block instead of showing placeholder art.
   expect(panel.find('.deal-panel--no-image').exists()).toBe(true)
   expect(rest.summary).toHaveBeenCalledWith(deal.id)
   expect(rest.comments).toHaveBeenCalledWith(deal.id, { limit: 3 })

@@ -1,8 +1,6 @@
 import { methodNotAllowed } from '@api/rest/policy'
 import { Router } from 'express'
 
-// Same-origin administrative resources intentionally reject OPTIONS before CORS
-// and body parsing. Native SDK and existing unrelated preflights stay unchanged.
 export const createAdminOptionsRouter = (): Router => {
   const router = Router()
   const groups = [

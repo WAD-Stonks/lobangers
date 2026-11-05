@@ -20,13 +20,8 @@ import {
   watch,
 } from 'vue'
 
-// Live Flash Drops for the map, banner and deal panel, and the visitor's claimed codes for the
-// menu and My codes. A pushed change (a drop going live, being claimed, ending) re-reads them at
-// once; they also refresh every 30 s, which catches scheduled starts and covers a missing or
-// dropped socket, and when the tab comes back. A one-second clock drives every countdown.
 const REFRESH_MS = 30_000
 const TICK_MS = 1000
-// At most one re-read a second however many pushes arrive.
 const PUSH_REFRESH_MS = 1000
 
 type Session = Readonly<Ref<{ data: { user: { id?: string } } | null }>>
@@ -35,7 +30,6 @@ export const createFlashDrops = (session: Session) => {
   const drops = shallowRef<readonly PublicFlashDrop[]>([])
   const codes = shallowRef<readonly FlashCode[]>([])
   const now = shallowRef(Date.now())
-  // Bumped on every load and sign-out, so a slow response for an old session is dropped.
   let latestCodes = 0
   let refreshTimer: ReturnType<typeof setInterval> | null = null
   let tickTimer: ReturnType<typeof setInterval> | null = null
@@ -46,13 +40,10 @@ export const createFlashDrops = (session: Session) => {
       const response = await api.flashDrops.active()
       drops.value = response.items
     } catch (error) {
-      // Drops are extra; the map works without them.
       console.error('Could not load flash drops', error)
     }
   }
 
-  // Resolves false when the codes could not be loaded, so My codes can offer a retry instead of
-  // claiming there are none.
   const loadCodes = async (): Promise<boolean> => {
     const request = ++latestCodes
     try {
@@ -69,7 +60,6 @@ export const createFlashDrops = (session: Session) => {
     codes.value = [code, ...codes.value.filter((item) => item.dropId !== code.dropId)]
   }
 
-  // Claims one code; the drop's count updates from the next refresh, or straight away here.
   const claim = async (dropId: string): Promise<FlashCode> => {
     const code = await api.flashDrops.claim(dropId)
     upsertCode(code)
@@ -83,7 +73,6 @@ export const createFlashDrops = (session: Session) => {
   const pushedRefresh = coalesce(() => void refresh(), PUSH_REFRESH_MS)
   const onPushed = (change: FlashDropChange) => {
     pushedRefresh()
-    // An admin removing a drop cancels its codes, so a held one is re-read too.
     if (change.kind === 'STOPPED' && codes.value.some((code) => code.dropId === change.dropId))
       void loadCodes()
   }
@@ -94,7 +83,6 @@ export const createFlashDrops = (session: Session) => {
 
   const start = () => {
     void refresh()
-    // A hidden tab skips polls; onVisible catches up the moment it is shown again.
     refreshTimer = setInterval(() => {
       if (!document.hidden) void refresh()
     }, REFRESH_MS)
@@ -102,8 +90,6 @@ export const createFlashDrops = (session: Session) => {
       now.value = Date.now()
     }, TICK_MS)
     document.addEventListener('visibilitychange', onVisible)
-    // Pushes sent while the socket was down are lost, so a reconnect catches up. The first
-    // connect needs nothing: the refresh above has just run.
     let connectedBefore = false
     closeChannel = openMapFlashChannel({
       onChange: onPushed,
@@ -141,7 +127,6 @@ export const createFlashDrops = (session: Session) => {
   const live = computed(() =>
     drops.value.filter((drop) => new Date(drop.endsAt).getTime() > now.value),
   )
-  // Codes outlive claiming: they are good at the counter until they expire.
   const activeCodes = computed(() =>
     codes.value.filter((code) => code.active && new Date(code.expiresAt).getTime() > now.value),
   )
@@ -173,5 +158,4 @@ export const provideFlashDrops = (session: Session): FlashDrops => {
   return store
 }
 
-// Panels and the menu outside the map shell (or in tests) simply see no drops.
 export const useFlashDrops = (): FlashDrops | null => inject(FLASH_KEY, null)

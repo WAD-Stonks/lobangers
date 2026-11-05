@@ -9,11 +9,8 @@ import { useRoute, useRouter } from 'vue-router'
 
 const route = useRoute()
 const router = useRouter()
-// The tab names the protected page the visitor was heading to; /add shows under Share.
 const content = computed(() => promptContent(route.query.tab))
 const visible = computed(() => Boolean(authPrompt.value) || route.name === 'auth-required')
-// The Account tab of a bottom nav lands here when signed out; with no menu button in that layout,
-// the menu rows that need no account (Squad, About, Dark mode, Map tutorial) follow the prompt.
 const breakpoint = useBreakpoint()
 const showMore = computed(() =>
   !authPrompt.value && route.name === 'auth-required' && route.query.tab === 'profile' && breakpoint.value !== 'desktop',
@@ -42,8 +39,6 @@ const cancel = () => {
   <section v-if="visible" class="auth-prompt" aria-labelledby="auth-prompt-title" @keydown.esc="cancel">
     <div class="auth-prompt__content auth-prompt__content--saved">
       <button class="auth-prompt__back" type="button" @click="cancel"><ShellIcon name="back" :size="16" />Back</button>
-      <!-- On the bottom nav's More tab the menu rows matter more than the pitch, so the illustration
-           and benefits step aside and the rows sit above the fold. -->
       <svg v-if="!showMore" class="saved-prompt__illustration" viewBox="0 0 540 330" aria-hidden="true" focusable="false">
         <defs>
           <linearGradient id="saved-yellow" x2="1" y2="1"><stop stop-color="#ffe976" /><stop offset="1" stop-color="#f8cc35" /></linearGradient>
@@ -97,8 +92,6 @@ const cancel = () => {
 </template>
 
 <style scoped>
-/* Light values are the original literals; dark mode swaps the pale washes for warm charcoal so the
-   illustration and benefit rows do not glare on the dark card. */
 .auth-prompt { --saved-blob: #fff8e6; --saved-benefit-bg: var(--paper-white); --saved-icon-bg: #fff0b4; height: 100%; overflow-y: auto; color: var(--ink); background: var(--page-background, var(--paper-white)); }
 .app-palette[data-theme='dark'] .auth-prompt { --saved-blob: var(--sunny-wash); --saved-benefit-bg: var(--paper-hover); --saved-icon-bg: var(--sunny-soft); }
 .auth-prompt__content { position: relative; display: grid; gap: 12px; padding: 40px 28px 24px; }
@@ -129,14 +122,11 @@ button { min-height: 44px; border-radius: 12px; font-weight: 650; }
 .auth-prompt__content--saved button { min-height: 48px; }
 .auth-prompt__content--saved { padding-bottom: calc(24px + var(--sheet-offset, 0px) + env(safe-area-inset-bottom, 0px)); }
 @media (max-width: 599.98px) { .saved-prompt__benefit { gap: 12px; padding: 14px; } }
-/* Short phones: the art gives way and the buttons move up under the intro, so the heading and
-   sign-in show in one screen; the benefits follow for anyone who wants the reasons. */
 @media (max-width: 599.98px) and (max-height: 760px) {
   .auth-prompt__content { padding-top: 24px; }
   .saved-prompt__illustration { max-height: 22vh; }
   .saved-prompt__benefits { order: 1; margin: 12px 0 0; }
   .auth-prompt__more { order: 2; }
 }
-/* 320px phones: a little less side padding so the benefit rows keep room for their text. */
 @media (max-width: 359.98px) { .auth-prompt__content { padding-inline: 18px; } .saved-prompt__icon { flex-basis: 44px; height: 44px; } }
 </style>

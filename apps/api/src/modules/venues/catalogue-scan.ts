@@ -5,20 +5,12 @@ import {
 
 type ScanVenue = OutletPolicyVenue & { merchant: { deletedAt?: Date | null } | null }
 
-/** An active outlet of an active merchant that cannot be picked for new deals yet. */
 export const needsCatalogueVerification = (venue: ScanVenue): boolean =>
   venue.deletedAt == null && venue.merchant?.deletedAt == null && !isSelectableCatalogueVenue(venue)
 
-/** An outlet that can be picked for new deals now. */
 export const readyForCatalogueSelection = (venue: ScanVenue): boolean =>
   venue.merchant?.deletedAt == null && isSelectableCatalogueVenue(venue)
 
-/**
- * Pages through id-ordered rows, keeping those the exact policy accepts. Verification depends on
- * proof hashes the database cannot index, so a filtered page is gathered from several batches.
- * When the scan budget runs out first, the cursor resumes after the last row read, so the next
- * page continues the scan instead of claiming the list is complete.
- */
 export const scanCataloguePage = async <Row extends { id: string }>(options: {
   fetch: (after: string | undefined, take: number) => Promise<Row[]>
   keep: (row: Row) => boolean

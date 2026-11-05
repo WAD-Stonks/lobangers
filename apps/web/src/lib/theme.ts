@@ -1,8 +1,5 @@
 import { computed, ref, watch } from 'vue'
 
-// Light and dark colour themes. The palette lives in assets/main.css under [data-theme='dark'];
-// this module only decides which one is active and marks <html>. index.html runs the same
-// decision inline before first paint so a dark visitor never sees a white flash.
 export type Theme = 'light' | 'dark'
 export const THEME_STORAGE_KEY = 'lobangers.theme'
 
@@ -24,14 +21,10 @@ export const resolveInitialTheme = (
   prefersDark: boolean,
 ): Theme => readStoredTheme(storage) ?? (prefersDark ? 'dark' : 'light')
 
-// Only the attribute is set here. dark-theme.css scopes the dark tokens, Bootstrap variables and
-// `color-scheme` to `.app-palette`, and the landing page's to `.lobangers-landing`.
 export const applyTheme = (root: HTMLElement, theme: Theme) => {
   root.dataset.theme = theme
 }
 
-// Mobile browsers tint their toolbar with <meta name="theme-color">; copy the page background so
-// it matches whichever theme is showing.
 export const syncThemeColor = () => {
   if (typeof document === 'undefined') return
   const meta = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]')
@@ -45,15 +38,12 @@ export const createTheme = (options: {
   root?: HTMLElement
 }) => {
   const { storage, prefersDark, root } = options
-  // A saved choice wins; until there is one the theme keeps following the system setting.
   let chosen = readStoredTheme(storage) !== null
   const theme = ref<Theme>(resolveInitialTheme(storage, prefersDark))
   watch(
     theme,
     (value, previous) => {
       if (!root) return
-      // Switch every colour in the same frame instead of letting each component cross-fade at
-      // its own speed (dark-theme.css pauses transitions while this class is on).
       const switching = previous !== undefined && typeof requestAnimationFrame === 'function'
       if (switching) root.classList.add('theme-switching')
       applyTheme(root, value)
@@ -71,14 +61,11 @@ export const createTheme = (options: {
     theme.value = theme.value === 'dark' ? 'light' : 'dark'
     try {
       storage?.setItem(THEME_STORAGE_KEY, theme.value)
-    } catch {
-      /* Keep the in-memory choice. */
-    }
+    } catch {}
   }
   const followSystem = (dark: boolean) => {
     if (!chosen) theme.value = dark ? 'dark' : 'light'
   }
-  // Another tab saved a choice (or cleared it): show the same theme here without a reload.
   const followStorage = (value: string | null, systemDark: boolean) => {
     chosen = isTheme(value)
     theme.value = isTheme(value) ? value : systemDark ? 'dark' : 'light'
@@ -96,15 +83,12 @@ export const createTheme = (options: {
 type ThemeController = ReturnType<typeof createTheme>
 let shared: ThemeController | undefined
 
-// One theme for the whole app, shared by every toggle and by the map tiles.
 export const useTheme = (): ThemeController => {
   if (shared) return shared
   let storage: Storage | undefined
   try {
     storage = window.localStorage
-  } catch {
-    /* Theming still works without storage. */
-  }
+  } catch {}
   const media =
     typeof window.matchMedia === 'function'
       ? window.matchMedia('(prefers-color-scheme: dark)')

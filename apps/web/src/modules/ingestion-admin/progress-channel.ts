@@ -47,7 +47,6 @@ export const openImportProgressChannel = (changed: () => void, unavailable: () =
       if (client.connection.state !== 'connected') onError()
     }
     channel.bind(INGESTION_PROGRESS_EVENT, onChange)
-    // Initial subscription and reconnection both reconcile any missed updates.
     channel.bind('pusher:subscription_succeeded', onChange)
     channel.bind('pusher:subscription_error', onError)
     client.connection.bind('state_change', connectionChanged)

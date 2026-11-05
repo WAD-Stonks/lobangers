@@ -7,8 +7,6 @@ import type { RouteLocationRaw } from 'vue-router'
 const props = defineProps<{ rows: readonly DealRow[]; to: (row: DealRow) => RouteLocationRaw; twoColumn?: boolean }>()
 const emit = defineEmits<{ hover: [venueId: string | null] }>()
 
-// Masonry: the grid runs on thin fixed rows and each card spans as many as its height needs, so
-// every photo keeps its own shape while the DOM (and tab order) stays in the sorted order.
 const ROW_UNIT_PX = 4
 const grid = ref<HTMLElement | null>(null)
 const spans = ref<Readonly<Record<string, number>>>({})
@@ -71,7 +69,6 @@ const cardStyle = (row: DealRow, index: number) => ({
 </template>
 
 <style scoped>
-/* Vertical spacing lives inside each card's row span, so the grid's own row gap stays 0. */
 .food-deal-grid {
   --masonry-row-gap: 24px;
   display: grid;
@@ -80,8 +77,6 @@ const cardStyle = (row: DealRow, index: number) => ({
   column-gap: 20px;
 }
 
-/* The venue page on a narrow screen fits three thin cards; two reads better there. On a wide
-   screen it uses the same columns as the main deal grid, rather than two cards half a desktop wide. */
 @media (max-width: 899.98px) {
   .food-deal-grid--two {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -89,7 +84,6 @@ const cardStyle = (row: DealRow, index: number) => ({
 }
 
 .food-deal-grid > * {
-  /* Same staggered rise as the result rows; `backwards` leaves the hover lift alone. */
   animation: food-card-in 240ms var(--ease-out) backwards;
   animation-delay: calc(var(--i, 0) * 30ms);
 }

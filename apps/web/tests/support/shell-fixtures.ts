@@ -5,7 +5,6 @@ import { authGuard } from '@web/router/guards'
 import routes from '@web/router/routes'
 import { createMemoryHistory, createRouter } from 'vue-router'
 
-// Synthetic deals for the map-shell tests. Not real outlets or prices.
 export const KOPI_VENUE = {
   id: 'a'.repeat(24),
   name: 'Synthetic Kopi Corner',
@@ -69,8 +68,6 @@ export const SIGNED_IN = {
   isPending: false,
 }
 
-// Mounts the whole app at a path with the real routes. Leaflet needs a layout engine, so the
-// map itself is stubbed; the browser suite covers it.
 export const mountShell = async (path: string) => {
   const router = createRouter({ history: createMemoryHistory(), routes })
   router.beforeEach(authGuard)

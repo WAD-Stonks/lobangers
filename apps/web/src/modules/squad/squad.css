@@ -1,10 +1,3 @@
-/* Makan Squad rooms: a warm paper room in light mode and warm charcoal in dark mode, so the
-   food, faces and effects stand out in both. Shared by the room, lobby, join and create screens.
-   Motion is transform and opacity only, ease-out, and every effect calms down under
-   prefers-reduced-motion. */
-
-/* The create, join, lobby, countdown and ended screens live in their own sheet to keep this
-   file to the live room. */
 @import "./squad-screens.css";
 @import "./squad-live.css";
 @import "./squad-results.css";
@@ -25,7 +18,6 @@
   --squad-tag-text: #3a3832;
   --squad-accent: var(--coral-deep);
   --squad-danger-hover: var(--coral-deep);
-  /* Sunny yellow as text: too faint on paper, so a deep gold (5.6:1) in light mode. */
   --squad-highlight: #7f6200;
   --squad-highlight-hover: #5f4900;
 
@@ -38,7 +30,6 @@
   background: var(--squad-bg);
 }
 
-/* Dark mode: warm charcoal steps. The food card keeps the card surface, a step up from the room. */
 .app-palette[data-theme="dark"] .squad-room {
   --squad-bg: var(--paper);
   --squad-surface: var(--paper-sunk);
@@ -65,7 +56,6 @@
   flex-direction: column;
   gap: var(--space-4);
   min-height: 0;
-  /* The home bar and side notches (viewport-fit=cover) never sit over the dock's buttons. */
   padding: var(--space-5) max(20px, env(safe-area-inset-right))
     calc(var(--space-6) + var(--sheet-offset, 0px) + env(safe-area-inset-bottom, 0px))
     max(20px, env(safe-area-inset-left));
@@ -96,9 +86,6 @@
   line-height: 1.45;
 }
 
-/* Phones: titles and intros match the other sheets (PanelFrame's 1.375rem title, 15px copy)
-   so moving between the map and a room doesn't jump a size. :where keeps the copy size
-   below any class that sets its own (notes, timers, hints). */
 @media (max-width: 600px) {
   .squad-room__title {
     font-size: 1.375rem;
@@ -123,8 +110,6 @@
   border-radius: 18px;
 }
 
-/* Two lines: the message, then the actions. Stacked above the match banner (z-index 25),
-   which can rise out of a short stage and would otherwise cover it. */
 .squad-alone {
   position: relative;
   z-index: 26;
@@ -152,7 +137,6 @@
   gap: 6px;
 }
 
-/* Long labels ("Go with the top pick: …") wrap inside the room instead of running off a phone. */
 .squad-room .lb-btn {
   max-width: 100%;
   padding-block: 8px;
@@ -205,7 +189,6 @@
   box-shadow: 0 0 0 4px rgba(63, 154, 95, 0.22);
 }
 
-/* Secondary buttons on the room surface. */
 .squad-room .squad-btn-dark {
   color: var(--squad-text);
   background: var(--squad-surface);
@@ -275,12 +258,10 @@
   outline-offset: 2px;
 }
 
-/* ----- Live room ----- */
 .squad-live {
   position: relative;
   display: flex;
   flex-direction: column;
-  /* Tighter on short phones so the whole room fits one screen. */
   gap: clamp(8px, 1.6vh, 16px);
 }
 
@@ -315,8 +296,6 @@
 .squad-members {
   display: flex;
   gap: 12px;
-  /* One row however full the room is; it scrolls sideways instead of pushing the deal down.
-     The padding keeps the badges and the "me" ring inside the scroll box. */
   margin: -4px -4px 0;
   padding: 4px 4px 2px;
   overflow-x: auto;
@@ -347,7 +326,6 @@
   border-radius: 50%;
 }
 
-/* The host's seats are buttons that ask to remove that person. */
 button.squad-seat__face {
   cursor: pointer;
   transition: transform 140ms var(--ease-out);
@@ -446,7 +424,6 @@ button.squad-seat__face:active {
   overflow: hidden;
   color: var(--ink);
   text-align: left;
-  /* A link now (so it opens in a new tab), styled as the card it always was. */
   text-decoration: none;
   background: var(--paper-white);
   border: 0;
@@ -465,8 +442,6 @@ button.squad-seat__face:active {
   position: relative;
   display: grid;
   place-items: center;
-  /* Gives way first when the screen is short, so the room never needs scrolling on a phone and
-     every sticker lands where it can be seen. */
   flex: 0 1 190px;
   min-height: 96px;
   overflow: hidden;
@@ -494,7 +469,6 @@ button.squad-seat__face:active {
   padding: 4px 9px;
   font-size: 11px;
   font-weight: 700;
-  /* Sits on the food photo, so it stays a dark chip with white type in both themes. */
   color: #fff;
   background: rgba(29, 29, 34, 0.8);
   border-radius: 999px;
@@ -543,8 +517,6 @@ button.squad-seat__face:active {
   color: var(--ink-muted);
 }
 
-/* The match sits above every sticker so it is always readable: a dark pill ringed in sunny, the
-   same in both themes since it sits on the food photo. */
 .squad-match {
   position: absolute;
   right: 12px;
@@ -576,7 +548,6 @@ button.squad-seat__face:active {
   color: #d9d6cf;
 }
 
-/* ----- Dock ----- */
 .squad-dock {
   display: flex;
   flex-direction: column;
@@ -693,8 +664,6 @@ button.squad-seat__face:active {
   border-radius: 999px;
 }
 
-/* Vote again, Next deal and Keep looking: quiet pills in the button type, count inline.
-   Picking one fills it sunny so you can see your choice at a glance. */
 .squad-vote--again,
 .squad-vote--next {
   flex-wrap: nowrap;
@@ -713,7 +682,6 @@ button.squad-seat__face:active {
     border-color 150ms ease;
 }
 
-/* Your pick gets a sunny halo, which reads on both the grey and the sunny button. */
 .squad-vote--again.is-chosen,
 .squad-vote--next.is-chosen {
   border-color: var(--sunny-deep);
@@ -748,10 +716,6 @@ button.squad-seat__face:active {
   color: var(--squad-accent);
 }
 
-/* ----- Sheets inside the room ----- */
-/* Fixed, so it escapes the room's padded scroll body: the shell panel is transformed, which makes
-   it the containing block, so this covers exactly the panel. On a phone the panel is translated
-   down by --sheet-offset, so the sheet stops at the visible edge rather than off screen. */
 .squad-overlay {
   position: fixed;
   inset: 0 0 var(--sheet-offset, 0px);
@@ -775,7 +739,6 @@ button.squad-seat__face:active {
   flex-direction: column;
   gap: var(--space-3);
   width: 100%;
-  /* Scrolls inside itself on a short phone (or with the keyboard up) and clears the home bar. */
   max-height: 100%;
   overflow-y: auto;
   overscroll-behavior: contain;
@@ -793,7 +756,6 @@ button.squad-seat__face:active {
   text-wrap: balance;
 }
 
-/* ----- Minimised bar ----- */
 .squad-room--mini {
   background: transparent;
 }
@@ -854,7 +816,6 @@ button.squad-seat__face:active {
   border-radius: 999px;
 }
 
-/* ----- Effects ----- */
 .squad-fx {
   position: absolute;
   inset: 0;
@@ -1059,7 +1020,6 @@ button.squad-seat__face:active {
     animation: squad-fade 150ms ease both;
   }
 
-  /* No falling: each thumb fades in and out at its own spot across the top of the room. */
   .squad-fx__drop {
     top: calc(8% + var(--fx-y, 0.5) * 45%);
     animation-name: squad-drop-still;
@@ -1080,9 +1040,6 @@ button.squad-seat__face:active {
   }
 }
 
-/* The phone sheet and desktop card around any Squad screen take the room's colour, so no
-   strip of another colour shows above it. The doubled class outranks ShellPanel's scoped
-   background, which would otherwise win on load order because this file is imported first. */
 .map-shell.map-shell--squad .shell-panel {
   background: var(--paper);
   border-color: var(--hairline);
@@ -1101,8 +1058,6 @@ button.squad-seat__face:active {
   background: rgba(255, 255, 255, 0.3);
 }
 
-/* Room entrance and waiting feedback: the lobby rises in with its parts staggered, rows pop in
-   as people join, and the big buttons show a spinner while a request is out. */
 .squad-lobby > * {
   animation: squad-rise 260ms var(--ease-out) backwards;
 }
@@ -1199,7 +1154,6 @@ button.squad-seat__face:active {
   }
 }
 
-/* Phones: the deal card's name and price step down to body size beside the smaller title. */
 @media (max-width: 600px) {
   .squad-card__title,
   .squad-card__price {

@@ -6,7 +6,6 @@ import { offerLabel } from '@web/modules/venues-feed/deal-format'
 
 type VenueRef = Pick<VenueDetailResponse['venue'], 'id' | 'name'>
 
-// What the map shell already holds: the loaded deals, this outlet's pin and the visitor.
 export type LoadedDeals = {
   readonly deals: readonly DealPin[]
   readonly pin: VenuePin | null
@@ -18,8 +17,6 @@ const imagesFor = (summary: VenueDealSummary): readonly DealImage[] =>
     ? [{ url: summary.imageUrl, alt: summary.imageAltText ?? null }]
     : []
 
-// A deal the map has not loaded (for example under another validity filter) still gets a card.
-// Unknown community fields start empty, so its freshness reads as unverified.
 const toDealPin = (summary: VenueDealSummary): DealPin => ({
   id: summary.id,
   title: summary.title,
@@ -43,7 +40,6 @@ const toDealPin = (summary: VenueDealSummary): DealPin => ({
   venues: [],
 })
 
-// Without a loaded pin there are no coordinates; the card only reads the outlet's id and name.
 const fallbackPin = (venue: VenueRef, deals: readonly DealPin[]): VenuePin => ({
   id: venue.id,
   name: venue.name,
@@ -52,7 +48,6 @@ const fallbackPin = (venue: VenueRef, deals: readonly DealPin[]): VenuePin => ({
   deals,
 })
 
-// Venue deals as browse-list rows, in the venue API's order, so FoodDealCard renders them.
 export const toVenueDealRows = (
   venue: VenueRef,
   summaries: readonly VenueDealSummary[],

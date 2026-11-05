@@ -1,6 +1,3 @@
-// Reads the places a deal's own terms rule out, such as "Not at Sentosa or the Zoo.", so a
-// deal without confirmed outlets is not pinned at a branch it names as excluded. Product
-// exclusions ("Excludes Reserve drinks") are deliberately not read as places.
 const EXCLUSION_CLAUSE = /\b(?:not (?:valid |available )?at|except at)\s+([^.;]+)/gi
 const LIST_SEPARATOR = /,|\bor\b|\band\b/i
 const LEADING_ARTICLE = /^the\s+/

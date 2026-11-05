@@ -4,7 +4,6 @@ import DealOutlets from '@web/modules/browse-map/DealOutlets.vue'
 import { KOPI } from '@web-tests/support/shell-fixtures'
 import { describe, expect, it } from 'vitest'
 
-// Seven outlets in a line going east from the visitor, listed farthest first.
 const OUTLETS = Array.from({ length: 7 }, (_, index) => ({
   id: `outlet-${6 - index}`,
   name: `Outlet ${6 - index}`,

@@ -1,5 +1,3 @@
-// Heading over the results. "Nearby" is a promise about distance, so it is used only when the
-// walking-distance filter is actually narrowing the list, not merely when location is known.
 export const resultsTitle = (state: {
   readonly count: number
   readonly loading: boolean

@@ -2,8 +2,6 @@
 import NearbyToggle from '@web/modules/hungry-nearby/NearbyToggle.vue'
 import ShellIcon from '@web/modules/map-shell/ShellIcon.vue'
 
-// Map location, Lobangers nearby and zoom controls. Zoom buttons stay on touch screens too, so
-// people who can't pinch can still zoom; every control is a 44px (--hit) target.
 withDefaults(defineProps<{ locating?: boolean; showZoom?: boolean }>(), {
   locating: false,
   showZoom: true,
@@ -42,7 +40,6 @@ const emit = defineEmits<{ nearMe: []; zoomIn: []; zoomOut: [] }>()
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
-  /* Clear the notch when a phone is held in landscape. */
   margin-right: env(safe-area-inset-right, 0px);
 }
 
@@ -52,8 +49,6 @@ const emit = defineEmits<{ nearMe: []; zoomIn: []; zoomOut: [] }>()
   gap: var(--space-2);
 }
 
-/* On a short touch screen (a phone in landscape) the column would reach the header, so the
-   zoom pair sits beside the other controls instead of below them. */
 @media (pointer: coarse) and (max-height: 520px) {
   .map-controls {
     flex-direction: row;

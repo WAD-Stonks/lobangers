@@ -5,8 +5,6 @@ import {
 } from '@broke-oclock/contracts/ingestion'
 import Pusher from 'pusher'
 
-// Same Pusher application as Squad. No source details or privileged data travel
-// over the channel: notifications only invalidate an authenticated REST read.
 export type Publisher = {
   trigger: (channel: string, event: string, data: object) => Promise<unknown>
   authorizeChannel: (socketId: string, channel: string) => { auth: string }
@@ -35,8 +33,6 @@ export const publishIngestionProgress = async (force = false) => {
       }),
     ])
   } catch {
-    // Persistence is authoritative. Do not fail/replay a committed import when
-    // Pusher is unavailable, and do not log credentials/provider diagnostics.
     console.warn('Ingestion progress notification unavailable')
   } finally {
     clearTimeout(timer)

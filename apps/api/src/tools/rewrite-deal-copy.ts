@@ -9,16 +9,6 @@ import {
   readDealCopyBatch,
 } from '@api/tools/deal-copy/batch'
 
-// Applies one deal copy batch (see deal-copy/batch.ts and .claude/skills/tidy-deals/SKILL.md):
-// short titles, plain descriptions, terms as a few points, and a category and cuisine.
-//
-//   pnpm deals:rewrite-copy --batch apps/api/deal-copy-batches/<file>.json            dry run
-//   pnpm deals:rewrite-copy --batch apps/api/deal-copy-batches/<file>.json --apply    write
-//   pnpm deals:rewrite-copy --batch apps/api/deal-copy-batches/<file>.json --apply --revert
-//
-// A field is only written when it still holds the value the batch expects, so edits made in the
-// meantime are never overwritten. Material edits (including revert/category/cuisine) advance
-// the version once per changed deal, withdraw publication and require fresh review and scope.
 const APPLY_FLAG = '--apply'
 const REVERT_FLAG = '--revert'
 const BATCH_FLAG = '--batch'
@@ -32,7 +22,6 @@ type Step = {
   readonly starts: readonly Value[]
 }
 
-// The write guard. In MongoDB an empty optional field may be null or missing altogether.
 const holds = (field: DealCopyField, value: Value) =>
   value === null ? { OR: [{ [field]: null }, { [field]: { isSet: false } }] } : { [field]: value }
 
@@ -41,8 +30,6 @@ const preview = (value: Value) => {
   return value.length > PREVIEW_CHARS ? `${value.slice(0, PREVIEW_CHARS - 1)}…` : value
 }
 
-// Forward, a field may still hold the original or an earlier rewrite; revert only undoes this
-// batch, back to the original.
 const toStep = (rewrite: DealCopyRewrite, revert: boolean): Step =>
   revert
     ? { id: rewrite.id, field: rewrite.field, to: rewrite.from, starts: [rewrite.to] }
@@ -127,8 +114,6 @@ export const rewriteDealCopy = async (
     console.log(`Dry run: ${changes.length} field(s) would change. Re-run with ${APPLY_FLAG}.`)
     return
   }
-  // All fields for a deal form one material revision. Guard both the planned version and
-  // every old value; a concurrent edit rolls back the entire batch rather than overwriting it.
   const byDeal = new Map<string, typeof changes>()
   for (const change of changes) {
     const edits = byDeal.get(change.id) ?? []
@@ -167,7 +152,6 @@ export const rewriteDealCopy = async (
   console.log(`Updated ${changes.length} field(s).`)
 }
 
-// Importing the writer never constructs the ambient client or dispatches the CLI.
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const { db } = await import('@broke-oclock/db')
   try {

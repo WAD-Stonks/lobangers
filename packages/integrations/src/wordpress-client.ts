@@ -7,11 +7,6 @@ const DEFAULT_PAGE = 1
 const DEFAULT_PER_PAGE = 20
 const MAX_PAGE = 10_000
 const MAX_PER_PAGE = 100
-// WordPress.com documents this public site-post resource as unauthenticated.
-// Source: https://developer.wordpress.com/docs/api/1.1/get/sites/%24site/posts/
-// WordPress REST supports nested `_fields` selections to keep public responses small.
-// Sources: https://developer.wordpress.org/rest-api/using-the-rest-api/global-parameters/
-//         https://developer.wordpress.org/rest-api/using-the-rest-api/pagination/
 const POST_FIELDS = [
   'id',
   'link',
@@ -21,7 +16,6 @@ const POST_FIELDS = [
   'excerpt.rendered',
 ] as const
 
-/** Raw HTML from WordPress. UNTRUSTED: this client does not sanitize or render it. */
 export type UntrustedHtml = string & { readonly __untrustedHtml: unique symbol }
 
 export interface WordPressPost {
@@ -49,10 +43,8 @@ export interface ListWordPressPostsOptions {
 }
 
 export interface WordPressClientOptions {
-  /** A WordPress.com site domain or numeric site ID. Defaults to Scoobify. */
   readonly site?: string
   readonly fetch?: typeof fetch
-  /** Bounded request timeout in milliseconds. Defaults to 10 seconds. */
   readonly timeoutMs?: number
 }
 

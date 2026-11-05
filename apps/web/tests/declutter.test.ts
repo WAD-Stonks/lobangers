@@ -4,7 +4,6 @@ import type { Coordinates } from '@web/modules/browse-map/types'
 import { makeDeal } from '@web-tests/support/shell-fixtures'
 import { describe, expect, it } from 'vitest'
 
-// One unit of lat or lng is one pixel, so positions in the tests read as screen positions.
 const project = (point: Coordinates) => ({ x: point.lng, y: -point.lat })
 
 const group = (

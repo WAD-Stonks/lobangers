@@ -78,7 +78,6 @@ export const createIngestionRuntime = (
     ...(oneMap
       ? {
           searchLocations: (() => {
-            // A single provider client retains its token cache across request contexts.
             let client: Promise<OneMapClient> | undefined
             return async (query: string) => {
               client ??= import('@broke-oclock/integrations/server').then(

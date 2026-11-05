@@ -17,9 +17,6 @@ import type { SquadRoom } from '@web/modules/squad/use-squad-room'
 import { computed, inject, onBeforeUnmount, ref, watch } from 'vue'
 import { type RouteLocationRaw, useRoute, useRouter } from 'vue-router'
 
-// The live room: who's here and how they voted, the deal on the table, and Yay or Nah. Every
-// tap anyone makes plays as an effect for everyone, and the latest one is named under the tally.
-// The host can close the room from Options or remove someone by tapping their face, any time.
 const props = defineProps<{ room: SquadRoom; state: SquadState }>()
 
 const route = useRoute()
@@ -31,10 +28,8 @@ const effects = useSquadEffects()
 const root = ref<HTMLElement | null>(null)
 const card = ref<InstanceType<typeof SquadDealCard> | null>(null)
 const leaving = ref(false)
-// Closing ends the room for everyone, so the host confirms it first; so does removing someone.
 const closing = ref(false)
 const removing = ref<SquadMember | null>(null)
-// The button that opened the Leave or Close sheet, so focus returns there when it closes.
 const sheetTrigger = ref<HTMLElement | null>(null)
 const openSheet = (sheet: 'leave' | 'close', event?: Event) => {
   rememberTrigger(event)
@@ -49,7 +44,6 @@ const askRemove = (member: SquadMember) => {
   rememberTrigger()
   removing.value = member
 }
-// Kept so "Rejoin" works after the seat is gone from the member list.
 const lastSelf = ref<{ name: string; avatar: SquadAvatar } | null>(null)
 
 const me = computed(() => props.state.members.find((member) => member.id === props.state.me?.memberId) ?? null)
@@ -75,7 +69,6 @@ const justYou = computed(
 )
 const stillVoting = computed(() => props.state.members.filter((member) => !member.spectator).length)
 
-// Effect geometry, relative to the room so stickers stay put while the panel scrolls.
 const boxOf = (element: Element | null | undefined) => {
   const base = root.value?.getBoundingClientRect()
   const rect = element?.getBoundingClientRect()
@@ -99,7 +92,6 @@ const playYay = (memberId: string | null) => {
 }
 const playNah = () => effects.nah(root.value?.clientWidth ?? 360)
 
-// The latest thing someone did, under the tally ("Ashley yay'd it").
 const feed = ref('Room is live. Tap as many times as you like.')
 const FEED_TEXT: Partial<Record<SquadEvent['kind'], (name: string) => string>> = {
   YAY: (name) => `${name} yay'd it`,
@@ -122,7 +114,6 @@ const stopListening = props.room.onEffect((event: SquadEvent) => {
 })
 onBeforeUnmount(stopListening)
 watch(() => `${props.state.dealIndex}:${props.state.round}`, effects.clearStickers)
-// Leaving takes the photo's stickers with you, so they're gone if you come back too.
 watch(left, (gone) => { if (gone) effects.clearStickers() })
 
 const tap = (stance: 'YAY' | 'NAH') => {
@@ -138,7 +129,6 @@ const choose = (choice: 'AGAIN' | 'NEXT') => {
   effects.whoosh(choice === 'AGAIN' ? 'again' : nextKind(), 'You')
 }
 
-// The deal page link, tagged so its Back button returns to this room.
 const dealLink = (dealId: string): RouteLocationRaw => {
   const target = props.state.deals.find((item) => item.id === dealId)
   const location = dealLocation(route.query, dealId, target?.venueId ?? undefined)
@@ -178,7 +168,6 @@ const rejoin = () => {
 
 const BROWSE: RouteLocationRaw = { name: 'browse' }
 
-// A real link to the map; the room is forgotten only for an in-app navigation.
 const browse = (event: MouseEvent, navigate: (event?: MouseEvent) => Promise<unknown>) => {
   const pending = navigate(event)
   if (event.defaultPrevented) props.room.forget()

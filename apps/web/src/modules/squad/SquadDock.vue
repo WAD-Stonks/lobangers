@@ -4,11 +4,6 @@ import { THUMBS_DOWN_URL, THUMBS_UP_URL } from '@web/modules/squad/avatar-art'
 import { computed } from 'vue'
 import type { RouteLocationRaw } from 'vue-router'
 
-// What the room does next, at the bottom where thumbs reach: Yay and Nah while voting (tap as
-// often as you like), Vote again or Next deal once a vote falls short, the match (with a Keep
-// looking vote in case the squad changes its mind), or the end of the list. People who joined
-// late watch; the buttons tell them why they can't vote. `feed` is the latest thing someone did.
-// `dealLink` builds the deal page link, so "Open the deal" is a real link.
 const props = defineProps<{
   state: SquadState
   deal: SquadDeal | null
@@ -36,7 +31,6 @@ const directions = (deal: SquadDeal) =>
   deal.lat !== null && deal.lng !== null
     ? `https://www.google.com/maps/dir/?api=1&destination=${deal.lat},${deal.lng}`
     : null
-// The bar tracks who has voted, so the squad can see who it's still waiting on.
 const votedShare = computed(() => (tally.value.voters === 0 ? 0 : tally.value.voted / tally.value.voters))
 </script>
 

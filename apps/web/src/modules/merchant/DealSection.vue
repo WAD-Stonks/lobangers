@@ -1,8 +1,6 @@
 <script setup lang="ts">
 import { ref, useId } from 'vue'
 
-// A dropdown section of the merchant dashboard: a heading button with the section's count that
-// opens and closes its list. Each visit starts from the default given by the page.
 const props = withDefaults(
   defineProps<{
     title: string
@@ -112,7 +110,6 @@ const panelId = useId()
   color: var(--ink-muted);
 }
 
-/* The number of deals in the section, as a small pill. */
 .deal-section__count {
   min-width: 2rem;
   padding: 2px 10px;
@@ -125,7 +122,6 @@ const panelId = useId()
   font-variant-numeric: tabular-nums;
 }
 
-/* A chevron that points right when closed and down when open. */
 .deal-section__chevron {
   width: 0.55rem;
   height: 0.55rem;

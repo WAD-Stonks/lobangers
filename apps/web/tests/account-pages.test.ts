@@ -9,7 +9,6 @@ import { createMemoryHistory, createRouter } from 'vue-router'
 
 type Page<T> = { items: T[]; nextCursor: string | null }
 
-// Synthetic API boundary only: these tests check the pages, not backend behaviour.
 const account = vi.hoisted(() => ({
   submissions: vi.fn(),
   deleteSubmission: vi.fn(),
@@ -305,7 +304,7 @@ describe('merchant access page', () => {
   })
 
   it('ignores an older stall search that finishes last', async () => {
-    const wrapper = await mountPage(MerchantAccessPage) // the search on open returns nothing
+    const wrapper = await mountPage(MerchantAccessPage)
     const searchA = deferred<AccountVenue[]>()
     const searchB = deferred<AccountVenue[]>()
     account.venues.mockReturnValueOnce(searchA.promise).mockReturnValueOnce(searchB.promise)
@@ -317,12 +316,10 @@ describe('merchant access page', () => {
     await searchBox.setValue('B')
     await searchButton?.trigger('click')
 
-    // The newer search (B) finishes first and the user picks a stall from it.
     searchB.resolve([venue('venue-b', 'Stall B')])
     await flushPromises()
     await chooseOption(wrapper, '#venue', 'venue-b')
 
-    // The older search (A) finishes last and must change nothing.
     searchA.resolve([venue('venue-a', 'Stall A')])
     await flushPromises()
 
@@ -355,12 +352,10 @@ describe('merchant access page', () => {
     account.merchantRequests.mockResolvedValueOnce({ items: [request(1)], nextCursor: 'cursor-1' })
     const wrapper = await mountPage(MerchantAccessPage)
 
-    // The user clicks Load more, and that slow request is still pending...
     const stale = deferred<Page<MyMerchantRequest>>()
     account.merchantRequests.mockReturnValueOnce(stale.promise)
     await buttonWithText(wrapper, 'Load more')?.trigger('click')
 
-    // ...when they send a new request, which refreshes the first page.
     account.merchantRequests.mockResolvedValueOnce({
       items: [request(9), request(1)],
       nextCursor: 'cursor-new',
@@ -371,12 +366,10 @@ describe('merchant access page', () => {
     await flushPromises()
     expect(wrapper.text()).toContain('Stall 9')
 
-    // The old Load more now finishes. It belongs to the old list and must change nothing.
     stale.resolve({ items: [request(21)], nextCursor: 'cursor-stale' })
     await flushPromises()
     expect(wrapper.text()).not.toContain('Stall 21')
 
-    // The cursor still points at the refreshed list.
     account.merchantRequests.mockResolvedValueOnce({ items: [request(10)], nextCursor: null })
     await buttonWithText(wrapper, 'Load more')?.trigger('click')
     await flushPromises()
@@ -397,7 +390,7 @@ describe('merchant access page', () => {
     await flushPromises()
 
     expect(buttonWithText(wrapper, 'Load more')?.attributes('disabled')).toBeDefined()
-    expect(account.merchantRequests).toHaveBeenCalledTimes(2) // first page + the refresh
+    expect(account.merchantRequests).toHaveBeenCalledTimes(2)
 
     refresh.resolve({ items: [request(9)], nextCursor: 'cursor-new' })
     await flushPromises()

@@ -41,7 +41,6 @@ const emailError = computed(() => !email.value.trim() ? 'Enter your email addres
 const timer = setInterval(() => { if (cooldown.value > 0) cooldown.value-- }, 1000)
 const methods = ref<AuthMethodsResponse | null>(null)
 const methodsUnavailable = ref(false)
-// Password first; an emailed code is one tap away.
 const method = ref<'code' | 'password'>('password')
 const passwordMode = computed(() => method.value === 'password' || methodsUnavailable.value || methods.value?.emailOtp === false)
 let generation = 0
@@ -86,7 +85,6 @@ const google = async () => {
   if (pending.value || !methods.value?.google) return
   const current = ++generation
   pending.value = true; error.value = ''; password.value = ''; code.value = ''
-  // Admin callbacks stay on allowlisted task pages; record queries survive a new session.
   let callback: string
   let errorCallback: string
   if (props.context === 'account') {

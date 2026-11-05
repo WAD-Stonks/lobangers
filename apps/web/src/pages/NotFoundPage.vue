@@ -12,7 +12,6 @@ import { BButton } from '@broke-oclock/ui'
 </script>
 
 <style scoped>
-/* Stays a readable line length on wide screens and wraps on narrow phones. */
 .not-found {
   max-width: 40rem;
   overflow-wrap: anywhere;

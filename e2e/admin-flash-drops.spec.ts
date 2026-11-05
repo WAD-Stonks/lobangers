@@ -2,10 +2,6 @@ import type { AdminFlashDrop } from '@broke-oclock/contracts/flash-drops'
 import type { AdminOverviewResponse } from '@broke-oclock/contracts/platform-admin'
 import { expect, type Page, test } from '@playwright/test'
 
-// Explicitly synthetic native/REST boundaries: the real SPA, typed client and CSS render
-// labelled fixture flash deals. Merchants send their own flash deals live; admins only watch
-// and remove them. Server rules (versions, states, admin access) are proved in the
-// API integration suite, not here.
 const hex = (n: number) => n.toString(16).padStart(24, '0')
 const base = {
   outletId: hex(900),
@@ -185,7 +181,6 @@ async function boundary(page: Page): Promise<Boundary> {
         state.failNext = null
         return json({ error: { code: failure.code, message: failure.message } }, failure.status)
       }
-      // Removing is the only decision.
       drops = drops.map((drop) =>
         drop.id === decision[1]
           ? { ...drop, status: 'STOPPED', version: drop.version + 1, reviewNote: body.note }

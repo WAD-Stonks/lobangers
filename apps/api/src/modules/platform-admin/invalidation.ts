@@ -4,8 +4,6 @@ export type RequestInvalidationActor =
   | { id: string; name: string; kind?: 'HUMAN'; source?: 'ADMIN' }
   | { id: null; name: string; kind: 'SYSTEM'; source: 'NATIVE_AUTH' }
 
-// Must run within the shared fenced role/revoke transaction. A later approval
-// cannot resurrect a request reviewed against a superseded permission context.
 export const invalidatePendingRequests = async (
   tx: AccessTransaction,
   actor: RequestInvalidationActor,

@@ -5,8 +5,6 @@ import { useSquadRoom } from '@web/modules/squad/use-squad-room'
 import { computed } from 'vue'
 import type { RouteLocationRaw } from 'vue-router'
 
-// How a room ended for this visitor: the host closed it, nobody joined in time, everyone
-// left, or the host removed them. Either way the next step is a new room or the map.
 const props = defineProps<{ state: SquadState }>()
 const room = useSquadRoom()
 
@@ -41,7 +39,6 @@ const copy = computed(() => {
 const NEW_ROOM: RouteLocationRaw = { name: 'squad-new' }
 const MAP: RouteLocationRaw = { name: 'browse' }
 
-// Real links; the room is forgotten only once the new page is showing.
 const go = async (event: MouseEvent, navigate: (event?: MouseEvent) => Promise<unknown>) => {
   await navigate(event)
   if (!event.defaultPrevented) return

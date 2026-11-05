@@ -19,9 +19,6 @@ let server: Server | undefined
 let disconnect: (() => Promise<void>) | undefined
 let baseURL = ''
 let db!: typeof import('@broke-oclock/db').db
-// Better Auth allows only 3 sign-ups per 10 seconds per client, and the production rate limit stays
-// on. So the whole file signs up exactly three accounts once and reuses them; each test starts
-// from clean records (see beforeEach) instead of creating new users.
 let alice!: Account
 let bob!: Account
 let staff!: Account
@@ -74,7 +71,6 @@ const publicDeal = async (title: string) => {
       reviewedVersion: 1,
     },
   })
-  // Genuinely nonspatial user fixture, not a missing-outlet imported promotion.
   return seedSyntheticScope(db, deal.id, 'SOURCE_NONSPATIAL')
 }
 const pendingDeal = (title: string, submittedById?: string) =>
@@ -90,7 +86,6 @@ const syntheticVenue = async (name = 'Synthetic stall') => {
       longitude: 103.8,
     },
   })
-  // Selectable claim positive; role/inactivity mutations happen only afterward.
   return seedSyntheticOccupancy(db, venue.id)
 }
 
@@ -98,7 +93,6 @@ beforeAll(async () => {
   mongo = await MongoMemoryReplSet.create({
     replSet: { count: 1, storageEngine: 'wiredTiger', ip: '127.0.0.1' },
   })
-  // Always a fresh disposable replica set; never a configured DATABASE_URL.
   const databaseUrl = mongo.getUri(`integration_${randomUUID().replaceAll('-', '')}`)
   vi.stubEnv('DATABASE_URL', databaseUrl)
   vi.stubEnv('NODE_ENV', 'test')
@@ -320,7 +314,6 @@ describe('account endpoints: merchant access requests', () => {
 
     const stored = await db.merchantAccessRequest.findFirstOrThrow({ where: { userId: user.id } })
     expect(stored.status).toBe('PENDING')
-    // A pending merchant is still a regular user with no stall access.
     expect((await db.user.findUniqueOrThrow({ where: { id: user.id } })).role).toBe('USER')
     expect(await db.stallGrant.count({ where: { userId: user.id } })).toBe(0)
 

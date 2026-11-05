@@ -4,9 +4,6 @@ import { useByText, whenText } from '@web/modules/flash-drop/flash-format'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { effectScope, ref } from 'vue'
 
-// Live flash deal updates: pushes re-read the map's drops (at most once a second), a reconnect
-// catches up, and claimed codes outlive the claim window. Every drop and code is SYNTHETIC.
-
 const rest = vi.hoisted(() => ({ active: vi.fn(), myCodes: vi.fn(), claim: vi.fn() }))
 vi.mock('@web/lib/api-client', () => ({
   api: { flashDrops: { active: rest.active, myCodes: rest.myCodes, claim: rest.claim } },
@@ -27,7 +24,7 @@ vi.mock('@web/modules/flash-drop/flash-channel', async (importOriginal) => ({
 const { coalesce } = await import('@web/modules/flash-drop/flash-channel')
 const { createFlashDrops } = await import('@web/modules/flash-drop/use-flash-drops')
 
-const NOW = Date.parse('2026-11-01T10:00:00.000Z') // 6:00 pm in Singapore
+const NOW = Date.parse('2026-11-01T10:00:00.000Z')
 const DROP_ID = 'aaaaaaaaaaaaaaaaaaaaaaaa'
 const inMinutes = (minutes: number) => new Date(NOW + minutes * 60_000).toISOString()
 
@@ -41,7 +38,6 @@ const code = (overrides: Partial<FlashCode> = {}): FlashCode => ({
   discountPercent: null,
   flashPriceCents: 150,
   claimedAt: inMinutes(-40),
-  // Claiming closed ten minutes ago, but the code works until tonight.
   endsAt: inMinutes(-10),
   expiresAt: inMinutes(300),
   active: true,
@@ -65,7 +61,6 @@ describe('coalesce', () => {
     expect(work).toHaveBeenCalledTimes(1)
     vi.advanceTimersByTime(1000)
     expect(work).toHaveBeenCalledTimes(2)
-    // Nothing waiting: the next window passes quietly.
     vi.advanceTimersByTime(1000)
     expect(work).toHaveBeenCalledTimes(2)
   })
@@ -122,7 +117,6 @@ describe('live flash drops on the map', () => {
     channel.handlers?.onChange({ dropId: DROP_ID, kind: 'CLAIMED' })
     await flush()
     expect(rest.active).toHaveBeenCalledTimes(2)
-    // A claim by someone else leaves my codes alone.
     expect(rest.myCodes).toHaveBeenCalledTimes(1)
     stop()
     expect(channel.close).toHaveBeenCalled()

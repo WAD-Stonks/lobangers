@@ -7,7 +7,6 @@ import { createApiClient } from '@broke-oclock/api-client'
 import express from 'express'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 
-// Synthetic database/native identity boundaries; HTTP authorization is real router code.
 const mocks = vi.hoisted(() => ({
   count: vi.fn(),
   user: vi.fn(),

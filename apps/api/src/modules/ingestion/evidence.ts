@@ -111,7 +111,6 @@ export const getDraftEvidence = async (
     orderBy: { id: 'asc' },
     take: query.limit + 1,
   })
-  // Membership is in the parent operational scope; include ALL its citations, even disabled sources.
   return boundedEvidence(
     evidencePageSchema.parse({
       items: rows.slice(0, query.limit).map(metadata),

@@ -2,8 +2,6 @@
 import ShellIcon from '@web/modules/map-shell/ShellIcon.vue'
 import { onBeforeUnmount, onMounted, ref, useId } from 'vue'
 
-// The floating chat window on the All Deals page. It takes the same slots as PanelFrame (the
-// conversation, then a sticky action bar for the message box), so LobbiePanel can sit in either.
 defineProps<{ title: string }>()
 defineSlots<{ default(): unknown; actions?(): unknown }>()
 const emit = defineEmits<{ close: [] }>()
@@ -115,7 +113,6 @@ onBeforeUnmount(() => resizes?.disconnect())
   outline-offset: 2px;
 }
 
-/* The only part that scrolls. */
 .lobbie-window__body {
   flex: 1 1 auto;
   min-height: 0;
@@ -129,7 +126,6 @@ onBeforeUnmount(() => resizes?.disconnect())
   border-top: 1px solid var(--hairline);
 }
 
-/* Phones: a slimmer header and edges leave more of the screen for the conversation. */
 @media (max-width: 599.98px) {
   .lobbie-window {
     border-radius: 22px;

@@ -21,8 +21,6 @@ import { venueDetailResponseSchema, venueParamsSchema } from '@broke-oclock/cont
 
 const maxDeals = 50
 const maxPastDeals = 20
-// Outlet proof is checked in memory, so past rows are read a page at a time: a single
-// database limit could be filled entirely by rows the proof check then drops.
 const pastPageSize = 50
 
 type Database = RestContext['db']
@@ -43,7 +41,6 @@ const findVenue = (database: Database, venueId: string) =>
     },
   })
 
-// deals shown publicly at this venue: approved, not edited since review, published, not deleted
 const atVenueWhere = (database: Database, venue: Venue): DealWhere => ({
   reviewStatus: 'APPROVED',
   reviewedVersion: { equals: database.deal.fields.contentVersion },
@@ -64,8 +61,6 @@ const appliesAt =
   (deal: PublicOutletScopeRow & { terms?: string | null }): boolean =>
     mapVenuesFor(deal).venues.some((candidate) => candidate.id === venue.id)
 
-// An unproven outlet has a page only while some public deal is pinned here, by legacy
-// retention or as an unconfirmed outlet, matching the map. A point alone never does.
 const hasRetainedDeal = async (database: Database, venue: Venue, where: DealWhere) => {
   const rows = await database.deal.findMany({
     where,
@@ -74,7 +69,6 @@ const hasRetainedDeal = async (database: Database, venue: Venue, where: DealWher
   return (await withOutletScopes(database, rows)).some(appliesAt(venue))
 }
 
-// ongoing deals have started and have not yet reached validUntil
 const findOngoing = async (database: Database, venue: Venue, where: DealWhere, now: Date) => {
   const rows = await database.deal.findMany({
     where: { AND: [where, publicCurrentWindowWhere(now)] },
@@ -93,8 +87,6 @@ const findOngoing = async (database: Database, venue: Venue, where: DealWhere, n
       rawValidityText: true,
     },
   })
-  // Relations load together; limits apply after proof filtering so held rows cannot crowd out
-  // eligible campaigns.
   const [scoped, media] = await Promise.all([
     withOutletScopes(database, rows),
     withDealMedia(database, rows),
@@ -106,8 +98,7 @@ const findOngoing = async (database: Database, venue: Venue, where: DealWhere, n
     .map((deal) => ({ ...deal, ...(mediaById.get(deal.id) ?? { sources: [], images: [] }) }))
 }
 
-// past deals whose exclusive validUntil is over. On Mongo, Prisma orders a null date before
-// every real one, so an open-ended deal (validUntil null) needs excluding outright.
+// Prisma on Mongo sorts null dates first, so open-ended deals have to be excluded explicitly.
 const findPastPage = async (
   database: Database,
   venue: Venue,

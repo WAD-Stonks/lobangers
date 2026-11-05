@@ -41,7 +41,6 @@ const fixtureFetch = async (input: URL | RequestInfo, init?: RequestInit) => {
   const request = new Request(input, init)
   const url = new URL(request.url)
 
-  // The test server is the only allowed non-fixture network destination.
   if (url.hostname === '127.0.0.1') return originalFetch(input, init)
 
   if (url.hostname === fixtureIngestHost && url.pathname === '/route-metadata') {
@@ -149,10 +148,9 @@ beforeAll(async () => {
   mongo = await MongoMemoryReplSet.create({
     replSet: { count: 1, storageEngine: 'wiredTiger', ip: '127.0.0.1' },
   })
-  // Never consume a configured DATABASE_URL: always use this fresh disposable replica set.
   const databaseUrl = mongo.getUri(`integration_${randomUUID().replaceAll('-', '')}`)
   vi.stubEnv('DATABASE_URL', databaseUrl)
-  // Do not block the event loop: the in-memory Mongo process needs its output drained.
+  // Don't block the event loop: the in-memory Mongo process needs its output drained.
   await pushDisposableSchema(databaseUrl)
 
   const { db } = await import('@broke-oclock/db')
@@ -395,7 +393,6 @@ describe('real HTTP UploadThing infrastructure', () => {
       fileKey: file.key,
       callbackData: { uploadedBy: user.userId, key: file.key, url: file.ufsUrl },
     })
-    // The completed upload is recorded with its uploader, unattached to any deal yet.
     expect(
       await database.uploadedFile.findUnique({
         where: { key: file.key },

@@ -1,5 +1,3 @@
-// Focus helpers shared by forms and modal sheets.
-
 const FOCUSABLE = [
   'a[href]',
   'button:not([disabled])',
@@ -11,7 +9,6 @@ const FOCUSABLE = [
 
 const INVALID = '[aria-invalid="true"], .is-invalid'
 
-// Moves focus to the first field marked invalid inside `root`. Returns whether one was found.
 export const focusFirstInvalid = (root: ParentNode | null | undefined): boolean => {
   const field = root?.querySelector<HTMLElement>(INVALID)
   if (!field) return false
@@ -24,7 +21,6 @@ export const focusableWithin = (root: ParentNode): HTMLElement[] =>
     (element) => !element.hasAttribute('inert') && element.getClientRects().length > 0,
   )
 
-// Keeps Tab and Shift+Tab inside `root`. Call from a keydown handler on the dialog.
 export const trapTabKey = (event: KeyboardEvent, root: HTMLElement | null): void => {
   if (event.key !== 'Tab' || !root) return
   const items = focusableWithin(root)

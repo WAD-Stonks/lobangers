@@ -11,8 +11,7 @@ export const authGeneration = (version: number | null | undefined) =>
 const unauthorized = () => new DomainError('UNAUTHORIZED')
 const objectId = /^[a-f0-9]{24}$/
 
-// Never trust cached native-session identity, role, generation or freshness fields.
-// A legacy missing/null generation is zero; missing loginAt is NOT fresh login.
+// Don't trust cached session identity, role, generation or freshness.
 export const readActiveSession = async (
   db: Reader,
   actor: AuthenticatedActor,
@@ -57,9 +56,6 @@ export const readActiveSession = async (
   return { user, session }
 }
 
-// Both conditional, meaningful writes must be inside the eventual mutation transaction.
-// User touch conflicts with suspension/generation changes; Session touch conflicts with
-// single-session revocation. Do not renew expiry or change primary-login origin here.
 export const requireActiveSessionWrite = async (
   tx: AccessTransaction,
   actor: AuthenticatedActor,

@@ -18,7 +18,6 @@ import {
 } from '@broke-oclock/contracts/presence'
 import { describe, expect, it } from 'vitest'
 
-// A small seeded generator so the sweep below is repeatable.
 const seeded = (seed: number) => {
   let state = seed >>> 0
   return () => {
@@ -65,7 +64,6 @@ describe('fuzzPoint', () => {
 
   it('flips an offset that would cancel the snap back onto the raw point', () => {
     const centre = snapToGrid(TAMPINES)
-    // A raw point 50 m north of its cell centre, and the offset that would land right on it.
     const raw = { lat: centre.lat + 50 / 111_320, lng: centre.lng }
     expect(snapToGrid(raw)).toEqual(centre)
     const stored = fuzzPoint(raw, { north: 50, east: 0 })

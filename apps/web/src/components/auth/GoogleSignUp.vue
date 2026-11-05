@@ -6,8 +6,6 @@ import { authClient } from '@web/lib/auth-client'
 import { safeRedirect } from '@web/router/guards'
 import { onMounted, onUnmounted, ref } from 'vue'
 
-// Sign up with Google under the email form. Google makes the account on first use, so this is
-// the same call as signing in; it only shows when the server has Google switched on.
 const props = withDefaults(defineProps<{ destination?: string; disabled?: boolean }>(), { destination: '/deals', disabled: false })
 const methods = ref<AuthMethodsResponse | null>(null)
 const pending = ref(false)
@@ -16,7 +14,7 @@ let alive = true
 
 onMounted(async () => {
   try { const result = await api.infrastructure.authMethods(); if (alive) methods.value = result }
-  catch { /* No Google button: the email form still works. */ }
+  catch {}
 })
 onUnmounted(() => { alive = false })
 
@@ -26,7 +24,6 @@ const google = async () => {
   error.value = ''
   const destination = safeRedirect(props.destination, '/deals')
   const callback = new URL(destination, window.location.origin).href
-  // A failed Google round trip lands on log in, which shows the error and keeps the destination.
   const errorCallback = new URL(`/login?redirect=${encodeURIComponent(destination)}`, window.location.origin).href
   try {
     const result = await authClient.signIn.social({ provider: 'google', callbackURL: callback, newUserCallbackURL: callback, errorCallbackURL: errorCallback })

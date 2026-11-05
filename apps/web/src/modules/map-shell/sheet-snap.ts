@@ -1,5 +1,3 @@
-// Snap rules for the bottom sheet. Heights are ascending (peek, half, full). Velocity is in
-// px/ms and positive when the sheet is growing (finger moving up).
 export const FLICK_VELOCITY = 0.11
 
 type Release = { readonly height: number; readonly velocity: number; readonly start: number }

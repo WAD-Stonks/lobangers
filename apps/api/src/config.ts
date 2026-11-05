@@ -22,13 +22,11 @@ export type AppConfig = {
     groq?: { apiKey: string; model: string }
     clientIpHeader: string | null
   }
-  // Present only when RESEND_API_KEY and EMAIL_FROM are both set to real values.
   email?: { apiKey: string; from: string }
   authProviders?: {
     google?: { clientId: string; clientSecret: string }
     email?: { apiKey: string; from: string }
   }
-  // Present only when all four PUSHER_* values are set; rooms fall back to polling otherwise.
   pusher?: { appId: string; key: string; secret: string; cluster: string }
   places?: { apiKey: string }
 }
@@ -62,7 +60,6 @@ const parsePort = (value: string | undefined): number => {
     throw new Error('PORT must be an integer between 1 and 65535')
   return port
 }
-// Accept SRV and replica-set host lists; the MongoDB driver validates the complete URI.
 const validateDatabaseUrl = (value: string): string => {
   if (!/^mongodb(?:\+srv)?:\/\/[^/\s]+\/[^?/#\s]+(?:\?[^#\s]*)?$/.test(value))
     throw new Error(

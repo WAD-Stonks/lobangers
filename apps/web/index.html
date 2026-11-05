@@ -9,7 +9,7 @@
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <title>Lobangers</title>
     <meta name="theme-color" content="#fcfbf8" />
-    <!-- Link previews. og:image must be absolute; update it if the production domain changes. -->
+    <!-- og:image must be an absolute URL -->
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="Lobangers" />
     <meta property="og:title" content="Lobangers" />
@@ -19,7 +19,6 @@
     <meta property="og:image:height" content="630" />
     <meta property="og:image:alt" content="Lobangers logo with the line Bang for your buck." />
     <meta name="twitter:card" content="summary_large_image" />
-    <!-- Apply the saved or system theme before first paint; src/lib/theme.ts owns it afterwards. -->
     <script>
       (() => {
         let theme = null
@@ -38,7 +37,6 @@
       })()
     </script>
     <link rel="preload" href="/fonts/lobang-pop-v6/LobangPop-Heavy.woff2" as="font" type="font/woff2" crossorigin />
-    <!-- Fredoka for titles and pills, Plus Jakarta Sans for body text; main.css falls back to system fonts offline. -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link

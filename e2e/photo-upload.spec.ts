@@ -16,7 +16,6 @@ test('photo uploader uses the same-origin SDK route and surfaces unavailable sto
   })
   await page.goto('/')
   const result = await page.evaluate(async () => {
-    // Load the actual client module through Vite; only the provider/HTTP boundary is stubbed.
     const path = '/src/lib/photo-upload.ts'
     const { uploadPhoto } = await import(/* @vite-ignore */ path)
     try {

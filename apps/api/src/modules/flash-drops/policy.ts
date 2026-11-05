@@ -7,8 +7,6 @@ import {
   type FlashDropView,
 } from '@broke-oclock/contracts/flash-drops'
 
-// Pure Flash Drop rules, shared by the merchant, admin and public handlers.
-
 export type StoredStatus =
   | 'DRAFT'
   | 'PENDING'
@@ -17,8 +15,6 @@ export type StoredStatus =
   | 'STOPPED'
   | 'ENDED_EARLY'
 
-// Drafts the merchant can still edit and send live. PENDING and SENT_BACK are left over from the
-// old admin review flow and are treated as drafts.
 export const DRAFT_STATUSES = ['DRAFT', 'PENDING', 'SENT_BACK'] as const
 export const isDraft = (status: StoredStatus) =>
   (DRAFT_STATUSES as readonly StoredStatus[]).includes(status)
@@ -35,14 +31,12 @@ const MINUTE_MS = 60_000
 const HOUR_MS = 3_600_000
 const DAY_MS = 86_400_000
 const SINGAPORE_OFFSET_MS = 8 * HOUR_MS
-// A form filled in a minute ago with "start now" is still on time.
 const START_GRACE_MS = MINUTE_MS
 const EARTH_RADIUS_METRES = 6_371_000
 const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
 const CODE_LENGTH = 6
 
 export const displayStatus = (drop: DropTiming, now: Date): FlashDropDisplayStatus => {
-  // A draft stays a draft until the merchant presses Go live, even once its saved time passes.
   if (isDraft(drop.status)) return 'DRAFT'
   if (drop.status === 'STOPPED') return 'STOPPED'
   if (drop.status === 'ENDED_EARLY') return 'ENDED'
@@ -51,7 +45,6 @@ export const displayStatus = (drop: DropTiming, now: Date): FlashDropDisplayStat
   return drop.claimedCount >= drop.codeLimit ? 'ENDED' : 'LIVE'
 }
 
-// Which admin tab a flash deal shows in; drafts are the merchant's own and show in none.
 const VIEW_OF: Record<FlashDropDisplayStatus, FlashDropView | null> = {
   DRAFT: null,
   SCHEDULED: 'scheduled',
@@ -76,8 +69,6 @@ export const distanceMetres = (a: Point, b: Point): number => {
 
 export type Placed = Point & { startsAt: Date; endsAt: Date; radiusMetres: number }
 
-// Two drops clash when their windows overlap and their circles touch, so one person could see
-// two banners at once.
 export const clashes = (a: Placed, b: Placed): boolean =>
   a.startsAt < b.endsAt &&
   b.startsAt < a.endsAt &&
@@ -85,20 +76,16 @@ export const clashes = (a: Placed, b: Placed): boolean =>
 
 export const manyCodes = (codeLimit: number) => codeLimit > FLASH_DROP_MANY_CODES
 
-// The window a merchant asked for, or a clear reason it cannot run. Checked when a draft is
-// saved and again when it goes live, since a saved time can pass while it waits.
 export const scheduleWindow = (startsAtIso: string, durationMinutes: number, now: Date) => {
   const startsAt = new Date(startsAtIso)
   if (startsAt.getTime() < now.getTime() - START_GRACE_MS)
     throw new DomainError('BAD_REQUEST', 'A flash deal cannot start in the past')
   if (startsAt.getTime() > now.getTime() + FLASH_DROP_MAX_LEAD_DAYS * DAY_MS)
     throw new DomainError('BAD_REQUEST', 'A flash deal can start at most a week from now')
-  // "Start now" begins at the moment it is sent, never a minute in the past.
   const start = startsAt < now ? now : startsAt
   return { startsAt: start, endsAt: new Date(start.getTime() + durationMinutes * MINUTE_MS) }
 }
 
-// The last moment of the Singapore day that `at` falls in (11:59:59.999 pm).
 const endOfSingaporeDay = (at: Date) =>
   new Date(
     (Math.floor((at.getTime() + SINGAPORE_OFFSET_MS) / DAY_MS) + 1) * DAY_MS -
@@ -112,8 +99,6 @@ const VALIDITY_MS: Record<Exclude<FlashCodeValidity, 'END_OF_DAY'>, number> = {
   SEVEN_DAYS: 7 * DAY_MS,
 }
 
-// When claimed codes stop working: counted from when claiming closes, so people can claim in
-// the short window and still have time to get to the counter.
 export const codesExpireAt = (claimingEndsAt: Date, validity: FlashCodeValidity): Date =>
   validity === 'END_OF_DAY'
     ? endOfSingaporeDay(claimingEndsAt)
@@ -125,14 +110,10 @@ export type CodeTiming = {
   codesExpireAt: Date | null
 }
 
-// A claimed code is good until it expires, even after claiming closes or the merchant ends the
-// drop early; an admin removing the drop cancels it. Older drops have no expiry, and their codes
-// end with the window as they always did.
 export const codeIsActive = (drop: CodeTiming, now: Date): boolean => {
   if (!drop.codesExpireAt) return drop.status === 'APPROVED' && drop.endsAt > now
   return (drop.status === 'APPROVED' || drop.status === 'ENDED_EARLY') && drop.codesExpireAt > now
 }
 
-// Short codes people read out at a counter: no 0/O or 1/I to mix up.
 export const newClaimCode = (random: (max: number) => number): string =>
   `LB-${Array.from({ length: CODE_LENGTH }, () => CODE_ALPHABET[random(CODE_ALPHABET.length)]).join('')}`

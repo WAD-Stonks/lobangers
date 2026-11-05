@@ -1,7 +1,5 @@
 import type { Page } from '@playwright/test'
 
-// Labelled synthetic fixtures for the community-feature journeys (pins, Flash Drop, Makan Squad
-// and Hungry Nearby). Every record is fake; nothing here touches a real account or database.
 export const HOME = { latitude: 1.3236, longitude: 103.9273 }
 
 const venue = (id: string, name: string, lat: number, lng: number) => ({ id, name, lat, lng })
@@ -81,7 +79,6 @@ export const DEALS = [
   }),
 ]
 
-// The public reads every map screen makes. Writes are mocked by each journey.
 export const mockPublicApi = async (page: Page, deals: readonly unknown[] = DEALS) => {
   await page.route('**/api/deals*', (route) =>
     route.fulfill({ json: { items: deals, categories: ['FOOD', 'DRINKS', 'BAKERY'] } }),
@@ -119,7 +116,6 @@ export const SYNTHETIC_USER = {
   updatedAt: new Date().toISOString(),
 }
 
-// A signed-in synthetic visitor. Registered after mockPublicApi so it wins for /api/me.
 export const mockSignedIn = async (page: Page) => {
   const expiresAt = new Date(Date.now() + 86_400_000).toISOString()
   await page.route('**/api/auth/get-session*', (route) =>
@@ -146,7 +142,6 @@ export const mockSignedIn = async (page: Page) => {
 
 const inMinutes = (minutes: number) => new Date(Date.now() + minutes * 60_000).toISOString()
 
-// A live, fake Flash Drop on the synthetic chicken rice deal.
 export const flashDrop = (overrides: Record<string, unknown> = {}) => ({
   id: 'e1'.repeat(12),
   dealId: 'd2'.repeat(12),
@@ -162,7 +157,6 @@ export const flashDrop = (overrides: Record<string, unknown> = {}) => ({
   usualPriceCents: 350,
   startsAt: inMinutes(-5),
   endsAt: inMinutes(25),
-  // Codes outlive the claim window.
   codesExpireAt: inMinutes(300),
   radiusMetres: 500,
   codesLeft: 12,
@@ -171,10 +165,8 @@ export const flashDrop = (overrides: Record<string, unknown> = {}) => ({
   ...overrides,
 })
 
-// Live drops, claiming (one code per person) and My codes, kept in memory per page.
 export const mockFlashApi = async (page: Page, drops: readonly ReturnType<typeof flashDrop>[]) => {
   const codes: Record<string, unknown>[] = []
-  // No Pusher here, as on a server without it: the map polls.
   await page.route('**/api/flash-drops/realtime', (route) =>
     route.fulfill({ json: { pusher: null } }),
   )

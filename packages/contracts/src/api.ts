@@ -1,6 +1,5 @@
 import { z } from 'zod'
 
-// Shared JSON schemas; no database or auth-server imports.
 export const apiErrorCodeSchema = z.enum([
   'BAD_REQUEST',
   'PAYLOAD_TOO_LARGE',

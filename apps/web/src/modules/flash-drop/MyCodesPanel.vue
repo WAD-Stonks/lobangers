@@ -9,9 +9,6 @@ import { dealLocation } from '@web/modules/map-shell/shell-routes'
 import { computed, onMounted, ref } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 
-// Every Flash Drop code the visitor has claimed: the ones still good first, ready to show at
-// the counter, then the ones that have expired or were cancelled. A code outlives the short
-// claim window and works until its own expiry.
 const flash = useFlashDrops()
 const session = authClient.useSession()
 const route = useRoute()
@@ -23,8 +20,6 @@ const active = computed(() => (flash?.codes.value ?? []).filter(isActive))
 const past = computed(() => (flash?.codes.value ?? []).filter((code) => !isActive(code)))
 const loginTo = computed(() => ({ name: 'login', query: { redirect: route.fullPath } }))
 
-// Until the first load answers, say so instead of flashing the empty state. A failed load says
-// so too, with a retry, rather than showing "No codes yet".
 const loading = ref(false)
 const loadFailed = ref(false)
 const load = async () => {

@@ -102,7 +102,6 @@ onBeforeUnmount(() => {
     </svg>
     <button type="button" class="hero-landmark hero-flyer" aria-label="Spin the Singapore Flyer" @click="spin">
       <svg viewBox="0 0 124 150" aria-hidden="true" focusable="false">
-        <!-- An opaque backing covers every spoke of the raster wheel. -->
         <circle cx="62" cy="62" r="64" fill="#fff1d2" />
         <path d="M39 144L62 73L86 144" fill="none" stroke="#314d5a" stroke-width="7" stroke-linejoin="round" />
         <g class="hero-flyer-wheel">
