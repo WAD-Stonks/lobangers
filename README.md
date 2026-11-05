@@ -60,7 +60,7 @@ The tests cover the customer journey (finding, opening, saving and discussing de
 | Suite | Command | Tests | Time (Apple M4) |
 | --- | --- | --- | --- |
 | Unit | `pnpm run test:unit` | ~2,800 | ~1 min |
-| End-to-end (browser) | `pnpm run test:e2e` | 103 | ~2–3 min |
+| End-to-end (browser) | `pnpm run test:e2e` | 133 | ~2–3 min |
 
 ### Unit testing
 
@@ -178,7 +178,7 @@ We walked through the app as users on phones and desktops, looking for bugs and 
 - On mobile, merchants were unable to reach the dashboard as the header menu was unavailable for them due to the width of the screen being smaller. So we replaced the “share” button at the navigation bar with “dashboard”
 - Merchants were still offered “Add a deal” which was meant for normal users. A separate add deal form was created for merchants and the button to the new form was placed within the merchant dashboard so it was more streamlined.
 
-#### Lower-order tasks we gave to AI
+### Lower-order tasks we gave to AI
 These fall within the uses FAQ 20 allows:
 - Boilerplate and configuration: the monorepo setup, build and CI scripts, lint and TypeScript config.
 - Generating test cases, fixtures and mock data for user journeys we specified.
@@ -196,12 +196,12 @@ what to leave out to keep it uncluttered.
 - Delegated the features among team members and set priorities as the deadline approached, including cutting or postponing features that didn't serve the core problem.
 - Design logo and determine the overall look, feel and theme of app.
 
-## Data
+#### Data
 - Chose to use real Singapore deal data instead of dummy data and chose
 the sources it is imported from.
 - Set the data-quality rules for imported deals: an outlet is only marked verified if its address appears in the deal's source or the brand's official store list and OneMap matches it to the same postal code. Deals limited to certain days keep those limits in their terms text.
 
-## Business rules (designed manually by us; the code was then assisted with AI from these specs)
+#### Business rules (designed manually by us; the code was then assisted with AI from these specs)
 - Squad: a strict majority of "yay" votes is a match, 80% choosing "next" skips a deal, a host hand-over when the host leaves, and late joiners who can watch but not vote.
 - Flash deals: one code per person, a fixed number of codes per drop, codes that stay valid for a set time after claiming closes, and readable codes with no 0/O or 1/I.
 - Community verification: a deal counts as "verified" after at least 3 "still on" votes, at least 80% positive, within 24 hours. 
@@ -219,11 +219,11 @@ the sources it is imported from.
 - Merchant flash deals: each flash deal runs at a single outlet, and two flash deals at the same outlet cannot overlap in time. Nothing is announced to customers until the merchant confirms it. It can start right away or at a scheduled time up to a week ahead, but never in the past. When a merchant ends one early, customers who already claimed a code can still use it.
 - Merchants do not use the customers “Add-a-deal” Flow. They’re sent to their own dashboard instead to add a deal in their own “add-a-deal” form.
 
-## Technical decisions
+#### Technical decisions
 - Chose the external APIs (OneMap, UploadThing, Resend, WordPress REST, Pusher, Gemini/Groq, Google Maps) and decided how they fit together.
 - Chose MongoDB as the data store, deploying on Vercel, and using Pusher for live updates with polling as the fallback.
 
-## Review, testing and evaluation
+#### Review, testing and evaluation
 - Reviewed every AI plan before implementation and challenged it on edge cases.
 - Ran the daily walkthroughs and usability reviews described above, and decided what to fix.
 - Worked through a pull-request process (91 merged PRs). Each PR used our template, which includes a check on mobile and keyboard use and a check for authorization edge cases. Team members reviewed and merged each other's work and resolved conflicts between features.
