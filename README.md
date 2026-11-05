@@ -12,7 +12,15 @@
 | 5 | Lwin Moe Htet | mh.lwin.2025 |
 | 6 | Wong Kang En | kangen.wong.2025 |
 
-Lobangers helps students in Singapore find discounted food near them. It brings scattered food promotions into one map and searchable feed, lets the community submit and verify deals, and gives stall owners their own dashboard for promotions.
+___
+
+## What is _LoBangers_?
+Food prices in Singapore keep rising with inflation, and cheap meals are hardest to find in the city area, where many campuses and workplaces are. Deals do exist, but they're scattered across Telegram channels like @ThisCounted and Scoobify. These are chronological feeds, so deals scroll out of view quickly, can't be filtered by location or category, and often stay up after they've expired. Many also apply only at specific outlets. Students sometimes travel to an outlet only to find the promotion has ended, or that it was never valid there. A student on a tight budget has no easy way to see what discounted food is near them right now.
+
+LoBangers pulls deals from these channels onto a single map, where students can find currently valid deals by location, cuisine and price. Users can submit deals they spot in person and confirm or report existing ones, which keeps listings accurate after the original post goes stale. Stall owners can publish and manage promotions for their authorised stalls through a merchant dashboard kept separate from platform admin.
+
+___
+
 
 ## Hosted application
 
