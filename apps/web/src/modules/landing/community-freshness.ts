@@ -1,8 +1,8 @@
 import {
-  COMMUNITY_POLICY,
   type CommunityStatus,
   communityStatus,
   communityStatusLabels,
+  DEFAULT_COMMUNITY_POLICY,
 } from '@broke-oclock/contracts/community-policy'
 import { formatRelativeTime } from '@web/lib/format'
 import { hawkerPhotoAnchor } from '@web/modules/landing/hawker-projection'
@@ -61,7 +61,7 @@ export function reportAge(report: SampleReport, now = SAMPLE_REPORT_TIME) {
 }
 
 export function deriveCommunityStatus(reports: readonly SampleReport[], now = SAMPLE_REPORT_TIME) {
-  const cutoff = now - COMMUNITY_POLICY.windowHours * 3600000
+  const cutoff = now - DEFAULT_COMMUNITY_POLICY.windowHours * 3600000
   const recent = reports.filter((r) => r.observedAt <= now && r.observedAt > cutoff)
   const current = new Map<string, SampleReport>()
   for (const report of recent) {

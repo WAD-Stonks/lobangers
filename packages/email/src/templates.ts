@@ -100,6 +100,3 @@ export const createEmailOTPEmail = (options: EmailOTPEmailOptions): EmailTemplat
     text: `${subject}: ${options.otp}\n\nThis code expires in 5 minutes. If you did not request it, ignore this email.`,
   }
 }
-
-export const buildVerificationEmail = createVerificationEmail
-export const buildPasswordResetEmail = createPasswordResetEmail

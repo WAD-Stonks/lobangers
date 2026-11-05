@@ -1,7 +1,5 @@
 <script setup lang="ts">
 import TicketLoader from '@web/components/TicketLoader.vue'
-import AuthPrompt from '@web/modules/account/AuthPrompt.vue'
-import { authPrompt } from '@web/modules/account/auth-prompt'
 import '@web/modules/map-shell/shell-ui.css'
 import '@web/modules/map-shell/motion.css'
 import { authClient } from '@web/lib/auth-client'
@@ -97,8 +95,8 @@ const closeDealDialog = () => router.replace(browseLocation(route.query))
 const wide = computed(() => dealsPage.value ||
   (['browse', 'saved', 'deal', 'venue', 'place'].includes(String(route.name)) && shell.cardMode.value),
 )
-const mapOnly = computed(() => !authPrompt.value && isBrowse.value && dealsExperience.value && shell.view.value === 'map' && !shell.split.value)
-const collapsed = computed(() => !authPrompt.value && panelHidden.value && breakpoint.value === 'desktop')
+const mapOnly = computed(() => isBrowse.value && dealsExperience.value && shell.view.value === 'map' && !shell.split.value)
+const collapsed = computed(() => panelHidden.value && breakpoint.value === 'desktop')
 const resultsPreviewHeight = ref<number | null>(null)
 const layout = useShellLayout({ breakpoint, wide, header, collapsed, leftPanel: desktopMap, railVisible: mapPreferences.sidebarVisible, bottomNavigation, resultsPreviewHeight, flush: dealsPage })
 
@@ -222,13 +220,13 @@ const showControls = computed(
 const showZoom = computed(
   () => layout.mode.value === 'side' || layout.mapRoom.value >= CONTROLS_BASE_ROOM_PX + CONTROLS_ZOOM_ROOM_PX,
 )
-const panelLabel = computed(() => authPrompt.value ? 'Log in or sign up' : (typeof route.meta.panelLabel === 'string' ? route.meta.panelLabel : 'Results'))
+const panelLabel = computed(() => (typeof route.meta.panelLabel === 'string' ? route.meta.panelLabel : 'Results'))
 
-const modalInert = computed(() => (sheetOpen.value || (dealDialogOpen.value && !authPrompt.value) || tutorialActive.value ? true : undefined))
+const modalInert = computed(() => (sheetOpen.value || dealDialogOpen.value || tutorialActive.value ? true : undefined))
 const backgroundInert = computed(() => (modalInert.value || navigationOpen.value ? true : undefined))
 const navigationInert = computed(() => bottomNavigation.value ? backgroundInert.value : modalInert.value)
 const headerInert = computed(() => modalInert.value || (navigationOpen.value && desktopMap.value && mapPreferences.sidebarVisible.value) ? true : undefined)
-const panelInert = computed(() => authPrompt.value ? undefined : (collapsed.value || mapOnly.value ? true : backgroundInert.value))
+const panelInert = computed(() => (collapsed.value || mapOnly.value ? true : backgroundInert.value))
 const panelTabLabel = computed(() => `${collapsed.value ? 'Show' : 'Hide'} ${panelLabel.value.toLowerCase()} panel`)
 
 const shellStyle = computed(() => layout.cssVars.value)
@@ -332,7 +330,7 @@ const openPlace = (venueIds: string[]) => {
 
 const lobbieWindowOpen = ref(false)
 const lobbieLauncher = ref<InstanceType<typeof LobbieLauncher> | null>(null)
-const showLobbieLauncher = computed(() => !authPrompt.value && dealsPage.value && isBrowse.value)
+const showLobbieLauncher = computed(() => dealsPage.value && isBrowse.value)
 const toggleLobbieWindow = () => { lobbieWindowOpen.value = !lobbieWindowOpen.value }
 const closeLobbieWindow = () => {
   lobbieWindowOpen.value = false
@@ -349,7 +347,7 @@ const lobbieWindowStyle = computed(() => lobbieViewport.value && {
   '--lobbie-visible-h': `${lobbieViewport.value.height}px`,
 })
 
-const lobbieKept = computed(() => !authPrompt.value && dealsPage.value && (isBrowse.value || dealDialogOpen.value))
+const lobbieKept = computed(() => dealsPage.value && (isBrowse.value || dealDialogOpen.value))
 watch(lobbieKept, (kept) => { if (!kept) lobbieWindowOpen.value = false })
 const closeLobbieOnEscape = (event: KeyboardEvent) => {
   if (event.key === 'Escape' && !sheetOpen.value && !dealDialogOpen.value) closeLobbieWindow()
@@ -419,7 +417,6 @@ watch(shell.split, (split) => { if (split) panelHidden.value = false })
 watch(wide, (isWide) => {
   if (isWide) panelHidden.value = false
 })
-watch(authPrompt, (prompt) => { if (prompt) layout.snap.value = Math.max(1, layout.snap.value) })
 watch(
   () => [route.name, shell.view.value, dealsPage.value] as const,
   ([name, view, page]) => {
@@ -556,12 +553,11 @@ onBeforeUnmount(() => document.documentElement.classList.remove('is-canvas'))
       :collapsed="collapsed"
       :label="panelLabel"
     >
-      <AuthPrompt v-if="authPrompt" />
-      <div v-if="panelLoading && !authPrompt" class="map-shell__panel-loading" role="status" data-testid="panel-loading">
+      <div v-if="panelLoading" class="map-shell__panel-loading" role="status" data-testid="panel-loading">
         <TicketLoader class="map-shell__ticket" />
         <span>Loading…</span>
       </div>
-      <div v-show="!authPrompt && !panelLoading" class="map-shell__panel-route">
+      <div v-show="!panelLoading" class="map-shell__panel-route">
       <BrowseListPanel v-if="listBackground" />
       <RouterView v-else v-slot="{ Component, route: child }">
         <component v-if="mapWorkspace" :is="Component" :key="keyFor(child)" />
@@ -590,7 +586,7 @@ onBeforeUnmount(() => document.documentElement.classList.remove('is-canvas'))
       <LobbieLauncher ref="lobbieLauncher" class="map-shell__lobbie-launcher" :class="{ 'is-hidden': lobbieTyping, 'is-covered': lobbieWindowOpen }" :open="lobbieWindowOpen" controls="lobbie-window" @toggle="toggleLobbieWindow" />
     </template>
 
-    <DealDetailsDialog v-if="dealDialogOpen && !authPrompt" :restore-focus-to="dealDialogTrigger" @close="closeDealDialog" />
+    <DealDetailsDialog v-if="dealDialogOpen" :restore-focus-to="dealDialogTrigger" @close="closeDealDialog" />
 
     <FilterSheet
       :inactive="tutorialActive"

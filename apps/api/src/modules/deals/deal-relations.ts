@@ -6,7 +6,6 @@ import type { db } from '@broke-oclock/db'
 
 type Database = typeof db
 
-// Prisma on Mongo runs each nested relation as its own sequential query, so relations are loaded separately in parallel.
 export const outletScopeKeysSelect = {
   id: true,
   merchantId: true,
@@ -21,6 +20,7 @@ const groupBy = <Row, Key>(rows: readonly Row[], keyOf: (row: Row) => Key) =>
     return groups.set(key, [...(groups.get(key) ?? []), row])
   }, new Map<Key, Row[]>())
 
+// Prisma on Mongo runs each nested relation as its own sequential query, so relations are loaded separately in parallel.
 export const withOutletScopes = async <Deal extends { id: string; merchantId: string | null }>(
   database: Database,
   deals: readonly Deal[],

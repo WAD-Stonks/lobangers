@@ -6,8 +6,6 @@ import {
   EmailTimeoutError,
 } from '@email/errors'
 import {
-  buildPasswordResetEmail,
-  buildVerificationEmail,
   createEmailOTPEmail,
   createPasswordResetEmail,
   createVerificationEmail,
@@ -196,8 +194,6 @@ export type {
   VerificationEmailOptions,
 }
 export {
-  buildPasswordResetEmail,
-  buildVerificationEmail,
   createEmailOTPEmail,
   createPasswordResetEmail,
   createVerificationEmail,
