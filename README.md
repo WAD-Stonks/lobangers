@@ -60,7 +60,7 @@ The tests cover the customer journey (finding, opening, saving and discussing de
 | Suite | Command | Tests | Time (Apple M4) |
 | --- | --- | --- | --- |
 | Unit | `pnpm run test:unit` | ~2,800 | ~1 min |
-| End-to-end (browser) | `pnpm run test:e2e` | 103 | ~2–3 min |
+| End-to-end (browser) | `pnpm run test:e2e` | 133 | ~2–3 min |
 
 ### Unit testing
 
