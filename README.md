@@ -101,7 +101,7 @@ You do **not** need to start the app, the API or the database first. Playwright 
 **What you should see:** Playwright prints one line per test as it runs, using several browsers in parallel, and ends with a summary like:
 
 ```
-  103 passed (2.2m)
+  133 passed (1.2m)
 ```
 
 **To see the results in detail:**
@@ -114,7 +114,7 @@ This opens an HTML report with every test, its steps and, for any failure, a scr
 
 To run a single file, pass its path, for example `pnpm exec playwright test e2e/squad-room.spec.ts`.
 
-**What the end-to-end tests cover:**
+**End-to-end tests coverage:**
 
 | File | What it checks |
 | --- | --- |
@@ -122,12 +122,34 @@ To run a single file, pass its path, for example `pnpm exec playwright test e2e/
 | `landing-usability.spec.ts` | Landing page navigation, deal cards and controls, retrying after a failed load |
 | `map-shell.spec.ts` | Browsing the map: quick filters, pins to deal details, the filters sheet, venues, denied location, keyboard-only use, Ask Lobbie |
 | `responsive.spec.ts` | Every main page fits phone, tablet and desktop widths with no sideways scrolling; sticky bars, filter popup and the map tutorial |
+| `deal-sharing.spec.ts` | Searching for a dish and clearing the search, sharing a deal and opening the shared link while signed out, a link to a deal that is gone |
+| `auth.spec.ts` | Signing up, verifying the email and logging in; a wrong password, then logging in and out; logging in with an email code; resetting a forgotten password |
+| `account.spec.ts` | Saving deals, finding them in Saved and undoing a removal; changing your display name; requesting merchant access for a stall |
+| `add-deal.spec.ts` | Adding a deal step by step with a photo and finding it in My deal submissions; adding a stall that isn't listed yet; a failed photo upload; deleting a submission; being asked to log in first |
 | `community.spec.ts` | Voting a deal still on or expired, commenting, deleting and reporting |
 | `squad-lobby.spec.ts` | Starting a Squad room, joining with a code, wrong code, full room, joining while signed out |
 | `squad-room.spec.ts` | Voting on deals together, matches, the host's controls, late joiners, leaving and rejoining |
 | `flash-drop.spec.ts` | Flash deal banners on the map, claiming a code, viewing it in My codes, sold-out drops |
-| `hungry-nearby.spec.ts` | "Lobangers nearby": seeing other diners, sharing and hiding your own spot |
+| `hungry-nearby.spec.ts` | Seeing other lobangers on map, sharing and hiding your own spot |
 | `shared-login.spec.ts` | Log in with a password, an email code or Google, and password recovery |
 | `photo-upload.spec.ts` | Uploading a deal photo, and the message shown when storage is unavailable |
+| `merchant-deals.spec.ts` | A merchant logs in and opens the dashboard; adds a deal and ends it; schedules, edits and deletes a deal; runs an ended deal again |
 | `merchant-flash-drops.spec.ts` | A merchant drafts, launches, edits, ends and deletes a flash deal |
+| `admin-overview.spec.ts` | An admin logs in to the overview and reaches each workspace from it |
+| `admin-deals.spec.ts` | An admin corrects and approves a community deal, and is stopped from overwriting a deal someone else changed |
+| `admin-ingestion.spec.ts` | An admin opens an imported deal, approves it in Deals and sees it leave the pending imports |
+| `admin-moderation.spec.ts` | A moderator hides a reported comment and resolves the report, or dismisses a report |
+| `admin-catalogue.spec.ts` | An admin verifies an outlet until deals can use it, and corrects an outlet's name |
+| `admin-accounts.spec.ts` | An admin approves a merchant request; changes an account's role, grants stall access and revokes it |
+| `admin-audit.spec.ts` | An admin filters the audit history by action, dates and subject, and reads what an entry changed |
 | `admin-flash-drops.spec.ts` | An admin reviews and removes live flash deals, including edit conflicts |
+
+## 3. Data sources
+
+Deals data were obtained from the following sources:
+- MoneyDigest: https://www.moneydigest.sg/
+- Scoobify Daily: https://scoobifydaily.wordpress.com/
+- EverydayOnSales Singapore: https://sg.everydayonsales.com/sales-category/food-restaurant-pub/
+- ThisCounted (Telegram, @ThisCounted): https://t.me/s/ThisCounted
+- Kiasufoodies (Telegram, @kiasufoodies): https://t.me/s/kiasufoodies
+- GoodLobang (Telegram, @GoodLobang): https://t.me/s/GoodLobang

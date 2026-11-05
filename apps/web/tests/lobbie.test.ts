@@ -135,7 +135,7 @@ describe('createLobbieChat', () => {
       (entry) => entry.role === 'assistant' && entry.failed,
     )
     expect(busy?.text).toContain('My claws are full')
-    expect(failed?.text).toContain("couldn't fetch deals")
+    expect(failed?.text).toContain("couldn't answer that just now")
 
     await chat.ask('three')
     expect(send.mock.calls[2]?.[0].messages).toEqual([
