@@ -28,33 +28,20 @@ Sign in at https://lobangers.vercel.app/sign-in.
 
 | Role | Email | Password |
 | --- | --- | --- |
-| Admin | `professor-admin@demo.example.test` | `pJ6_5RqQlrQ9xF1jGUqXVz3NUUJsqYIY` |
 | Customer | `professor-customer@demo.example.test` | `IBkjrZGzuT0C3fpWgnoH93ong4S4FmqY` |
-
-## Technology
-
-- **Frontend:** Vue 3, TypeScript, Vue Router, Vite, Bootstrap 5, Leaflet
-- **Backend:** Express 5, TypeScript, Zod, Better Auth
-- **Database:** MongoDB, Prisma
-- **External services:** OneMap (address search), UploadThing (images), Resend (email), WordPress REST API (deal import)
-- **Tooling:** pnpm workspaces, Biome, Vitest, Playwright
-
-Repository layout:
-
-- `apps/web`: Vue frontend
-- `apps/api`: Express REST API
-- `packages`: shared code (auth, database, contracts, API client, integrations, email, storage, UI)
-- `e2e`: Playwright browser tests
-- `scripts`: setup, development and build scripts
+| Admin | `professor-admin@demo.example.test` | `pJ6_5RqQlrQ9xF1jGUqXVz3NUUJsqYIY` |
+| Merchant | `Isaacfromisaac@gmail.com` | `1234567890`|
 
 ## 1. How to Run
-From the repository root, install dependencies and create local configuration:
+From the repository root, install dependencies and create local configuration by running the following commands:
 
 ```sh
 pnpm install --frozen-lockfile --ignore-scripts
 pnpm run setup
 ```
-Fill in the .env file. Then, open two terminals at the repository root.
+`pnpm run setup` creates a `.env` file at the repository root. Replace its contents with the contents of the `.env` file included in our submission.
+
+Then open two terminals at the repository root.
 
 **Terminal 1: start the local database**
 
@@ -75,23 +62,13 @@ Then open:
 - Frontend: http://localhost:5173
 - API: http://localhost:3000
 
-### Optional: load demo data
-
-The local database can be seeded with fake data. First register two  accounts at http://localhost:5173/register, then run this command:
-
-```sh
-pnpm --dir apps/api run seed:local-demo 
-```
-
-
 ## 2. Testing the application
 
-The tests cover the customer journey (finding, opening, saving and discussing deals, Squad rooms, flash deals, signing in) plus the merchant and admin flash-deal tools. On an Apple M4 laptop the three suites together take about **8 minutes**:
+The tests cover the customer journey (finding, opening, saving and discussing deals, Squad rooms, Lobbie recommendations, flash deals, signing in) plus the merchant and admin flash-deal tools. On an Apple M4 laptop the three suites together take about **8 minutes**:
 
 | Suite | Command | Tests | Time (Apple M4) |
 | --- | --- | --- | --- |
 | Unit | `pnpm run test:unit` | ~2,800 | ~1 min |
-| Integration (API + database) | `pnpm run test:integration` | 439 | ~4 min |
 | End-to-end (browser) | `pnpm run test:e2e` | 103 | ~2–3 min |
 
 Run every command from the repository root, after the install and `pnpm run setup` steps in section 1.
@@ -102,17 +79,10 @@ Run every command from the repository root, after the install and `pnpm run setu
 pnpm run test:unit
 ```
 
-### Integration testing
-
-```sh
-pnpm run test:integration
-```
-
-These tests start their own temporary in-memory MongoDB, so they never touch the real database. The first run downloads a MongoDB binary (about 100 MB), so it needs an internet connection and takes a little longer.
 
 ### End-to-end testing
 
-The end-to-end tests drive a real Chromium browser through the app with [Playwright](https://playwright.dev).
+The end-to-end tests drive a Chromium browser through the app with [Playwright](https://playwright.dev).
 
 **1. Install the browser (once):**
 
@@ -133,8 +103,6 @@ You do **not** need to start the app, the API or the database first. Playwright 
 ```
   103 passed (2.2m)
 ```
-
-A test that fails once and then passes on its automatic retry is listed as **flaky** rather than failed. This can happen when the laptop is under heavy load, because some map animations are timing-sensitive. The run only fails if a test fails twice.
 
 **To see the results in detail:**
 
