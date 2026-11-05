@@ -178,7 +178,7 @@ We walked through the app as users on phones and desktops, looking for bugs and 
 - On mobile, merchants were unable to reach the dashboard as the header menu was unavailable for them due to the width of the screen being smaller. So we replaced the “share” button at the navigation bar with “dashboard”
 - Merchants were still offered “Add a deal” which was meant for normal users. A separate add deal form was created for merchants and the button to the new form was placed within the merchant dashboard so it was more streamlined.
 
-### Lower-order tasks we gave to AI
+#### Lower-order tasks we gave to AI
 These fall within the uses FAQ 20 allows:
 - Boilerplate and configuration: the monorepo setup, build and CI scripts, lint and TypeScript config.
 - Generating test cases, fixtures and mock data for user journeys we specified.
