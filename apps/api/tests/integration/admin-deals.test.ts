@@ -111,7 +111,6 @@ beforeAll(async () => {
   app.use(requireBoundedRestQuery)
   app.use(requireJsonRequestBody)
   app.use(express.json())
-  // Before the feature exists, absence becomes an HTTP 404, not an import/harness error.
   const module = await import('@api/rest/routers/admin-deals/index').catch(() => null)
   app.use(
     '/api/admin/deals',

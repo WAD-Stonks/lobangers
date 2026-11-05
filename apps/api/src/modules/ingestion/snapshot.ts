@@ -9,8 +9,6 @@ import {
 } from '@broke-oclock/integrations/server'
 import { z } from 'zod'
 
-// Transport evidence is bounded independently of semantic parser/display limits.
-// A structurally valid but overlong title must survive the subsequent parser failure.
 const rendered = z.object({ rendered: z.string() })
 const wordpressEnvelopeSchema = moneyDigestPostSchema.extend({
   title: rendered,
@@ -33,7 +31,6 @@ const normalizedEnvelopeSchema = z.strictObject({
 export const MAX_EVIDENCE_BYTES = 1024 * 1024
 export const snapshotHash = (text: string) =>
   createHash('sha256').update(text, 'utf8').digest('hex')
-// Store a JSON string, not a JSON object: database reordering must never alter bytes.
 export const captureEnvelope = (input: unknown, source: SourceDefinition) => {
   const original = readProviderEnvelope(input)
   const legacy =
@@ -50,8 +47,6 @@ export const captureEnvelope = (input: unknown, source: SourceDefinition) => {
     value !== null &&
     'id' in value
   ) {
-    // Store the original once, not original + duplicated HTML. The transport's
-    // pure normalizer restores its strict parser projection on a stored replay.
     normalizeScoobifyPost(value)
   } else {
     normalizedEnvelopeSchema.parse(value)

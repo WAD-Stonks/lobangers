@@ -41,8 +41,6 @@ const outletQuery = ref('')
 const venues = ref<PlatformVenue[] | null>(null)
 const venueId = ref('')
 const confirmed = ref(false)
-// Rejecting needs its own tick, like the other admin decisions; it never carries over to
-// another draft, version or note.
 const rejectConfirmed = ref(false)
 const venueCursor = ref<string | null>(null)
 const venuePending = ref(false)
@@ -67,7 +65,6 @@ const categoryPending = ref(false)
 const categoryError = ref('')
 const busy = computed(() => reviewPending.value || associationPending.value || categoryPending.value || investigationBusy.value)
 watch(busy, value => emit('busy', value), { immediate: true, flush: 'sync' })
-// Identity guards survive selection, filter and pagination changes.
 const locks = ref(new Map<string, { version: number; operationVersion: number; after: number }>())
 const highest = new Map<string, Draft>()
 const activeWrites = new Set<string>()
@@ -248,8 +245,6 @@ const setCategory = async () => {
     if (live(epoch)) categoryPending.value = false
   }
 }
-// Reviewers see the exact stored terms ("1250 minor units · SGD"), led by the formatted price
-// when the currency code is valid: "$12.50 (1250 minor units · SGD)". Never a guessed currency.
 const priceText = (draft: Pick<Draft, 'priceMinor' | 'currency'>) => {
   if (draft.priceMinor === null || draft.priceMinor === undefined) return 'Price not supplied'
   const raw = `${draft.priceMinor} minor units · ${draft.currency ?? 'Unknown currency'}`
@@ -257,7 +252,7 @@ const priceText = (draft: Pick<Draft, 'priceMinor' | 'currency'>) => {
   try {
     return `${formatMoneyMinor(draft.priceMinor, draft.currency)} (${raw})`
   } catch {
-    return raw // an unrecognised currency code
+    return raw
   }
 }
 const review = async (decision: IngestionReviewRequest['decision']) => {
@@ -301,7 +296,6 @@ watch(outletQuery, () => { venues.value = null; venueId.value = ''; confirmed.va
 watch([() => props.revision, status], (_value, previous) => {
   if (closed) return
   ++generation; ++request; clearOutlets(); note.value = ''
-  // A context shift makes an in-flight review outcome uncertain for its old target.
   for (const id of activeWrites) lock(id, highest.get(id)?.contentVersion ?? 1)
   reviewPending.value = false; associationPending.value = false; categoryPending.value = false
   if (previous && previous[1] !== status.value) { selectedId.value = null; note.value = ''; items.value = null; reviewError.value = ''; success.value = '' }

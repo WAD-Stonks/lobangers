@@ -42,7 +42,6 @@ export interface OneMapClientOptions {
   readonly email: string
   readonly password: string
   readonly fetch?: typeof fetch
-  /** Unix milliseconds, like Date.now. */
   readonly now?: () => number
 }
 
@@ -77,8 +76,6 @@ const parseMatch = (value: unknown): OneMapMatch => {
 const count = (value: unknown): value is number =>
   typeof value === 'number' && Number.isSafeInteger(value) && value >= 0 && value <= 1_000_000
 const parseResults = (payload: unknown): OneMapMatch[] => {
-  // OneMap can return HTTP 200 AND nonempty results alongside an authentication error.
-  // Presence of `error` is always failure, never a usable search result.
   if (isRecord(payload) && 'error' in payload) {
     if (!validText(payload.error)) throw new OneMapClientError('MALFORMED_RESPONSE')
     const authError =
@@ -181,15 +178,6 @@ const requestJson = async (
   }
 }
 
-/** Server-only transport: credentials and tokens stay inside this client instance.
- * Authentication: https://www.onemap.gov.sg/apidocs/authentication
- * Raw Authorization and HTTP-200 errors: https://www.onemap.gov.sg/apidocs/docs/verifyingsearchapitoken
- * Unix-seconds expiry (normally three days), renewed 30s early; single-flight auth.
- * Search is first-page-only (<=20 matches), <=1 MiB JSON, 10s per HTTP request.
- * Successful query results have an ephemeral 5-minute / 100-entry FIFO cache.
- * No persistent storage or licence/reuse-rights guarantee; consumers own attribution
- * and applicable OneMap API terms. Construction does not authenticate or call search.
- */
 export const createOneMapClient = (options: OneMapClientOptions): OneMapClient => {
   const request = options.fetch ?? globalThis.fetch
   const now = options.now ?? Date.now

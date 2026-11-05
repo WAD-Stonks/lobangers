@@ -24,16 +24,12 @@ const auditInputSchema = z.strictObject({
   action: adminAuditActionSchema,
   subjectType: adminSubjectTypeSchema,
   subjectId: adminObjectIdSchema,
-  // Internal append preserves the legacy ingestion review's full 1000-character note.
-  // Public/new/security write schemas continue to enforce adminNoteSchema's 500 limit.
   note: z.string().trim().min(1).max(1000),
   targetUserId: adminObjectIdSchema.nullish(),
   venueId: adminObjectIdSchema.nullish(),
   details: adminAuditDetailsSchema.optional(),
 })
 
-// Caller supplies the actor returned by its authoritative in-transaction access
-// check. Never call with browser identity or outside the protected write's tx.
 export const appendAdminAudit = async (
   tx: AccessTransaction,
   actor: { id: string; name: string },

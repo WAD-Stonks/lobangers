@@ -16,7 +16,6 @@ import { chooseOption, optionLabels, selectedValue } from '@web-tests/support/se
 import { beforeEach, expect, it, vi } from 'vitest'
 import { createMemoryHistory, createRouter } from 'vue-router'
 
-// Synthetic REST boundary only: these tests do not prove backend authorization.
 vi.mock('@web/pages/LandingPage.vue', () => ({ default: { template: '<div />' } }))
 const rest = vi.hoisted(() => ({
   accounts: vi.fn(),
@@ -74,7 +73,6 @@ vi.mock('@web/lib/api-client', () => ({
     },
   },
 }))
-// Native identity is synthetic here, not real authentication proof.
 vi.mock('@web/lib/auth-client', () => ({
   authClient: {
     useSession: () => ({ value: { refetch: async () => {}, error: null } }),
@@ -914,7 +912,6 @@ async function prepareForbiddenMutation(kind: 'account' | 'request') {
   rest.account.mockResolvedValue({ ...account, role: 'ADMIN' })
   rest.requests.mockResolvedValue({ items: [requestA], nextCursor: null })
   const mutation = kind === 'account' ? rest.changeRole : rest.reviewRequest
-  // The message is deliberately misleading; only a fresh protected read decides access.
   mutation.mockRejectedValue(
     new ApiClientError('FORBIDDEN', 403, 'Your administrator access was revoked'),
   )
@@ -955,7 +952,6 @@ it.each(['account', 'request'] as const)(
       ).toBe(false)
     expect(w.text()).toContain('Loading accounts')
     expect(w.text()).not.toContain('You do not have permission')
-    // A successful ADMIN-only query authorizes even an empty filtered result.
     recheck.resolve({ items: [], nextCursor: null })
     await flushPromises()
     expect(w.find('section[aria-label="Accounts"]').exists()).toBe(true)

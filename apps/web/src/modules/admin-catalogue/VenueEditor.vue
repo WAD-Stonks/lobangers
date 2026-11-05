@@ -23,7 +23,6 @@ const LABELS: Record<string, string> = {
   catalogueKey: 'Catalogue key',
   imageUrl: 'Image URL',
 }
-// The fields a verification receipt is bound to. Changing one of them retires current proof.
 const PROOF_FIELDS = new Set([
   'name',
   'address',
@@ -38,7 +37,7 @@ const props = defineProps<{
   venue?: CatalogueVenueDetail
   parent?: CatalogueMerchant
   disabled: boolean
-  pending?: boolean // a save is in flight
+  pending?: boolean
 }>()
 const emit = defineEmits<{
   save: [body: Record<string, unknown>]
@@ -68,7 +67,6 @@ const slug = (value: string) =>
     .replace(/^-|-$/g, '')
 const titleCase = (value: string) =>
   value.toLowerCase().replace(/(^|[\s(/-])([a-z])/g, (_, gap: string, letter: string) => gap + letter.toUpperCase())
-// OneMap answers in capitals and ends every address with "SINGAPORE <postal code>".
 const tidyAddress = (address: string) =>
   titleCase(address.replace(/\s+SINGAPORE\s+\d{6}\s*$/i, '').trim())
 const pick = (candidate: AddressCandidate) => {
@@ -76,7 +74,6 @@ const pick = (candidate: AddressCandidate) => {
   if (candidate.postalCode) fields.postalCode = candidate.postalCode
   fields.latitude = candidate.latitude.toString()
   fields.longitude = candidate.longitude.toString()
-  // OneMap returns the building's point, not the unit's.
   fields.geographyPrecision = 'PROPERTY'
   if (!props.venue && !fields.name.trim())
     fields.name = `${merchantName}, ${titleCase(candidate.searchValue)}`
@@ -86,7 +83,6 @@ const values = () => ({
   latitude: fields.latitude.trim() === '' ? undefined : Number(fields.latitude),
   longitude: fields.longitude.trim() === '' ? undefined : Number(fields.longitude),
   imageUrl: fields.imageUrl || null,
-  // New outlets get a stable key of their own unless one is given.
   catalogueKey:
     fields.catalogueKey.trim() ||
     (props.venue ? '' : `admin:${slug(merchantName)}-${fields.postalCode.trim() || slug(fields.name)}`),

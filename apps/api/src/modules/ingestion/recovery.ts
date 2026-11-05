@@ -58,8 +58,6 @@ export const providerFor = (
       }
     : null
 }
-// The same identity-only provider parsers protect both read capabilities and
-// admission. A verified hash proves bytes, not ownership of the confirmed post.
 export const readTargetEnvelope = (
   row: Parameters<typeof readEnvelope>[0] & { externalId: string },
   source: SourceDefinition,
@@ -86,10 +84,6 @@ export const recoveryDto = (
     'leaseToken' | 'leaseExpiresAt'
   > | null,
 ) => {
-  // requestedAt is durably captured at admission from the same `started` clock
-  // as the nonrenewable execution budget. Legacy attempts need no additional
-  // owner facts to establish expiry. New attempts also retain their exact owner.
-  // This is indeterminate evidence, NOT repair or proof of actual completion.
   const executionDeadline = new Date(row.requestedAt.getTime() + EXECUTION_BUDGET_MS)
   const ownerLost =
     row.ownerLeaseToken &&
@@ -271,8 +265,6 @@ export const recoverPost = async (
         cursor = result.nextCursor
         if (!cursor) break
       }
-      // A source window is discovery, not an implicit global run or cursor rewind.
-      // Only the confirmed target can be mutated by this recovery.
       inputs = observed
         .filter((value) => {
           try {
@@ -341,11 +333,7 @@ export const recoverPost = async (
     status = 'INTERRUPTED'
     targetOutcome = 'UNKNOWN'
     errorCode = error instanceof DomainError ? error.code : 'INGESTION_FAILED'
-    // Outcome-only bookkeeping for the admitted recovery ID. This cannot mutate
-    // a post, citation, deal, source identity, cursor, opt-in or approval after revocation.
     await db.$transaction(async (tx) => {
-      // Recovery identity authorizes outcome-only terminal bookkeeping even after
-      // lease theft. Never touch the successor owner's source reservation.
       await finish(tx, status, targetOutcome, errorCode)
     })
   } finally {

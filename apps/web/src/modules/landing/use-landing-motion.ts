@@ -1,6 +1,5 @@
 import { onBeforeUnmount, onMounted, type Ref, ref } from 'vue'
 
-// Progressive enhancement: content is visible if observation is unavailable.
 export function useLandingMotion(root: Ref<HTMLElement | null>) {
   const pageProgress = ref(0)
   let frame = 0

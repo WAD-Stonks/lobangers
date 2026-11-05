@@ -6,7 +6,6 @@ import {
   merchantEmptyQuerySchema,
 } from '@broke-oclock/contracts/merchant'
 
-// The deals this merchant created through the dashboard, newest first.
 export const listDeals = (dependencies: RestDependencies) =>
   createRestHandler(dependencies, async (request, response, context) => {
     parseRestInput(merchantEmptyQuerySchema, request.query)

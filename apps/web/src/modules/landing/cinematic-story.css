@@ -1,6 +1,4 @@
 /* biome-ignore-all lint/style/noDescendingSpecificity: Independent animation components and responsive overrides target distinct elements. */
-/* v15 choreography: collection -> full viewport map -> scan -> deep dive ->
-   circular food reveal -> travelling offer -> unfolding community receipt. */
 .cinematic-story {
   height: 1080svh;
   --story-paper: #f6f3e9;
@@ -363,7 +361,6 @@
   top: 22%;
   width: 40%;
 }
-/* Capped by height as well, so the deal card fits below the copy on short screens. */
 .portal-food-copy h2 {
   font-size: clamp(42px, min(6vw, 8.5vh), 96px);
   line-height: 0.96;
@@ -419,7 +416,6 @@
 }
 @media (max-width: 800px) {
   .cinematic-story {
-    /* Retain every chapter with about half the mobile scrolling distance. */
     height: 520svh;
   }
   .cinematic-story .story-sticky {
@@ -613,7 +609,6 @@
   }
 }
 
-/* The prototype's kinetic introduction, reading progress and final food bubbles. */
 .landing-reading-progress {
   position: fixed;
   z-index: 1300;
@@ -656,14 +651,12 @@
 .hero-copy > :is(.landing-eyebrow, .hero-subtitle, .landing-button, .hero-benefits) {
   animation: landing-copy-up 0.65s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
-/* Finish the staggered headline and its underline before revealing supporting content. */
 .hero-copy > .hero-subtitle {
   animation-delay: 2.1s;
 }
 .hero-copy > .landing-button {
   animation-delay: 2.24s;
 }
-/* Keyboard focus must never land on a still-hidden action. */
 .hero-copy:focus-within > :is(.hero-subtitle, .landing-button, .hero-benefits) {
   animation: none;
 }

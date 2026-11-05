@@ -3,20 +3,11 @@ import type { Database } from '@api/modules/platform-admin/transaction'
 import { publishEvents, type WrittenEvent } from '@api/modules/squad/realtime'
 import type { SquadEventKind } from '@broke-oclock/contracts/squad'
 
-// Room storage shared by every Makan Squad write: a retrying transaction (members tap at the
-// same time, and MongoDB aborts one of two clashing transactions), room lookup by code, and the
-// event log the other members replay. A transaction only queues its events: once it commits
-// they get their sequence numbers from an atomic counter outside any transaction, are stored,
-// and are pushed live. Keeping the counter out of the transaction matters: every tap used to
-// bump the same room document inside it, so members tapping together aborted each other.
-
 export type Tx = Parameters<Parameters<Database['$transaction']>[0]>[0]
 
 const ATTEMPTS = 5
-// Room transactions are short, but a cold serverless start can make the first one slow.
 const TRANSACTION_OPTIONS = { maxWait: 5_000, timeout: 10_000 } as const
 type Queued = { roomId: string; code: string; event: NewEvent }
-// Events each open transaction has queued, recorded after it commits.
 const outbox = new WeakMap<Tx, Queued[]>()
 const isRetryable = (error: unknown) =>
   typeof error === 'object' &&
@@ -81,7 +72,6 @@ export const seatSelect = {
 export type RoomRow = NonNullable<Awaited<ReturnType<typeof findRoom>>>
 export type SeatRow = Awaited<ReturnType<typeof seatsOf>>[number]
 
-// The open room with this code, or the most recent closed one so its members see why it ended.
 export const findRoom = async (tx: Tx | Database, code: string) =>
   (await tx.squadRoom.findUnique({ where: { openCode: code }, select: roomSelect })) ??
   (await tx.squadRoom.findFirst({
@@ -109,8 +99,6 @@ export const requireOpen = (room: RoomRow) => {
 
 export type NewEvent = { kind: SquadEventKind; memberId?: string | null; dealIndex?: number | null }
 
-// Records and pushes events for a write that has already committed. A failure from here on must
-// not turn that write into an error reply, so it is logged instead.
 const emitQueued = async (database: Database, queued: readonly Queued[]) => {
   const written = await recordEvents(database, queued).catch((error: unknown) => {
     console.error('Squad event log write failed', {
@@ -122,7 +110,6 @@ const emitQueued = async (database: Database, queued: readonly Queued[]) => {
   await publishEvents(written)
 }
 
-// For writes made outside a transaction, such as taps.
 export const emitEvents = (
   database: Database,
   room: { id: string; code: string },
@@ -133,7 +120,6 @@ export const emitEvents = (
     events.map((event) => ({ roomId: room.id, code: room.code, event })),
   )
 
-// Queues events, in order, to be recorded once the transaction commits.
 export const appendEvents = async (
   tx: Tx,
   room: { id: string; code: string },
@@ -142,9 +128,6 @@ export const appendEvents = async (
   outbox.get(tx)?.push(...events.map((event) => ({ roomId: room.id, code: room.code, event })))
 }
 
-// Numbers and stores committed events. The increment is a single atomic update, so concurrent
-// writers queue on it instead of failing. Events are effects; the room state is the source of
-// truth, so a write that dies here costs a few animations, never a vote.
 const recordEvents = async (
   database: Database,
   queued: readonly Queued[],

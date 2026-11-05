@@ -1,7 +1,5 @@
 import type { PublicFlashDrop } from '@broke-oclock/contracts/flash-drops'
 
-// When the Flash Drop banner may appear: only after the visitor has stopped interacting with
-// the map for a while (2.5 s the first time, 9 s after that), and for at most 5 s.
 export const FIRST_IDLE_MS = 2500
 export const REPEAT_IDLE_MS = 9000
 export const BANNER_LIFE_MS = 5000
@@ -16,8 +14,6 @@ type Point = { lat: number; lng: number }
 
 const squaredDistance = (a: Point, b: Point) => (a.lat - b.lat) ** 2 + (a.lng - b.lng) ** 2
 
-// Live drops with codes left, nearest first when the visitor is located. The banner takes
-// turns through them so one drop never hogs it.
 export const bannerOrder = (
   drops: readonly PublicFlashDrop[],
   user: Point | null,

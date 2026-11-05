@@ -5,8 +5,6 @@ import logo from '@web/assets/lobangers-logo.svg'
 import ShellIcon from '@web/modules/map-shell/ShellIcon.vue'
 import { RouterLink } from 'vue-router'
 
-// The sign-in, sign-up and password pages share this frame: a logo bar with a way back to the
-// deals, and one centred card. The page supplies the card's heading (id `titleId`) and body.
 withDefaults(defineProps<{ titleId?: string }>(), { titleId: 'auth-page-title' })
 </script>
 
@@ -27,17 +25,13 @@ withDefaults(defineProps<{ titleId?: string }>(), { titleId: 'auth-page-title' }
 
 <!-- Not scoped: the card's heading, intro and form come from each page's slot. -->
 <style>
-/* The Singapore skyline sits along the bottom edge; the header and card float over it.
-   #fdf4ea and #0f1523 are each illustration's sky, so tall pages continue it above the image. */
 /* biome-ignore lint/suspicious/noDuplicateProperties: 100vh is the fallback for browsers without dvh. */
 .auth-page { position: relative; isolation: isolate; min-height: 100vh; min-height: 100dvh; background: #fdf4ea; color: var(--ink); }
-/* Pinned to the viewport, so a taller card (an opened details note) scrolls over it instead of pushing it down. */
 .auth-page::before { content: ''; position: fixed; inset: 0; z-index: -1; background: var(--auth-background) center bottom / max(100%, 900px) auto no-repeat; pointer-events: none; }
 .app-palette[data-theme='dark'] .auth-page { background: #0f1523; }
 .app-palette[data-theme='dark'] .auth-page::before { background-image: var(--auth-background-dark); }
 .auth-page__header { display: flex; justify-content: space-between; align-items: center; gap: 20px; min-height: 88px; padding: 16px clamp(20px, 4vw, 64px); }
 .auth-page__header img { display: block; width: 160px; height: auto; }
-/* The logo link reaches the full touch target on touch screens. */
 @media (pointer: coarse) { .auth-page__header > a { display: inline-flex; align-items: center; min-height: var(--hit); } }
 .auth-page__back { display: inline-flex; flex-shrink: 0; align-items: center; gap: 8px; min-height: 44px; color: var(--ink); font-size: 0.875rem; font-weight: 600; text-decoration: none; }
 .auth-page__back:hover { text-decoration: underline; }
@@ -64,20 +58,16 @@ withDefaults(defineProps<{ titleId?: string }>(), { titleId: 'auth-page-title' }
   .auth-page__body { min-height: calc(100dvh - 72px); align-items: start; padding: 24px 16px; }
   .auth-page__card { padding: 24px; border-radius: 20px; }
 }
-/* 320px phones: the logo and Back link share one row, so both give a little ground. */
 @media (max-width: 359.98px) {
   .auth-page__header { gap: 12px; padding: 12px; }
   .auth-page__header img { width: 112px; }
   .auth-page__card { padding: 20px 16px; }
 }
-/* A card with Lobbie peeking over it makes room for him and lets him replace the ticket mark. */
-/* Starts high on the page; Lobbie's antennae may rise into the empty middle of the header. */
 .auth-page__body:has(.auth-lobbie) { align-items: start; padding-top: 0; }
 .auth-page__card:has(.auth-lobbie) { position: relative; margin-top: 112px; border-radius: 28px; box-shadow: 0 20px 60px rgb(120 84 20 / 0.12); }
 .auth-page__card:has(.auth-lobbie) .auth-page__mark { display: none; }
 .auth-page__card:has(.auth-lobbie) h1 { font-size: 2rem; }
 .auth-page__card:has(.auth-lobbie) .auth-page__intro { max-width: 22rem; margin-inline: auto; line-height: 1.6; }
-/* Leading mail and lock icons inside the fields. */
 .auth-page__card:has(.auth-lobbie) #login-email,
 .auth-page__card:has(.auth-lobbie) #login-password,
 .auth-page__card:has(.auth-lobbie) #reg-name,

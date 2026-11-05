@@ -1,7 +1,5 @@
 import { expect, test } from '@playwright/test'
 
-// Original SPA and native SDK over explicitly synthetic HTTP responses.
-// This verifies UI/transport behavior, not mailbox ownership or provider authentication.
 test.use({ trace: 'off', video: 'off' })
 
 for (const width of [390, 1280]) {
@@ -47,7 +45,6 @@ for (const width of [390, 1280]) {
     await expect(page.getByRole('heading', { level: 1 })).toHaveCount(1)
     await expect(page.locator('.auth-card')).toHaveCount(0)
     await expect(page.getByRole('link', { name: 'Create an account', exact: true })).toHaveCount(1)
-    // Password sign-in comes first; the email code is the alternative.
     await expect(page.getByLabel('Password', { exact: true })).toBeVisible()
     await page.getByTestId('google-sign-in').click()
     await expect(page.getByTestId('google-sign-in')).toBeEnabled()

@@ -1,6 +1,3 @@
-/* The Add a deal form's look, shared by the visitor's form (pages/SubmissionForm.vue) and the
-   merchant dashboard's deal form, so both read as the same form. Every rule is under an
-   add-deal__ class, so nothing leaks onto the rest of the page. */
 .add-deal {
   box-sizing: border-box;
   width: 100%;
@@ -9,7 +6,6 @@
   padding: clamp(16px, 4vw, 32px) clamp(16px, 4vw, 24px) 48px;
 }
 
-/* ----- Header ----- */
 .add-deal__hero {
   display: flex;
   align-items: flex-end;
@@ -49,7 +45,6 @@
   font-size: 1rem;
 }
 
-/* ----- Panel ----- */
 .add-deal__panel {
   display: grid;
   gap: 24px;
@@ -72,7 +67,6 @@
   gap: 24px;
 }
 .add-deal__card {
-  /* The offer tiles below go two by two when this card, not the screen, is too narrow for four. */
   container: deal-card / inline-size;
   display: grid;
   gap: 18px;
@@ -107,7 +101,6 @@
   border-radius: 50%;
 }
 
-/* ----- Fields ----- */
 .add-deal__field {
   display: grid;
   gap: 2px;
@@ -161,7 +154,6 @@
   margin: 0;
 }
 
-/* Offer type: four chips that work as radio buttons. */
 .add-deal__offers {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -204,7 +196,6 @@
   outline: 3px solid var(--sunny-ring);
   outline-offset: 2px;
 }
-/* Four tiles need about 576px; below that, two rows of two. */
 @container deal-card (max-width: 575.98px) {
   .add-deal__offers {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -228,7 +219,6 @@
   object-fit: cover;
 }
 
-/* ----- Location ----- */
 .add-deal__search {
   display: flex;
   gap: 10px;
@@ -265,7 +255,6 @@
   background: var(--sunny-wash);
   border-color: transparent;
 }
-/* Long stall names and addresses wrap instead of pushing the button off a phone. */
 .add-deal__stall-text {
   display: grid;
   flex: 1;
@@ -289,7 +278,6 @@
   gap: 6px;
 }
 
-/* ----- Review ----- */
 .add-deal__review {
   display: grid;
   grid-template-columns: minmax(0, 200px) minmax(0, 1fr);
@@ -352,7 +340,6 @@
   cursor: pointer;
 }
 
-/* ----- Step buttons ----- */
 .add-deal__nav {
   display: flex;
   justify-content: space-between;
@@ -374,7 +361,6 @@
   }
 }
 
-/* A full-width Next is easier to hit with a thumb on a phone. */
 @media (max-width: 480px) {
   .add-deal__nav .lb-btn--primary {
     flex: 1;

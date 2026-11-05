@@ -3,12 +3,7 @@ import { distanceMetres } from '@web/modules/browse-map/distance'
 import { SINGAPORE_CENTER } from '@web/modules/browse-map/map-config'
 import type { Coordinates, VenuePin } from '@web/modules/browse-map/types'
 
-// What the map shows at each zoom, from a student's point of view: deals within a short walk
-// are the point, so they stay real pins whenever they are big enough to read. Everything
-// farther away is summed up once per neighbourhood, or once per region at island view.
 export type MapTier = 'region' | 'area' | 'street'
-// A stack is a few outlets whose pins would overlap on screen (declutter.ts), not a place name;
-// a place is a stack that never comes apart, even at the closest zoom: one building, a mall.
 export type GroupKind = 'near' | 'area' | 'region' | 'stack' | 'place'
 
 export type PinGroup = {
@@ -28,18 +23,13 @@ export type LayerPlan = {
 }
 
 export const NEAR_YOU_LABEL = 'Near you'
-// The one count shown for the whole island at country or world scale.
 export const ISLAND_LABEL = 'Singapore'
 export const ISLAND_GROUP_KEY = `region:${ISLAND_LABEL}`
-// About a ten-minute walk.
 export const WALK_RADIUS_METRES = 800
 export const AREA_FROM_ZOOM = 13
-// Below this zoom one island-wide count replaces the regional groups.
 export const REGIONS_FROM_ZOOM = 10
-// The zoom the map opens at around the visitor; the walkable deals show as pins from here.
 export const NEAR_PINS_FROM_ZOOM = 15
 export const STREET_FROM_ZOOM = 16
-// Tapping a group never zooms in past this, even for a group of outlets on one street.
 export const OPEN_GROUP_MAX_ZOOM = 16
 
 export const tierFor = (zoom: number): MapTier => {
@@ -92,10 +82,8 @@ export const planMapLayers = ({ pins, zoom, user, selectedVenueId }: PlanInput):
   const tier = tierFor(zoom)
   if (tier === 'street') return { tier, loose: pins, groups: [] }
 
-  // The open outlet always stays a pin, so the panel never points at a group.
   const selected = pins.filter((pin) => pin.id === selectedVenueId)
   const rest = pins.filter((pin) => pin.id !== selectedVenueId)
-  // At country/world scale, one island-centred count replaces regional labels.
   if (zoom < REGIONS_FROM_ZOOM) {
     return {
       tier,

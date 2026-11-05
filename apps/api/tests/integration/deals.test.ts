@@ -99,7 +99,6 @@ beforeAll(async () => {
   await db.dealVenue.create({
     data: { dealId: expired.id, venueId: venue.id },
   })
-  // Explicit reviewed physical positives; preserve genuine user open-ended validity.
   await seedSyntheticOutletProof(db, venue.id)
   await seedSyntheticScope(db, visible.id, 'SOURCE_ALL')
   await seedSyntheticScope(db, expired.id, 'SOURCE_SELECTED')
@@ -113,7 +112,6 @@ beforeAll(async () => {
       merchantId: merchant.id,
     },
   })
-  // Community evidence: one alive vote, one visible comment and one hidden comment.
   const stamp = { createdAt: now, updatedAt: now }
   const voter = await db.user.create({
     data: { name: 'Voter', email: 'voter@test.local', emailVerified: true, ...stamp },
@@ -171,8 +169,6 @@ describe('GET /api/deals', () => {
     expect(response.headers['cache-control']).toBe('public, s-maxage=30, stale-while-revalidate=60')
   })
 
-  // On MongoDB every nested relation is its own round trip, run one after another, and the
-  // database sits far from some function regions. Loading a collection twice doubles that.
   it('loads each collection once per browse, sharing outlet scopes with categories', async () => {
     const { PrismaClient } = await import('@broke-oclock/db')
     const { findPublicBrowse } = await import('@api/modules/deals/public-deals')
@@ -189,11 +185,9 @@ describe('GET /api/deals', () => {
       expect(result.items.map((deal) => deal.title)).toEqual(['Kopi $1'])
       expect(result.categories).toEqual(['DRINKS', 'FOOD'])
       const reads = (model: string) => models.filter((name) => name === model).length
-      // The eligible deals plus one id-only read for the visitor's filters.
       expect(reads('Deal')).toBe(2)
       expect(reads('DealVenue')).toBe(1)
       expect(reads('Merchant')).toBe(1)
-      // Selected outlets and the merchant's outlets are two different reads of Venue.
       expect(reads('Venue')).toBe(2)
       expect(reads('DealVote')).toBe(1)
     } finally {
@@ -203,7 +197,6 @@ describe('GET /api/deals', () => {
 
   it('rejects unknown query keys and other methods', async () => {
     expect((await client().get('/api/deals', { params: { bogus: 1 } })).status).toBe(400)
-    // POST is community submission (merchant-deals.test.ts); everything else is refused.
     const remove = await client().delete('/api/deals')
     expect(remove.status).toBe(405)
     expect(remove.headers.allow).toBe('GET, POST')

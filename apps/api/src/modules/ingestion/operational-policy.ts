@@ -3,9 +3,6 @@ import type { IngestionRuntime } from '@api/modules/ingestion/runtime'
 import { MONEYDIGEST_SOURCE, sourceFromRecord, sourceWhere } from '@api/modules/ingestion/source'
 import type { Database } from '@api/modules/platform-admin/transaction'
 
-// Use the review queue's supported publisher scope, not today's enabled/approved
-// providers: switching a source off must never erase its failures or run history.
-// In particular this does not admit arbitrary legacy WordPress publishers.
 export const operationalSourceScope = importedDealScope.sources.some.importedPost.source
 
 export const readIngestionReadiness = async (
@@ -29,8 +26,6 @@ export const readIngestionReadiness = async (
     }
   }
 
-  // Match the registry-backed worker's bounded admission order. Constructing a
-  // SourceRuntime is pure: readiness never invokes listPosts or another provider.
   const registered = await db.importSource.findMany({
     where: { enabled: true },
     orderBy: [{ updatedAt: 'asc' }, { id: 'asc' }],

@@ -89,7 +89,6 @@ export const getIngestionDrafts = (dependencies: RestDependencies): RequestHandl
       },
     })
     const displayed = rows.slice(0, input.limit)
-    // Attribution/media stay bounded above; approval policy needs every pinned citation.
     const evidence = await context.db.dealSource.findMany({
       where: { dealId: { in: displayed.map((row) => row.id) } },
       select: {

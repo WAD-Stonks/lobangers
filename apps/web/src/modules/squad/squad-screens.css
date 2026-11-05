@@ -1,7 +1,3 @@
-/* ----- Squad screens around the live room: create, join, lobby, countdown and ended -----
-   Imported by squad.css so every screen shares the room's dark tokens (--squad-*). Motion is
-   transform and opacity only and calms down under prefers-reduced-motion. */
-
 .squad-form {
   display: flex;
   flex: 1 1 auto;
@@ -56,7 +52,6 @@
   font-weight: 300;
 }
 
-/* The app's orange, so "Join a room" reads as a link to act on. */
 .squad-intro__link {
   font-weight: 300;
   color: var(--coral-deep);
@@ -69,7 +64,6 @@
   color: var(--coral);
 }
 
-/* Doubled class: squad.css sets the base title after this sheet is imported. */
 .squad-room__title.squad-room__title--small {
   font-size: 1.3rem;
 }
@@ -79,7 +73,6 @@
   font-size: var(--text-md);
 }
 
-/* Disabled primary on dark: dimmed sunny, still readable, with a not-allowed cursor. */
 .squad-room .lb-btn:disabled {
   cursor: not-allowed;
   opacity: 0.5;
@@ -96,7 +89,6 @@
   background: var(--squad-surface);
 }
 
-/* Fields */
 .squad-field {
   display: flex;
   flex-direction: column;
@@ -141,13 +133,12 @@
   object-fit: contain;
 }
 
-/* The box's sky border already shows focus, so the input skips the room's outline. */
 .squad-room .squad-namebox input:focus-visible,
 .squad-room .squad-code-input:focus-visible {
   outline: none;
 }
 
-/* 17px so iOS does not zoom in on focus. */
+/* 17px so iOS doesn't zoom in on focus */
 .squad-namebox input {
   flex: 1;
   min-width: 0;
@@ -188,7 +179,6 @@
   animation: squad-shake 300ms ease;
 }
 
-/* Avatar radio group */
 .squad-faces,
 .squad-picker {
   min-width: 0;
@@ -251,7 +241,6 @@
   outline-offset: 2px;
 }
 
-/* Deal picker */
 .squad-picker {
   display: flex;
   flex-direction: column;
@@ -372,7 +361,6 @@
   border-color: var(--sunny);
 }
 
-/* Room size stepper */
 .squad-stepper-row {
   display: flex;
   min-width: 0;
@@ -421,7 +409,6 @@
   text-align: center;
 }
 
-/* Lobby */
 .squad-lobby {
   display: flex;
   flex-direction: column;
@@ -532,7 +519,6 @@
   width: 100%;
 }
 
-/* Tiles shrink with the card on a 320px phone instead of pushing past its edge. */
 .squad-code__tile {
   display: grid;
   flex: 0 1 54px;
@@ -556,7 +542,6 @@
   padding: 8px 10px;
 }
 
-/* The code card is already the surface colour, so its dark button steps up a shade. */
 .squad-room .squad-code__actions .squad-btn-dark {
   background: var(--squad-edge);
   border-color: var(--squad-edge-strong);
@@ -661,7 +646,6 @@
   font-weight: 500;
 }
 
-/* 3-2-1 countdown as the room goes live */
 .squad-stir {
   position: absolute;
   inset: 0;
@@ -687,7 +671,6 @@
   font: 600 1.4rem / 1.2 var(--font-display);
 }
 
-/* Ended */
 .squad-ended {
   display: flex;
   flex-direction: column;
@@ -753,7 +736,6 @@
   }
 }
 
-/* Below 992px every control is at least a 44px target. */
 @media (max-width: 991.98px) {
   .squad-room .squad-btn-small {
     min-height: var(--hit);
@@ -767,7 +749,6 @@
   }
 }
 
-/* 320px phones: the invite buttons stack, and the face grid tightens so six faces still fit. */
 @media (max-width: 359.98px) {
   .squad-code__actions {
     grid-template-columns: minmax(0, 1fr);

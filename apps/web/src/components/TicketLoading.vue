@@ -12,8 +12,6 @@ defineProps<{ label: string }>()
 </template>
 
 <style scoped>
-/* The splash screen's tumbling ticket with a caption, centred in whatever space a page has while
-   it fetches. Matches the map shell's panel loading state. */
 .ticket-loading {
   display: flex;
   flex-direction: column;

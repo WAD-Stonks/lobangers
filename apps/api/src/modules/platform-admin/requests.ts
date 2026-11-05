@@ -18,8 +18,6 @@ import {
 import { activeVenue } from '@api/modules/platform-admin/venues'
 import type { z } from 'zod'
 
-// Kang En's future protected, trusted-origin route supplies the session user ID,
-// NEVER a body userId. This internal service accepts no role/status/actor overrides.
 export const submitMerchantAccessRequest = async (
   db: Database,
   actorRef: AuthenticatedActor,

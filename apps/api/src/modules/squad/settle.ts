@@ -17,11 +17,6 @@ import {
   type Tx,
 } from '@api/modules/squad/store'
 
-// Moves a room along after any write or heartbeat: closes a lobby nobody started, skips a deal
-// that ended mid-vote, and decides a round once everyone still around has had their say. Runs
-// a few times so a skip can be followed by the next decision in one go. The decision is read
-// first and written separately, so the heartbeat can check it without a transaction.
-
 const MAX_STEPS = 4
 
 export const closeRoom = async (
@@ -37,7 +32,6 @@ export const closeRoom = async (
   await appendEvents(tx, room, [{ kind: 'CLOSED' }])
 }
 
-// The next deal, or the end of the list.
 const advance = (room: RoomRow, events: NewEvent[]) => {
   if (room.dealIndex + 1 < room.dealIds.length) {
     events.push({ kind: 'NEXT_DEAL', dealIndex: room.dealIndex + 1 })
@@ -50,7 +44,6 @@ const advance = (room: RoomRow, events: NewEvent[]) => {
 type Reader = Tx | Database
 type Step = { close: 'EXPIRED' | 'EMPTY' } | { data: Record<string, unknown>; events: NewEvent[] }
 
-// What the room should do next, read without writing, or null when it should stay put.
 const plan = async (
   reader: Reader,
   room: RoomRow,
@@ -62,7 +55,6 @@ const plan = async (
   if (room.status !== 'LIVE' || !['VOTING', 'DECIDING', 'MATCHED'].includes(room.phase)) return null
   if (!seats.some((seat) => isPresent(seat) && !seat.spectator)) return { close: 'EMPTY' }
   const events: NewEvent[] = []
-  // A match stands even if its deal ends afterwards; the squad already picked it.
   const [deal] =
     room.phase === 'MATCHED'
       ? [{ ended: false }]
@@ -106,7 +98,6 @@ const step = async (tx: Tx, room: RoomRow, seats: readonly SeatRow[], now: Date)
   return true
 }
 
-// Whether a heartbeat has anything to move along; lets sync skip the transaction most times.
 export const needsSettling = async (
   reader: Reader,
   room: RoomRow,

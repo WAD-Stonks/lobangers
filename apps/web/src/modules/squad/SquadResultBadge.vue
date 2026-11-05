@@ -1,6 +1,4 @@
 <script setup lang="ts">
-// The round icon that sits half above a result banner: hands that clap for a match, an X that
-// draws itself for a no-match. Styled in squad-results.css; still under reduced motion.
 defineProps<{ kind: 'match' | 'miss' }>()
 </script>
 

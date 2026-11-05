@@ -10,8 +10,6 @@ import { chooseOption, optionLabels, selectedValue } from '@web-tests/support/se
 import type { InternalAxiosRequestConfig } from 'axios'
 import { expect, it, type TestContext } from 'vitest'
 
-// Synthetic Axios boundary with real client schemas and mounted Vue DOM.
-// No live cookies, actor authorization, database or provider acceptance is claimed.
 const id = '111111111111111111111111'
 const otherId = '222222222222222222222222'
 const venue: PlatformVenue = {
@@ -504,7 +502,6 @@ it('invalidates review consent on an operation-only refresh and never accepts a 
   await flushPromises()
   await wrapper.get(`[data-testid="view-${id}"]`).trigger('click')
   await wrapper.get('#review-note').setValue('Before hide and reopen')
-  // Explicit fresh evidence arrives at the same content version but after lifecycle changes.
   await wrapper.setProps({ revision: 1 })
   await flushPromises()
   await wrapper.get('#review-note').setValue('Fresh operation eight')

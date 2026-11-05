@@ -43,9 +43,6 @@ model User {
   resolvedCommentReports CommentReport[] @relation("CommentReportResolver")
 }
 
-// One shared write serializes access decisions, including mutually demoting admins.
-// This is a coordination record, never an administrator bootstrap.
-// One retained row per account/outlet; revocation never deletes identity/history.
 model StallGrant {
   id        String    @id @default(auto()) @map("_id") @db.ObjectId
   userId    String    @db.ObjectId
@@ -71,7 +68,6 @@ enum AdminEmailSource {
   NATIVE_AUTH
 }
 
-// Authorization intent only; never email ownership or runtime role authority.
 model AdminEmail {
   id        String   @id @default(auto()) @map("_id") @db.ObjectId
   email     String   @unique
@@ -81,7 +77,6 @@ model AdminEmail {
   updatedAt DateTime @updatedAt
 }
 
-// Append-only through supported application writers; no fabricated system actor.
 model AdminEmailEvent {
   id                      String           @id @default(auto()) @map("_id") @db.ObjectId
   approvalId              String           @db.ObjectId
@@ -112,8 +107,6 @@ enum MerchantRequestStatus {
   REJECTED
 }
 
-// Re-submission creates a new record; prior decisions/messages remain history.
-// All submissions and decisions take PlatformAccessFence before checking pending.
 model MerchantAccessRequest {
   id           String                @id @default(auto()) @map("_id") @db.ObjectId
   userId       String                @db.ObjectId
@@ -200,8 +193,6 @@ enum PlatformAuditActorSource {
   NATIVE_AUTH
 }
 
-// Append-only through the application. No edit/delete procedure is exposed.
-// Snapshot names and allowlisted facts, never auth Account/Session/secret payloads.
 model PlatformAudit {
   id           String                   @id @default(auto()) @map("_id") @db.ObjectId
   actorId      String?                  @db.ObjectId
@@ -232,7 +223,6 @@ enum AdminEvidenceKind {
   SCOPE
 }
 
-// Append-only facts. No update/delete API; evidence does not itself confer proof authority.
 model AdminEvidence {
   id                String                  @id @default(auto()) @map("_id") @db.ObjectId
   actorId           String                  @db.ObjectId
@@ -303,8 +293,7 @@ model Verification {
   @@unique([identifier, value])
 }
 
-// Read docs/database-schema.md before adding product mutations.
-// MongoDB has no foreign keys/check constraints: validate cross-model invariants in the API.
+// Mongo has no foreign keys, so cross-model rules are checked in the API.
 model Merchant {
   catalogueVersion Int?
   id               String    @id @default(auto()) @map("_id") @db.ObjectId
@@ -347,7 +336,6 @@ enum OutletScopeBasis {
   LEGACY_RETAINED
 }
 
-// No positive defaults: missing evidence is unknown, never inferred verification.
 type OutletVerificationEvidence {
   state             OutletVerificationState
   provider          OutletEvidenceProvider
@@ -405,7 +393,6 @@ model Deal {
   title            String
   description      String
   category         String
-  // Native upstream cuisine remains optional for existing records.
   cuisine          String?
   offerType        OfferType
   terms            String?
@@ -413,13 +400,11 @@ model Deal {
   currency         String            @default("SGD")
   discountPercent  Int?
   validFrom        DateTime?
-  // Exclusive UTC end; preserve unknown/ambiguous terms rather than inventing dates.
   validUntil       DateTime?
   rawValidityText  String?
   applicability    DealApplicability
   origin           DealOrigin        @default(USER_SUBMITTED)
   reviewStatus     ReviewStatus      @default(PENDING)
-  // API edits must increment contentVersion and invalidate the old approval.
   contentVersion   Int               @default(1)
   reviewedVersion  Int?
   reviewNote       String?
@@ -563,7 +548,6 @@ model CommentReport {
 
 model UploadedFile {
   id         String    @id @default(auto()) @map("_id") @db.ObjectId
-  // UploadThing key, not a user-supplied URL, is the provider identity.
   key        String    @unique
   url        String
   mimeType   String
@@ -610,7 +594,6 @@ model ImportedPost {
   externalId           String
   url                  String
   title                String?
-  // Untrusted provider content: never render without sanitizing and permission review.
   rawContent           String
   contentHash          String
   processedContentHash String?
@@ -635,7 +618,6 @@ model DealSource {
   deal                  Deal              @relation(fields: [dealId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   importedPostId        String            @db.ObjectId
   importedPost          ImportedPost      @relation(fields: [importedPostId], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  // Pin the source content used for this deal; refreshing ImportedPost must not rewrite it.
   sourceContentHash     String
   sourceContentSnapshot String
   sourceUrl             String
@@ -646,8 +628,6 @@ model DealSource {
   @@index([importedPostId])
 }
 
-// Server-imported media never fabricates a user-owned UploadThing file.
-// _id is the actual byte SHA-256. UNKNOWN uploads must reconcile, never resend.
 model ImportedImage {
   id              String            @id @map("_id")
   mimeType        String
@@ -663,7 +643,6 @@ model ImportedImage {
   sources         DealSourceImage[]
 }
 
-// Immutable per-citation provenance, including URLs actually fetched.
 model DealSourceImage {
   id           String        @id @default(auto()) @map("_id") @db.ObjectId
   dealSourceId String        @db.ObjectId
@@ -671,7 +650,6 @@ model DealSourceImage {
   imageId      String
   image        ImportedImage @relation(fields: [imageId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   sourceUrl    String
-  // Historical links may predate redirect capture. New captures still supply finalUrl.
   finalUrl     String?
   altText      String?
   createdAt    DateTime      @default(now())
@@ -680,8 +658,6 @@ model DealSourceImage {
   @@index([imageId])
 }
 
-// Deterministic promotion identity lives in Mongo's native unique _id index.
-// Its creation and the canonical deal/citation commit in one transaction.
 model PromotionIdentity {
   id        String   @id @map("_id")
   dealId    String   @db.ObjectId
@@ -712,7 +688,6 @@ enum IngestionRecoveryOutcome {
   UNKNOWN
 }
 
-// Explicit operator attempt. No source activation or broad run is implied.
 model IngestionRecovery {
   id                  String                   @id @default(auto()) @map("_id") @db.ObjectId
   actorId             String                   @db.ObjectId
@@ -729,8 +704,6 @@ model IngestionRecovery {
   errorCode           String?
   requestedAt         DateTime                 @default(now())
   finishedAt          DateTime?
-  // Optional for historical attempts. Admission records the exact source owner;
-  // readers can project owner loss without repairing this durable operation.
   ownerLeaseToken     String?
 
   @@index([postId, requestedAt])
@@ -819,12 +792,6 @@ enum RunStatus {
   FAILED
 }
 
-// Flash Drop: a merchant's short, limited-code drop of one of their own deals at one outlet.
-// Every drop is reviewed by an admin before it goes live; the window and code count are fixed
-// once approved. `demo` marks fake drops created for demonstrations; they are labelled as such.
-// A merchant saves a flash deal as a DRAFT and makes it APPROVED (live at its start time) by
-// pressing Go live; no admin review. PENDING and SENT_BACK are from the old review flow and
-// read as drafts.
 enum FlashDropStatus {
   DRAFT
   PENDING
@@ -834,7 +801,6 @@ enum FlashDropStatus {
   ENDED_EARLY
 }
 
-// How long a claimed code can be used at the counter once claiming closes.
 enum FlashCodeValidity {
   TWO_HOURS
   END_OF_DAY
@@ -847,33 +813,24 @@ model FlashDrop {
   dealId          String          @db.ObjectId
   venueId         String          @db.ObjectId
   merchantUserId  String          @db.ObjectId
-  // The flash offer, with the same choices as a deal. Older flash deals have no offer type and
-  // are a fixed flash price.
   offerType       OfferType?
   discountPercent Int?
-  // Only for a fixed-price flash offer, and the usual price it beats (optional).
   flashPriceMinor Int?
   usualPriceMinor Int?
-  // The claim window: codes can be claimed from startsAt until endsAt.
   startsAt        DateTime
   endsAt          DateTime
-  // Claimed codes stay good until codesExpireAt, worked out from codeValidity whenever the
-  // window is set. Older flash deals have neither, and their codes end with the window.
   codeValidity    FlashCodeValidity?
   codesExpireAt   DateTime?
   radiusMetres    Int
   codeLimit       Int
   claimedCount    Int             @default(0)
   status          FlashDropStatus @default(PENDING)
-  // A draft saved to start "when I press Go live": its window is set again at Go live.
   startsOnGoLive  Boolean         @default(false)
   reviewNote      String?
   reviewedById    String?         @db.ObjectId
   reviewedAt      DateTime?
   version         Int             @default(1)
   demo            Boolean         @default(false)
-  // A past flash deal the merchant deleted from their history. Kept, since claimed codes point
-  // at it; drafts are deleted outright instead.
   deletedAt       DateTime?
   createdAt       DateTime        @default(now())
   updatedAt       DateTime        @updatedAt
@@ -885,7 +842,6 @@ model FlashDrop {
   @@index([venueId, startsAt])
 }
 
-// One code per person per drop; the code is what they show at the counter.
 model FlashDropClaim {
   id        String    @id @default(auto()) @map("_id") @db.ObjectId
   dropId    String    @db.ObjectId
@@ -898,10 +854,6 @@ model FlashDropClaim {
   @@index([userId, createdAt])
 }
 
-// Makan Squad: a short-lived room where friends vote yay or nah on a few deals together. The
-// host opens a lobby with a four-letter code, friends join under a name they type, and the room
-// moves deal by deal until more than half say yay. Rooms are polled, not pushed, so every write
-// also appends a small event the other members replay as effects.
 enum SquadRoomStatus {
   LOBBY
   LIVE
@@ -918,9 +870,7 @@ enum SquadPhase {
 model SquadRoom {
   id          String          @id @default(auto()) @map("_id") @db.ObjectId
   code        String
-  // The code while the room is open, so no two open rooms share one. A closed room keeps a
-  // unique "closed:<id>" here instead (MongoDB counts empty values as duplicates), which frees
-  // the code for a new room.
+  // closed rooms store "closed:<id>" since Mongo treats empty values as duplicates
   openCode    String          @unique
   status      SquadRoomStatus @default(LOBBY)
   phase       SquadPhase      @default(VOTING)
@@ -953,7 +903,6 @@ model SquadMember {
   displayName String
   avatar      String
   isHost      Boolean   @default(false)
-  // Joined after the room started: sees everything live but cannot vote.
   spectator   Boolean   @default(false)
   joinedAt    DateTime  @default(now())
   lastSeenAt  DateTime  @default(now())
@@ -964,8 +913,6 @@ model SquadMember {
   @@index([roomId, joinedAt])
 }
 
-// One row per member per deal per round: the latest stance, how many times they tapped, and
-// their vote-again-or-next choice once the round is decided.
 model SquadVote {
   id        String    @id @default(auto()) @map("_id") @db.ObjectId
   roomId    String    @db.ObjectId
@@ -996,9 +943,6 @@ model SquadEvent {
   @@unique([roomId, seq])
 }
 
-// Hungry Nearby: one opt-in presence per signed-in person. Only the fuzzed point is stored,
-// never the raw one; the offset and token are fixed for the sharing session and replaced when
-// the person hides or lapses. Expired rows are filtered by expiresAt.
 model NearbyPresence {
   id          String   @id @default(auto()) @map("_id") @db.ObjectId
   userId      String   @unique @db.ObjectId

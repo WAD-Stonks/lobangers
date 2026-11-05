@@ -13,7 +13,6 @@ export const loadManifest = async (): Promise<Manifest> => {
   return (await res.json()) as Manifest
 }
 
-// A sprite is one div showing one frame of a horizontal strip.
 export const createSprite = (name: SpriteName, className = 'ambient-sprite'): HTMLDivElement => {
   const el = document.createElement('div')
   el.className = className
@@ -27,12 +26,10 @@ export type Placement = {
   readonly scale: number
   readonly frame: number
   readonly flip?: boolean
-  // Small screen rotation (degrees) that lines a rendered heading up with the road.
   readonly rotate?: number
   readonly opacity?: number
 }
 
-// Puts the sprite's ground anchor on (x, y) in layer pixels, at the given scale and frame.
 export const placeSprite = (el: HTMLDivElement, meta: SpriteMeta, p: Placement) => {
   const size = meta.frameCssPx * p.scale
   const ax = meta.anchor[0] * p.scale
@@ -46,8 +43,6 @@ export const placeSprite = (el: HTMLDivElement, meta: SpriteMeta, p: Placement) 
   el.style.opacity = String(p.opacity ?? 1)
 }
 
-// Picks the rendered heading closest to the travel direction, plus the leftover angle to
-// rotate by so the sprite lines up with the road exactly.
 export const headingFor = (
   meta: SpriteMeta,
   dx: number,

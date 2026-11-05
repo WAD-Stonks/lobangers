@@ -233,7 +233,6 @@ export function useAccountSecurity(props: SecurityProps, emit: SecurityEvents) {
       refresh = true
     } catch (cause) {
       const code = codeOf(cause)
-      // A superseded write may still have reached the server: retain its identity lock.
       if (code === 'CONFLICT') locks.value.set(id, { floor: input.expectedVersion, unknown: false })
       else if (!['UNAUTHORIZED', 'FORBIDDEN', 'BAD_REQUEST', 'PRECONDITION_FAILED'].includes(code))
         locks.value.set(id, { floor: input.expectedVersion, unknown: true })

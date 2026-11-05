@@ -16,15 +16,11 @@ import { RouterLink, useRoute, useRouter } from 'vue-router'
 
 const navigationTo = useShellNavigation()
 
-// Menu button that opens the site menu as a drawer from the left edge, the same on every page
-// (it replaces the floating "Log in"). Escape, the scrim, the close button and any navigation
-// close it, and focus returns to the button.
 defineProps<{ rail?: boolean; mapTools?: boolean; compact?: boolean }>()
 const emit = defineEmits<{ menuChange: [open: boolean] }>()
 const mapPreferences = useMapPreferences()
 const breakpoint = useBreakpoint()
 const saved = useSavedDeals()
-// The Squad row starts a room, or leads back to the one the visitor is in.
 const openRoomCode = useOpenRoomCode()
 const squadTo = computed(() =>
   openRoomCode.value ? { name: 'squad-room', params: { code: openRoomCode.value } } : { name: 'squad-new' },
@@ -57,13 +53,10 @@ const menuLabel = computed(() => {
   const count = activeCodeCount.value
   return count > 0 ? `${base}, ${count} Flash Drop ${count === 1 ? 'code' : 'codes'} ready` : base
 })
-// Signing in from the menu brings the visitor back to where they were.
 const authQuery = computed(() =>
   route.name === 'login' || route.name === 'register' ? route.query : { redirect: route.fullPath },
 )
 
-// Exact match including the query: RouterLink's own check ignores it, so "/" and
-// "/?view=list" would both look current.
 const isCurrent = (to: string) => router.resolve(navigationTo(to)).fullPath === route.fullPath
 
 const logOut = () => { close(); return signOut() }
@@ -136,7 +129,6 @@ const logOut = () => { close(); return signOut() }
         </div>
 
         <div class="brand-menu__divider" role="presentation" />
-        <!-- Makan Squad: start a room or join a friend's with its code. -->
         <RouterLink class="brand-menu__codes brand-menu__squad" :to="navigationTo(squadTo)" data-testid="menu-squad-new"
           @click="closeDrawer">
           <span class="brand-menu__codes-icon brand-menu__squad-icon" aria-hidden="true">
@@ -315,7 +307,6 @@ const logOut = () => { close(); return signOut() }
   height: 18px;
 }
 
-/* Three lines fold into an X. */
 .brand-menu__burger path {
   transform-box: fill-box;
   transform-origin: center;
@@ -341,7 +332,6 @@ const logOut = () => { close(); return signOut() }
   transform: translateY(-5px) rotate(-45deg);
 }
 
-/* A claimed Flash Drop code is waiting: a coral dot on the ticket mark. */
 .brand-menu__codes-dot {
   position: absolute;
   top: 6px;
@@ -392,7 +382,6 @@ const logOut = () => { close(); return signOut() }
   min-width: 0;
 }
 
-/* The Squad row wears the same sunny as the header's Room button. */
 .brand-menu__squad {
   background: var(--sunny-wash);
 }
@@ -454,8 +443,6 @@ const logOut = () => { close(); return signOut() }
   transform-origin: top left;
 }
 
-/* The panel scrolls when its rows don't fit; they keep their height instead of being squeezed
-   until two-line rows (My codes, the Squad room) spill out of their backgrounds. */
 .brand-menu__panel>* {
   flex-shrink: 0;
 }
@@ -562,7 +549,6 @@ const logOut = () => { close(); return signOut() }
   width: 340px;
   max-width: calc(100vw - 16px);
   max-height: none;
-  /* Full-height drawer: keep its content clear of the notch and the home indicator. */
   padding:
     calc(20px + env(safe-area-inset-top, 0px)) 20px calc(20px + env(safe-area-inset-bottom, 0px)) calc(20px + env(safe-area-inset-left, 0px));
   border: 0;
@@ -636,7 +622,6 @@ const logOut = () => { close(); return signOut() }
   cursor: pointer;
 }
 
-/* Sets the Squad rows apart from the account above and the visitor's codes and deals below. */
 .brand-menu__divider {
   flex-shrink: 0;
   height: 1px;

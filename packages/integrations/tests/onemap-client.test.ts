@@ -1,7 +1,6 @@
 import { createOneMapClient } from '@integrations/server'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-// Offline synthetic provider contract fixtures, never real credentials/tokens/data.
 const credentials = { email: 'synthetic@example.invalid', password: 'synthetic-password-only' }
 const clockStart = 1_800_000_000_000
 const token = (value = 'synthetic-token', expiry = clockStart / 1000 + 259_200) => ({

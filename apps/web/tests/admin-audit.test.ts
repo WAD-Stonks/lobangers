@@ -4,7 +4,6 @@ import type { usePlatformAdmin } from '@web/modules/platform-admin/use-platform-
 import { chooseOption } from '@web-tests/support/select'
 import { expect, it, vi } from 'vitest'
 
-// Synthetic list boundary only: real component rendering and request races.
 const id = '0123456789abcdef01234567'
 const row = {
   id,
@@ -51,7 +50,6 @@ it('labels system attribution in the account activity workspace', async () => {
       },
     },
   }
-  // Only rendering state is synthetic; no auth or policy implementation is mocked here.
   const wrapper = mount(Workspace, {
     props: { s: s as unknown as ReturnType<typeof usePlatformAdmin> },
   })

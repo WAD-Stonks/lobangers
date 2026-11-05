@@ -24,14 +24,11 @@ import type { AxiosInstance } from 'axios'
 
 const id = (dropId: string) => validateInput(flashDropParamsSchema, { dropId }).dropId
 
-// Flash deals: the live ones on the map, claim codes, the merchant's own (drafts, Go live, end)
-// and admin removal.
 export const createFlashDropsClient = (http: AxiosInstance) => ({
   active: () => request(http.get('/flash-drops/active'), activeFlashDropsResponseSchema),
   claim: (dropId: string) =>
     request(http.post(`/flash-drops/${id(dropId)}/claims`), flashCodeSchema),
   myCodes: () => request(http.get('/flash-drops/codes'), flashCodesResponseSchema),
-  // The Pusher key for live updates, or null when the API has none and browsers poll.
   realtimeConfig: () => request(http.get('/flash-drops/realtime'), flashRealtimeConfigSchema),
   merchant: {
     realtimeAuth: (input: MerchantFlashRealtimeAuth) =>
@@ -72,8 +69,6 @@ export const createFlashDropsClient = (http: AxiosInstance) => ({
         ),
         merchantFlashDropSchema,
       ),
-    // Answers 204 with no body, so there is nothing to parse.
-    // Deletes a draft, or removes a past flash deal from the merchant's history.
     remove: async (dropId: string, version: number): Promise<void> => {
       const data = validateInput(merchantFlashDropVersionSchema, { version })
       try {

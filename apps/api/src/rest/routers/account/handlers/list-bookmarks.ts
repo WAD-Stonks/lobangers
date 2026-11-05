@@ -13,12 +13,8 @@ export const listBookmarks = (dependencies: RestDependencies) =>
     const session = requireSession(context)
     const input = parseRestInput(accountPageQuerySchema, request.query)
 
-    // "cursor" is the id of the last item the browser already has.
-    // Ids go up over time, so "id less than cursor" means "older than that".
     const cursorFilter = input.cursor ? { id: { lt: input.cursor } } : {}
 
-    // Only THIS user's bookmarks, newest first. We ask for one extra row (limit + 1)
-    // so we can tell if there is another page.
     const rows = await context.db.bookmark.findMany({
       where: { userId: session.user.id, ...cursorFilter },
       orderBy: { id: 'desc' },
@@ -44,7 +40,6 @@ export const listBookmarks = (dependencies: RestDependencies) =>
       },
     })
 
-    // Turn each database row into what the browser should see.
     const items: Bookmark[] = []
     for (const row of rows) {
       const deal = row.deal
@@ -61,7 +56,6 @@ export const listBookmarks = (dependencies: RestDependencies) =>
           },
         })
       } else {
-        // The deal is no longer public: send no details, so hidden text never leaks.
         items.push({
           id: row.id,
           dealId: row.dealId,
@@ -71,6 +65,5 @@ export const listBookmarks = (dependencies: RestDependencies) =>
       }
     }
 
-    // page() cuts the extra row and works out nextCursor for us.
     response.json(bookmarksResponseSchema.parse(page(items, input.limit)))
   })

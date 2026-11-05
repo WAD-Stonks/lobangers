@@ -9,7 +9,6 @@ import {
 export type AssistantProvider = 'gemini' | 'groq'
 export type AssistantProviderChoice = 'auto' | AssistantProvider
 
-// change to test both providers, currently using Gemini and Groq (backup)
 export const LOBBIE_PROVIDER: AssistantProviderChoice = 'auto'
 
 const AUTO_ORDER: readonly AssistantProvider[] = ['gemini', 'groq']

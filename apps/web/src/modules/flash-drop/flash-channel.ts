@@ -9,16 +9,8 @@ import {
 import { api } from '@web/lib/api-client'
 import type Pusher from 'pusher-js'
 
-// Live flash deal updates. The API pushes "this drop changed" when one goes live, is claimed,
-// ends or is removed; the map listens on the public channel and the merchant dashboard on the
-// merchant's own private one. A push carries no deal data, so listeners re-read through the REST
-// API. Pusher loads only when a channel opens, one socket serves every channel, and when the API
-// has no Pusher key nothing connects and the listeners keep polling.
-
 export type FlashChannelHandlers = {
   onChange: (change: FlashDropChange) => void
-  // True while subscribed on a connected socket. Going live again after a drop-out is the time
-  // to re-read, since pushes sent while offline are lost.
   onLiveChange?: (live: boolean) => void
 }
 export type CloseChannel = () => void
@@ -35,7 +27,6 @@ const connect = (): Promise<Pusher | null> => {
       forceTLS: true,
       channelAuthorization: {
         customHandler: ({ socketId, channelName }, callback) => {
-          // Only the merchant channel is private; never sign anything else.
           if (!merchantFlashChannelPattern.test(channelName)) {
             callback(new Error('Invalid channel'), null)
             return
@@ -50,7 +41,6 @@ const connect = (): Promise<Pusher | null> => {
       },
     })
   })().catch((error: unknown) => {
-    // Retried when the next channel opens; until then everyone polls.
     console.error('Could not connect to live flash updates', error)
     client = null
     return null
@@ -103,8 +93,6 @@ export const openMapFlashChannel = (handlers: FlashChannelHandlers) =>
 export const openMerchantFlashChannel = (userId: string, handlers: FlashChannelHandlers) =>
   openChannel(merchantFlashChannelFor(userId), handlers)
 
-// Runs `work` straight away, then at most once more per `ms` however many calls arrive, so a
-// crowd claiming at once costs each browser one re-read a second, not one per claim.
 export const coalesce = (work: () => void, ms: number) => {
   let timer: ReturnType<typeof setTimeout> | null = null
   let pending = false

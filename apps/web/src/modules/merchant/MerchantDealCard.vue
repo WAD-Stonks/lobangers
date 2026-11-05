@@ -3,20 +3,16 @@ import FoodSprite from '@web/modules/browse-map/FoodSprite.vue'
 import { foodKindFor } from '@web/modules/browse-map/food-kind'
 import { computed } from 'vue'
 
-// One deal on the merchant dashboard, as a card: its photo (or the map's food illustration when
-// it has none) with a status badge, the title, the description, the offer and dates on one line,
-// where it runs, and its terms and conditions. Buttons go in the actions slot; anything extra (such as how many flash codes
-// were claimed) goes in the default slot.
 export type CardTone = 'live' | 'scheduled' | 'draft' | 'ended' | 'removed'
 
 const props = defineProps<{
   title: string
   description: string
-  offer: string // e.g. "$4.50", "1-for-1", "30% off"
-  dates: string // e.g. "1 Dec to no end date"
+  offer: string
+  dates: string
   location: string
-  terms: string // shown under a TERMS AND CONDITIONS heading; left out when there are none
-  category: string // picks the food illustration when there is no photo
+  terms: string
+  category: string
   photoUrl: string | null
   badge: string
   tone: CardTone
@@ -74,7 +70,6 @@ const muted = computed(() => props.tone === 'ended' || props.tone === 'removed')
   background: var(--paper-sunk);
 }
 
-/* Every card's picture is the same shape, so a row of cards lines up. */
 .merchant-card__photo {
   position: relative;
   flex: none;
@@ -83,7 +78,6 @@ const muted = computed(() => props.tone === 'ended' || props.tone === 'removed')
   background: var(--paper-sunk);
 }
 
-/* Ended and removed deals are faded. */
 .merchant-card--muted .merchant-card__photo {
   opacity: 0.75;
 }
@@ -130,8 +124,6 @@ const muted = computed(() => props.tone === 'ended' || props.tone === 'removed')
   color: var(--on-ink);
 }
 
-/* Dark text on yellow in both themes, like the app's yellow buttons (--ink turns light in dark
-   mode). */
 .merchant-card__badge--draft {
   background: var(--sunny);
   color: var(--on-accent);
@@ -156,7 +148,6 @@ const muted = computed(() => props.tone === 'ended' || props.tone === 'removed')
   overflow-wrap: anywhere;
 }
 
-/* The title is the biggest text on the card. */
 .merchant-card__title {
   margin: 0;
   font-family: var(--font-display);
@@ -186,7 +177,6 @@ const muted = computed(() => props.tone === 'ended' || props.tone === 'removed')
   color: var(--ink);
 }
 
-/* Terms keep the line breaks the merchant typed, one condition per line. */
 .merchant-card__terms {
   color: var(--ink-muted);
   font-size: 0.8rem;
@@ -203,8 +193,6 @@ const muted = computed(() => props.tone === 'ended' || props.tone === 'removed')
   white-space: pre-line;
 }
 
-/* On a phone, where cards stack one per row, a wider and shorter picture keeps the details in
-   view. */
 @media (max-width: 575.98px) {
   .merchant-card__photo {
     aspect-ratio: 16 / 9;
@@ -215,7 +203,6 @@ const muted = computed(() => props.tone === 'ended' || props.tone === 'removed')
   }
 }
 
-/* Buttons sit at the bottom, so they line up across a row of cards. */
 .merchant-card__actions {
   display: flex;
   flex-wrap: wrap;

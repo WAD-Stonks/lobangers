@@ -2,8 +2,6 @@ import { FILTER_QUERY_KEYS, readView, type ShellView } from '@web/modules/map-sh
 import { SHEET_EXPANDED, SHEET_FULL } from '@web/modules/map-shell/use-shell-layout'
 import type { LocationQuery, RouteLocationRaw, RouteRecordNameGeneric } from 'vue-router'
 
-// Links between shell panels carry the visitor's filters, sort and view along, so going back
-// to the list shows the same results. Anything else in the query (at, redirect) is dropped.
 const SHELL_QUERY_KEYS: readonly string[] = [
   ...FILTER_QUERY_KEYS,
   'sort',
@@ -22,7 +20,6 @@ export const browseLocation = (query: LocationQuery): RouteLocationRaw => ({
   query: shellQuery(query),
 })
 
-// `at` picks the outlet when a deal runs at several.
 export const dealLocation = (
   query: LocationQuery,
   dealId: string,
@@ -63,8 +60,6 @@ export const placeLocation = (
   query: shellQuery(query),
 })
 
-// Only deal browsing has an All Deals list. Every other panel (account prompts, Squad, codes,
-// Lobbie) opens beside the map, even when its entry link carries the list's view.
 const LIST_PANELS: readonly string[] = ['browse', 'saved', 'deal', 'venue', 'place']
 
 export const routeView = (route: {
@@ -73,10 +68,6 @@ export const routeView = (route: {
 }): ShellView =>
   typeof route.name === 'string' && LIST_PANELS.includes(route.name) ? readView(route.query) : 'map'
 
-// Snap index (0 peek, 1 half, 2 full, 3 expanded) a panel opens at on a bottom sheet. Squad
-// screens take the whole screen so the room, its stickers and its buttons all fit at once;
-// forms, the Lobbie chat, the sign-in prompt and the list view need room; browsing and deal
-// details leave the map visible.
 const EXPANDED_PANELS = new Set(['squad-new', 'squad-join', 'squad-room'])
 const FULL_HEIGHT_PANELS = new Set([
   'add-deal',

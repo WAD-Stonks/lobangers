@@ -37,10 +37,6 @@ export const clearRecoveryWorkspace = (workspace: Workspace) => {
   workspace.highest.clear()
 }
 
-// Memory only: no notes, credentials, post bodies or browser storage. Protected
-// parent panels own the lifetime, not the conditionally mounted investigation.
-// Keyed panel replacement in one render retains attempts; closing all protected
-// panels drops the workspace before another identity can reopen it.
 export const useRecoveryWorkspace = (): Workspace => {
   const inherited = inject(workspaceKey, null)
   if (inherited) return inherited

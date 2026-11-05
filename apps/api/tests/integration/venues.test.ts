@@ -173,7 +173,6 @@ it('returns the venue with only publicly visible ongoing and past deals that app
     priceMinor: null,
     validUntil: new Date(now - 3 * day),
   })
-  // Pin reviewed positives only, after all final edges; never refresh reviewedVersion.
   await seedSyntheticScope(db, selected.id, 'SOURCE_SELECTED')
   await seedSyntheticScope(db, allOutlets.id, 'SOURCE_ALL')
   await seedSyntheticScope(db, expired.id, 'SOURCE_SELECTED')
@@ -217,8 +216,6 @@ it('returns the venue with only publicly visible ongoing and past deals that app
     applicability: 'ALL_MERCHANT_OUTLETS',
     merchantId: otherMerchant.id,
   })
-  // Positive scope prerequisites isolate each original moderation/time/selection negative.
-  // The helper never touches reviewedVersion, reviewStatus, publication, deletion or edges.
   await seedSyntheticScope(db, pending.id, 'SOURCE_SELECTED')
   await seedSyntheticScope(db, staleReview.id, 'SOURCE_SELECTED')
   await seedSyntheticScope(db, unpublished.id, 'SOURCE_SELECTED')
@@ -230,7 +227,6 @@ it('returns the venue with only publicly visible ongoing and past deals that app
   await seedSyntheticScope(db, siblingDeal.id, 'SOURCE_SELECTED')
   await seedSyntheticScope(db, online.id, 'SOURCE_NONSPATIAL')
   await seedSyntheticScope(db, otherMerchantDeal.id, 'SOURCE_ALL')
-  // Preserve the old missing-merchant/unknown-scope shape as an explicit negative.
   await createVisibleDeal('Unconfirmed missing merchant deal', link(venue.id))
 
   const response = await http().get(`/api/venues/${venue.id}`)
@@ -310,8 +306,6 @@ it('treats a deal with no end date (null or missing) as ongoing, not past', asyn
       longitude: 103.85,
     },
   })
-  // The importer stores an explicit null; Prisma's Mongo `lte` orders null before every date,
-  // so a bare `validUntil <= now` would count an open-ended deal as already over.
   await seedSyntheticOutletProof(db, venue.id)
   const explicitNull = await createVisibleDeal('Null end outlets deal', {
     applicability: 'ALL_MERCHANT_OUTLETS',
@@ -328,8 +322,6 @@ it('treats a deal with no end date (null or missing) as ongoing, not past', asyn
     update: 'Deal',
     updates: [{ q: { _id: { $oid: missing.id } }, u: { $unset: { validUntil: '' } } }],
   })
-  // Explicit SYNTHETIC geography, occupancy and final-edge scope prerequisites, independent
-  // of the null/unset date assertion. These receipts never change dates or moderation.
   await seedSyntheticScope(db, explicitNull.id, 'SOURCE_ALL')
   await seedSyntheticScope(db, missing.id, 'SOURCE_ALL')
 
@@ -357,8 +349,6 @@ it('keeps the 20 newest past deals at a venue even when newer held rows outnumbe
   })
   await seedSyntheticOutletProof(db, venue.id)
   const link = { venues: { create: [{ venueId: venue.id }] } }
-  // Linked to this venue but owned by another merchant: the database matches them, the
-  // outlet policy does not. They are newer, so a database-side limit alone would keep them.
   for (let index = 0; index < 60; index++)
     await createVisibleDeal(`Held past deal ${index}`, {
       merchantId: otherMerchant.id,

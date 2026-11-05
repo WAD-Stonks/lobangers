@@ -30,7 +30,6 @@ describe('station layer', () => {
   it('rings a one-line station in its colour and splits an interchange', () => {
     expect(ringFor(['NS'])).toBe('#d42e12')
     expect(ringFor(['NS', 'EW'])).toBe('conic-gradient(#d42e12 0deg 180deg, #009645 180deg 360deg)')
-    // Two LRT systems share a colour, so a station on both is not split.
     expect(ringFor(['BP', 'SK'])).toBe('#748477')
   })
 })

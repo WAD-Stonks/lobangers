@@ -3,9 +3,6 @@ import type { Database } from '@api/modules/platform-admin/transaction'
 import { activeRecord } from '@api/modules/platform-admin/venues'
 import type { FlashCodeValidity, MerchantFlashDrop } from '@broke-oclock/contracts/flash-drops'
 
-// Loads the deal and outlet a drop points at and projects the shapes each audience sees. Drops
-// store ids only; the deal title and outlet name are read fresh so a rename shows everywhere.
-
 type Reader = Pick<Database, 'deal' | 'venue' | 'merchant'>
 
 export const dropSelect = {
@@ -100,7 +97,6 @@ export const loadContext = async (
         discountPercent: true,
         priceMinor: true,
         terms: true,
-        // The deal's photo: its first upload that has not been removed.
         images: {
           where: activeRecord,
           orderBy: { createdAt: 'asc' },
@@ -138,8 +134,6 @@ const MISSING = 'Unavailable'
 export const usualPrice = (deal: Pick<DealFacts, 'priceMinor'> | undefined) =>
   deal?.priceMinor && deal.priceMinor > 0 ? deal.priceMinor : null
 
-// The flash offer every audience sees. Flash deals made before offer types were a fixed flash
-// price, and their usual price was their deal's own price.
 export const flashOfferOf = (row: DropRow, deal: Pick<DealFacts, 'priceMinor'> | undefined) => {
   const legacy = !row.offerType
   return {
@@ -150,11 +144,9 @@ export const flashOfferOf = (row: DropRow, deal: Pick<DealFacts, 'priceMinor'> |
   }
 }
 
-// When codes claimed from this drop stop working; older drops' codes end with their window.
 export const codesExpireAtOf = (row: Pick<DropRow, 'endsAt' | 'codesExpireAt'>) =>
   (row.codesExpireAt ?? row.endsAt).toISOString()
 
-// The fields every audience (merchant and admin) shares.
 export const toDropCore = (row: DropRow, context: DropContext, now: Date) => {
   const deal = context.deals.get(row.dealId)
   return {

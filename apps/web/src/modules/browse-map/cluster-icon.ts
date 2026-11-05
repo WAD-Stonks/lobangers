@@ -6,7 +6,6 @@ import { pinBadgeText, pinFoodKind } from '@web/modules/browse-map/venue-pin'
 import L from 'leaflet'
 
 const SVG_NAMESPACE = 'http://www.w3.org/2000/svg'
-// A building: the tower, its lower wing, the ground line and three rows of windows.
 const BUILDING_PATHS = [
   'M4 21V5a1 1 0 0 1 1-1h9a1 1 0 0 1 1 1v16',
   'M15 9h4a1 1 0 0 1 1 1v11',
@@ -16,11 +15,6 @@ const BUILDING_PATHS = [
   'M8 16h3',
 ]
 
-// A group is the same dark oval as a pin, holding its most common food, its neighbourhood or
-// region and "n deals · from $x"; "Near you" is sky blue to match the visitor's dot. One food
-// keeps a screen of groups calm; the name and count tell it apart from one outlet. Every
-// cluster without room for a name (a crowded group, the island-wide count, a stack of
-// overlapping pins) is the same compact dot: one food and its deal count. Styled in DealMap.vue.
 export const CLUSTER_CLASS = 'deal-map-cluster'
 
 const span = (className: string, text: string): HTMLSpanElement => {
@@ -44,7 +38,6 @@ export const describeGroup = (group: PlacedGroup): string => DESCRIBE[group.kind
 
 const MAX_GROUP_FOODS = 1
 
-// The group's most common foods, most common first, without repeats.
 export const groupFoods = (
   group: Pick<PlacedGroup, 'venues'>,
   limit = MAX_GROUP_FOODS,
@@ -64,8 +57,6 @@ export const groupMeta = (group: Pick<PlacedGroup, 'venues' | 'dealCount'>): str
   return lead.startsWith('from ') ? `${deals(group.dealCount)} · ${lead}` : deals(group.dealCount)
 }
 
-// Built from DOM nodes; the name and count are set as text, never HTML. The icon is a
-// zero-size anchor so the oval can centre itself on the point whatever its width.
 const createBuilding = (): SVGSVGElement => {
   const svg = document.createElementNS(SVG_NAMESPACE, 'svg')
   svg.setAttribute('class', `${DEAL_PIN_CLASS}__building`)
@@ -84,10 +75,6 @@ const createBuilding = (): SVGSVGElement => {
   return svg
 }
 
-// A mall is drawn as an outlet's pin (venue-pin.ts), so it reads as a place to go rather than
-// a count to open: an oval holding a building and "n deals", on a stem down to a dot on the
-// building's exact spot. No food: a mall has many, and the building says what it is. It takes the pin's classes,
-// so it is hovered, focused and opened (coral) like a pin; `--place` inverts its colours.
 const createPlaceMarker = (group: PlacedGroup): HTMLElement => {
   const part = (name: string, text?: string) => span(`${DEAL_PIN_CLASS}__${name}`, text ?? '')
   const bubble = part('bubble')
@@ -125,7 +112,6 @@ export const createGroupIcon = (group: PlacedGroup): L.DivIcon => {
     text.append(span(`${CLUSTER_CLASS}__count`, groupMeta(group)))
     chip.append(text)
   }
-  // A negative anchor draws the pill `offset` px away from the group's point.
   const anchor: L.PointTuple = [-group.offset.x || 0, -group.offset.y || 0]
   return L.divIcon({ className: CLUSTER_CLASS, html: chip, iconSize: [0, 0], iconAnchor: anchor })
 }

@@ -43,7 +43,6 @@ describe('deal images', () => {
   it('keeps only the hero of an article: its first content image, in page order', () => {
     const images = imagesFor({
       sources: [
-        // Stored order differs from page order, as it does in the real import.
         article(ARTICLE_HTML, [
           row('shelf', `${UPLOADS}/shelf-photo.jpg`),
           row('hero', `${UPLOADS}/laoganma-scaled.jpeg`, 'Lao Gan Ma chips'),

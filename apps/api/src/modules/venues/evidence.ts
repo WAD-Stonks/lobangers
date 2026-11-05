@@ -23,8 +23,6 @@ import {
 } from '@api/modules/venues/admin-data'
 import type { z } from 'zod'
 
-// Snapshot the exact stored receipt, including its original hash and verification
-// timestamp. Never recompute an old receipt against a corrected tuple.
 export const retainCurrentEvidence = async (
   tx: AccessTransaction,
   admin: { id: string; name: string },
@@ -66,7 +64,6 @@ export const recordCatalogueEvidence = (
     const admin = await requireCurrentAdmin(tx, actor)
     const row = await currentCatalogueVenue(tx, id, input.expectedVersion)
     await claimCatalogueParent(tx, row.merchantId)
-    // A legacy unresolved tuple cannot acquire positive authority through an attestation.
     if (
       !row.address.trim() ||
       !/^\d{6}$/.test(row.postalCode ?? '') ||

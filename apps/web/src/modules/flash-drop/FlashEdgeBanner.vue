@@ -3,17 +3,12 @@ import { countdown, distanceText, offerTitle } from '@web/modules/flash-drop/fla
 import type { EdgeBanner } from '@web/modules/flash-drop/use-flash-map'
 import { computed } from 'vue'
 
-// A Flash Drop whose circle is off screen: the black banner docks to the map's edge with an
-// arrow pointing the way and how far it is. Tapping flies the map there and opens the deal.
-// `inset` is how much of the map's left and right a side panel covers.
 const props = withDefaults(
   defineProps<{ banner: EdgeBanner; now: number; lifeMs: number; inset?: { left: number; right: number } }>(),
   { inset: () => ({ left: 0, right: 0 }) },
 )
 const emit = defineEmits<{ open: []; hover: [paused: boolean] }>()
 
-// The banner's x is kept clear of the map's uncovered edges in CSS (see .flash-edge `left`), so it
-// follows the map's real width through resizes and rotation without measuring the window.
 const style = computed(() => ({
   '--flash-x': `${props.banner.point.x}px`,
   '--flash-inset-left': `${props.inset.left}px`,
@@ -59,7 +54,6 @@ const label = computed(
 
 <style scoped>
 .flash-edge {
-  /* Half the banner's widest size plus an 8px gap, but never past the middle of a tiny map. */
   --flash-edge-gap: min(158px, 50%);
 
   position: absolute;
@@ -127,7 +121,6 @@ const label = computed(
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  /* --flash-* roles live in flash-drop.css, which the map layer always loads. */
   color: var(--flash-kicker, #f3a58e);
 }
 
@@ -174,7 +167,6 @@ const label = computed(
   animation-play-state: paused;
 }
 
-/* MapShell wraps the banner in <Transition name="flash-edge">: it shrinks back the way it came. */
 .flash-edge.flash-edge-leave-active {
   pointer-events: none;
   animation: flash-edge-out 220ms var(--ease-out) both;

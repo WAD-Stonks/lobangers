@@ -13,7 +13,6 @@ const normalise = (text: string) =>
     .replace(/[^\p{L}\p{N}]+/gu, ' ')
     .trim()} `
 
-// Longest names first, so "tampines east" wins over "tampines".
 const STATIONS = RAIL_STATIONS.map(([name, line, lat, lng]) => {
   const key = normalise(name).trim()
   return {

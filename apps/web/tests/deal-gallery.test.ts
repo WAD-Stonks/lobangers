@@ -11,7 +11,6 @@ const image = (key: string, alt: string | null = null) => ({
 const mountGallery = (images: ReturnType<typeof image>[]) =>
   mount(DealGallery, { props: { images, title: 'Kopi' }, slots: FALLBACK })
 
-// jsdom never decodes images, so report a size the way a real load event would.
 const loadWithSize = async (
   wrapper: ReturnType<typeof mountGallery>,
   index: number,

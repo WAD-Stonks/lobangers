@@ -1,12 +1,8 @@
 import type { VenueDetailResponse } from '@broke-oclock/contracts/venues'
 
-// Several outlets in one building (a mall) open as one place. Outlets are listed as
-// "Shop, Building" ("Papitto Gelato, YMCA One Orchard"), so a building every name ends with is
-// the place's name; otherwise the address names it ("YMCA, 1 Orchard Road" → "YMCA").
 type PlaceVenue = Pick<VenueDetailResponse['venue'], 'name' | 'address' | 'postalCode'>
 
 const SUFFIX_SEPARATOR = ', '
-// "#01-23" and "#B1-05A": one outlet's unit, not the building's address.
 const UNIT_NUMBER = /\s*#[A-Z]?\d+-\d+[A-Z]?,?/gi
 
 const buildingIn = (name: string): string | null => {
@@ -17,8 +13,6 @@ const buildingIn = (name: string): string | null => {
 const streetAddress = (venue: PlaceVenue): string =>
   venue.address.replace(UNIT_NUMBER, '').replace(/\s+/g, ' ').trim()
 
-// The building every outlet name ends with, if they agree on one. The map labels a mall's
-// marker with it before any address has loaded.
 export const sharedBuilding = (names: readonly string[]): string | null => {
   const [first] = names
   const building = first ? buildingIn(first) : null
@@ -37,8 +31,6 @@ export const placeName = (venues: readonly PlaceVenue[]): string => {
   return street.includes(SUFFIX_SEPARATOR) && lead ? lead : street
 }
 
-// One outlet keeps its unit number; a place drops it. The postal code is added once, even when
-// the stored address already ends with it.
 export const placeAddress = (venues: readonly PlaceVenue[]): string => {
   const [first] = venues
   if (!first) return ''
@@ -48,7 +40,6 @@ export const placeAddress = (venues: readonly PlaceVenue[]): string => {
     : street
 }
 
-// Route params carry a place's outlets as one comma-separated list.
 export const PLACE_ID_SEPARATOR = ','
 
 export const readPlaceIds = (param: unknown): readonly string[] =>

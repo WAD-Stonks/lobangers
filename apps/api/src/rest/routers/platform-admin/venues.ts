@@ -10,7 +10,6 @@ import {
   platformVenuesQuerySchema,
 } from '@broke-oclock/contracts/platform-admin'
 
-// New-selection catalogue only. Account/grant history deliberately uses its separate reader.
 export const listAdminVenues = (dependencies: RestDependencies) =>
   createRestHandler(dependencies, async (request, response, context) => {
     await requireAdmin(context, 'FORBIDDEN')
@@ -19,7 +18,6 @@ export const listAdminVenues = (dependencies: RestDependencies) =>
     let cursor = input.cursor
     let scanned = 0
     let exhausted = false
-    // Bounded scan with an honest continuation even when all scanned hashes are stale.
     while (items.length <= input.limit && scanned < 200) {
       const rows = await context.db.venue.findMany({
         where: {

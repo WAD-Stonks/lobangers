@@ -20,9 +20,6 @@ import { computed, nextTick, ref, watch } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import '@web/modules/squad/squad.css'
 
-// Join a friend's room with its four-letter code. A peek first says whether the room is open,
-// closed or already voting (then the visitor watches until the next deal); the join itself
-// says if the name is taken or the room is full.
 const route = useRoute()
 const router = useRouter()
 const room = useSquadRoom()
@@ -36,7 +33,6 @@ const codeError = ref('')
 const nameError = ref('')
 const pending = ref(false)
 const codeInput = ref<HTMLInputElement | null>(null)
-// A room already voting: the visitor confirms they will watch first.
 const live = ref<SquadPeek | null>(null)
 const full = ref<{ code: string; message: string; hostName: string | null } | null>(null)
 
@@ -65,8 +61,6 @@ const onName = (next: string) => {
   name.value = next
   nameError.value = ''
 }
-// Replays the CSS shake on the same input (no remount, so focus and caret stay put) and puts
-// focus back in the code. Reduced motion turns the animation off, so there is nothing to replay.
 const replayShake = (input: HTMLInputElement) => {
   for (const animation of input.getAnimations?.() ?? []) {
     animation.cancel()
@@ -103,7 +97,6 @@ const submit = async () => {
   if (!isCompleteCode(target)) return failCode('Codes are four letters, like KOPI.')
   nameError.value = squadNameError(name.value)
   if (nameError.value) return
-  // Already in that room (an invite link opened twice): go straight back to it.
   const current = room?.state.value
   if (current?.code === target && current.status !== 'CLOSED' && current.me && !current.me.left && !current.me.kicked) {
     await router.push({ name: 'squad-room', params: { code: target } })

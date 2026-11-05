@@ -19,7 +19,6 @@ describe('resolveBasemap', () => {
   })
 
   it('caps native tile zoom where each provider stops serving tiles', () => {
-    // CARTO answers 403 above zoom 18; Leaflet must upscale z18 tiles instead of requesting them.
     expect(resolveBasemap('abc').maxNativeZoom).toBe(18)
     expect(resolveBasemap(undefined).maxNativeZoom).toBe(19)
   })

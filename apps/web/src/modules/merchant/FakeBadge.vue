@@ -1,5 +1,4 @@
 <script setup lang="ts">
-// A small label that marks made-up demo data, so nobody mistakes it for a real deal.
 </script>
 
 <template>

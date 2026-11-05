@@ -92,7 +92,6 @@ describe('OutletDetail', () => {
       false,
     )
     await verify.trigger('click')
-    // OneMap proves a building, not who trades there, so it is not offered for occupancy.
     expect(wrapper.find('input[value="ONEMAP"]').exists()).toBe(false)
     await wrapper.get('[name="reference"]').setValue('Store locator page')
     await wrapper.get('[name="statement"]').setValue('Lists this outlet')

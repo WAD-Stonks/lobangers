@@ -5,8 +5,6 @@ import type {
 } from '@broke-oclock/contracts/flash-drops'
 import { formatMoneyMinor } from '@web/lib/format'
 
-// Presentation helpers for the admin Flash deals page. Merchants send their own flash deals
-// live; admins watch them and can remove one. Times are always shown in SGT.
 export const SINGAPORE_TIME_ZONE = 'Asia/Singapore'
 
 export type DecisionKind = 'STOP'
@@ -24,7 +22,6 @@ export const FLASH_DROP_VIEWS: readonly { view: FlashDropView; label: string }[]
   { view: 'ended', label: 'Ended' },
 ]
 
-// Admins never see drafts, but the status list includes them.
 const STATUS_LABELS: Record<FlashDropDisplayStatus, string> = {
   DRAFT: 'Draft',
   SCHEDULED: 'Scheduled',
@@ -46,14 +43,12 @@ export const listStatusLabel = (drop: AdminFlashDrop) =>
     ? `${drop.claimedCount}/${drop.codeLimit} claimed`
     : statusLabel(drop.status)
 
-// "$5.00" via the shared Intl formatter.
 export const formatPrice = (cents: number) => formatMoneyMinor(cents)
 
 export const percentOff = (flashCents: number, usualCents: number | null) =>
   usualCents && usualCents > flashCents ? Math.round(100 - (100 * flashCents) / usualCents) : null
 
 export const offerLine = (drop: AdminFlashDrop) => {
-  // Only a fixed flash price has a usual price to compare with.
   if (drop.offerType === 'BUY_ONE_GET_ONE') return '1-for-1'
   if (drop.offerType === 'PERCENT_OFF') return `${drop.discountPercent}% off`
   if (drop.offerType !== 'FIXED_PRICE' || drop.flashPriceCents === null) return 'Other offer'
@@ -99,7 +94,6 @@ export const formatDistance = (metres: number) =>
     ? `${(metres / 1000).toFixed(metres % 1000 === 0 ? 0 : 1)}\u00a0km`
     : `${metres}\u00a0m`
 
-// Only a scheduled or live flash deal can be removed.
 export const decisionsFor = (status: FlashDropDisplayStatus): readonly DecisionKind[] =>
   status === 'SCHEDULED' || status === 'LIVE' ? ['STOP'] : []
 

@@ -6,8 +6,6 @@ import { resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { promisify } from 'node:util'
 
-// Explicit disposable loopback only. Run a copied schema outside dotenv discovery,
-// and never regenerate the shared client from an integration fixture.
 export const pushDisposableSchema = async (databaseUrl: string) => {
   if (!/^mongodb:\/\/127\.0\.0\.1:\d+\/[A-Za-z0-9_]+\?/.test(databaseUrl))
     throw new Error('Disposable loopback replica URL required')

@@ -11,8 +11,6 @@ import { useToast } from '@web/modules/map-shell/use-toast'
 import { computed } from 'vue'
 import { useRouter } from 'vue-router'
 
-// The site menu's rows, shared by the brand menu (desktop) and the Account page's More tab
-// (wherever a bottom nav replaces the menu).
 export type MenuGroup = Readonly<{ label: string; links: readonly SiteNavLink[] }>
 
 export const MENU_LINK_ICONS: Readonly<Record<string, ShellIconName>> = {
@@ -35,7 +33,6 @@ export const useMenuLinks = () => {
   const router = useRouter()
 
   const user = computed(() => session.value.data?.user ?? null)
-  // Flash Drop codes still good to use; the menu button wears a dot so they are never lost.
   const activeCodeCount = computed(() => (user.value ? (flash?.activeCodes.value.length ?? 0) : 0))
   const codesText = computed(() => {
     const count = activeCodeCount.value
@@ -43,7 +40,6 @@ export const useMenuLinks = () => {
     return `${count} ${count === 1 ? 'code' : 'codes'} ready to use`
   })
 
-  // Role-limited rows (administration) only show for that role, as in the site header.
   const visibleSiteLinks = computed(() =>
     SITE_NAV_LINKS.filter((link) => showsFor(link, user.value?.role)),
   )
@@ -58,7 +54,6 @@ export const useMenuLinks = () => {
       },
       {
         label: 'Explore',
-        // All deals first, then the map.
         links: ['/deals', '/browse'].flatMap((to) =>
           visibleSiteLinks.value.filter((link) => link.to === to),
         ),
@@ -69,7 +64,6 @@ export const useMenuLinks = () => {
       },
       { label: 'About', links: [{ label: 'About Lobangers', to: '/about' }] },
       { label: 'Administration', links: visibleSiteLinks.value.filter((link) => link.roles) },
-      // Contribute always holds Add a deal, except for merchants, who add deals from their dashboard.
     ].filter(
       (group) =>
         group.links.length > 0 || (group.label === 'Contribute' && user.value?.role !== 'MERCHANT'),

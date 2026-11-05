@@ -445,7 +445,6 @@
 .story-intro > p > span {
   color: var(--landing-coral);
 }
-/* Reveal the entire introduction only after the visitor starts scrolling. */
 .landing-motion-ready .story-intro[data-reveal] {
   transform: none;
   transition: opacity 1s ease;
@@ -1178,7 +1177,6 @@
   .landing-account {
     display: none;
   }
-  /* The account links fold into the menu, so the switch moves to the end of the bar. */
   .landing-theme {
     margin-left: auto;
     margin-right: 0;
@@ -1417,7 +1415,6 @@
     height: 38px;
     top: -1px;
   }
-  /* At 6px the region names could not be read; each pin's button already names its region. */
   .pin-label {
     display: none;
   }
@@ -1693,7 +1690,6 @@
   }
 }
 
-/* Blend the raster's white paper into the page without changing the supplied artwork. */
 .hero-map-scene > .illustrated-map {
   mix-blend-mode: multiply;
 }

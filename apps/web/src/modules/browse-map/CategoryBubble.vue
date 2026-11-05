@@ -5,13 +5,9 @@ import { applyFoodSprite } from '@web/modules/browse-map/food-sprite'
 import '@web/modules/browse-map/food-sprite.css'
 import { onMounted, ref, watch } from 'vue'
 
-// Tinted circle holding the category's 3D food, which spills slightly past the rim. Decorative:
-// the category is always written out next to it, so the bubble is hidden from assistive
-// technology. Lists show the still first frame so a long list stays calm; `animated` plays it.
 const props = withDefaults(
   defineProps<{
     category: string
-    // The deal's title and venue pick a specific dish (pasta, hotpot…) where one is named.
     title?: string
     venue?: string
     size?: 'sm' | 'md' | 'lg'
@@ -60,8 +56,6 @@ watch(() => [props.category, props.title, props.venue, props.animated], paint)
   border-radius: 50%;
 }
 
-/* The model is a little larger than the circle and sits slightly high, so it reads as standing
-   on the tint rather than being clipped inside it. */
 .category-bubble__food {
   position: absolute;
   bottom: 4%;

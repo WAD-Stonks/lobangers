@@ -8,14 +8,12 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { defineComponent } from 'vue'
 import { createMemoryHistory, createRouter } from 'vue-router'
 
-// Keep the real AppShell: its main landmark belongs to the public branch, not the 404 page.
 vi.mock('@broke-oclock/ui', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@broke-oclock/ui')>()
   const { defineComponent } = await import('vue')
   return { ...actual, BApp: defineComponent({ template: '<div><slot /></div>' }) }
 })
 
-// Synthetic absent identity; real route pages and their AdminShell remain mounted.
 vi.mock('@web/lib/auth-client', () => ({
   authClient: { getSession: vi.fn(async () => ({ data: null, error: null })) },
 }))
@@ -89,7 +87,6 @@ it.each(['/not-real', '/admin/not-real', '/admin/accounts/not-real'])(
     const wrapper = mount(App, {
       global: {
         plugins: [router],
-        // None of these owns a main or decides which route/page/shell renders.
         stubs: {
           PageHeader: { template: '<header data-testid="consumer-header" />' },
           AdminSessionControls: true,
@@ -126,7 +123,6 @@ it.each(['/not-real', '/admin/not-real', '/admin/accounts/not-real'])(
   },
 )
 
-// Anonymous direct entries retain one auth main, without operational navigation.
 it.each([
   ['/admin', 'Admin overview'],
   ['/admin/deals', 'Deals operations'],

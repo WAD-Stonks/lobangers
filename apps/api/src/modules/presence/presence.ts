@@ -19,13 +19,7 @@ import {
   presenceAvatarSchema,
 } from '@broke-oclock/contracts/presence'
 
-// Hungry Nearby: opt-in, signed-in sharing of a fuzzed spot, and an anonymous list of who is
-// around a point. Rows hold only the fuzzed point; expired rows are ignored by every read.
-
-// Heartbeats closer together than this keep the stored point as it is (it may still change
-// the avatar), so a script cannot drag a person's avatar around the map.
 export const MIN_MOVE_INTERVAL_MS = 10_000
-// Rows read before the distance cut; the bounding box keeps this generous.
 const SCAN_LIMIT = 600
 const METRES_PER_DEGREE_LAT = 111_320
 
@@ -54,7 +48,6 @@ const select = {
 const secureRandom = () => randomInt(0, 2 ** 32) / 2 ** 32
 const newToken = () => randomBytes(16).toString('base64url')
 
-// A stored avatar that is not one of today's characters falls back to the person's default.
 const avatarOf = (row: Pick<PresenceRow, 'avatar'>, fallback: PresenceAvatar): PresenceAvatar => {
   const parsed = presenceAvatarSchema.safeParse(row.avatar)
   return parsed.success ? parsed.data : fallback
@@ -71,8 +64,6 @@ const toMine = (row: PresenceRow, fallback: PresenceAvatar): MyPresence => ({
 const isDuplicate = (error: unknown) =>
   typeof error === 'object' && error !== null && 'code' in error && error.code === 'P2002'
 
-// A fresh sharing session: a new token and offset, so a later session cannot be linked to an
-// earlier one by either.
 const freshSession = (raw: Point) => {
   const offset = randomOffset(secureRandom)
   const point = fuzzPoint(raw, offset)
@@ -96,7 +87,6 @@ const nextData = (
   }
 }
 
-// Turns sharing on, or keeps it alive. Only the fuzzed point is written.
 export const sharePresence = async (
   database: Database,
   userId: string,
@@ -120,7 +110,6 @@ export const sharePresence = async (
     const row = await database.nearbyPresence.create({ data: { userId, ...created }, select })
     return toMine(row, fallback)
   } catch (error) {
-    // Two first heartbeats at once: the other one made the row, so this one simply refreshes it.
     if (!isDuplicate(error)) throw error
     const row = await database.nearbyPresence.update({
       where: { userId },
@@ -131,7 +120,6 @@ export const sharePresence = async (
   }
 }
 
-// "Hide me": the row goes at once, so the next list no longer has this person.
 export const hidePresence = async (database: Database, userId: string): Promise<void> => {
   await database.nearbyPresence.deleteMany({ where: { userId } })
 }
@@ -145,8 +133,6 @@ const boxAround = (centre: Point, metres: number) => {
   }
 }
 
-// Anonymous: a token, an avatar and the fuzzed point for each person, nearest first. The
-// viewer is left out of the list and gets their own spot back separately.
 export const listNearbyPeople = async (
   database: Database,
   viewerUserId: string | null,

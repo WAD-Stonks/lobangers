@@ -19,8 +19,6 @@ export const buildNodeApi = async (entry: 'server' | 'vercel', directory: string
     target: 'node22.18',
     format: 'esm',
     tsconfig: join(repositoryRoot, 'tsconfig.json'),
-    // CommonJS dependencies require Node builtins and Prisma's adjacent native engine.
-    // Preserve ESM import.meta for UploadThing and the server entry-point guard.
     banner: {
       js: "import { createRequire as __nodeCreateRequire } from 'node:module'; import { fileURLToPath as __nodeFileURLToPath } from 'node:url'; import { dirname as __nodeDirname } from 'node:path'; const require = __nodeCreateRequire(import.meta.url); const __filename = __nodeFileURLToPath(import.meta.url); const __dirname = __nodeDirname(__filename);",
     },
@@ -29,7 +27,6 @@ export const buildNodeApi = async (entry: 'server' | 'vercel', directory: string
     if (file === 'schema.prisma' || (file.startsWith('libquery_engine-') && file.endsWith('.node')))
       await copyFile(join(generated, file), join(directory, file))
   }
-  // dist/server.js must remain ESM even when copied outside the monorepo.
   await writeFile(
     join(directory, 'package.json'),
     JSON.stringify({ private: true, type: 'module' }),

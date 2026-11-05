@@ -15,7 +15,6 @@ import {
   squadRealtimeConfigSchema,
 } from '@broke-oclock/contracts/squad'
 
-// The public Pusher key the browser connects with; null tells it to poll instead.
 export const realtimeConfigHandler = (dependencies: RestDependencies) =>
   createPublicRestHandler(dependencies, async (request, response) => {
     parseRestInput(squadEmptyQuerySchema, request.query)
@@ -28,7 +27,6 @@ export const realtimeConfigHandler = (dependencies: RestDependencies) =>
     )
   })
 
-// Pusher's private-channel handshake: signs the socket in when the caller has a seat.
 export const realtimeAuthHandler = (dependencies: RestDependencies) =>
   createRestHandler(dependencies, async (request, response, context) => {
     requireTrustedOrigin(request.get('Origin'), dependencies.config.webOrigin)

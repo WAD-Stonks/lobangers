@@ -8,16 +8,12 @@ import {
 import { snapIndex } from '@web/modules/map-shell/sheet-snap'
 import { computed, ref } from 'vue'
 
-// The panel slot. From 992px it is a column on the left; below that a bottom sheet with three
-// snap heights (peek, half, full). The sheet is always full height and slides with transform,
-// so only transform animates; --sheet-offset tells the content how much sits off screen.
 const props = withDefaults(
   defineProps<{
     mode: 'side' | 'sheet'
     heights?: readonly number[]
     snap?: number
     wide?: boolean
-    // Desktop only: slid off the right edge so the whole map shows.
     collapsed?: boolean
     label?: string
   }>(),
@@ -41,7 +37,6 @@ const visibleHeight = computed(() => {
   return Math.min(fullHeight.value, Math.max(min * 0.6, snapHeight.value + dragDelta.value))
 })
 const offset = computed(() => Math.round(fullHeight.value - visibleHeight.value))
-// Past full height the sheet slides over the header, so it has to stack above it.
 const expanded = computed(() => {
   const belowHeader = props.heights[props.heights.length - 2] ?? fullHeight.value
   return props.mode === 'sheet' && props.heights.length > 3 && visibleHeight.value > belowHeader
@@ -67,7 +62,6 @@ const beginDrag = (y: number, time: number) => {
 
 const moveDrag = (y: number, time: number) => {
   const elapsed = time - lastTime
-  // Upward movement grows the sheet, so velocity is positive going up.
   if (elapsed > 0) velocity = (lastY - y) / elapsed
   lastY = y
   lastTime = time
@@ -85,9 +79,6 @@ const onPointerMove = (event: PointerEvent) => {
   if (dragging.value) moveDrag(event.clientY, event.timeStamp)
 }
 
-// A drag that starts in the content. The content pans natively (touch-action: pan-y), which
-// cancels pointer events once it scrolls, so this listens to touch events and only takes the
-// gesture (preventDefault) when the content has nothing to scroll that way.
 let contentIntent: ContentDragIntent | null = null
 let touchStartX = 0
 let touchStartY = 0
@@ -131,7 +122,7 @@ const release = () => {
   const moved = Math.abs(dragDelta.value) > 4
   const next = moved
     ? snapIndex(props.heights, { height: snapHeight.value + dragDelta.value, velocity, start: props.snap })
-    : // A tap on the handle steps up, and from full back down to peek.
+    :
       (props.snap + 1) % props.heights.length
   dragDelta.value = 0
   emit('update:snap', next)
@@ -145,7 +136,6 @@ const onKeydown = (event: KeyboardEvent) => {
   event.preventDefault()
 }
 
-// Enter or Space (a click with no pointer) steps the sheet like a tap does.
 const onClick = (event: MouseEvent) => {
   if (event.detail === 0) emit('update:snap', (props.snap + 1) % props.heights.length)
 }
@@ -210,7 +200,6 @@ const handleLabel = computed(
   height: 100%;
 }
 
-/* Desktop: a full-height card on the right; list mode widens it into a card grid. */
 .shell-panel--side {
   top: var(--space-4);
   right: var(--space-4);
@@ -220,7 +209,6 @@ const handleLabel = computed(
   transition: transform var(--dur-sheet) var(--ease-drawer);
 }
 
-/* Off the right edge, clear of its own shadow; hidden once it has slid out. */
 .shell-panel--side.is-collapsed {
   visibility: hidden;
   transform: translateX(calc(100% + var(--space-4) + 32px));
@@ -240,12 +228,10 @@ const handleLabel = computed(
   touch-action: none;
 }
 
-/* On dark tiles a shadow alone does not lift the sheet; the card shadow adds a faint light edge. */
 .app-palette[data-theme='dark'] .shell-panel--sheet {
   box-shadow: var(--shadow-card);
 }
 
-/* The sticky action bar rides the visible edge, so it moves with the sheet, not ahead of it. */
 .shell-panel--sheet :deep(.panel-frame__actions) {
   transition: transform var(--dur-sheet) var(--ease-drawer);
 }
@@ -260,7 +246,6 @@ const handleLabel = computed(
   touch-action: pan-y;
 }
 
-/* A 44px tall target around a small bar, laid over the content's top inset. */
 .shell-panel__grip {
   position: absolute;
   top: 0;
@@ -294,7 +279,6 @@ const handleLabel = computed(
   border-radius: var(--radius-pill);
 }
 
-/* Expanded: above the header (z-index 30), clear of the notch, with square top corners. */
 .shell-panel--sheet.is-expanded {
   z-index: 35;
   border-radius: 0;

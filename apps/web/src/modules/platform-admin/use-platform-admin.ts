@@ -47,7 +47,6 @@ export function usePlatformAdmin(
   const notice = ref('')
   const accountError = ref('')
   const staleAccounts = reactive(new Set<string>())
-  // Keep accepted version evidence even while details are cleared or filters change.
   const accountVersions = new Map<string, number>()
   const observeAccount = (record: { id: string; version: number }) => {
     const version = Math.max(accountVersions.get(record.id) ?? record.version, record.version)
@@ -357,9 +356,6 @@ export function usePlatformAdmin(
     if (!busy.value) return loadAuthorizedPage()
   }
   const recheckMutationAccess = async (refusal: string) => {
-    // FORBIDDEN may reject one operation (for example, changing your own role).
-    // Clear protected evidence first; the accounts query rechecks the actor's ADMIN
-    // role against the database, even when the filtered page contains no accounts.
     denied('loading')
     await loadAuthorizedPage()
     if (access.value === 'allowed') notice.value = refusal
@@ -396,7 +392,6 @@ export function usePlatformAdmin(
     failure instanceof Error &&
     failure.message === 'Fresh sign-in required'
   const accountReady = computed(
-    // The child security panel shares this page's mutation lock.
     () =>
       access.value === 'allowed' &&
       !busy.value &&

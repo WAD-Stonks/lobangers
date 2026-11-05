@@ -15,9 +15,6 @@ import { hasConfirmedOutletScope } from '@api/modules/deals/outlet-eligibility'
 import { MongoMemoryReplSet } from 'mongodb-memory-server'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 
-// Merchant promotions (/api/merchant/...) and community submissions (POST /api/deals),
-// through real HTTP against a disposable replica set. All stalls and receipts are SYNTHETIC.
-
 const origin = 'http://localhost:5173'
 const root = fileURLToPath(new URL('../../../../', import.meta.url))
 let mongo: MongoMemoryReplSet | undefined
@@ -106,7 +103,6 @@ const call = async (
     },
     body: body === undefined ? undefined : JSON.stringify(body),
   })
-  // Deleting answers 204 with no body.
   const text = await response.text()
   return { status: response.status, body: text ? JSON.parse(text) : null }
 }
@@ -288,7 +284,6 @@ describe('merchant promotions', () => {
       applicability: 'SELECTED_OUTLETS',
     })
     expect(deal.publishedAt).toBeInstanceOf(Date)
-    // Singapore days become the first instant and the exclusive end.
     expect(deal.validFrom?.toISOString()).toBe('2026-10-31T16:00:00.000Z')
     expect(deal.validUntil?.toISOString()).toBe('2099-11-30T16:00:00.000Z')
 
@@ -345,14 +340,14 @@ describe('merchant promotions', () => {
 
     expect((await post(dealBody([outlet.id]), 'https://evil.example')).status).toBe(403)
     for (const body of [
-      dealBody([outlet.id], { discountPercent: 20 }), // discount without % off
-      dealBody([outlet.id], { offerType: 'FIXED_PRICE' }), // fixed price without a price
+      dealBody([outlet.id], { discountPercent: 20 }),
+      dealBody([outlet.id], { offerType: 'FIXED_PRICE' }),
       dealBody([outlet.id], { startDate: '2099-05-02', endDate: '2099-05-01' }),
-      dealBody([outlet.id], { endDate: '2099-02-30' }), // no such day
+      dealBody([outlet.id], { endDate: '2099-02-30' }),
       dealBody([outlet.id, outlet.id]),
       dealBody([]),
       dealBody([outlet.id], { category: 'PIZZA' }),
-      { ...dealBody([outlet.id]), reviewStatus: 'APPROVED' }, // unknown field
+      { ...dealBody([outlet.id]), reviewStatus: 'APPROVED' },
     ])
       expect((await post(body)).status).toBe(400)
     const past = await post(dealBody([outlet.id], { endDate: '2020-01-01' }))
@@ -384,7 +379,6 @@ describe('merchant promotions', () => {
     expect(deal).toMatchObject({ contentVersion: 2, reviewedVersion: 2 })
     expect(deal.venues.map((link) => link.venueId)).toEqual([b.id])
 
-    // Someone else's deal looks missing; a member gets no merchant access at all.
     const path = `/merchant/deals/${created.body.id}`
     expect((await call(otherMerchant, 'PATCH', path, dealBody([b.id]))).status).toBe(404)
     expect((await call(member, 'POST', `${path}/end`)).status).toBe(403)
@@ -433,14 +427,12 @@ describe('merchant promotions', () => {
     expect(
       (await db.deal.findUniqueOrThrow({ where: { id: scheduled.id } })).deletedAt,
     ).toBeInstanceOf(Date)
-    // A deleted deal is gone for the merchant: no edits, no second delete.
     expect(
       (await call(merchant, 'PATCH', `/merchant/deals/${scheduled.id}`, dealBody([outlet.id])))
         .status,
     ).toBe(404)
     expect((await remove(scheduled.id)).status).toBe(404)
 
-    // Ending a live deal keeps it in history; it can be deleted after that.
     await call(merchant, 'POST', `/merchant/deals/${live.id}/end`)
     expect(await listed()).toContain(live.id)
     expect((await remove(live.id)).status).toBe(204)
@@ -538,7 +530,6 @@ describe('merchant deal photos', () => {
     )
     const path = `/merchant/deals/${created.body.id}`
 
-    // Sending the current key, or leaving the field out, keeps the photo as it is.
     const kept = await call(merchant, 'PATCH', path, dealBody([outlet.id], { photoKey: first.key }))
     expect(kept.status).toBe(200)
     expect(kept.body.photo).toEqual({ key: first.key, url: first.url })
@@ -550,7 +541,6 @@ describe('merchant deal photos', () => {
       null,
     )
 
-    // A new key replaces it; the old photo is marked deleted but stays linked for history.
     const second = await photo(merchant.id)
     const replaced = await call(
       merchant,
@@ -564,7 +554,6 @@ describe('merchant deal photos', () => {
     expect(old.deletedAt).toBeInstanceOf(Date)
     expect(old.dealId).toBe(created.body.id)
 
-    // A refused new photo leaves the current one in place.
     const someoneElses = await photo(member.id)
     expect(
       (await call(merchant, 'PATCH', path, dealBody([outlet.id], { photoKey: someoneElses.key })))
@@ -574,7 +563,6 @@ describe('merchant deal photos', () => {
       (await db.uploadedFile.findUniqueOrThrow({ where: { key: second.key } })).deletedAt,
     ).toBe(null)
 
-    // null removes it.
     const removed = await call(merchant, 'PATCH', path, dealBody([outlet.id], { photoKey: null }))
     expect(removed.status).toBe(200)
     expect(removed.body.photo).toBeNull()
@@ -684,7 +672,6 @@ describe('community deal submission', () => {
       submission([verified.id], file.key, { startDate: '2020-01-01', endDate: '2020-01-31' }),
     )
     expect(past.status).toBe(400)
-    // The photo is still unused after every refusal.
     expect(
       (await db.uploadedFile.findUniqueOrThrow({ where: { key: file.key } })).dealId,
     ).toBeNull()

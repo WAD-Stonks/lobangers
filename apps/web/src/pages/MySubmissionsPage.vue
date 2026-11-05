@@ -32,7 +32,6 @@ const confirmingDelete = ref(false)
 const deleting = ref(false)
 const deleteError = ref('')
 
-// Which Bootstrap colour to use for each review status
 const badgeClass: Record<string, string> = {
   PENDING: 'text-bg-warning',
   APPROVED: 'text-bg-success',
@@ -104,7 +103,6 @@ const loadSubmissions = async () => {
 }
 
 const loadMore = async () => {
-  // A second click while the first request is still running would fetch the same page again.
   if (!nextCursor.value || loadingMore.value) return
   loadingMore.value = true
   loadMoreError.value = ''
@@ -113,7 +111,6 @@ const loadMore = async () => {
     submissions.value = [...submissions.value, ...result.items]
     nextCursor.value = result.nextCursor
   } catch {
-    // Shown under the list, so the pages already loaded stay visible and the user can click again.
     loadMoreError.value = 'Could not load more submissions. Please try again.'
   } finally {
     loadingMore.value = false

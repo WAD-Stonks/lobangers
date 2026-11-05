@@ -6,7 +6,6 @@ import DraftImages from '@web/modules/ingestion-admin/DraftImages.vue'
 import DraftQueue from '@web/modules/ingestion-admin/DraftQueue.vue'
 import { expect, it } from 'vitest'
 
-// Synthetic HTTP boundary; real SDK schemas and original mounted Vue components.
 const image = {
   sha256: 'a'.repeat(64),
   url: 'https://media.example.test/promo.jpg',
@@ -68,7 +67,6 @@ it('shows a hosted imported draft image only in selected review evidence with or
   expect(wrapper.get('[data-testid="approve-draft"]').attributes('disabled')).toBeDefined()
 })
 
-// Archive-read compatibility characterization; downloader limits are a separate policy.
 it('accepts hosted GIF metadata above 4 MiB through the actual draft SDK and queue', async (ctx) => {
   const gif = {
     ...image,
@@ -152,7 +150,6 @@ it('blocks unsafe provenance links and non-image metadata without hiding evidenc
   w.unmount()
 })
 
-// Characterization of the existing status gate, not feature RED.
 it.each(['DOWNLOADED_ONLY', 'UNKNOWN', 'FAILED', 'future-state'])(
   'never falls back to source URLs for %s media',
   (status) => {

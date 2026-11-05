@@ -50,8 +50,6 @@ const securityMutation = (
       (await tx.user.count({ where: { role: 'ADMIN', ...activeAccount } })) <= 1
     )
       throw new DomainError('PRECONDITION_FAILED', 'At least one administrator must remain')
-    // Account + shared platform fences order all target changes. The scoped deletion
-    // never touches another user's session; a nonexistent/repeated single ID is stale.
     const deleted = await tx.session.deleteMany({
       where: { userId, ...(operation === 'one' ? { id: sessionId } : {}) },
     })

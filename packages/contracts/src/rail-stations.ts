@@ -8,8 +8,6 @@ export type RailStation = readonly [
   lines: readonly RailLine[],
 ]
 
-// Singapore MRT and LRT stations (station centre points), from cheeaun/sgraildata.
-// https://github.com/cheeaun/sgraildata
 export const RAIL_STATIONS: readonly RailStation[] = [
   ['Admiralty', 'MRT', 1.44064, 103.80096, ['NS']],
   ['Aljunied', 'MRT', 1.31626, 103.88267, ['EW']],

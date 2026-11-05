@@ -6,7 +6,6 @@ const props = defineProps<{
   label?: string
   tone?: 'neutral' | 'success' | 'warning' | 'danger' | 'info'
 }>()
-// Sentence case: "Needs review", never "Needs Review".
 const text = computed(() => {
   const value = props.label ?? props.status.replaceAll('_', ' ').toLowerCase()
   return value.charAt(0).toUpperCase() + value.slice(1)

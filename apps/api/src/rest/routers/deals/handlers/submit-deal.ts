@@ -5,7 +5,6 @@ import { parseRestInput } from '@api/rest/validation'
 import { submitDealBodySchema, submitDealResponseSchema } from '@broke-oclock/contracts/deal-forms'
 import { merchantEmptyQuerySchema } from '@broke-oclock/contracts/merchant'
 
-// Any signed-in user shares a deal; it waits as PENDING for an admin to review.
 export const submitDeal = (dependencies: RestDependencies) =>
   createRestHandler(dependencies, async (request, response, context) => {
     requireTrustedOrigin(request.get('Origin'), dependencies.config.webOrigin)

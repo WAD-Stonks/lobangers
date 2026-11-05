@@ -8,9 +8,6 @@ import {
 import type { SquadEvent } from '@broke-oclock/contracts/squad'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-// The live channel boundary: Pusher settings are all-or-nothing, and a committed write pushes
-// its events per room without ever failing the write. Keys are SYNTHETIC.
-
 const environment = {
   BETTER_AUTH_SECRET: 'unit-test-only-secret-not-a-real-credential',
   DATABASE_URL: 'mongodb://127.0.0.1:27017/unit_test?replicaSet=rs0',

@@ -14,7 +14,6 @@ const venue = (id: string, lat: number, lng: number, deals = 1): VenuePin => ({
   ),
 })
 
-// The visitor stands in Tiong Bahru; only the market is within a ten-minute walk.
 const USER = { lat: 1.286, lng: 103.827 }
 const TIONG_BAHRU_MARKET = venue('market', 1.285, 103.832, 2)
 const ION_ORCHARD = venue('ion', 1.304, 103.8318, 3)

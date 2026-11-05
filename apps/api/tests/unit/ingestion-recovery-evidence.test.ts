@@ -115,7 +115,6 @@ it.each(['REQUESTED', 'RUNNING'] as const)(
       })
       expect(row).toEqual(before)
     }
-    // A legacy attempt has no durable owner identity: do not invent one.
     expect(recoveryDto(recovery(status), now, null).status).toBe(status)
   },
 )

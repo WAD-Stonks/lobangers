@@ -3,9 +3,6 @@ import type { RouteRecordRaw } from 'vue-router'
 const MerchantDashboardPage = () => import('@web/pages/MerchantDashboardPage.vue')
 const MerchantDealFormPage = () => import('@web/pages/MerchantDealFormPage.vue')
 
-// The merchant dashboard, and its deal form with one address per way in, so the back button, a
-// refresh and a link all land on the right form. Only merchants can open them; the API must
-// still check each outlet belongs to them.
 export const merchantRoutes: RouteRecordRaw[] = [
   {
     path: '/merchant',

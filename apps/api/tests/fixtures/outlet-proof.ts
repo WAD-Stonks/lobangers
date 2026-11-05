@@ -5,8 +5,6 @@ import {
 } from '@api/modules/deals/outlet-eligibility'
 import type { OutletScopeBasis, PrismaClient } from '@broke-oclock/db/client'
 
-// SYNTHETIC unconditional official receipts for explicit positive test controls ONLY.
-// No source is fetched and these receipts are not evidence for real-world outlets.
 const receipt = 'SYNTHETIC: https://official.example.test/unconditional-outlet-proof'
 const sourceUrl = 'https://official.example.test/unconditional-outlet-proof'
 const verifiedAt = new Date('2026-10-01T00:00:00.000Z')
@@ -28,13 +26,11 @@ export const registerSyntheticOutletFixtureDatabase = (db: PrismaClient, databas
 }
 
 const requireDisposableDatabase = (db: PrismaClient) => {
-  // Vitest resets process.env between tests; bind the owned client once in beforeAll.
   if (!disposableClients.has(db)) throw new Error('Unregistered synthetic outlet fixture client')
 }
 
 export const seedSyntheticOccupancy = async (db: PrismaClient, venueId: string) => {
   requireDisposableDatabase(db)
-  // Hash the final tuple, including newly assigned metadata; never updatedAt/proof fields.
   const venue = await db.venue.update({
     where: { id: venueId },
     data: { catalogueKey: `SYNTHETIC:${venueId}`, geographyPrecision: 'OUTLET' },
@@ -78,7 +74,6 @@ export const seedSyntheticScope = async (
   pinnedSyntheticSource?: { sourceUrl: string; sourceContentHash: string },
 ) => {
   requireDisposableDatabase(db)
-  // Read every final edge, including ineligible edges. Never refresh approval/version fields.
   const deal = await db.deal.findUniqueOrThrow({
     where: { id: dealId },
     include: { venues: true },

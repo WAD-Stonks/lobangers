@@ -3,8 +3,6 @@ import { SQUAD_NAME_MAX, type SquadAvatar } from '@broke-oclock/contracts/squad'
 import { avatarUrl } from '@web/modules/squad/avatar-art'
 import { computed, useId } from 'vue'
 
-// "Join as ___": the name the squad sees, next to the chosen face. The error sits under the box
-// and is tied to the input so a screen reader reads it on focus.
 const props = withDefaults(
   defineProps<{ modelValue: string; avatar: SquadAvatar; error?: string; label?: string; disabled?: boolean }>(),
   { error: '', label: 'Your name', disabled: false },

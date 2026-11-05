@@ -4,9 +4,6 @@ import * as fixtures from './community-fixtures'
 
 const { flashDrop, HOME, mockFlashApi, mockPublicApi, mockSignedIn, VENUES } = fixtures
 
-// Flash Drop on the map: the banner after a quiet moment, the edge banner for a drop off
-// screen, claiming one code and finding it again in My codes. The API is mocked with labelled
-// synthetic fixtures; every drop is a fake deal.
 test.use({ geolocation: HOME, permissions: ['geolocation'] })
 
 const settledMap = async (page: import('@playwright/test').Page) => {
@@ -82,8 +79,6 @@ test('a drop off screen docks its banner to the edge and flies there', async ({ 
   await page.goto('/browse')
   await expect(page.getByTestId('splash-screen')).toBeHidden()
   const edge = page.getByTestId('flash-edge-banner')
-  // The banner waits for a quiet map (FIRST_IDLE_MS), which takes longer to settle when the
-  // machine is busy running other tests.
   await expect(edge).toBeVisible({ timeout: 15_000 })
   await expect(edge).toContainText('away')
   await edge.click()

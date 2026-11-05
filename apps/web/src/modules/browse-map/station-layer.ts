@@ -5,15 +5,10 @@ import {
 } from '@broke-oclock/contracts/rail-stations'
 import L from 'leaflet'
 
-// MRT and LRT stations as quiet landmarks, so a visitor can tell where a deal is ("next to
-// Bugis") at a glance. Each dot is ringed in its line colour, split for interchanges, and
-// hovering (or tapping) one shows its name and lines. They sit in their own pane below the pins.
 export const STATIONS_FROM_ZOOM = 14
 export const STATION_PANE = 'deal-map-stations'
-// Above tiles and shapes (400), below marker shadows (500) and pins (600).
 const STATION_PANE_Z_INDEX = 450
 
-// LTA's published line colours; the three LRT systems share one grey.
 const LRT_GREY = '#748477'
 export const LINE_STYLES: Readonly<
   Record<RailLine, { readonly name: string; readonly colour: string }>
@@ -31,7 +26,6 @@ export const LINE_STYLES: Readonly<
 
 export const stationsVisibleAt = (zoom: number) => zoom >= STATIONS_FROM_ZOOM
 
-// One solid colour per line, or equal slices of a conic gradient for an interchange.
 export const ringFor = (lines: readonly RailLine[]): string => {
   const colours = [...new Set(lines.map((line) => LINE_STYLES[line].colour))]
   if (colours.length === 1) return colours[0] ?? LRT_GREY
@@ -42,7 +36,6 @@ export const ringFor = (lines: readonly RailLine[]): string => {
   return `conic-gradient(${stops.join(', ')})`
 }
 
-// Built from DOM nodes, like the venue pins, so names are never parsed as HTML.
 const createStationIcon = ([, kind, , , lines]: RailStation): L.DivIcon => {
   const root = document.createElement('div')
   root.className = `deal-map-station__mark deal-map-station__mark--${kind.toLowerCase()}`

@@ -11,8 +11,8 @@ describe('singapore bounds', () => {
   })
 
   it('rejects positions outside Singapore', () => {
-    expect(isWithinSingapore({ lat: 1.4927, lng: 103.7414 })).toBe(false) // Johor Bahru
-    expect(isWithinSingapore({ lat: -6.2, lng: 106.8 })).toBe(false) // Jakarta
+    expect(isWithinSingapore({ lat: 1.4927, lng: 103.7414 })).toBe(false)
+    expect(isWithinSingapore({ lat: -6.2, lng: 106.8 })).toBe(false)
   })
 
   it('maps the box to Leaflet south-west / north-east pairs', () => {

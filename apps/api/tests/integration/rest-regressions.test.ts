@@ -6,8 +6,6 @@ import axios from 'axios'
 import express from 'express'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-// Real TCP and application middleware; identity, DB and domain-run delegate are
-// explicitly synthetic. Provider factories are mocked: no external provider I/O.
 const mocks = vi.hoisted(() => {
   const user = {
     id: 'aaaaaaaaaaaaaaaaaaaaaaaa',
@@ -22,7 +20,6 @@ const mocks = vi.hoisted(() => {
     updatedAt: new Date('2026-10-01T00:00:00Z'),
   }
   const session = {
-    // Persisted session identity, never a bearer token or an authentication bypass.
     id: 'cccccccccccccccccccccccc',
     userId: user.id,
     createdAt: new Date('2026-10-01T00:00:00Z'),

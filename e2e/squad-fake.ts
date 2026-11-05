@@ -4,8 +4,6 @@ import * as fixtures from './community-fixtures'
 
 const { DEALS } = fixtures
 
-// A labelled, in-memory fake of the Makan Squad REST API (/api/squad/rooms...), one per page.
-// Every room, member and name is synthetic; nothing here reaches a real server or account.
 type FakeMember = {
   id: string
   name: string
@@ -208,7 +206,6 @@ export const mockSquadApi = async (page: Page) => {
 
   return {
     seed,
-    // Another (synthetic) friend arrives; the next sync shows them.
     addMember: (code: string, member: FakeMember) => {
       const room = rooms.get(code)
       if (room) room.members = [...room.members, member]

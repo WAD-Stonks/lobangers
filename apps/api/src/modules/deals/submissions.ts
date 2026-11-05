@@ -15,9 +15,6 @@ type Database = typeof db
 
 const unsetOrNull = (field: string) => ({ OR: [{ [field]: null }, { [field]: { isSet: false } }] })
 
-// A community member shares a deal. It is saved as PENDING and stays hidden until an admin
-// approves it. The stalls must be ones the stall search offers, all of one merchant, and the
-// photo must be a file this same user uploaded and has not used on another deal.
 export const submitCommunityDeal = async (
   database: Database,
   userId: string,
@@ -65,7 +62,6 @@ export const submitCommunityDeal = async (
         },
         select: { id: true },
       })
-      // Claim the photo only if it is still this user's unused upload.
       const claimed = await tx.uploadedFile.updateMany({
         where: {
           key: input.photoKey,
@@ -79,7 +75,6 @@ export const submitCommunityDeal = async (
       return deal
     })
   } catch (error) {
-    // A concurrent claim of the same photo surfaces as a write conflict.
     if (typeof error === 'object' && error && 'code' in error && error.code === 'P2034')
       throw new DomainError('CONFLICT', 'The photo was used by another submission')
     throw error

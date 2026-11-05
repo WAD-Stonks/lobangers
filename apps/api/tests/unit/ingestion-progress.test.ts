@@ -2,8 +2,6 @@ import type { IngestionRuntime } from '@api/modules/ingestion/runtime'
 import { runIngestion } from '@api/modules/ingestion/service'
 import { expect, it, vi } from 'vitest'
 
-// Exercise the real parser and ingestion loop against synthetic persistence.
-// Gates expose the durable history projection before the request completes.
 const source = {
   kind: 'telegram' as const,
   id: '0123456789abcdef01234567',

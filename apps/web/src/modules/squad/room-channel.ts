@@ -11,21 +11,12 @@ import {
 import { api } from '@web/lib/api-client'
 import type Pusher from 'pusher-js'
 
-// The room's live channel. Every committed room write is pushed here, so phase changes arrive at
-// once instead of on the next poll, and members' taps travel over it browser to browser without
-// touching the API. Pusher loads only when a room opens, shares one socket across rooms, and
-// stays off when the API has no Pusher key; the room then polls.
-
 export type ChannelHandlers = {
   onEvents: (events: SquadEvent[]) => void
-  // Someone's new ballot after a tap batch reached the API.
   onBallot: (ballot: SquadBallot) => void
-  // Someone else's taps, straight from their browser.
   onTaps: (tap: SquadTap) => void
-  // True while subscribed on a connected socket; the room polls slowly only then.
   onLiveChange: (live: boolean) => void
 }
-// sendTaps returns false when the channel cannot carry them right now.
 export type RoomChannel = { close: () => void; sendTaps: (tap: SquadTap) => boolean }
 export type ChannelOpener = (code: string, handlers: ChannelHandlers) => RoomChannel
 
@@ -50,7 +41,6 @@ const connect = (): Promise<Pusher | null> => {
       },
     })
   })().catch(() => {
-    // A failed lookup is retried when the next room opens; this one polls.
     client = null
     return null
   })

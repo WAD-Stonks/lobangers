@@ -46,8 +46,6 @@ export const communityTransaction = async <T>(
   }
 }
 
-// Serialize writes by the same account (including comment/report budgets), and conflict with
-// concurrent changes to the target deal. Neither read endpoints nor summary calculation touch rows.
 export const lockCommunityWrite = async (
   tx: Transaction,
   dealId: string,
@@ -114,13 +112,8 @@ const commentSelect = {
   createdAt: true,
   author: { select: { name: true } },
 } as const
-// A reply can answer another reply, so a thread loads a level at a time. Threads this deep do
-// not happen in practice; the cap only stops a runaway loop.
 const MAX_REPLY_DEPTH = 20
 
-// Pages run over top-level comments, newest first. Each comes with its whole thread of replies,
-// oldest first so a conversation reads in order. A reply whose comment was deleted or hidden
-// stands as top-level, so it still shows.
 export const listCommunityComments = async (
   database: Database,
   dealId: string,
@@ -160,7 +153,6 @@ export const listCommunityComments = async (
       replies.push(...level)
       frontier = level.map((row) => row.id)
     }
-    // Each top-level comment, then its replies depth first, each level oldest first.
     const page: typeof roots = []
     const append = (row: (typeof roots)[number]) => {
       page.push(row)

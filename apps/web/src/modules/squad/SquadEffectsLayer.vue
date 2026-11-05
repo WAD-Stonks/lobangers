@@ -2,8 +2,6 @@
 import { avatarUrl, THUMBS_DOWN_URL } from '@web/modules/squad/avatar-art'
 import type { SquadEffects } from '@web/modules/squad/use-squad-effects'
 
-// Draws the room's effects over the panel. Purely decorative: screen readers hear the tally
-// and member badges instead, and it never takes a tap.
 defineProps<{ effects: SquadEffects }>()
 </script>
 

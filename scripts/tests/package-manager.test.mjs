@@ -158,7 +158,6 @@ test('plain pnpm install cannot run project or dependency lifecycle hooks', () =
         }),
       )
     }
-    // Even a separately allowlisted dependency must not override ignoreScripts.
     writeFileSync(
       join(fixture, 'pnpm-workspace.yaml'),
       `${read('pnpm-workspace.yaml')}\nonlyBuiltDependencies:\n  - lifecycle-dependency-fixture\n`,
@@ -167,7 +166,6 @@ test('plain pnpm install cannot run project or dependency lifecycle hooks', () =
       rmSync(join(fixture, 'node_modules'), { recursive: true, force: true })
       const result = spawnSync('pnpm', ['install', '--offline', ...options], {
         cwd: fixture,
-        // Prove the workspace policy itself, not ignoreScripts inherited from test:tooling.
         env: Object.fromEntries(
           Object.entries(process.env).filter(([key]) => !/^npm_config_ignore_?scripts$/i.test(key)),
         ),
@@ -189,7 +187,6 @@ test('plain pnpm install cannot run project or dependency lifecycle hooks', () =
 test('workspace runner uses pnpm and preserves arguments, cwd, environment and exit status', () => {
   const fixture = mkdtempSync(join(tmpdir(), 'pnpm-runner-'))
   try {
-    // Explicit fake command boundary, not a substitute for clean-install verification.
     writeFileSync(
       join(fixture, 'pnpm'),
       `#!/usr/bin/env node\nconsole.log(JSON.stringify({args: process.argv.slice(2), cwd: process.cwd(), sentinel: process.env.PNPM_RUNNER_TEST})); process.exit(23)\n`,

@@ -4,7 +4,6 @@ export const minorToPriceInput = (minor: number | null): string => {
   return `${minor < 0 ? '-' : ''}${Math.floor(absolute / 100)}.${String(absolute % 100).padStart(2, '0')}`
 }
 
-// Parse the decimal text directly so values such as $0.29 never lose a cent to binary rounding.
 export const priceInputToMinor = (value: string): number | null => {
   const trimmed = value.trim()
   if (!trimmed) return null

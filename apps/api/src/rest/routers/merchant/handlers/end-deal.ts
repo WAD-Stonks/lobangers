@@ -13,7 +13,6 @@ import {
   merchantEmptyQuerySchema,
 } from '@broke-oclock/contracts/merchant'
 
-// Ends a deal now. Ending an already ended deal changes nothing.
 export const endDeal = (dependencies: RestDependencies) =>
   createRestHandler(dependencies, async (request, response, context) => {
     requireTrustedOrigin(request.get('Origin'), dependencies.config.webOrigin)

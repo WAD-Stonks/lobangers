@@ -1,8 +1,6 @@
 <script setup lang="ts">
 import { THUMBS_DOWN_URL, THUMBS_UP_URL } from '@web/modules/squad/avatar-art'
 
-// The small badge on a seat: thumbs, again/next, away, watching (an eye) or thinking. Decorative;
-// the seat's hidden label says the same in words.
 defineProps<{ kind: string }>()
 </script>
 

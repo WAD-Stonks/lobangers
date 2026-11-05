@@ -6,7 +6,6 @@ import { makeDeal, mountShell, SIGNED_OUT } from '@web-tests/support/shell-fixtu
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { ref } from 'vue'
 
-// Synthetic REST boundary: page projection only, not live venue data.
 const rest = vi.hoisted(() => ({ venue: vi.fn(), list: vi.fn(), bookmarks: vi.fn() }))
 vi.mock('@web/lib/api-client', () => ({
   ApiClientError: class ApiClientError extends Error {
@@ -105,7 +104,6 @@ it('titles the panel with the venue and links each ongoing deal to its deal pane
   expect(wrapper.find('.venue-panel__logo').text()).toBe('SK')
   expect(wrapper.text()).toContain('1 Example Street, Singapore 520001')
   expect(wrapper.get('[role="tab"][aria-selected="true"]').text()).toBe('Now')
-  // On the map the venue's deals are rows, like the map's results.
   const cards = wrapper.findAll('[data-testid="venue-deals"] > li')
   expect(cards).toHaveLength(2)
   expect(cards[0]?.text()).toContain('Kopi set')

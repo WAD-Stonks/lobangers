@@ -7,19 +7,6 @@ import {
 } from '@api/modules/deals/outlet-eligibility'
 import type { Database } from '@api/modules/platform-admin/transaction'
 
-// Fills a database with fake stalls, deals and Flash Drops around Bedok, so the map, Makan
-// Squad rooms and Flash Drop can be tried by hand. Every record is fake and says so ("Fake
-// deal." starts each description, stall names start with "Fake", drops are marked demo). By
-// default it only runs against a database on this machine; the shared team database needs the
-// explicit --shared-db flag. Running it again replaces the previous fake records, nothing else.
-//
-//   pnpm run db:seed:demo -- --admin admin@example.test --merchant merchant@example.test
-//
-// --admin and --merchant (optional, repeatable) give accounts you already signed up with in the
-// app those roles; use distinct accounts because each account has one role. A merchant also
-// gets the fake chicken rice stall and owns the fake drops.
-// On a shared database, drops are only created when --merchant names the owner.
-
 const DEMO_TAG = 'DEMO-LOCAL'
 const RECEIPT = 'FAKE: local demo data, not evidence for a real outlet'
 const FAKE_URL = 'https://example.test/local-demo'
@@ -97,7 +84,6 @@ const DEALS: DemoDeal[] = [
   },
 ]
 
-// AI-generated food photos, served from apps/web/public/demo-food, in DEALS order.
 const DEAL_IMAGES = [
   'chicken-rice-set',
   'roast-chicken-rice',
@@ -117,7 +103,6 @@ export const isLocalDatabase = (databaseUrl: string) => {
   return url.protocol === 'mongodb:' && ['127.0.0.1', 'localhost'].includes(url.hostname)
 }
 
-// A database on this machine, or the shared one only when asked for by name.
 export const assertSeedTarget = (databaseUrl: string | undefined, sharedAllowed: boolean) => {
   if (!databaseUrl) throw new Error('Set DATABASE_URL first.')
   if (!isLocalDatabase(databaseUrl) && !sharedAllowed)
@@ -167,7 +152,6 @@ const clearPreviousDemo = async (db: Database) => {
   await db.merchant.deleteMany({ where: { id: { in: merchantIds } } })
 }
 
-// A stall whose location and occupancy carry fake "verified" receipts, so its deals can show.
 const createStall = async (db: Database, stall: Stall, now: Date) => {
   const merchant = await db.merchant.create({ data: { name: `${DEMO_TAG} ${stall.name}` } })
   const created = await db.venue.create({
@@ -270,7 +254,6 @@ export const seedLocalDemo = async (
     options.merchants.length > 0
       ? await db.user.findFirst({ where: { email: options.merchants[0] }, select: { id: true } })
       : null
-  // Locally any account will do; on a shared database only the named merchant owns drops.
   const merchantUserId =
     owner?.id ??
     (options.shared ? undefined : (await db.user.findFirst({ select: { id: true } }))?.id)
@@ -296,8 +279,6 @@ export const seedLocalDemo = async (
   const [chicken, , kopi, , prata] = dealIds
   const [chickenStall, kopiStall, , prataStall] = places
   if (merchantUserId && chicken && kopi && prata && chickenStall && kopiStall && prataStall) {
-    // One flash deal live right now, one draft waiting for the merchant to press Go live, both
-    // clearly fake.
     await db.flashDrop.create({
       data: {
         dealId: kopi,
@@ -356,7 +337,6 @@ export const seedLocalDemo = async (
   console.info(`Seeded ${STALLS.length} fake stalls and ${dealIds.length} fake deals around Bedok.`)
 }
 
-// Importing the seeder never connects or runs it; only the CLI does.
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   try {
     const shared = process.argv.includes('--shared-db')

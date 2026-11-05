@@ -18,8 +18,6 @@ import SubmissionForm from '@web/pages/SubmissionForm.vue'
 import { merchantRoutes } from '@web/router/merchant-routes'
 import type { RouteRecordRaw } from 'vue-router'
 
-// Pages most visitors never open (admin, merchant, own submissions, password reset) load on
-// demand, so the map and landing page do not pay for them in the first download.
 const AdminAuditPage = () => import('@web/pages/AdminAuditPage.vue')
 const AdminCataloguePage = () => import('@web/pages/AdminCataloguePage.vue')
 const AdminDealsPage = () => import('@web/pages/AdminDealsPage.vue')
@@ -36,18 +34,13 @@ const GettingStartedPage = () => import('@web/pages/GettingStartedPage.vue')
 
 declare module 'vue-router' {
   interface RouteMeta {
-    /** Accessible name of the panel aside while this child route is shown. */
     panelLabel?: string
-    /** Tab title for the route; map panels fall back to their panel label. */
     title?: string
   }
 }
 
 const routes: RouteRecordRaw[] = [
   {
-    // The map is always mounted; each feature is a child panel over it, so the URL decides
-    // what the panel shows without ever reloading the map. The map itself lives at /browse
-    // (the landing page has /). Panel paths start with / so they keep their short URLs.
     path: '/browse',
     component: MapShell,
     meta: { layout: 'canvas' },
@@ -72,7 +65,6 @@ const routes: RouteRecordRaw[] = [
         meta: { panelLabel: 'Venue' },
       },
       {
-        // Several outlets in one building, opened from a stack on the map.
         path: '/places/:venueIds',
         name: 'place',
         component: VenuePanel,
@@ -108,10 +100,7 @@ const routes: RouteRecordRaw[] = [
         component: BrowseListPanel,
         meta: { requiresAuth: true, panelLabel: 'Saved deals' },
       },
-      // Signed-out visitors see a prompt to log in rather than a redirect, so the menu link
-      // always lands somewhere that explains what codes are.
       { path: '/codes', name: 'codes', component: MyCodesPanel, meta: { panelLabel: 'My codes' } },
-      // Static Squad paths come first: "join" is four letters, so it would also fit a code.
       {
         path: '/squad/new',
         name: 'squad-new',
@@ -153,7 +142,6 @@ const routes: RouteRecordRaw[] = [
     props: { mode: 'register' },
     meta: { layout: 'auth', guestOnly: true, title: 'Sign up' },
   },
-  // The feed without a map is now the shell's list mode; old links keep working.
   {
     path: '/deals',
     redirect: (to) => ({ name: 'browse', query: { ...to.query, view: 'list', discovery: '1' } }),
@@ -183,7 +171,6 @@ const routes: RouteRecordRaw[] = [
     path: '/me/merchant-access',
     name: 'merchant-access',
     component: MerchantAccessPage,
-    // Staff can't request merchant access; the API enforces this too.
     meta: { requiresAuth: true, roles: ['USER', 'MERCHANT'], title: 'Merchant access' },
   },
   {
@@ -202,10 +189,8 @@ const routes: RouteRecordRaw[] = [
     path: '/add',
     name: 'submit-deal',
     component: SubmissionForm,
-    // Merchants add and edit their deals from the merchant dashboard.
     meta: { requiresAuth: true, roleRedirects: { MERCHANT: '/merchant' }, title: 'Add a deal' },
   },
-  // The form used to live at /submit-deal; keep old links working.
   { path: '/submit-deal', redirect: '/add' },
   {
     path: '/:pathMatch(.*)*',

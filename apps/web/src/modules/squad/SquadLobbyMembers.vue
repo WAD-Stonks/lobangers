@@ -4,8 +4,6 @@ import ShellIcon from '@web/modules/map-shell/ShellIcon.vue'
 import { avatarUrl } from '@web/modules/squad/avatar-art'
 import { computed } from 'vue'
 
-// Who's in the lobby, in the order they joined, then a dashed slot for each seat still free.
-// The host gets a remove button on everyone else's row.
 const props = defineProps<{ state: SquadState }>()
 const emit = defineEmits<{ remove: [member: SquadMember] }>()
 

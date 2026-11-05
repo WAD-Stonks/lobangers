@@ -8,7 +8,6 @@ import type {
   ModerationTargetType,
 } from '@broke-oclock/contracts/admin-moderation'
 
-// Reads share a persisted authorization snapshot, but never acquire mutation fences or touch timestamps.
 const readTransaction = <T>(
   db: Database,
   actor: AuthenticatedActor,

@@ -22,7 +22,6 @@ export const canonicalAdminEmail = (input: string): string => {
   return result.data
 }
 
-// Refuse legacy case collisions, never pick an arbitrary owner or normalize aliases.
 const uniqueIdentity = async (db: Pick<Database, 'user'>, email: string) => {
   const users = await db.user.findMany({
     where: { email: { equals: email, mode: 'insensitive' } },
@@ -172,7 +171,6 @@ export const syncRoleAdminEmail = async (
   actorUserId: string,
   reason: string,
 ) => {
-  // Removal is fail-safe even for malformed or ambiguous legacy identity.
   const email =
     role === 'ADMIN' ? canonicalAdminEmail(target.email) : target.email.trim().toLowerCase()
   if (role === 'ADMIN') {
@@ -211,13 +209,10 @@ type VerificationIdentity = Pick<
   'userId' | 'email' | 'authVersion' | 'platformVersion'
 >
 
-// The caller is the native ownership-proof callback, never a public request-body dispatcher.
-// Commit retirement before native emailVerified=true; failure must abort that transition.
 export const prepareAdminEmailVerification = async (
   db: Database,
   identity: VerificationIdentity,
 ) => {
-  // Absence is ordinary auth, not a grant: do not validate legacy grant eligibility or write.
   if (
     !(await db.adminEmail.findUnique({ where: { email: identity.email.trim().toLowerCase() } }))
       ?.active
@@ -273,7 +268,6 @@ export const provisionVerifiedAdminEmail = async (
     return null
   return accessTransaction(db, async (tx) => {
     const email = canonicalAdminEmail(event.email)
-    // Native identity is already canonical; do not repair malformed internal evidence.
     if (event.email !== email) throw conflict()
     const active =
       event.type === 'primary-session'

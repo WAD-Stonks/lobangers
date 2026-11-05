@@ -30,7 +30,6 @@ const age = computed(() => formatRelativeTime(props.comment.createdAt))
 const postedAt = computed(() => formatDateTime(props.comment.createdAt))
 const editDirty = computed(() => editBody.value.trim() !== props.comment.body.trim())
 const replyDirty = computed(() => replyBody.value.trim().length > 0)
-// Cancel asks before throwing a draft away, then hands focus back to what opened the form.
 const { ask } = useConfirm()
 const keepDraft = async (dirty: boolean) =>
   dirty &&

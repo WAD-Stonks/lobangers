@@ -40,12 +40,10 @@ const checks = computed(() =>
           : 'The address and pin are right. Needed for deals to show on the map.',
       state: verified ? 'Verified' : state === 'LEGACY_RETAINED' ? 'Imported, not checked' : 'Not verified',
       receipt: latestReceipt(props.venue, kind),
-      // A retained imported proof can be withdrawn too, so it stops counting for old deals.
       withdrawable: verified || state === 'LEGACY_RETAINED',
     }
   }),
 )
-// The first missing check gets the one primary button, so the next step is obvious.
 const nextCheck = computed(() => checks.value.find((check) => !check.verified)?.kind)
 const mapUrl = computed(
   () => `https://www.google.com/maps/search/?api=1&query=${props.venue.latitude},${props.venue.longitude}`,

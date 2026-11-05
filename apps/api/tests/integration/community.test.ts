@@ -25,9 +25,6 @@ let disconnect: (() => Promise<void>) | undefined
 let baseURL = ''
 let databaseUrl = ''
 let db!: typeof import('@broke-oclock/db').db
-// Better Auth allows only 3 sign-ups per 10 seconds per client, and the production rate limit stays
-// on. So the whole file signs up exactly three accounts once and reuses them; each test starts
-// from clean records (see beforeEach) instead of creating new users.
 let alice!: Account
 let bob!: Account
 let staff!: Account
@@ -86,7 +83,6 @@ beforeAll(async () => {
   mongo = await MongoMemoryReplSet.create({
     replSet: { count: 1, storageEngine: 'wiredTiger', ip: '127.0.0.1' },
   })
-  // Always a fresh disposable replica set; never a configured DATABASE_URL.
   databaseUrl = mongo.getUri(`integration_${randomUUID().replaceAll('-', '')}`)
   vi.stubEnv('DATABASE_URL', databaseUrl)
   vi.stubEnv('NODE_ENV', 'test')
@@ -151,7 +147,6 @@ describe('community REST with real cookies and disposable MongoDB', () => {
         })),
       ),
     })
-    // Introspect a temporary datasource-only schema: never overwrite the repo schema.
     const directory = await mkdtemp(join(tmpdir(), 'community-index-'))
     try {
       const schema = join(directory, 'schema.prisma')
@@ -467,7 +462,6 @@ describe('community REST with real cookies and disposable MongoDB', () => {
     })
     const client = createApiClient(`${baseURL}/api`)
     const pinFor = async () => (await client.deals.list()).items.find((item) => item.id === deal.id)
-    // Without outlet proof the deal is pinned but flagged; proof removes the flag.
     expect((await pinFor())?.outletUnconfirmed).toBe(true)
     await seedSyntheticOutletProof(db, venue.id)
     await seedSyntheticScope(db, deal.id, 'SOURCE_ALL')

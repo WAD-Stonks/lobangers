@@ -10,8 +10,6 @@ import { ref } from 'vue'
 import type { RouteLocationRaw } from 'vue-router'
 import { RouterLink } from 'vue-router'
 
-// Image-led deal rows. Each row links to its deal; hovering or focusing a row lights up its
-// pin on the map (and the shell lights the row when its pin is hovered).
 const props = withDefaults(
   defineProps<{
     rows: readonly DealRow[]
@@ -73,8 +71,6 @@ const isHot = (row: DealRow) => {
 </template>
 
 <style scoped>
-/* Each row sizes to its own content: equal rows (1fr) stretched every card to the tallest one,
-   so zooming the map out to take in one long deal made the whole list grow. */
 .deal-rows {
   display: grid;
   gap: 12px;
@@ -87,8 +83,6 @@ const isHot = (row: DealRow) => {
   position: relative;
   min-width: 0;
   transition: transform 180ms ease;
-  /* New rows rise in, the first nine staggered. `backwards` releases transform afterwards so
-     the hover lift still works. Rows kept across a filter change don't replay. */
   animation: deal-row-in 220ms var(--ease-out) backwards;
   animation-delay: calc(var(--i, 0) * 30ms);
 }
@@ -116,9 +110,6 @@ const isHot = (row: DealRow) => {
   text-decoration: none;
   border-radius: 16px;
   transition: box-shadow 180ms ease;
-  /* Long result lists: rows far off screen skip layout and paint until they scroll near.
-     `auto` remembers each row's real height once shown; skipped rows stay focusable and
-     findable in the page. On the link, not the <li>, so its hover shadow isn't clipped. */
   content-visibility: auto;
   contain-intrinsic-size: auto 220px;
 }
@@ -216,7 +207,6 @@ const isHot = (row: DealRow) => {
   line-height: 1.4;
 }
 
-/* Two lines at most; the full title is in the tooltip and on the deal panel. */
 .deal-rows__title {
   padding-right: 28px;
   color: var(--coral-deep);
@@ -285,7 +275,6 @@ const isHot = (row: DealRow) => {
   left: 12px;
   max-width: calc(100% - 76px);
   white-space: normal;
-  /* Lifts the tag off any photo, light or dark; its colour comes from its lb-tag tone. */
   box-shadow: 0 1px 4px rgb(27 27 31 / 0.14);
 }
 

@@ -8,9 +8,6 @@ import { computed, ref } from 'vue'
 import type { RouteLocationRaw } from 'vue-router'
 import { RouterLink } from 'vue-router'
 
-// Every outlet running a deal, nearest first when the visitor is located. Picking one moves the
-// panel and the map to it without adding a history entry per outlet. Long chains show the
-// nearest few until the visitor asks for the rest.
 const COLLAPSED_COUNT = 5
 
 const props = defineProps<{
@@ -31,7 +28,6 @@ const outlets = computed<readonly Outlet[]>(() =>
     ? sortByDistance(props.deal.venues, props.position)
     : props.deal.venues.map((venue) => ({ ...venue, distanceMetres: null })),
 )
-// The outlet being viewed always stays visible, even when it is not among the nearest few.
 const shown = computed(() => {
   if (expanded.value || outlets.value.length <= COLLAPSED_COUNT) return outlets.value
   const nearest = outlets.value.slice(0, COLLAPSED_COUNT)

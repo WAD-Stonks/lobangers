@@ -32,8 +32,6 @@ export const useCatalogueNavigation = (state: CatalogueState) => {
   const fromRoute = (): Location => {
     const query = route?.query
     const recordId = adminRecordId(query?.recordId)
-    // A bare /admin/catalogue opens the verification queue. Older links that name only a
-    // record still mean a merchant, as they did before the queue existed.
     const bare = query?.kind === undefined && !recordId
     const kind: Kind = query?.kind === 'venues' || bare ? 'venues' : 'merchants'
     return {
@@ -150,7 +148,6 @@ export const useCatalogueNavigation = (state: CatalogueState) => {
         status: 'all',
       })
   }
-  // From a merchant page: open one of its outlets with the directory narrowed to that merchant.
   const openOutlet = (merchant: CatalogueMerchant, outletId: string) => {
     if (state.pending.value) return
     names.set(merchant.id, merchant.name)
@@ -173,7 +170,6 @@ export const useCatalogueNavigation = (state: CatalogueState) => {
       ...current(),
       kind: next === 'merchants' ? 'merchants' : 'venues',
       verification: next === 'queue' ? 'needed' : undefined,
-      // The queue is about outlets in use, so it always starts from active ones.
       status: next === 'queue' ? 'active' : current().status,
       merchantId: undefined,
       recordId: undefined,
@@ -221,8 +217,6 @@ export const useCatalogueNavigation = (state: CatalogueState) => {
     )
       return
     const location = current()
-    // Stay in the queue after a write so the next outlet is one click away. Elsewhere, an outlet
-    // opens inside its merchant's outlets.
     const inQueue = selected.kind === 'venues' && location.verification === 'needed'
     const merchantId = selected.kind === 'venues' && !inQueue ? selected.row.merchantId : undefined
     if (selected.kind === 'venues') names.set(selected.row.merchantId, selected.row.merchantName)
@@ -235,7 +229,6 @@ export const useCatalogueNavigation = (state: CatalogueState) => {
         recordId: selected.row.id,
       },
       true,
-      // A write changes what belongs in the list, so read it again.
       true,
     )
   }
@@ -251,7 +244,6 @@ export const useCatalogueNavigation = (state: CatalogueState) => {
     ],
     () => {
       if (route?.fullPath === internalPath) return
-      // Leaving the page empties the query too. That must not read anything on the way out.
       if (route && route.path !== home) return
       void apply(fromRoute())
     },

@@ -61,7 +61,6 @@ export const parseAdminEmailArgs = (args: string[]) => {
   return { action, email, apply, limit, database, expectedVersion, operatorLabel, reason } as const
 }
 
-// Deliberately no ambient client import or construction at module scope.
 export const runAdminEmailCommand = async (
   args: string[],
   env: NodeJS.ProcessEnv = process.env,
@@ -96,7 +95,6 @@ if (process.argv[1] && pathToFileURL(resolve(process.argv[1])).href === import.m
   try {
     console.log(JSON.stringify(await runAdminEmailCommand(process.argv.slice(2)), null, 2))
   } catch (error) {
-    // Never print driver errors, URLs/credentials, stacks or provider/auth payloads.
     console.error(
       JSON.stringify({
         code: error instanceof DomainError ? error.code : 'INTERNAL_SERVER_ERROR',

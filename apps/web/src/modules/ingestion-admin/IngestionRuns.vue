@@ -60,7 +60,6 @@ onUnmounted(() => { fence.dispose(); items.value = null; error.value = '' })
 </template>
 
 <style scoped>
-/* Counts line up digit for digit across runs. */
 .run-counts dd { font-variant-numeric: tabular-nums; }
 .runs-heading { display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; margin-bottom: 16px; }
 .runs-heading h2 { margin: 0; }

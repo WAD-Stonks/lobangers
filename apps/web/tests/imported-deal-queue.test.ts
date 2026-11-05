@@ -7,7 +7,6 @@ import { chooseOption } from '@web-tests/support/select'
 import { beforeEach, expect, it, vi } from 'vitest'
 import { routeLocationKey, routerKey } from 'vue-router'
 
-// Synthetic REST reads only; canonical Deals writes have their own policy coverage.
 const rest = vi.hoisted(() => ({ drafts: vi.fn() }))
 vi.mock('@web/lib/api-client', async () => {
   const { ApiClientError } = await import('@broke-oclock/api-client')
@@ -265,7 +264,6 @@ it('rejects malformed cursors without silently reading the first page', async ()
     expect(wrapper.text()).toContain('This queue link is invalid')
     await wrapper.get('[data-testid="retry-imported-deals"]').trigger('click')
     expect(rest.drafts).not.toHaveBeenCalled()
-    // Re-picking the current status changes nothing, so recovery is an explicit status choice.
     await chooseOption(wrapper, '#queue-status', 'APPROVED')
     await flushPromises()
     expect(rest.drafts).toHaveBeenCalledExactlyOnceWith({ limit: 20, status: 'APPROVED' })

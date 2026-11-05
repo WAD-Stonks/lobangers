@@ -2,8 +2,6 @@
 import { safeMediaUrl } from '@web/lib/media-url'
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
 
-// One deal photo filling its frame. A soft shimmer runs until the image has loaded, then the
-// photo fades in. The parent owns the frame's shape and learns the photo's from `ratio`.
 const props = withDefaults(defineProps<{ src: string; alt: string; eager?: boolean }>(), { eager: false })
 const emit = defineEmits<{ ratio: [number]; error: [] }>()
 
@@ -33,7 +31,6 @@ watch(() => props.src, async () => {
   if (img.value?.complete) onLoad()
 }, { immediate: true })
 
-// A cached image can finish before the listener is attached.
 onMounted(() => {
   if (img.value?.complete) onLoad()
 })
@@ -67,7 +64,6 @@ onMounted(() => {
   overflow: hidden;
 }
 
-/* A light band sweeping across the tint: loading, not broken. */
 .deal-photo::before {
   position: absolute;
   inset: 0;
@@ -84,7 +80,6 @@ onMounted(() => {
   pointer-events: none;
 }
 
-/* The tints are deep in dark mode, so the sweep dims to stay a glint rather than a flash. */
 .app-palette[data-theme='dark'] .deal-photo {
   --photo-shimmer: rgb(255 255 255 / 0.1);
 }

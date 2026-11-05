@@ -7,9 +7,6 @@ import { focusFirstInvalid } from '@web/lib/form-focus'
 import { computed, nextTick, reactive, ref } from 'vue'
 import { RouterLink } from 'vue-router'
 
-// `peek` is the standalone sign-up card: Lobbie over its edge, example and rule hints in the
-// fields (never a repeat of the label), and the page's own link to log in instead of this form's.
-// `destination` is where Google sends the visitor once the account exists.
 withDefaults(defineProps<{ peek?: boolean; destination?: string }>(), { peek: false, destination: '/deals' })
 const emit = defineEmits<{ registered: [needsVerification: boolean] }>()
 
@@ -25,7 +22,6 @@ const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const errors = computed(() => ({
   name: form.name.trim() ? '' : 'Enter your name.',
   email: EMAIL_PATTERN.test(form.email.trim()) ? '' : 'Enter a valid email address.',
-  // Matches Better Auth's default 8 to 128 character policy.
   password:
     form.password.length < 8
       ? 'Use at least 8 characters.'
@@ -47,12 +43,10 @@ const register = async () => {
   pending.value = true
   submitError.value = ''
   try {
-    // No role field: the server owns roles and ignores client input for them.
     const result = await authClient.signUp.email({
       name: form.name.trim(),
       email: form.email.trim(),
       password: form.password,
-      // Where the verification email's link sends the user (only used if verification is on).
       callbackURL: `${window.location.origin}/login?notice=verified`,
     })
     if (result.error) {
@@ -61,7 +55,6 @@ const register = async () => {
           ? 'Too many attempts. Please wait a minute and try again.'
           : 'We could not create that account. If you already registered, try logging in.'
     } else {
-      // No session token means the site wants the email verified before logging in.
       emit('registered', result.data?.token === null)
     }
   } catch {

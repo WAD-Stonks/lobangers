@@ -6,8 +6,7 @@ export type AccessTransaction = Parameters<Parameters<Database['$transaction']>[
 export const conflict = () =>
   new DomainError('CONFLICT', 'Access state changed; refresh before trying again')
 
-// Acquire before any authorization read. Mongo snapshot reads alone do not prevent
-// write skew. All platform writers and future merchant mutations share this fence.
+// Take the fence before any auth read. Mongo snapshot reads alone don't prevent write skew.
 export const fencePlatformAccess = async (tx: AccessTransaction) => {
   await tx.platformAccessFence.upsert({
     where: { id: 'platform-access' },
@@ -15,8 +14,7 @@ export const fencePlatformAccess = async (tx: AccessTransaction) => {
     update: { version: { increment: 1 } },
   })
 }
-// A write checks the role, grants, outlets and records one query at a time, each a round trip
-// to the hosted database; Prisma's default 5 s limit is too tight on a slow connection (P2028).
+// Prisma's default 5s limit is too tight against the hosted DB (P2028).
 const ACCESS_TRANSACTION_OPTIONS = { maxWait: 10_000, timeout: 20_000 } as const
 
 export const accessTransaction = async <T>(

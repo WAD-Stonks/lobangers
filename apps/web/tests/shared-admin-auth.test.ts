@@ -6,7 +6,6 @@ import { createAdminReadFence } from '@web/lib/admin-session'
 import AdminSignIn from '@web/modules/ingestion-admin/AdminSignIn.vue'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 
-// Synthetic SDK/API boundaries only. No real identity, provider delivery or authorization proof.
 const sdk = vi.hoisted(() => ({
   password: vi.fn(),
   social: vi.fn(),
@@ -438,7 +437,6 @@ it('native renewal completion after confirmed logout cannot probe or reopen iden
   })
   const wrapper = mount(AdminSessionControls)
   wrappers.push(wrapper)
-  // Wait for the pending native probe's presentation before activating its logout control.
   await flushPromises()
   await wrapper.get('[data-testid="admin-sign-out"]').trigger('click')
   await flushPromises()

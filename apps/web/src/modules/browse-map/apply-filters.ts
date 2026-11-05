@@ -5,10 +5,6 @@ import type { BrowseFilters, EndingWindow } from '@web/modules/browse-map/filter
 import { matchesLocation } from '@web/modules/browse-map/location-filter'
 import type { Coordinates, DealRow, VenuePin } from '@web/modules/browse-map/types'
 
-// Client-side filtering. The API only narrows by validity; everything here runs over the loaded
-// deals so the live counts in the filter sheet are exact. The price rule mirrors the API's:
-// a cap keeps deals with no fixed price (1-for-1, % off).
-
 export type AreaBounds = {
   readonly south: number
   readonly west: number
@@ -24,7 +20,6 @@ export type FilterContext = {
 
 export type SortKey = 'near' | 'ending' | 'newest'
 
-// About 4.8 km/h, a relaxed walking pace.
 export const WALK_METRES_PER_MINUTE = 80
 const SINGAPORE_OFFSET_MS = 8 * 60 * 60 * 1000
 const DAY_MS = 24 * 60 * 60 * 1000
@@ -36,7 +31,6 @@ export const walkMinutesFor = (metres: number): number =>
 export const isVerified = (votes: DealVoteSummary): boolean =>
   (votes.status ?? communityStatus(votes, null)) === 'LIKELY_STILL_ON'
 
-// Midnight at the end of "today" in Singapore, which has no daylight saving.
 const endOfSingaporeDay = (now: Date): number => {
   const local = now.getTime() + SINGAPORE_OFFSET_MS
   return Math.floor(local / DAY_MS) * DAY_MS + DAY_MS - SINGAPORE_OFFSET_MS
@@ -88,9 +82,6 @@ export const filterDeals = (
   context: FilterContext,
 ): readonly DealPin[] => deals.filter((deal) => matchesDeal(deal, filters, context.now))
 
-// Zoomed in on a street, the visible rectangle can hold no outlet at all. Counting only that
-// would read "0 deals" beside a block with food a short walk away, so the searched area never
-// shrinks below this half-span (about 500 m) around the viewport centre.
 const MIN_AREA_HALF_SPAN_DEGREES = 0.0045
 
 const withMinimumReach = (area: AreaBounds): AreaBounds => {
@@ -107,7 +98,6 @@ const insideArea = (point: Coordinates, area: AreaBounds): boolean =>
   point.lng >= area.west &&
   point.lng <= area.east
 
-// Walking distance applies only once the visitor is located; the sheet hides it otherwise.
 export const filterVenues = (
   pins: readonly VenuePin[],
   filters: BrowseFilters,
@@ -126,7 +116,6 @@ export const filterVenues = (
 export const uniqueDealCount = (pins: readonly VenuePin[]): number =>
   new Set(pins.flatMap((pin) => pin.deals.map((deal) => deal.id))).size
 
-// Rows arrive nearest-first when located and in API order (newest) otherwise.
 export const sortRows = (rows: readonly DealRow[], sort: SortKey): readonly DealRow[] => {
   if (sort !== 'ending') return rows
   const rank = (row: DealRow) => endTime(row.deal) ?? Number.POSITIVE_INFINITY

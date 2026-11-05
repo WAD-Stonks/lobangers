@@ -2,9 +2,6 @@ import { expect, type Page, test } from '@playwright/test'
 // biome-ignore lint/style/noRestrictedImports: E2E-only fixtures; no E2E alias exists.
 import * as fixtures from './community-fixtures'
 
-// The live Makan Squad room: voting with effects, deciding, a match, watching after the start,
-// minimising on a phone, locked pins, opening a deal and leaving. The API is mocked with an
-// in-memory synthetic room; every person and deal is fake.
 const { DEALS, HOME, mockPublicApi, mockSignedIn, VENUES } = fixtures
 test.use({ geolocation: HOME, permissions: ['geolocation'] })
 
@@ -36,7 +33,6 @@ const squadDeal = (
 
 const ROOM_DEALS = [squadDeal(DEALS[1], VENUES.chicken), squadDeal(DEALS[2], VENUES.boba)]
 
-// A tiny stand-in for the server: three members, votes and choices, events for effects.
 const mockRoom = async (page: Page, options: { spectator?: boolean } = {}) => {
   const room = {
     phase: 'VOTING' as Phase,
@@ -143,7 +139,6 @@ const mockRoom = async (page: Page, options: { spectator?: boolean } = {}) => {
     return route.fulfill({ json: state() })
   })
   return {
-    // What the other two do, as the server would record it.
     others: (ashley: Stance, damien: Stance) => {
       room.stances[ASHLEY] = ashley
       room.stances[DAMIEN] = damien
@@ -249,9 +244,6 @@ test('a phone can tuck the room away, other deals stay locked, and the bar opens
   await openRoom(page)
   await page.getByTestId('squad-minimise').click()
   await expect(page.getByTestId('squad-mini')).toBeVisible()
-  // The camera follows the room's deal and the map only draws pins in view; the kopi stall sits
-  // just above the header and its pin overlaps its neighbours, so open their stack, then pan
-  // north with the map's arrow keys until its pin is drawn.
   const otherPin = page.locator('.deal-map-pin', { has: page.getByText('$1.20') })
   const stack = page.locator('.deal-map-cluster[title$="close together"]')
   const locked = page.getByText(`You're in Room ${CODE}. Leave the room to open other deals.`)

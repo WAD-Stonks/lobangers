@@ -1,7 +1,5 @@
 import { shallowReactive } from 'vue'
 
-// Memory-only UX ownership. Native IDs are hints, never server authorization.
-// This owner survives SPA disposal. It never receives credentials or protected DTOs.
 type NativeIdentity = { user: { id: string }; session: { id: string } }
 export type AdminAttempt = {
   version: number
@@ -33,7 +31,6 @@ const retire = () => {
     for (const attempts of owner.ledgers.values()) attempts.clear()
     owner.ledgers.clear()
   }
-  // Close and fence every mounted consumer BEFORE exposing a replacement.
   for (const close of endings) close()
   owner = null
 }
@@ -50,7 +47,6 @@ export const confirmAdminIdentity = (identity: NativeIdentity | null) => {
   owner = { principal, session, active: true, ledgers: new Map() }
 }
 
-// Capture an exact owner, never read a new owner's ledger from a late callback.
 export const adminRecovery = (domain: Domain) => {
   const scope = owner
   let attempts = scope?.ledgers.get(domain)
@@ -69,7 +65,6 @@ export const adminRecovery = (domain: Domain) => {
       if (result) ledger.set(key, result)
       else ledger.delete(key)
     },
-    // Standalone panels without a confirmed native owner are presentation-local.
     close: () => {
       if (!scope) ledger.clear()
     },

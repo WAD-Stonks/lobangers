@@ -4,7 +4,6 @@ import { avatarUrl } from '@web/modules/squad/avatar-art'
 import type { SquadRoom } from '@web/modules/squad/use-squad-room'
 import { computed } from 'vue'
 
-// The room tucked down so the map shows: still live, still counting, one tap to open again.
 const props = defineProps<{ room: SquadRoom; state: SquadState }>()
 const emit = defineEmits<{ open: [] }>()
 

@@ -295,7 +295,6 @@ describe('map shell routes', () => {
     expect(navbar.find('a[href="#cuisines"]').exists()).toBe(false)
     expect(navbar.get('.landing-account a[href="/login"]').text()).toBe('Log in')
     expect(navbar.get('.landing-account a[href="/register"]').text()).toBe('Sign up')
-    // The same site menu drawer as every other page.
     await navbar.get('[data-testid="nav-toggle"]').trigger('click')
     expect(navbar.get('[data-testid="nav-menu"]').attributes('role')).toBe('dialog')
     expect(navbar.get('[data-testid="nav-menu"]').text()).toContain('All deals')
@@ -343,7 +342,6 @@ describe('map shell routes', () => {
       Object.defineProperty(body, 'clientWidth', { value: 1100 })
       body.style.padding = '20px'
       media.getBoundingClientRect = () => ({ top: 0 }) as DOMRect
-      // Community API is unavailable in this route fixture; supply its layout surface.
       const verification = document.createElement('div')
       verification.className = 'deal-community-verification'
       let bottom = 600

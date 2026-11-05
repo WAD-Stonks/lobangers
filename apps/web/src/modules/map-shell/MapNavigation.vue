@@ -28,7 +28,6 @@ const openPanel = async (event: MouseEvent, navigate: (event?: MouseEvent) => Pr
   const normalClick = event.button === 0 && !event.ctrlKey && !event.metaKey && !event.shiftKey && !event.altKey
   const failure = await navigate(event)
   if (!normalClick || (failure && !isNavigationFailure(failure, NavigationFailureType.duplicated))) return
-  // Reopen only after the new route has committed and its panel has rendered.
   await nextTick()
   emit('openPanel')
 }
@@ -44,8 +43,6 @@ onBeforeUnmount(() => emit('menuChange', false))
       <RouterLink v-slot="{ href, navigate }" :to="navigationTo('/deals')" custom><a :href="href" data-testid="nav-home" :aria-current="isActive(['home']) ? 'page' : undefined" @click="openPanel($event, navigate)"><ShellIcon name="ticket" :size="23" /><span>All deals</span></a></RouterLink>
       <RouterLink v-slot="{ href, navigate }" :to="mapTo" custom><a :href="href" :aria-current="isActive(['browse', 'deal', 'venue']) ? 'page' : undefined" @click="openPanel($event, navigate)"><ShellIcon name="map" :size="23" /><span>Map</span></a></RouterLink>
       <RouterLink v-slot="{ href, navigate }" :to="savedTo" custom><a :href="href" :aria-current="isActive(['saved']) ? 'page' : undefined" @click="openPanel($event, navigate)"><ShellIcon name="bookmark" :size="23" /><span>Saved</span></a></RouterLink>
-      <!-- Merchants add and edit deals from their dashboard, so they get it in Share's spot, in
-           both the phone bottom bar and the desktop side rail. -->
       <RouterLink v-if="isMerchant" v-slot="{ href, navigate }" :to="navigationTo('/merchant')" custom><a :href="href" data-testid="map-merchant-dashboard" :aria-current="isActive(['merchant', 'merchant-deal-new', 'merchant-deal-edit', 'merchant-deal-run-again', 'merchant-flash-new', 'merchant-flash-edit']) ? 'page' : undefined" @click="openPanel($event, navigate)"><ShellIcon name="store" :size="23" /><span>Dashboard</span></a></RouterLink>
       <RouterLink v-else v-slot="{ href, navigate }" :to="navigationTo('/add')" custom><a :href="href" data-testid="map-share" :aria-current="isActive(['submit-deal']) ? 'page' : undefined" @click="openPanel($event, navigate)"><ShellIcon name="plus" :size="23" /><span>Share</span></a></RouterLink>
     </nav>
@@ -85,12 +82,10 @@ onBeforeUnmount(() => emit('menuChange', false))
   padding: 6px 2px;
   color: var(--ink-muted);
   text-decoration: none;
-  /* Never below 11px, even on the desktop's 90% font scale. */
   font-size: max(11px, 0.7rem);
   font-weight: 650;
   line-height: 1.15;
   text-align: center;
-  /* Labels wrap between words, never inside one ("Dashboar / d"); keep them to a word or two. */
   overflow-wrap: normal;
   hyphens: manual;
   border-radius: 14px;
@@ -106,7 +101,6 @@ onBeforeUnmount(() => emit('menuChange', false))
   transform: scale(0.95);
 }
 
-/* The icon pops once when its tab becomes the current one. */
 .map-navigation a[aria-current='page'] > svg {
   animation: shell-pop 320ms var(--ease-out);
 }
@@ -131,7 +125,6 @@ onBeforeUnmount(() => emit('menuChange', false))
   background: var(--paper-sunk);
 }
 
-/* 24px, the same box as the 23px icons, so the Account label lines up with the others. */
 .map-navigation__avatar { display: grid; place-items: center; box-sizing: border-box; width: 24px; height: 24px; font-size: .6875rem; border: 1px solid var(--hairline); border-radius: 50%; background: var(--sunny-wash); color: var(--ink); font-weight: 700; }
 
 .map-navigation__account {
@@ -142,7 +135,6 @@ onBeforeUnmount(() => emit('menuChange', false))
   position: fixed;
   inset: auto 0 0;
   width: 100%;
-  /* 58px: BOTTOM_NAV_HEIGHT_PX in use-shell-layout.ts. */
   height: calc(58px + env(safe-area-inset-bottom, 0px));
   padding: 4px calc(8px + env(safe-area-inset-right, 0px)) calc(4px + env(safe-area-inset-bottom, 0px)) calc(8px + env(safe-area-inset-left, 0px));
   box-sizing: border-box;

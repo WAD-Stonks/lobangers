@@ -16,9 +16,6 @@ import { useToast } from '@web/modules/map-shell/use-toast'
 import { computed, ref } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 
-// The Flash Drop running for this deal, inside the deal panel: price, the countdown to claim,
-// codes left, and the button that claims one code. Claiming is short; a claimed code then works
-// at the counter until it expires, and shows here and in My codes.
 const props = defineProps<{ drop: PublicFlashDrop }>()
 
 const flash = useFlashDrops()
@@ -33,7 +30,6 @@ const now = computed(() => flash?.now.value ?? Date.now())
 const code = computed<FlashCode | null>(() => flash?.codeForDrop(props.drop.id) ?? null)
 const ended = computed(() => new Date(props.drop.endsAt).getTime() <= now.value)
 const soldOut = computed(() => props.drop.codesLeft <= 0)
-// A saving and a crossed-out usual price only make sense for a fixed flash price.
 const fixedPrice = computed(() =>
   props.drop.offerType === 'FIXED_PRICE' ? props.drop.flashPriceCents : null,
 )
@@ -109,8 +105,6 @@ const claim = async () => {
 
 <style scoped>
 .flash-claim {
-  /* A dark card by day. At night an inverted (light) card would glare inside a dark panel, so it
-     becomes a raised dark surface with a coral edge instead. */
   --claim-bg: var(--ink-strong);
   --claim-text: var(--on-ink);
   --claim-accent: #f3a58e;

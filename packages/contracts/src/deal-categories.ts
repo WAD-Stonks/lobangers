@@ -1,13 +1,10 @@
 import { z } from 'zod'
 
-// The categories the browse map can draw (each has its own tint and icon on the web). Deals
-// are stored with one of these codes; FOOD is the catch-all.
 export const DEAL_CATEGORIES = ['FOOD', 'DRINKS', 'DESSERT', 'SNACKS', 'BAKERY'] as const
 export type DealCategory = (typeof DEAL_CATEGORIES)[number]
 export const dealCategorySchema = z.enum(DEAL_CATEGORIES)
 export const DEFAULT_DEAL_CATEGORY: DealCategory = 'FOOD'
 
-// Whole-word cues for each category. Lists stay in plain words so reviewers can extend them.
 const CATEGORY_CUES: Record<DealCategory, readonly string[]> = {
   FOOD: [
     'food',
@@ -103,7 +100,6 @@ const CATEGORY_CUES: Record<DealCategory, readonly string[]> = {
     'chai',
     'hojicha',
     'yakult',
-    // Drink chains, since imported titles are often just the brand ("#TIGERSUGARSG").
     'starbucks',
     'heytea',
     'chagee',
@@ -234,10 +230,7 @@ const CATEGORY_PATTERNS = DEAL_CATEGORIES.map((category) => ({
   pattern: cuePattern(CATEGORY_CUES[category]),
 }))
 
-// A cue in the title says more about the deal than one buried in the body.
 const TITLE_WEIGHT = 3
-// Channel posts lead with emoji (🧋HEYTEA🧋), which say more than a bare brand name. Emoji have
-// no word boundaries, so they are counted as plain substrings.
 const CATEGORY_EMOJI: Record<DealCategory, readonly string[]> = {
   FOOD: [
     '🍔',
@@ -270,8 +263,6 @@ const countEmoji = (category: DealCategory, text: string) =>
 
 const countCues = (pattern: RegExp, text: string) => [...text.matchAll(pattern)].length
 
-// Picks the category whose cues appear most across the title and body. Ties and a total blank
-// fall back to the default, which comes first in DEAL_CATEGORIES.
 export const classifyDealCategory = (title: string, body = ''): DealCategory => {
   const scored = CATEGORY_PATTERNS.map(({ category, pattern }) => ({
     category,

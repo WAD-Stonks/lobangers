@@ -498,7 +498,6 @@ describe('conservative outlet writers with native HTTP and disposable replica', 
       approvalReady: false,
     })
   })
-  // Characterization/regression coverage for existing fences and the new fail-closed policy.
   it.each(['null', 'forged', 'stale', 'discovery', 'legacy'] as const)(
     'rejects %s occupancy for a new association without mutating source or draft',
     async (kind) => {

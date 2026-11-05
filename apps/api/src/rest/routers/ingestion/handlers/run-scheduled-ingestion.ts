@@ -8,8 +8,6 @@ import { db } from '@broke-oclock/db'
 import type { RequestHandler } from 'express'
 import { z } from 'zod'
 
-// Deliberately separate machine authentication: no cookie/session or role bypass
-// is added to the browser route, and unauthorized requests never create context.
 export const getScheduledIngestionRun =
   (dependencies: RestDependencies): RequestHandler =>
   async (request, response, next) => {

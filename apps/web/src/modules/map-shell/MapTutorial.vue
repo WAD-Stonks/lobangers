@@ -4,7 +4,6 @@ import ShellIcon from '@web/modules/map-shell/ShellIcon.vue'
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 
 const props = defineProps<{ step: number; noDeals: boolean }>()
-// Merchants add deals from their dashboard, so the tour does not end on Add a deal for them.
 const canAddDeal = useCanAddDeal()
 const emit = defineEmits<{ close: []; next: []; back: []; addDeal: [] }>()
 const steps = [
@@ -25,7 +24,6 @@ let lastTarget: HTMLElement | null = null
 
 const locate = (scroll = false) => {
   const selector = props.noDeals && props.step > 0 && props.step < 4 ? '[data-testid="shell-panel"]' : current.value.target
-  // Prefer the specific feature over its fallback container.
   const candidates = selector.split(',').flatMap((part) => [...document.querySelectorAll<HTMLElement>(part.trim())])
   const target = candidates.find((element) => {
     const rect = element.getBoundingClientRect()
@@ -41,8 +39,6 @@ const locate = (scroll = false) => {
   const bottom = Math.min(window.innerHeight - 8, rect.bottom + 6)
   bounds.value = right > left && bottom > top ? { left, top, width: right - left, height: bottom - top } : null
 }
-// Body-wide mutations and scrolls arrive in bursts; measure at most once per frame, and never
-// push the pending frame back (a steady stream of mutations would otherwise starve it).
 const refresh = () => {
   if (typeof requestAnimationFrame !== 'function') { locate(); return }
   if (frame !== null) return

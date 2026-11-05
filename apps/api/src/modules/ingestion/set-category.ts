@@ -11,8 +11,6 @@ import {
 } from '@api/modules/platform-admin/transaction'
 import type { IngestionCategoryRequest } from '@broke-oclock/contracts/ingestion'
 
-// Corrects the importer's guessed category on a pending draft. Like an outlet change, this is
-// new content: the version moves on and any earlier review decision is cleared.
 export const setDraftCategory = async (
   db: Database,
   actor: AuthenticatedActor,

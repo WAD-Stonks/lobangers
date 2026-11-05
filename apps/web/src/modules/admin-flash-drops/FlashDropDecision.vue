@@ -17,7 +17,6 @@ const note = defineModel<string>('note', { required: true })
 const confirmed = defineModel<boolean>('confirmed', { required: true })
 const emit = defineEmits<{ choose: [kind: DecisionKind]; submit: []; refresh: [] }>()
 const copy = computed(() => DECISION_COPY[props.active])
-// Removing is the only action, and it cannot be undone.
 const submitClass = 'btn-stop'
 const noteId = computed(() => `flash-note-${props.drop.id}`)
 const remaining = computed(() => NOTE_LIMIT - note.value.trim().length)

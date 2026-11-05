@@ -14,7 +14,6 @@ import {
   squadSyncSchema,
 } from '@broke-oclock/contracts/squad'
 
-// The heartbeat every member polls: a POST because it marks them as still here.
 export const syncHandler = (dependencies: RestDependencies) =>
   createRestHandler(dependencies, async (request, response, context) => {
     requireTrustedOrigin(request.get('Origin'), dependencies.config.webOrigin)

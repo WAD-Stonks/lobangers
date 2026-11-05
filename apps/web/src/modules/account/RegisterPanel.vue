@@ -4,7 +4,6 @@ import PanelFrame from '@web/modules/map-shell/PanelFrame.vue'
 import { afterLoginPath, safeRedirect } from '@web/router/guards'
 import { useRoute, useRouter } from 'vue-router'
 
-// Sign up over the map. Accounts that must verify their email go to log in with a notice.
 const route = useRoute()
 const router = useRouter()
 

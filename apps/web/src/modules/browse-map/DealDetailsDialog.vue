@@ -18,11 +18,7 @@ const sizePoster = () => {
   if (!root || root.querySelector('.deal-panel--comments')) return
   const imageSource = root.querySelector<HTMLImageElement>('.deal-photo__img')?.src ?? ''
   const layoutKey = JSON.stringify([route.params.dealId, route.query.at, imageSource, window.innerWidth, window.innerHeight])
-  // Votes, receipts and comment updates must not resize the poster or switch layouts.
   if (sizedFor === layoutKey) return
-  // Leave the stacked layout before measuring (one write), then read the body width once before
-  // the search. The search itself has to alternate a write and a read per step: the overview's
-  // height depends on how its text reflows at each trial width, which CSS alone can't solve.
   root.classList.remove('deal-dialog--stacked')
   if (window.innerWidth < 992) {
     sizedFor = ''
@@ -33,23 +29,18 @@ const sizePoster = () => {
   const image = media?.querySelector<HTMLImageElement>('.deal-photo__img')
   const verification = root.querySelector<HTMLElement>('.deal-community-verification')
   if (!body || !media || !image?.naturalWidth || !image.naturalHeight || !verification) return
-  // Wait out the community loader: it sits above the verification card while comments load, and
-  // measuring then would lock in a taller overview (and a stacked layout) once it is gone.
   if (root.querySelector('.deal-community-loading')) return
   const style = getComputedStyle(body)
   const available = body.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight) - 24
   if (available < 640) return
-  // The poster starts at the top of the first grid row whatever its width, so read it once.
   const mediaTop = media.getBoundingClientRect().top
   const ratio = image.naturalWidth / image.naturalHeight
-  // The whole poster stays in view above the action bar, however long the overview runs.
   const actionsTop = root.querySelector('.panel-frame__actions')?.getBoundingClientRect().top ?? root.getBoundingClientRect().bottom
   const fitsWidth = (actionsTop - mediaTop - 24) * ratio
   let high = Math.min(available - 360, fitsWidth)
   let low = Math.min(280, high)
   let bestWidth = low
   let bestDifference = Infinity
-  // Find a column width whose proportional poster height matches the overview.
   for (let step = 0; step < 12; step++) {
     const width = (low + high) / 2
     body.style.setProperty('--poster-width', `${width}px`)
@@ -63,8 +54,6 @@ const sizePoster = () => {
     else high = width
   }
   body.style.setProperty('--poster-width', `${bestWidth}px`)
-  // A poster held to the visible height sits beside a longer overview; otherwise a poster that
-  // can't match the overview goes above it.
   const heldToView = bestWidth >= high - 2 && high === fitsWidth
   root.classList.toggle('deal-dialog--stacked', bestDifference > 16 && !heldToView)
   sizedFor = layoutKey
@@ -179,7 +168,6 @@ onBeforeUnmount(() => {
   height: 100%;
 }
 
-/* On wide screens, the poster and its details share one overview row. */
 @media (min-width: 992px) {
   .deal-dialog:not(.deal-dialog--stacked):not(:has(.deal-panel--no-image)) .deal-dialog__content :deep(.deal-panel--dialog:not(.deal-panel--comments) .panel-frame__body) {
     display: grid;
@@ -251,8 +239,6 @@ onBeforeUnmount(() => {
     padding-top: 24px;
   }
 
-  /* The Squad card sits right under the overview, as high as the map panel shows it, without
-     joining the column the poster is sized against. */
   .deal-dialog:not(.deal-dialog--stacked):not(:has(.deal-panel--no-image)) .deal-dialog__content :deep(.squad-cta) {
     grid-row: 7;
   }
@@ -305,8 +291,6 @@ onBeforeUnmount(() => {
   line-height: 1.2;
 }
 
-/* The frame keeps the photo's shape, as wide as the popup allows until it reaches the height cap,
-   so short landscape photos don't leave a gap below and portrait posters still fit on screen. */
 .deal-dialog__content :deep(.deal-gallery) {
   --gallery-max-height: min(56dvh, 580px);
   align-self: center;

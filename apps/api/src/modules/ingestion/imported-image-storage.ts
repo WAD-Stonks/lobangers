@@ -2,8 +2,6 @@ import type { AppConfig } from '@api/config'
 import type { ImportedImageStorage } from '@api/modules/ingestion/runtime'
 import { UTApi, UTFile } from '@broke-oclock/storage/server'
 
-// UTApi 7.7.4 uploadFiles/UTFile/customId and getFileUrls(keyType:'customId').
-// The database owns upload idempotency; the SDK's custom ID is only reconciliation.
 export const createImportedImageStorage = (config: AppConfig): ImportedImageStorage | undefined => {
   if (!config.photoStorage) return undefined
   const token = config.photoStorage.token

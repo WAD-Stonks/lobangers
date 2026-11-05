@@ -1,8 +1,3 @@
-/* Motion for the map shell. Imported once by MapShell.vue. Only transform and opacity move;
-   nothing runs longer than 300ms except the map's own flight. */
-
-/* Panel changes: slide 24px forward or back and fade in. The panel swaps "out-in", so any
-   exit time is a pause before the new panel starts; exits are instant so clicks land at once. */
 .panel-forward-enter-active,
 .panel-back-enter-active,
 .panel-none-enter-active {
@@ -34,7 +29,6 @@
   opacity: 0;
 }
 
-/* Brand menu grows from the logo. */
 .shell-menu-enter-active {
   transition:
     opacity var(--dur-small) var(--ease-out),
@@ -54,8 +48,6 @@
   opacity: 0;
 }
 
-/* Filter sheet: the popover grows from the chips, the tablet dialog from the centre, the phone
-   sheet slides up. Each variant sets its own transform-origin or offset. */
 .shell-sheet-enter-active {
   transition:
     opacity 220ms var(--ease-out),
@@ -88,7 +80,6 @@
   opacity: 0;
 }
 
-/* Small controls that appear beside a chip (Clear all, a filter's remove button). */
 .shell-chip-enter-active {
   transition:
     opacity var(--dur-small) var(--ease-out),
@@ -108,7 +99,6 @@
   opacity: 0;
 }
 
-/* Toast and pills: slide up and fade in, fade out. */
 .shell-rise-enter-active {
   transition:
     opacity 200ms var(--ease-out),
@@ -128,7 +118,6 @@
   opacity: 0;
 }
 
-/* Hot card swap: a short crossfade through a 2px blur. */
 .hot-swap-enter-active {
   transition:
     opacity 240ms ease,
@@ -142,7 +131,6 @@
   transform: translateY(6px);
 }
 
-/* Save pop and badge bump. */
 @keyframes shell-pop {
   40% {
     transform: scale(1.18);
@@ -153,7 +141,6 @@
   }
 }
 
-/* Reduced motion keeps the fades and drops every movement, scale, blur and loop. */
 @media (prefers-reduced-motion: reduce) {
   .panel-forward-enter-from,
   .panel-back-enter-from,

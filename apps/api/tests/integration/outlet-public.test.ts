@@ -41,7 +41,6 @@ beforeAll(async () => {
     process.env.OUTLET_PUBLIC_RECEIPTS ?? (await mkdtemp(resolve(tmpdir(), 'outlet-public-')))
   const schema = resolve(receipts, 'disposable-schema.prisma')
   await copyFile(resolve(root, 'packages/db/prisma/schema.prisma'), schema)
-  // Direct pinned CLI, outside repo dotenv discovery, and never regenerate a shared client.
   const setupCommand = [
     resolve(root, 'packages/db/node_modules/prisma/build/index.js'),
     'db',
@@ -225,7 +224,6 @@ it('categories require actual public pins while remaining independent of visitor
   const venue = await venueFixture()
   const unknown = await dealFixture(venue, false)
   await db.deal.update({ where: { id: unknown.id }, data: { category: 'UNKNOWN' } })
-  // Excluding its only outlet leaves this unconfirmed deal with nowhere to pin.
   const nowhere = await dealFixture(venue, false)
   await db.deal.update({
     where: { id: nowhere.id },
@@ -296,7 +294,6 @@ it('imported current claims need a known start, and a missing end is a limited p
   const expected = [known.id, missingEnd.id, user.id].sort()
   const current = (await get('/deals?validNow=true')).items
   expect(current.map((row: { id: string }) => row.id).sort()).toEqual(expected)
-  // Only imported open-ended claims are labelled; their 60-day cut-off is never exposed.
   const limited = current.filter((row: { limitedTime?: boolean }) => row.limitedTime)
   expect(limited.map((row: { id: string }) => row.id)).toEqual([missingEnd.id])
   expect(limited[0].validUntil).toBeNull()
@@ -348,12 +345,10 @@ it('imported open-ended claims stay current for 60 days from their start or sour
   const recentStart = await openEnded(daysAgo(59))
   const recentPost = await openEnded(null)
   await sourcePostFixture(recentPost.id, daysAgo(47))
-  // Hidden: a stale start, a future start, a stale post, and no date at all.
   await openEnded(daysAgo(61))
   await openEnded(new Date(now.getTime() + 60_000))
   await sourcePostFixture((await openEnded(null)).id, daysAgo(70))
   await openEnded(null)
-  // A known start outranks the post date, so an old start stays hidden after a fresh repost.
   await sourcePostFixture((await openEnded(daysAgo(75))).id, daysAgo(1))
 
   expect(
@@ -477,8 +472,6 @@ it('legacy receipts retain exact outlets without enrolling a new branch or lendi
   expect((await accountCall('PUT', `/account/bookmarks/${campaign.id}`)).status).toBe(200)
 })
 
-// Characterization coverage of the now-shared policy. These cases are not new feature REDs.
-// Missing outlet proof no longer hides a deal from the map; it is pinned and flagged instead.
 const PINNED_UNCONFIRMED = new Set([
   'scope missing',
   'scope null',
@@ -700,7 +693,6 @@ it.each([
       expect(map.items).toEqual([])
       expect(map.categories).toEqual([])
     }
-    // A pinned outlet keeps its page, listing the flagged deal, exactly as the map does.
     const expectedVenueStatus =
       pinned ||
       failure.startsWith('scope ') ||
@@ -717,7 +709,6 @@ it.each([
       )
       expect(body.pastDeals).toEqual([])
     }
-    // The past path must independently apply the same publication policy.
     await db.deal.update({ where: { id: deal.id }, data: { validUntil: new Date(0) } })
     const past = await fetch(`${baseURL}/api/venues/${venue.id}`)
     expect(past.status).toBe(expectedVenueStatus)
@@ -741,8 +732,6 @@ it('characterization: selected scope hashes include deleted edges before filteri
   const closed = await venueFixture(venue.merchantId)
   await db.venue.update({ where: { id: closed.id }, data: { deletedAt: new Date() } })
   await db.dealVenue.create({ data: { dealId: deal.id, venueId: closed.id } })
-  // The unchanged receipt must be invalidated even though this edge can never draw a pin, so
-  // the deal falls back to an unconfirmed pin at its live selected outlet only.
   const held = (await get('/deals?validNow=false')).items
   expect(held).toEqual([expect.objectContaining({ id: deal.id, outletUnconfirmed: true })])
   expect(held[0].venues.map((row: { id: string }) => row.id)).toEqual([venue.id])

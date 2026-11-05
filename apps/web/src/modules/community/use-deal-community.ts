@@ -40,8 +40,6 @@ export const useDealCommunity = (
         return 'Could not update community information. Please try again.'
     }
   }
-  // Keep this separate from optimistic counts and private visitor state. The shared shell
-  // needs a reload only when its public counts/status/comment count may have changed.
   const acceptSummary = (next: CommunitySummary) => {
     const evidence = JSON.stringify([next.alive, next.dead, next.status, next.commentCount])
     const differs = evidence !== publicEvidence
@@ -49,8 +47,6 @@ export const useDealCommunity = (
     summary.value = next
     return differs
   }
-  // Pages count top-level comments, each with its replies; a reply whose comment is gone stands
-  // on its own.
   const topLevelCount = (items: readonly { id: string; parentId?: string | null }[]) => {
     const ids = new Set(items.map((item) => item.id))
     return items.filter((item) => !item.parentId || !ids.has(item.parentId)).length
@@ -67,7 +63,6 @@ export const useDealCommunity = (
         api.community.summary(dealId.value),
         api.community.comments(dealId.value, { limit: Math.min(50, visibleCount) }),
       ])
-      // Likes and edits should not collapse pages the visitor has already opened.
       while (page.nextCursor && topLevelCount(page.items) < loadedCount) {
         const next = await api.community.comments(dealId.value, {
           cursor: page.nextCursor,
@@ -203,9 +198,7 @@ export const useDealCommunity = (
       try {
         const result = await api.community.summary(dealId.value)
         if (current === generation && request === readVersion && acceptSummary(result)) changed()
-      } catch {
-        /* Keep the last successful read; explicit refresh exposes recoverable errors. */
-      }
+      } catch {}
     }, 60000)
   })
   onBeforeUnmount(() => {

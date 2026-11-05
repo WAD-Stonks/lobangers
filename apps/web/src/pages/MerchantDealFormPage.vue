@@ -50,14 +50,6 @@ import { leaveMerchantNotice } from '@web/modules/merchant/merchant-notice'
 import { computed, nextTick, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 
-// The merchant's deal form on its own page. Each way in has its own address, so the back
-// button, a refresh and a link all land on the right form:
-//   new          /merchant/deals/new            a new deal (it can become a flash deal on the review)
-//   edit         /merchant/deals/:id/edit       an existing deal
-//   run-again    /merchant/deals/:id/run-again  an ended deal copied as a new one
-//   flash-new    /merchant/flash/new            a new flash deal draft
-//   flash-edit   /merchant/flash/:id/edit       a flash deal draft
-// Saving goes back to the dashboard, which shows what happened.
 export type MerchantFormMode = 'new' | 'edit' | 'run-again' | 'flash-new' | 'flash-edit'
 
 const props = defineProps<{ mode: MerchantFormMode; id?: string }>()
@@ -66,34 +58,24 @@ const router = useRouter()
 const outlets = ref<MerchantOutlet[]>([])
 const loading = ref(true)
 const saving = ref(false)
-// Set once the form has saved, so leaving for the dashboard doesn't ask about unsaved changes.
 const saved = ref(false)
-// Why the form could not open: the deal is gone, or the request failed.
 const loadError = ref('')
 
-// ----- Form -----
-// editingId is null when creating a new deal, or the id of the deal being edited.
 const editingId = ref<string | null>(null)
-// The title of the ended deal a new deal was copied from ("Run it again"), or null.
 const copiedFrom = ref<string | null>(null)
-// A flash deal is the same form plus the flash fields. It is saved as a draft and only goes
-// public when the merchant presses Go live on the dashboard. editingFlash is the draft being
-// changed, or null for a new flash deal.
 const flashMode = ref(false)
 const editingFlash = ref<MerchantFlashDrop | null>(null)
 const flashFields = ref<FlashFieldsState>(blankFlashFields())
 const flashProblem = ref<FlashProblem | null>(null)
 const formError = ref('')
-// One message per field, e.g. fieldErrors.title = 'Please give the deal a title.'
 const fieldErrors = ref<Record<string, string>>({})
 const formEl = ref<HTMLFormElement | null>(null)
 
-// The form's fields. Price is typed in dollars here and turned into cents when saving.
 const emptyForm = () => ({
   title: '',
   description: '',
   category: '',
-  cuisine: '', // 'NONE' means "No specific cuisine"
+  cuisine: '',
   outletIds: [] as string[],
   offerType: 'PERCENT_OFF' as OfferType,
   discountPercent: '' as number | '',
@@ -101,14 +83,12 @@ const emptyForm = () => ({
   startDate: '',
   endDate: '',
   terms: '',
-  savedPhoto: null as DealPhoto | null, // the deal's current photo, kept unless removed or replaced
+  savedPhoto: null as DealPhoto | null,
 })
 const form = ref(emptyForm())
-// A newly chosen photo. It is only uploaded when the deal is saved.
 const newPhoto = ref<File | null>(null)
-const newPhotoPreview = ref('') // a temporary link to the chosen image, for the <img> preview
+const newPhotoPreview = ref('')
 const photoInput = ref<InstanceType<typeof PhotoDropzone> | null>(null)
-// The form as it was opened, so leaving the page only warns when something changed.
 const openedAs = ref('')
 const snapshot = () =>
   JSON.stringify({ form: form.value, flash: flashMode.value ? flashFields.value : null })
@@ -119,22 +99,14 @@ const isDirty = computed(
     loadError.value === '' &&
     (snapshot() !== openedAs.value || newPhoto.value !== null),
 )
-// Asks before a changed form is lost to Cancel, the back button or closing the tab.
 const { discarding } = useUnsavedChanges(isDirty)
-// On its way back to the dashboard (discarded or saved): leaving can take a moment while the
-// router checks the session, so the buttons say so and can't be pressed twice.
 const leaving = computed(() => discarding.value || saved.value)
 
-// Links a field to its error text so screen readers read the message with the field.
 const invalidAttrs = (field: string) =>
   fieldErrors.value[field]
     ? { 'aria-invalid': 'true' as const, 'aria-describedby': `error-${field}` }
     : {}
 
-// ----- Steps -----
-// The same four steps as the visitor's Add a deal form, so both read alike: details, where it
-// runs, when it runs, then a review. Each step checks only its own fields before the next one
-// opens; saving checks them all and opens the first step with a problem.
 const STEP_FIELDS: readonly (readonly string[])[] = [
   ['title', 'description', 'category', 'cuisine', 'discountPercent', 'priceDollars', 'photo'],
   ['outletIds'],
@@ -144,7 +116,6 @@ const STEP_FIELDS: readonly (readonly string[])[] = [
 const LAST_STEP = STEP_FIELDS.length - 1
 const TIMING_STEP = 2
 const step = ref(0)
-// The furthest step opened so far; the stepper reopens any of these.
 const reached = ref(0)
 const stepHeadings = ref<HTMLElement[]>([])
 const stepLabels = computed(() => [
@@ -156,7 +127,6 @@ const stepLabels = computed(() => [
 const nextLabel = computed(() => stepLabels.value[step.value + 1] ?? '')
 const stepOf = (field: string) => STEP_FIELDS.findIndex((fields) => fields.includes(field))
 
-// Opens a step and moves focus to its heading, so keyboard and screen reader users land on it.
 const go = async (target: number) => {
   step.value = target
   reached.value = Math.max(reached.value, target)
@@ -166,7 +136,6 @@ const go = async (target: number) => {
   formEl.value?.scrollIntoView?.({ block: 'start' })
 }
 
-// Same choices as the Add-a-deal form.
 const categoryLabels: Record<string, string> = {
   FOOD: 'Food',
   DRINKS: 'Drinks',
@@ -174,7 +143,6 @@ const categoryLabels: Record<string, string> = {
   SNACKS: 'Snacks',
   BAKERY: 'Bakery',
 }
-// The app's shared cuisine list (Chinese, Malay, ...), plus our own "no cuisine" choice.
 const cuisineLabels: Record<string, string> = {
   ...DEAL_CUISINE_LABELS,
   NONE: 'No specific cuisine (e.g. drinks, desserts)',
@@ -183,8 +151,6 @@ const cuisineLabels: Record<string, string> = {
 const categoryOptions = withLeading({ value: '', label: 'Choose a category' }, optionsFromLabels(categoryLabels))
 const cuisineOptions = withLeading({ value: '', label: 'Choose a cuisine' }, optionsFromLabels(cuisineLabels))
 
-// Lobbie's advice for the step in view, as on the visitor's Add a deal form, written for a
-// merchant. A flash deal's timing step gets its own.
 const TIPS = [
   {
     sprite: 'deal-found',
@@ -223,11 +189,10 @@ const tip = computed(() => {
   return TIPS[step.value] ?? TIPS[0]
 })
 
-// ----- Photo -----
 const clearNewPhoto = () => {
   newPhoto.value = null
   newPhotoPreview.value = ''
-  photoInput.value?.clear() // empty the file box
+  photoInput.value?.clear()
 }
 
 const choosePhoto = (event: Event) => {
@@ -250,17 +215,13 @@ const choosePhoto = (event: Event) => {
   newPhotoPreview.value = URL.createObjectURL(file)
 }
 
-// The photo is optional, so Remove takes off both a newly chosen photo and the saved one.
 const removePhoto = () => {
   clearNewPhoto()
   form.value.savedPhoto = null
 }
 
-// What the form shows: a newly chosen photo first, otherwise the deal's saved one.
 const shownPhoto = computed(() => newPhotoPreview.value || form.value.savedPhoto?.url || '')
 
-// ----- Filling the form for each way in -----
-// The form's fields filled from a deal, for editing it or running it again.
 const formFrom = (deal: MerchantDeal) => ({
   title: deal.title,
   description: deal.description,
@@ -276,15 +237,11 @@ const formFrom = (deal: MerchantDeal) => ({
   savedPhoto: deal.photo ?? null,
 })
 
-// A blank form; a merchant with only one outlet will almost always pick it, so tick it for them.
 const fillBlank = () => {
   form.value = emptyForm()
   if (outlets.value.length === 1) form.value.outletIds = outlets.value.map((outlet) => outlet.id)
 }
 
-// An ended deal can't be edited, but it can run again as a new deal with the same details.
-// The dates start empty (from now, no end), and the photo stays with the old deal, since a
-// photo belongs to one deal only. Outlets the merchant no longer manages are left out.
 const fillRunAgain = (deal: MerchantDeal) => {
   const managed = new Set(outlets.value.map((outlet) => outlet.id))
   form.value = {
@@ -297,7 +254,6 @@ const fillRunAgain = (deal: MerchantDeal) => {
   copiedFrom.value = deal.title
 }
 
-// A flash deal draft opens with its own deal's details and its flash fields.
 const fillFlashDraft = (drop: MerchantFlashDrop) => {
   const { deal } = drop
   form.value = {
@@ -327,7 +283,6 @@ const NOT_FOUND: Record<MerchantFormMode, string> = {
   'flash-edit': 'We could not find that flash deal draft. It may have gone live or been deleted.',
 }
 
-// Loads the outlets, and the deal or draft the address names, then fills the form.
 const load = async () => {
   loading.value = true
   loadError.value = ''
@@ -335,7 +290,6 @@ const load = async () => {
     outlets.value = await getOutlets()
     if (props.mode === 'new' || props.mode === 'flash-new') {
       fillBlank()
-      // A new flash deal runs at one outlet, so it opens with its flash fields from the start.
       if (props.mode === 'flash-new') {
         flashMode.value = true
         form.value.outletIds = form.value.outletIds.slice(0, 1)
@@ -358,8 +312,6 @@ const load = async () => {
   } catch (error) {
     loadError.value = errorMessageFor(error, 'Could not open the deal form. Please try again.')
   } finally {
-    // A new deal starts at the first step; an existing or copied one is already filled in, so
-    // every step can be opened straight away.
     const prefilled = props.mode !== 'new' && props.mode !== 'flash-new'
     step.value = 0
     reached.value = prefilled ? LAST_STEP : 0
@@ -368,11 +320,8 @@ const load = async () => {
   }
 }
 
-// "Save as flash deal" on the review turns the deal into a flash deal and opens its timing
-// step, where the flash fields replace the dates; the next press on the review saves it.
 const showFlashFields = async () => {
   flashMode.value = true
-  // A flash deal runs at one outlet; keep the first one ticked.
   form.value.outletIds = form.value.outletIds.slice(0, 1)
   await go(TIMING_STEP)
 }
@@ -382,15 +331,12 @@ const backToNormalDeal = () => {
   flashProblem.value = null
 }
 
-// Back to the dashboard: on the tab this form belongs to. Leaving asks first when something
-// changed (useUnsavedChanges), so Cancel needs no question of its own.
 const dashboard = computed(() => ({
   name: 'merchant',
   query: flashMode.value || props.mode === 'flash-edit' ? { tab: 'flash' } : {},
 }))
 const cancelForm = () => router.push(dashboard.value)
 
-// After a save: tell the dashboard what happened and go back to it.
 const finish = async (text: string) => {
   saved.value = true
   clearNewPhoto()
@@ -398,7 +344,6 @@ const finish = async (text: string) => {
   await router.push(dashboard.value)
 }
 
-// Shows one step's problems and focuses the first, opening that step if it isn't showing.
 const flagStep = async (target: number, problems: Record<string, string>) => {
   if (step.value !== target) await go(target)
   fieldErrors.value = problems
@@ -410,7 +355,6 @@ const flagStep = async (target: number, problems: Record<string, string>) => {
 const problemsIn = (problems: Record<string, string>, target: number) =>
   Object.fromEntries(Object.entries(problems).filter(([field]) => stepOf(field) === target))
 
-// The flash fields (start, length, usual price) belong to the timing step.
 const checkFlashTiming = () => {
   const offer = flashOffer.value
   flashProblem.value = flashFieldsProblem(
@@ -421,7 +365,6 @@ const checkFlashTiming = () => {
   return flashProblem.value !== null
 }
 
-// Saving checks every step and opens the first one with a problem.
 const flagFirstProblem = (problems: Record<string, string>, flashTimingBad: boolean) => {
   const steps = Object.keys(problems).map(stepOf).filter((index) => index >= 0)
   if (flashTimingBad) steps.push(TIMING_STEP)
@@ -439,7 +382,6 @@ const next = async () => {
 
 const back = () => (step.value === 0 ? cancelForm() : go(step.value - 1))
 
-// ----- Review -----
 const offerSummary = computed(() => {
   const f = form.value
   if (f.offerType === 'PERCENT_OFF' && f.discountPercent !== '') return `${f.discountPercent}% off`
@@ -485,7 +427,6 @@ const review = computed(() => {
   ]
 })
 
-// Returns a message for every field that has a problem; an empty object means the form is fine.
 const checkForm = () => {
   const f = form.value
   const found: Record<string, string> = {}
@@ -510,7 +451,6 @@ const checkForm = () => {
   return found
 }
 
-// ----- Saving (create or edit) -----
 const saveDeal = async () => {
   if (saving.value) return
   formError.value = ''
@@ -519,7 +459,6 @@ const saveDeal = async () => {
   fieldErrors.value = {}
 
   const f = form.value
-  // Only send a discount or price when the offer type uses it.
   const content: Omit<DealInput, 'photoKey'> = {
     title: f.title.trim(),
     description: f.description.trim(),
@@ -536,7 +475,6 @@ const saveDeal = async () => {
 
   saving.value = true
   try {
-    // A newly chosen photo is uploaded first; otherwise keep the saved one (or none).
     const photoKey = newPhoto.value ? await savePhoto(newPhoto.value) : (f.savedPhoto?.key ?? null)
     const input = { ...content, photoKey }
     if (editingId.value === null) {
@@ -553,7 +491,6 @@ const saveDeal = async () => {
   }
 }
 
-// ----- Saving as a flash deal (a draft) -----
 const saveFlash = async () => {
   if (saving.value) return
   formError.value = ''
@@ -567,16 +504,13 @@ const saveFlash = async () => {
 
   saving.value = true
   try {
-    // A newly chosen photo is uploaded first; otherwise keep the saved one (or none).
     const photoKey = newPhoto.value ? await savePhoto(newPhoto.value) : (f.savedPhoto?.key ?? null)
     const body = toFlashDropBody(
       {
         title: f.title.trim(),
         description: f.description.trim(),
-        // The selects only offer the allowed values, and the server checks them again.
         category: f.category as FlashBody['category'],
         cuisine: (f.cuisine === 'NONE' ? null : f.cuisine) as FlashBody['cuisine'],
-        // The form's offer is the flash offer.
         offerType: offer.offerType,
         discountPercent: offer.discountPercent,
         priceCents: offer.flashPriceCents,
@@ -594,7 +528,6 @@ const saveFlash = async () => {
         : `The draft “${draft.dealTitle}” was updated.`,
     )
   } catch (error) {
-    // A failed photo upload has its own message; anything else is the server's.
     const photoFailed = errorMessageFor(error, '')
     formError.value =
       photoFailed ||
@@ -604,7 +537,6 @@ const saveFlash = async () => {
   }
 }
 
-// Enter in a field moves on a step; on the review it saves.
 const submitForm = () => {
   if (step.value < LAST_STEP) return next()
   return flashMode.value ? saveFlash() : saveDeal()
@@ -619,8 +551,6 @@ const formLede = computed(() =>
     ? 'A short burst offer that everyone on LoBangers is told about. It saves as a draft, and nobody sees it until you press Go live.'
     : 'It goes on the map as soon as you save it.',
 )
-// In flash mode the form's offer is the flash offer: a discount or price only goes with the
-// offer type that uses it.
 const flashOffer = computed(() => {
   const f = form.value
   return {
@@ -665,9 +595,6 @@ onMounted(load)
       <RouterLink to="/me/merchant-access" class="lb-btn lb-btn--primary deal-form-page__state-action">Request access to your stall</RouterLink>
     </div>
 
-    <!-- The same steps and look as the visitor's Add a deal form (AddDealStepper,
-         add-deal-form.css). Every step stays in the form, so moving between them keeps what was
-         typed. -->
     <form
       v-else
       ref="formEl"
@@ -677,7 +604,6 @@ onMounted(load)
     >
         <AddDealStepper :current="step" :reached="reached" :labels="stepLabels" nav-label="Deal steps" @go="go" />
 
-        <!-- 1. Deal details -->
         <section v-show="step === 0" class="add-deal__card" data-step="0" aria-labelledby="deal-form-step-0">
           <h2 id="deal-form-step-0" :ref="(el) => { if (el) stepHeadings[0] = el as HTMLElement }" class="add-deal__step-title" tabindex="-1">
             <span class="add-deal__step-icon" aria-hidden="true"><ShellIcon name="ticket" :size="20" /></span>Deal details
@@ -768,7 +694,6 @@ onMounted(load)
             </div>
           </fieldset>
 
-          <!-- Only the box the chosen offer type needs. -->
           <div v-if="form.offerType === 'PERCENT_OFF'" class="add-deal__field add-deal__short">
             <label for="deal-discount" class="form-label">Discount (%) <span class="add-deal__required" aria-hidden="true">*</span></label>
             <input
@@ -817,8 +742,6 @@ onMounted(load)
               :aria-describedby="fieldErrors.photo ? 'error-photo' : 'deal-photo-help'"
               @change="choosePhoto"
             />
-            <!-- The input sits inside the drop zone, so the error is shown here rather than by
-                 Bootstrap's "after an invalid input" rule. -->
             <div id="error-photo" class="invalid-feedback" :class="{ 'd-block': fieldErrors.photo }">{{ fieldErrors.photo }}</div>
             <div v-if="shownPhoto" class="deal-form__photo">
               <img :src="shownPhoto" alt="Your deal, as customers will see it" width="480" height="320" class="add-deal__preview" />
@@ -827,7 +750,6 @@ onMounted(load)
           </div>
         </section>
 
-        <!-- 2. Outlets -->
         <section v-show="step === 1" class="add-deal__card" data-step="1" aria-labelledby="deal-form-step-1">
           <h2 id="deal-form-step-1" :ref="(el) => { if (el) stepHeadings[1] = el as HTMLElement }" class="add-deal__step-title" tabindex="-1">
             <span class="add-deal__step-icon" aria-hidden="true"><ShellIcon name="pin" :size="20" /></span>Outlets
@@ -861,7 +783,6 @@ onMounted(load)
           </fieldset>
         </section>
 
-        <!-- 3. Validity. A flash deal has its own start time and length instead of dates. -->
         <section v-show="step === 2" class="add-deal__card" data-step="2" aria-labelledby="deal-form-step-2">
           <h2 id="deal-form-step-2" :ref="(el) => { if (el) stepHeadings[2] = el as HTMLElement }" class="add-deal__step-title" tabindex="-1">
             <span class="add-deal__step-icon" aria-hidden="true"><ShellIcon name="calendar" :size="20" /></span>{{ stepLabels[2] }}
@@ -917,7 +838,6 @@ onMounted(load)
           </div>
         </section>
 
-        <!-- 4. Review -->
         <section v-show="step === 3" class="add-deal__card" data-step="3" aria-labelledby="deal-form-step-3">
           <h2 id="deal-form-step-3" :ref="(el) => { if (el) stepHeadings[3] = el as HTMLElement }" class="add-deal__step-title" tabindex="-1">
             <span class="add-deal__step-icon" aria-hidden="true"><ShellIcon name="check" :size="20" /></span>Review
@@ -945,7 +865,6 @@ onMounted(load)
 
         <AddDealTip v-bind="tip" />
 
-        <!-- Always mounted so the summary or a save error is announced. -->
         <div role="alert">
           <p v-if="formError" class="add-deal__alert">{{ formError }}</p>
         </div>
@@ -958,7 +877,6 @@ onMounted(load)
             Next: {{ nextLabel }}<ShellIcon name="arrowRight" :size="18" />
           </button>
           <div v-else class="deal-form__actions">
-            <!-- An ordinary deal goes live when saved; a flash deal is saved as a draft. -->
             <template v-if="!flashMode">
               <button
                 v-if="editingId === null"
@@ -1012,7 +930,6 @@ onMounted(load)
   gap: 12px;
 }
 
-/* A flash deal's title carries the flash mark: coral on a sunny tile. */
 .deal-form-page__flash {
   display: inline-flex;
   flex: none;
@@ -1037,7 +954,6 @@ onMounted(load)
   align-self: flex-start;
 }
 
-/* Leave room above the flash fields when they are scrolled into view. */
 .flash-holder {
   scroll-margin-top: 80px;
 }
@@ -1049,7 +965,6 @@ onMounted(load)
   gap: 12px;
 }
 
-/* Outlets as tiles like the chosen stalls; a ticked one takes the same sunny wash. */
 .deal-form__outlets li {
   position: relative;
   padding: 12px 16px;
@@ -1068,7 +983,6 @@ onMounted(load)
   margin: 0;
 }
 
-/* The whole tile is the label's click target; the checkbox sits above it and takes its own clicks. */
 .deal-form__outlet-label {
   cursor: pointer;
 }
@@ -1086,8 +1000,6 @@ onMounted(load)
   gap: 12px;
 }
 
-/* Phones: the outer panel drops its frame so each step's card gets the full width, and
-   Lobbie shrinks so the tips have room to read. */
 @media (max-width: 575.98px) {
   .deal-form.add-deal__panel {
     gap: 16px;
@@ -1112,8 +1024,6 @@ onMounted(load)
   }
 }
 
-/* On a phone, Back and Next share a row like the visitor's form; the review's save buttons
-   stack full width under Back, with the main one on top. */
 @media (max-width: 480px) {
   .deal-form .add-deal__nav {
     flex-wrap: wrap;

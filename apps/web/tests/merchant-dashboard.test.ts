@@ -28,14 +28,12 @@ vi.mock('@web/modules/merchant/flash-drop-api', async (importOriginal) => ({
   ...flashApi,
 }))
 
-// Signed out as far as live updates go, so the dashboard never opens a push channel.
 vi.mock('@web/lib/auth-client', () => ({
   authClient: { useSession: () => ref({ data: null, isPending: false }) },
 }))
 
 enableAutoUnmount(afterEach)
 
-// Labelled synthetic fixtures: none of these are real outlets or deals.
 const outlet: MerchantOutlet = { id: 'a'.repeat(24), name: 'Synthetic Stall', address: '1 Fake St' }
 const otherOutlet: MerchantOutlet = {
   id: 'c'.repeat(24),
@@ -63,7 +61,6 @@ const deal = (overrides: Partial<MerchantDeal> = {}): MerchantDeal => ({
 
 const savedPhoto = { key: 'synthetic-saved-key', url: 'https://synthetic.example.test/saved.webp' }
 
-// A synthetic flash deal draft, as the server returns it.
 const flashDraft = (overrides: Partial<MerchantFlashDrop> = {}): MerchantFlashDrop => ({
   id: 'd'.repeat(24),
   dealId: 'e'.repeat(24),
@@ -108,7 +105,6 @@ beforeEach(() => {
   merchantApi.getOutlets.mockResolvedValue([outlet])
   merchantApi.getDeals.mockResolvedValue([])
   flashApi.getFlashDrops.mockResolvedValue([])
-  // Like the server: the saved deal carries the photo its key names, or none.
   const saved = ({ photoKey, ...input }: DealInput, id = 'b'.repeat(24)) =>
     deal({
       ...input,
@@ -130,7 +126,6 @@ afterEach(() => {
   vi.clearAllMocks()
 })
 
-// The app's real merchant routes, plus plain pages for the links that leave them.
 const Blank = defineComponent({ render: () => h('p', 'Somewhere else') })
 const testRoutes: RouteRecordRaw[] = [
   ...merchantRoutes,
@@ -138,7 +133,6 @@ const testRoutes: RouteRecordRaw[] = [
   { path: '/me/merchant-access', component: Blank },
 ]
 
-// Opens the app at a path, with the router running as it does in the browser.
 const openAt = async (path: string) => {
   const router = createRouter({ history: createMemoryHistory(), routes: testRoutes })
   await router.push(path)
@@ -151,7 +145,6 @@ const openAt = async (path: string) => {
 }
 type PageWrapper = Awaited<ReturnType<typeof openAt>>['wrapper']
 
-// Opening a page loads its code on demand, which can take a while when every suite runs at once.
 const PAGE_LOAD = { timeout: 5000 }
 
 const button = (wrapper: PageWrapper, text: string) => {
@@ -180,8 +173,6 @@ async function fillNewDeal(wrapper: PageWrapper) {
   await wrapper.get('[data-testid="merchant-offer-BUY_ONE_GET_ONE"]').setValue(true)
 }
 
-// The form is in four steps; each submit (Enter, or Next) checks the step and opens the next,
-// and a submit on the last step, the review, saves.
 const submit = async (wrapper: PageWrapper) => {
   await wrapper.get('form').trigger('submit')
   await flushPromises()
@@ -190,14 +181,11 @@ const FORM_STEPS = 4
 const toReview = async (wrapper: PageWrapper) => {
   for (let index = 1; index < FORM_STEPS; index++) await submit(wrapper)
 }
-// Steps through to the review and saves; a step with a problem stops it there, and a save that
-// goes back to the dashboard ends it.
 const save = async (wrapper: PageWrapper) => {
   for (let index = 0; index < FORM_STEPS && wrapper.find('form').exists(); index++)
     await submit(wrapper)
 }
 
-// Clicks a button in the app's confirm dialog, which is teleported to <body>.
 const dialog = () => document.querySelector('[data-testid="confirm-dialog"]')
 const press = (selector: string) => {
   const found = document.querySelector<HTMLButtonElement>(selector)
@@ -286,7 +274,6 @@ describe('merchant dashboard', () => {
 
   it('ends a live deal, and deletes scheduled and ended ones after a themed confirm', async () => {
     const confirmSpy = vi.spyOn(window, 'confirm')
-    // App.vue mounts the one ConfirmDialog for every page.
     mount(ConfirmDialog, { attachTo: document.body })
     merchantApi.deleteDeal.mockResolvedValue(undefined)
     merchantApi.endDeal.mockImplementation(async (id: string) =>
@@ -305,7 +292,6 @@ describe('merchant dashboard', () => {
     expect(labels('Synthetic live')).toEqual(['Edit', 'End deal'])
     expect(labels('Synthetic scheduled')).toEqual(['Edit', 'Delete'])
 
-    // The app's own dialog asks first, never the browser's. Cancel changes nothing.
     await card(wrapper, 'Synthetic scheduled').findAll('button')[1]?.trigger('click')
     await flushPromises()
     expect(dialog()?.textContent).toContain('Delete this deal?')
@@ -332,7 +318,6 @@ describe('merchant dashboard', () => {
     await flushPromises()
     expect(merchantApi.endDeal).toHaveBeenCalledWith('1'.repeat(24))
 
-    // The ended deal moves to the Ended tab, where it can run again or be deleted.
     await wrapper.get('[data-testid="tab-ended"]').trigger('click')
     await flushPromises()
     expect(labels('Synthetic ended')).toEqual(['Run it again', 'Delete'])
@@ -416,7 +401,6 @@ describe('merchant deal form', () => {
     expect(merchantApi.createDeal).toHaveBeenCalledWith(
       expect.objectContaining({ title: 'Synthetic 1-for-1', photoKey: null }),
     )
-    // Back on the dashboard, with no "unsaved changes" question on the way.
     expect(router.currentRoute.value.name).toBe('merchant')
     expect(dialog()).toBeNull()
     expect(wrapper.get('[role="status"]').text()).toContain('"Synthetic 1-for-1" is now live.')
@@ -455,7 +439,6 @@ describe('merchant deal form', () => {
     merchantApi.getDeals.mockResolvedValue([deal({ photo: savedPhoto })])
     const editPath = `/merchant/deals/${'b'.repeat(24)}/edit`
 
-    // Untouched: the saved photo's key is sent back, so the server keeps it.
     let { wrapper } = await openAt(editPath)
     expect(wrapper.get('h1').text()).toBe('Edit deal')
     expect(wrapper.get('form img.add-deal__preview').attributes('src')).toBe(savedPhoto.url)
@@ -466,7 +449,6 @@ describe('merchant deal form', () => {
     )
     expect(merchantApi.savePhoto).not.toHaveBeenCalled()
 
-    // Replaced: the new photo is uploaded and its key sent instead.
     ;({ wrapper } = await openAt(editPath))
     await selectPhoto(wrapper, new File(['image'], 'new.webp', { type: 'image/webp' }))
     await save(wrapper)
@@ -475,7 +457,6 @@ describe('merchant deal form', () => {
       expect.objectContaining({ photoKey: 'synthetic-new-key' }),
     )
 
-    // Removed: no photo is sent at all.
     ;({ wrapper } = await openAt(editPath))
     await button(wrapper, 'Remove photo').trigger('click')
     expect(wrapper.find('form img.add-deal__preview').exists()).toBe(false)
@@ -509,7 +490,6 @@ describe('merchant deal form', () => {
     const { wrapper } = await openAt('/merchant/deals/new')
     const current = () => wrapper.get('[aria-current="step"]').text()
     expect(current()).toContain('Deal details')
-    // A step with a problem stays open; later steps cannot be opened from the stepper yet.
     await submit(wrapper)
     expect(current()).toContain('Deal details')
     expect(wrapper.text()).toContain('Please give the deal a title.')
@@ -525,7 +505,6 @@ describe('merchant deal form', () => {
     expect(wrapper.text()).toContain('Synthetic 1-for-1')
     expect(merchantApi.createDeal).not.toHaveBeenCalled()
 
-    // Edit on the review reopens that step.
     await wrapper.get('[data-testid="merchant-review-edit-0"]').trigger('click')
     await flushPromises()
     expect(current()).toContain('Deal details')
@@ -595,13 +574,11 @@ describe('merchant deal form', () => {
     await wrapper.get(`#outlet-${otherOutlet.id}`).setValue(true)
     await toReview(wrapper)
 
-    // The first press opens the flash timing step and keeps only the first outlet.
     await button(wrapper, 'Save as flash deal').trigger('click')
     expect(wrapper.get('[aria-current="step"]').text()).toContain('Flash timing')
     expect(wrapper.get('h1').text()).toBe('New flash deal')
     expect(wrapper.find('#deal-start').exists()).toBe(false)
     expect(wrapper.find('[data-testid="flash-preview"]').exists()).toBe(true)
-    // The form's own offer is the flash offer, with the same choices as a deal.
     expect(wrapper.get('.add-deal__offers').attributes('aria-label')).toBe('Flash offer')
     await wrapper.get('[data-testid="merchant-offer-FIXED_PRICE"]').setValue(true)
     expect(wrapper.get('label[for="deal-price"]').text()).toContain('Flash price ($)')
@@ -609,14 +586,12 @@ describe('merchant deal form', () => {
 
     await wrapper.get(`#outlet-${otherOutlet.id}`).setValue(true)
     await wrapper.get('#flash-usual').setValue('1')
-    // The timing step checks its own fields before the review opens.
     await save(wrapper)
     expect(wrapper.text()).toContain(
       'The usual price has to be higher than the flash price of $1.50.',
     )
     expect(flashApi.saveFlashDraft).not.toHaveBeenCalled()
 
-    // Saving from the review checks every step and opens the first one with a problem.
     await wrapper.get('#flash-usual').setValue('4')
     await save(wrapper)
     expect(wrapper.get('[aria-current="step"]').text()).toContain('Outlets')
@@ -644,7 +619,6 @@ describe('merchant deal form', () => {
       radiusMetres: 500,
       codeLimit: 40,
     })
-    // Back on the dashboard's Flash deals tab, with the news.
     expect(router.currentRoute.value.fullPath).toBe('/merchant?tab=flash')
     expect(wrapper.get('[role="status"]').text()).toContain('was saved as a draft')
   })
@@ -742,7 +716,6 @@ describe('merchant deal form extras', () => {
   it('discards once, even when leaving takes a while and Cancel is pressed again', async () => {
     mount(ConfirmDialog, { attachTo: document.body })
     const { wrapper, router } = await openAt('/merchant/deals/new')
-    // A slow session check on the way out, like a slow connection.
     let finishCheck: () => void = () => {}
     const stopSlowCheck = router.beforeEach(
       (to) =>
@@ -757,7 +730,6 @@ describe('merchant deal form extras', () => {
     await flushPromises()
     press('[data-testid="confirm-dialog-confirm"]')
     await flushPromises()
-    // Still on the form while the check runs, but it says it is leaving and won't ask again.
     expect(router.currentRoute.value.name).toBe('merchant-deal-new')
     const back = wrapper.get('[data-testid="deal-form-back"]')
     expect(back.text()).toContain('Leaving…')

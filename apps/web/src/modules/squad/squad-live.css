@@ -1,6 +1,3 @@
-/* ----- Live room additions: options menu, watchers, the match dock and short screens -----
-   Imported by squad.css, so it shares the room's --squad-* tokens in both themes. */
-
 .squad-options {
   position: relative;
 }
@@ -47,7 +44,6 @@
   color: var(--squad-accent);
 }
 
-/* People who joined after the start sit in the row too, faded, with an eye. */
 .squad-seat--watch .squad-seat__face > img {
   opacity: 0.6;
 }
@@ -57,7 +53,6 @@
   background: #55534d;
 }
 
-/* The latest tap, under the tally ("Ashley yay'd it"). One line, so the dock never jumps. */
 .squad-tally__feed {
   grid-column: 1 / -1;
   min-height: 1.3em;
@@ -66,7 +61,6 @@
   white-space: nowrap;
 }
 
-/* After a match: Keep looking beside the way there. */
 .squad-dock__match {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -79,8 +73,6 @@
   border-radius: var(--radius-pill);
 }
 
-/* Short phones (an iPhone in Safari leaves about 660px): smaller seats and no card hint, so
-   the deal, tally and buttons all fit on one screen. The photo shrinks before anything else. */
 @media (max-height: 760px) {
   .squad-card__hint {
     display: none;
@@ -101,8 +93,6 @@
   }
 }
 
-/* Phone width: Yay / Nah step down a size so they don't dominate the dock, and the half-width
-   pills tighten up so every label stays on one line. */
 @media (max-width: 600px) {
   .squad-room .squad-dock .squad-vote--again,
   .squad-room .squad-dock .squad-vote--next,
@@ -126,8 +116,6 @@
   }
 }
 
-/* The live room fills the room body and only its deal stage gives way, so on a phone the
-   whole room sits on one screen instead of scrolling. */
 .squad-room__body > .squad-live {
   flex: 1 1 auto;
   min-height: 0;

@@ -9,10 +9,6 @@ type SiteMenuRefs = Readonly<{
   panel: Ref<HTMLElement | null>
 }>
 
-/**
- * Disclosure state for the floating site menu: open/close, document-level Escape and
- * click-outside, route-change collapse and focus hand-off between toggle and first link.
- */
 export function useSiteMenu(refs: SiteMenuRefs) {
   const isOpen = ref(false)
   const route = useRoute()

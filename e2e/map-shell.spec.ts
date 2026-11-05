@@ -1,7 +1,5 @@
 import { expect, type Page, test } from '@playwright/test'
 
-// Map-shell journeys. The API is mocked at the browser boundary with labelled synthetic
-// fixtures; map tiles are blocked so tests never depend on the network.
 const VENUES = {
   north: { id: 'a'.repeat(24), name: 'Synthetic Woodlands Kopi', lat: 1.436, lng: 103.786 },
   west: { id: 'b'.repeat(24), name: 'Synthetic Jurong Hawker', lat: 1.333, lng: 103.743 },
@@ -82,18 +80,15 @@ const mockApi = async (page: Page) => {
   )
 }
 
-// At island zoom the map sums deals up per region; tapping a group zooms one tier in.
 const groups = (page: Page) => page.locator('.deal-map-cluster')
 const openGroup = (page: Page, name: string) =>
   page.getByLabel(name, { exact: true }).dispatchEvent('click')
 
-// A phone opens below zoom 10, where one island-wide count replaces the regions; tap it.
 const showRegions = async (page: Page) => {
   const island = page.locator('.deal-map-cluster[title$=" in Singapore"]')
   await expect.poll(() => groups(page).count()).toBeGreaterThan(0)
   if (await island.count()) await island.dispatchEvent('click')
 }
-// Deals the map accounts for, whether summed into region or island groups or shown as pins.
 const mappedDeals = (page: Page) =>
   page.evaluate(
     () =>
@@ -131,9 +126,6 @@ for (const width of [390, 1280]) {
       await expect(page).toHaveURL(/\/deals\//)
       await expect(panelHeading(page)).toHaveText('Synthetic kopi set')
 
-      // Opening the deal flies the map to its outlet, and the list follows the map area, so
-      // whether the far-east kaya toast is still listed depends on the flight finishing first.
-      // The price filter must survive either way.
       await page.goBack()
       await expect(page).toHaveURL(/max=5/)
       await expect(rows(page).filter({ hasText: 'Synthetic kopi set' })).toHaveCount(1)
@@ -197,9 +189,6 @@ for (const width of [390, 1280]) {
       await expect(page.getByTestId('lobbie-input')).toBeEnabled()
       await expect(page.getByTestId('lobbie-log')).toContainText('proper steal')
       await expect(page.getByTestId('lobbie-deals').locator('li')).toHaveCount(2)
-      // Framing shows just the two picks. They are far apart, so a desktop map shows both as pins
-      // instead of region pills; behind a phone's sheet the strip of map is too small and their
-      // pins stack.
       await expect.poll(() => mappedDeals(page)).toBe(2)
       if (width >= 800) {
         await expect(groups(page)).toHaveCount(0)
@@ -216,8 +205,6 @@ for (const width of [390, 1280]) {
     })
 
     test('pin to deal: each pin opens its deal with the panel at the top', async ({ page }) => {
-      // Both outlets a short walk apart in Jurong East: tapping West fits them both at street zoom,
-      // far enough apart that their pins don't overlap into a stack.
       const nextDoor = {
         ...VENUES.west,
         id: 'd'.repeat(24),
@@ -305,7 +292,6 @@ for (const width of [390, 1280]) {
       await expect(page.getByRole('link', { name: 'Skip to content', exact: true })).toBeFocused()
       const toggle = page.getByTestId('nav-toggle')
       if (width < 992) {
-        // Phones and tablets: the bottom nav replaces the brand menu; its rows live under Account.
         await expect(toggle).toHaveCount(0)
         await expect(page.getByTestId('map-navigation')).toHaveClass(/map-navigation--bottom/)
         return

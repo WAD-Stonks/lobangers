@@ -13,14 +13,9 @@ import {
 import L from 'leaflet'
 import '@web/modules/hungry-nearby/nearby.css'
 
-// Draws people on the map: each one a small lobanger standing on the ground, never a pin, and
-// the viewer's own lobanger on a blue ground ellipse. Tapping someone shows "Another lobanger"
-// and pokes them: a quick squash with their poked face. Built from DOM nodes only.
-
 export const AVATAR_PX = 34
 const POKE_MS = 260
 const LABEL_MS = 1800
-// Deal pins and Flash Drops always sit above people.
 const PEOPLE_Z = -1000
 const LABEL_Z = 4000
 
@@ -42,17 +37,12 @@ const face = (avatar: PresenceAvatar, className: string, size: number) => {
   return image
 }
 
-// Leaflet makes each marker a role="button" whose name comes from its content, so the spoken
-// label lives in a visually hidden span and the visible bits stay out of the accessibility tree.
 const spoken = (text: string) => el('span', 'visually-hidden', text)
 
 const timers = new WeakMap<HTMLElement, ReturnType<typeof setTimeout>[]>()
 
 const LABEL_MARGIN_PX = 8
 
-// Slides the "Another lobanger" label sideways so it never runs off the edge of the map. Reads
-// both rects first and works out the unshifted position from the current shift, so there is a
-// single style write (none when the shift is unchanged) instead of write, read, write.
 export const fitLabel = (root: HTMLElement) => {
   const label = root.querySelector<HTMLElement>('.nearby-person__label')
   const map = root.closest('.leaflet-container')
@@ -66,12 +56,10 @@ export const fitLabel = (root: HTMLElement) => {
   if (shift !== current) label.style.setProperty('--label-shift', `${shift}px`)
 }
 
-// Squash and show the poked face, then spring back. Purely local fun: nothing is sent.
 export const poke = (root: HTMLElement, avatar: PresenceAvatar) => {
   const image = root.querySelector('img')
   for (const timer of timers.get(root) ?? []) clearTimeout(timer)
   fitLabel(root)
-  // Restart the animation when poked again mid-squash. Only then is a forced reflow needed.
   if (root.classList.contains('is-poked')) {
     root.classList.remove('is-poked')
     void root.offsetWidth
@@ -99,7 +87,6 @@ const personIcon = (avatar: PresenceAvatar, label: string, self: boolean, name: 
     className: 'nearby-person-anchor',
     html: root,
     iconSize: [AVATAR_PX, AVATAR_PX],
-    // Feet on the point.
     iconAnchor: [AVATAR_PX / 2, AVATAR_PX - 2],
   })
 }
@@ -142,7 +129,6 @@ export const mountNearbyLayer = (map: L.Map, handlers: { readonly onSelf: () => 
       riseOnHover: false,
     }).addTo(layer)
     const entry = { marker, person }
-    // While their label shows, a person rises above the deal pins so it is never covered.
     let lower: ReturnType<typeof setTimeout> | null = null
     const raise = (raised: boolean) => marker.setZIndexOffset(raised ? LABEL_Z : PEOPLE_Z)
     marker
@@ -212,7 +198,6 @@ export const mountNearbyLayer = (map: L.Map, handlers: { readonly onSelf: () => 
       .on('click', () => {
         const root = marker.getElement()?.querySelector<HTMLElement>('.nearby-person')
         if (root) poke(root, me.avatar)
-        // Your own lobanger brings back the choice, so "Hide me" is always a tap away.
         handlers.onSelf()
       })
       .addTo(layer)

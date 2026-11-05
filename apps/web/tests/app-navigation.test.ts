@@ -8,7 +8,6 @@ import { createMemoryHistory, createRouter } from 'vue-router'
 const rest = vi.hoisted(() => ({ list: vi.fn().mockResolvedValue({ items: [], categories: [] }) }))
 vi.mock('@web/lib/api-client', () => ({ api: { deals: { list: rest.list } } }))
 
-// Synthetic signed-out session: these tests cover the shell, not authentication.
 vi.mock('@web/lib/auth-client', () => ({
   authClient: { useSession: () => ref({ data: null, isPending: false }), signOut: vi.fn() },
 }))
@@ -23,7 +22,6 @@ async function mountAt(path: string) {
   const wrapper = mount(App, {
     global: {
       plugins: [router],
-      // Leaflet needs a real layout engine; the map component is covered by the browser suite.
       stubs: { DealMap: true },
     },
   })

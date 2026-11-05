@@ -1,11 +1,6 @@
 import type { FlashDrops } from '@web/modules/flash-drop/use-flash-drops'
 import { type Ref, watch } from 'vue'
 
-// A flash deal is its own deal, published only when it goes live, so it is missing from deals
-// loaded before then and opening it would read "Deal not found". When a started flash deal's deal
-// is not loaded, the deals are reloaded once for it; one the feed still leaves out (a filter, a
-// demo) is not retried, so a drop that never appears cannot cause a reload loop.
-
 type ShellDeals = {
   readonly deals: Readonly<Ref<readonly { readonly id: string }[]>>
   readonly status: Readonly<Ref<string>>

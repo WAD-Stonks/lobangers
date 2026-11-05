@@ -5,8 +5,6 @@ const day = 24 * 60 * 60 * 1000
 const week = 7 * day
 const singaporeOffset = 8 * 60 * 60 * 1000
 
-// Singapore has a fixed UTC+8 offset. Work on the shifted UTC calendar so the
-// host timezone cannot change Monday-midnight boundaries.
 export const registrationWeeks = (now: Date) => {
   const local = new Date(now.getTime() + singaporeOffset)
   const daysSinceMonday = (local.getUTCDay() + 6) % 7
@@ -19,8 +17,6 @@ export const registrationWeeks = (now: Date) => {
   }))
 }
 
-// Counts only: no raw identities, writes, schema application or provider calls.
-// Includes all stored roles and suspended accounts registered before the snapshot.
 export const readUserAnalytics = async (database: Pick<typeof db, 'user'>, now = new Date()) => {
   const weeks = registrationWeeks(now)
   const [totalUsers, ...counts] = await Promise.all([

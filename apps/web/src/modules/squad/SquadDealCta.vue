@@ -3,8 +3,6 @@ import ShellIcon from '@web/modules/map-shell/ShellIcon.vue'
 import { computed } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 
-// On a deal's page: a dark card, the room's own look, that starts a Squad room with this deal
-// already picked. Hidden when the deal was opened from inside a room.
 const props = defineProps<{ dealId: string }>()
 const route = useRoute()
 const fromRoom = computed(() => route.query.from === 'squad')
@@ -30,8 +28,6 @@ const to = computed(() => ({ name: 'squad-new', query: { deal: props.dealId } })
 
 <style scoped>
 .squad-cta {
-  /* Dark like the Squad room. --ink-strong turns light at night, so dark mode pins a raised
-     charcoal surface instead of an inverted card. */
   --cta-bg: var(--ink-strong);
   --cta-text: var(--on-ink);
   --cta-muted: #c9c6bf;

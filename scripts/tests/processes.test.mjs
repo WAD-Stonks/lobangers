@@ -15,7 +15,6 @@ const argumentsFor = (script) => [
 ]
 const fixtureFor = (source) => {
   const directory = mkdtempSync(join(tmpdir(), 'node-process-fixture-'))
-  // Explicit fake pnpm command boundary with real Node subprocesses.
   writeFileSync(join(directory, 'pnpm'), `#!${process.execPath}\n${source}`, { mode: 0o700 })
   return directory
 }

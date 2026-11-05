@@ -1,7 +1,6 @@
 import { commentsResponseSchema, communitySummarySchema } from '@broke-oclock/contracts/community'
 import { expect, type Page, test } from '@playwright/test'
 
-// Evidence only: observe actual Chromium output without replacing SPA or browser behavior.
 const browserObservations = new WeakMap<
   Page,
   {
@@ -53,9 +52,6 @@ test.afterEach(async ({ page }, info) => {
   })
 })
 
-// Every shell route at every test width: no horizontal scroll, nothing sticking out past the
-// viewport, 44px touch targets below 992px, and no runtime errors. The API is mocked with
-// labelled synthetic fixtures, including an 80-character unbroken title.
 const VENUE = { id: 'a'.repeat(24), name: 'Synthetic Albert Centre', lat: 1.3016, lng: 103.8527 }
 const LONG_TITLE = 'Synthetic'.repeat(9).slice(0, 80)
 const DEALS = [
@@ -91,7 +87,6 @@ const VENUE_DETAIL = {
   pastDeals: [],
 }
 
-// Smallest phone, common phone, tablet and desktop: one of each layout, not every device.
 const WIDTHS = [320, 390, 834, 1280]
 const ROUTES = [
   '/browse',
@@ -100,18 +95,13 @@ const ROUTES = [
   `/deals/${DEALS[0]?.id}`,
   `/venues/${VENUE.id}`,
   '/ask-lobbie',
-  // Signed-out /login and /add both land on the standalone sign-in page.
   '/sign-in',
 ]
 const TOUCH_MAX_WIDTH = 992
 const MIN_TARGET_PX = 44
-// The swipeable quick-filter row uses compact chips on phones; they still clear the WCAG 2.2 AA
-// target-size minimum.
 const COMPACT_TARGET_SELECTOR = '[data-testid="discovery-quick-filters"] button'
 const MIN_COMPACT_TARGET_PX = 24
 
-// The site menu is the brand menu on desktop; phones and tablets reach it from the bottom nav's
-// Account page. Returns the page the tour was launched from, which it comes back to at the end.
 const BOTTOM_NAV_MAX_WIDTH = 991
 const startMapTutorial = async (page: Page) => {
   if ((page.viewportSize()?.width ?? 1280) <= BOTTOM_NAV_MAX_WIDTH) {
@@ -128,7 +118,6 @@ const startMapTutorial = async (page: Page) => {
   return launchedFrom
 }
 
-// Measure native layout only after the covering splash, fonts and finite motion settle.
 const settled = async (page: Page) => {
   await expect(page.getByTestId('splash-screen')).toHaveCount(0)
   await page.evaluate(async () => {
@@ -221,13 +210,10 @@ for (const width of WIDTHS) {
         await expect(community.getByRole('alert')).toHaveCount(0)
       }
 
-      // 1. No horizontal page scroll.
       expect(
         await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
       ).toBe(true)
 
-      // 2. No visible element sticks out past the viewport edge. Content clipped by a
-      // container that itself fits (a swipeable chip row, cropped artwork) is fine.
       const offenders = await page.evaluate(() =>
         [...document.querySelectorAll<HTMLElement>('body *')]
           .filter((el) => el.offsetParent !== null && !el.closest('.leaflet-container'))
@@ -245,8 +231,6 @@ for (const width of WIDTHS) {
       )
       expect(offenders).toEqual([])
 
-      // 3. Every button is at least 44px on touch widths. Layout size, so a scroll-triggered
-      // entrance that has not played yet (GSAP, invisible to getAnimations) is not measured.
       if (width < TOUCH_MAX_WIDTH) {
         const small = await page.getByRole('button').evaluateAll(
           (els, { min, compactMin, compactSelector }) =>
@@ -341,7 +325,6 @@ test('map quick filters sit beside search on desktop and below it on mobile with
       `${width}px`,
     ).toBe(true)
     expect(chips && chips.x + chips.width <= width + 1, `${width}px`).toBe(true)
-    // Chips past the edge are fine only inside the swipeable row, which itself fits.
     const clipped = await page
       .getByTestId('discovery-quick-filters')
       .locator('button:visible')
@@ -403,7 +386,6 @@ test('map workspace rail, results and drawer fit desktop and mobile', async ({ p
       await expect(page.getByTestId('nav-menu')).toBeHidden()
       await expect(page.getByTestId('nav-toggle')).toBeFocused()
     } else {
-      // Below desktop the navigation is the bottom tab bar instead of the rail.
       await expect(rail).toHaveClass(/map-navigation--bottom/)
       await expect(page.getByTestId('sheet-handle')).toBeVisible()
     }
@@ -533,7 +515,6 @@ for (const width of [1024, 1440]) {
     expect(searchBox.x).toBeGreaterThan(panelBox.x)
     expect(searchBox.x + searchBox.width).toBeLessThanOrEqual(panelBox.x + panelBox.width)
     expect(backBox.y).toBeGreaterThan(searchBox.y + searchBox.height)
-    // The scroll container runs behind search; its content starts below it.
     const headingBox = await panel.locator('[data-panel-heading]').boundingBox()
     expect(headingBox?.y).toBeGreaterThan(searchBox.y + searchBox.height)
     await back.click()
@@ -561,7 +542,6 @@ test('split map panel fits three cards with verification badges on the posters',
   await page.goto('/browse?view=map&discovery=1&split=1&results=cards')
   const cards = page.getByTestId('shell-panel').locator('.food-deal-card')
   await expect(cards).toHaveCount(3)
-  // The cards stagger in; measure once their entrance has finished.
   await cards.evaluateAll((elements) =>
     Promise.all(elements.flatMap((element) => element.getAnimations().map((a) => a.finished))),
   )

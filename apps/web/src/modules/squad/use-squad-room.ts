@@ -14,40 +14,22 @@ import {
 } from '@web/modules/squad/room-channel'
 import { computed, type InjectionKey, inject, onBeforeUnmount, provide, shallowRef } from 'vue'
 
-// The Makan Squad room the visitor is in, shared by the room panel, the map and the menu. Other
-// members' taps arrive live on the room's channel and play as effects at once; the full room
-// state is then re-read once the burst settles. The sync heartbeat runs slowly while the channel
-// is live and becomes the polling fallback when it is not. The visitor's own taps go in small
-// batches so spamming Yay is one request, not twenty. The room survives moving between panels
-// (opening a deal's details, minimising the sheet) because the shell owns it.
-
 export const POLL_MS = 1500
 const SLOW_POLL_MS = 5000
-// With the channel live the heartbeat only says "still here"; it must beat AWAY_AFTER_MS (40s).
 export const HEARTBEAT_MS = 15_000
-// Pushed effects play at once; the state behind them is re-read once a burst of taps settles.
 export const REFRESH_AFTER_PUSH_MS = 350
 const TAP_BATCH_MS = 220
-// With the channel live, effects already reached everyone over the socket, so the API only gets
-// the tap counts, at most once a second per member however fast they tap.
 export const LIVE_TAP_BATCH_MS = 1000
-// Taps go out over the socket this often, as counts. Pusher bills every delivery, so a spammer
-// costs a couple of messages a second, not one per tap.
 export const SOCKET_TAP_MS = 400
-// Others see a thinned-out echo of a yay burst: about one sticker per this many taps, at least
-// one and at most MAX_REMOTE_EFFECTS per message. Nahs are meant to rain, so each one plays, up to
-// MAX_REMOTE_NAHS per message. Either way they are spread across the next tick.
 const TAPS_PER_REMOTE_EFFECT = 4
 const MAX_REMOTE_EFFECTS = 3
 const MAX_REMOTE_NAHS = 6
 const MAX_SOCKET_TAPS = 50
-// After this many failed polls in a row the room says the connection was lost.
 const LOST_AFTER_FAILURES = 3
 const STORAGE_KEY = 'lobangers.squad.room'
 
 export type Connection = 'ok' | 'lost'
 type TapBatch = { stance: 'YAY' | 'NAH'; taps: number }
-// The most taps one vote request may carry.
 const MAX_TAPS_PER_SEND = 20
 export type EffectListener = (event: SquadEvent, state: SquadState) => void
 
@@ -63,12 +45,9 @@ const storeCode = (code: string | null) => {
   try {
     if (code) sessionStorage.setItem(STORAGE_KEY, code)
     else sessionStorage.removeItem(STORAGE_KEY)
-  } catch {
-    // Private windows may refuse storage; the room still works for this page.
-  }
+  } catch {}
 }
 
-// Folds someone's new ballot into the room, so the tally moves without re-reading the room.
 export const withBallot = (current: SquadState, ballot: SquadBallot): SquadState => {
   if (current.status !== 'LIVE' || current.phase !== 'VOTING') return current
   const members = current.members.map((member) =>
@@ -106,7 +85,6 @@ export const createSquadRoom = (openChannel: ChannelOpener = openRoomChannel) =>
   let after = 0
   let failures = 0
   let timer: ReturnType<typeof setTimeout> | null = null
-  // Unsent tap batches, oldest first; one is in flight at a time.
   let tapQueue: readonly TapBatch[] = []
   let sendingTaps = false
   let socketTaps = { yays: 0, nahs: 0 }
@@ -120,13 +98,11 @@ export const createSquadRoom = (openChannel: ChannelOpener = openRoomChannel) =>
   let polling = false
   let pollAgain = false
 
-  // Plays each event once, whether it came pushed or in a sync reply, and in order.
   const deliver = (events: readonly SquadEvent[], next: SquadState | null) => {
     const mine = next?.me?.memberId
     const fresh = events.filter((event) => event.seq > after).sort((a, b) => a.seq - b.seq)
     for (const event of fresh) {
       after = event.seq
-      // The visitor's own taps already played when they tapped.
       if ((event.kind === 'YAY' || event.kind === 'NAH') && event.memberId === mine) continue
       if (next) for (const listener of listeners) listener(event, next)
     }
@@ -141,7 +117,6 @@ export const createSquadRoom = (openChannel: ChannelOpener = openRoomChannel) =>
     const current = code.value
     const started = generation
     if (!current) return
-    // One sync at a time; a push during one asks for a fresh read when it lands.
     if (polling) {
       pollAgain = true
       return
@@ -152,7 +127,6 @@ export const createSquadRoom = (openChannel: ChannelOpener = openRoomChannel) =>
       if (started !== generation) return
       failures = 0
       connection.value = 'ok'
-      // The first sync loads the room without replaying its history.
       if (after === 0) after = response.nextSeq
       else deliver(response.events, response.state)
       after = Math.max(after, response.nextSeq)
@@ -178,7 +152,6 @@ export const createSquadRoom = (openChannel: ChannelOpener = openRoomChannel) =>
     schedule()
   }
 
-  // Coalesces a burst of pushes into one state read.
   const refreshSoon = () => {
     if (refreshTimer) return
     refreshTimer = setTimeout(() => {
@@ -213,7 +186,6 @@ export const createSquadRoom = (openChannel: ChannelOpener = openRoomChannel) =>
       onLiveChange: (next) => {
         if (opened !== generation) return
         live = next
-        // Catch up on anything missed while the channel was down, then pace the heartbeat.
         void poll()
       },
     })
@@ -238,8 +210,6 @@ export const createSquadRoom = (openChannel: ChannelOpener = openRoomChannel) =>
     closeChannel()
   }
 
-  // Follows a room by code; the first sync loads it without replaying old effects.
-  // keepState holds the room a create/join just returned so the lobby shows at once, not a blank wait.
   const open = (next: string, keepState = false) => {
     if (code.value === next && state.value) return
     generation += 1
@@ -266,7 +236,6 @@ export const createSquadRoom = (openChannel: ChannelOpener = openRoomChannel) =>
     storeCode(null)
   }
 
-  // Runs one room write, keeping the latest state and a readable error.
   const act = async (work: () => Promise<SquadState>, fallback: string) => {
     if (busy.value) return null
     busy.value = true
@@ -290,8 +259,6 @@ export const createSquadRoom = (openChannel: ChannelOpener = openRoomChannel) =>
 
   const tapDelay = () => (live ? LIVE_TAP_BATCH_MS : TAP_BATCH_MS)
 
-  // Sends the oldest batch, then waits a tick before the next, so a fast tapper never has two
-  // votes racing and, with the channel live, writes at most once a second.
   const flushTaps = async () => {
     tapTimer = null
     const [batch, ...rest] = tapQueue
@@ -301,7 +268,6 @@ export const createSquadRoom = (openChannel: ChannelOpener = openRoomChannel) =>
     try {
       apply(await api.squad.vote(code.value, batch))
     } catch (reason) {
-      // Voting closed mid-spam (a match, or everyone voted); the room view catches up.
       if (reason instanceof ApiClientError && reason.status === 412) tapQueue = []
       else error.value = messageFor(reason, 'That vote did not go through. Try again.')
     } finally {
@@ -313,8 +279,6 @@ export const createSquadRoom = (openChannel: ChannelOpener = openRoomChannel) =>
   const echoCount = (taps: number) =>
     taps === 0 ? 0 : Math.min(MAX_REMOTE_EFFECTS, Math.ceil(taps / TAPS_PER_REMOTE_EFFECT))
 
-  // Others' taps from the socket: a few effects, staggered evenly until the next message lands,
-  // so a long burst reads as a steady stream rather than clumps.
   const playTaps = (incoming: SquadTap) => {
     const current = state.value
     if (!current || incoming.memberId === current.me?.memberId) return
@@ -354,7 +318,6 @@ export const createSquadRoom = (openChannel: ChannelOpener = openRoomChannel) =>
     if (batch.yays + batch.nahs > 0 && memberId) channel?.sendTaps({ memberId, ...batch })
   }
 
-  // Effects for everyone else, over the socket only: one message per tick, whatever was tapped.
   const shareTap = (stance: 'YAY' | 'NAH') => {
     if (!live) return
     socketTaps =
@@ -364,8 +327,6 @@ export const createSquadRoom = (openChannel: ChannelOpener = openRoomChannel) =>
     socketTimer ??= setTimeout(flushSocketTaps, SOCKET_TAP_MS)
   }
 
-  // Every tap counts and plays at once; taps in quick succession travel together. Switching
-  // from Yay to Nah queues a new batch after the Yays, so the latest stance wins.
   const tap = (stance: 'YAY' | 'NAH') => {
     shareTap(stance)
     const last = tapQueue.at(-1)
@@ -436,7 +397,6 @@ export const createSquadRoom = (openChannel: ChannelOpener = openRoomChannel) =>
       void poll()
     },
     dispose,
-    // The deal the room is voting on now, if live.
     currentDeal: computed(() => {
       const current = state.value
       if (current?.status !== 'LIVE') return null

@@ -6,7 +6,6 @@ import type {
   OutletVerificationEvidence,
 } from '@broke-oclock/db/client'
 
-/** Server-owned stored identity. Optional null/unset metadata is equally unknown. */
 export type OutletPolicyVenue = {
   id: string
   merchantId: string
@@ -28,7 +27,6 @@ export type OutletScopeDeal = {
   applicability: DealApplicability
   contentVersion: number
   scopeConfirmation?: OutletScopeConfirmation | null
-  /** Complete edge set, including deleted/unverified venues; never a display subset. */
   selectedVenueIds: readonly string[]
 }
 
@@ -84,7 +82,6 @@ const hasCoordinates = (venue: OutletPolicyVenue): boolean =>
   Number.isFinite(venue.longitude) &&
   Math.abs(venue.longitude) <= 180
 
-// General geographic validity, deliberately not Singapore-only evidence matching.
 const hasUsablePoint = (venue: OutletPolicyVenue): boolean =>
   hasCoordinates(venue) &&
   (venue.geographyPrecision === 'PROPERTY' || venue.geographyPrecision === 'OUTLET')
@@ -166,7 +163,6 @@ export const hasVerifiedOccupancy = (venue: OutletPolicyVenue): boolean => {
   )
 }
 
-/** Selection for NEW associations/claims, not a historical-grant revocation policy. */
 export const isSelectableCatalogueVenue = (venue: OutletPolicyVenue): boolean =>
   venue.deletedAt == null && hasVerifiedOccupancy(venue)
 
@@ -178,7 +174,6 @@ const hasRetainedProof = (
   evidence.state === 'LEGACY_RETAINED' &&
   evidence.provider === 'DATABASE_SNAPSHOT'
 
-/** Pure projection only: callers own approval/time/role policy and authoritative loading. */
 export const eligibleVenuesForScope = <Venue extends OutletPolicyVenue>(
   deal: OutletScopeDeal,
   candidateVenues: readonly Venue[],
@@ -222,10 +217,6 @@ export const eligibleVenuesForScope = <Venue extends OutletPolicyVenue>(
   })
 }
 
-/**
- * Map fallback for a deal whose outlets are unconfirmed: every live outlet it could cover, at
- * its stored coordinates, without proof. Callers must flag the result as unconfirmed.
- */
 export const possibleVenuesForScope = <Venue extends OutletPolicyVenue>(
   deal: OutletScopeDeal,
   candidateVenues: readonly Venue[],

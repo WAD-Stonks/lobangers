@@ -22,7 +22,6 @@ export const useCatalogue = (
   const search = ref('')
   const status = ref<'active' | 'archived' | 'all'>('active')
   const merchantId = ref('')
-  // Only for outlets: 'needed' narrows the directory to outlets deals cannot use yet.
   const verification = ref<'needed' | ''>('')
   const summary = shallowRef<CatalogueSummary | null>(null)
   const items = shallowRef<(CatalogueMerchant | CatalogueVenue)[]>([])
@@ -91,7 +90,6 @@ export const useCatalogue = (
         : 'The outcome could not be confirmed. Writes are locked. Reload the target; do not replay the request.'
   }
   let summaryGeneration = 0
-  // The queue count is a hint for the tabs, so a failed read leaves it blank rather than locking.
   const refreshSummary = async () => {
     if (!alive || typeof client.summary !== 'function') return
     const ticket = ++summaryGeneration
@@ -253,7 +251,7 @@ export const useCatalogue = (
       pending: true,
       creation: operation === 'create',
     }
-    locks.set(attemptKey, attempt) // Before dispatch: unmount cannot erase an in-flight attempt.
+    locks.set(attemptKey, attempt)
     pending.value = true
     message.value = ''
     try {
@@ -268,7 +266,6 @@ export const useCatalogue = (
       pending.value = false
       void refreshSummary()
       await select(type, result.id)
-      // Keep directory counts/versions from being reused as authority after writes.
       items.value = []
       nextCursor.value = null
     } catch (error) {

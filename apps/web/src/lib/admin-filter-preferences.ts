@@ -1,7 +1,5 @@
 import { onAdminIdentityEnd } from '@web/lib/admin-recovery'
 
-// Presentation-only, in-memory preferences. Never persist searches, identities,
-// record details, cursors or mutation consent in browser storage.
 const preferences = new Map<string, Record<string, string | boolean>>()
 let generation = 0
 onAdminIdentityEnd(() => {

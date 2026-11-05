@@ -23,7 +23,6 @@ const outlets = shallowRef<CatalogueVenue[]>([])
 const more = ref(false)
 const state = ref<'loading' | 'ready' | 'error'>('loading')
 let alive = true
-// A read-only preview of this merchant's outlets. Writes always reopen the outlet itself.
 const loadOutlets = async () => {
   state.value = 'loading'
   try {

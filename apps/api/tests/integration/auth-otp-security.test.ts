@@ -13,9 +13,7 @@ let baseURL = ''
 let db!: typeof import('@broke-oclock/db').db
 let nextIp = 1
 let rejectMail = false
-// Mail is the only controlled external boundary. Codes never enter snapshots or logs.
 const mail = new Map<string, string>()
-// Verification links from sign-up/sign-in emails (the password path must verify before login).
 const verifications = new Map<string, string>()
 const mailbox = () => `otp-security-${randomUUID()}@example.test`
 const capture = (email: string) => {
@@ -169,7 +167,6 @@ describe('native OTP abuse controls with real HTTP, disposable Prisma and native
   it('enforces three native wrong-code attempts independent of the IP request budget', async () => {
     const email = mailbox()
     const otp = await send(email)
-    // Independent documented test IPs isolate the account-bound attempt counter from request quota.
     for (let attempt = 0; attempt < 3; attempt++) {
       const response = await redeem(email, wrongCode(otp))
       expect(response.status).toBe(400)
@@ -210,7 +207,6 @@ describe('native OTP abuse controls with real HTTP, disposable Prisma and native
       ).toBe(429)
       clock.mockReturnValue(start + 60_000)
       await send(deniedEmail, request)
-      // A separate IP has its own native bucket; this is not a distributed recipient limit claim.
       await send(mailbox(), flow())
     } finally {
       clock.mockRestore()
@@ -376,7 +372,6 @@ describe('native primary password and OTP cookies share the same fresh ADMIN gua
             })
           ).status,
         ).toBe(200)
-        // An unverified password identity is refused until its emailed link has been used.
         expect((await flow()('/api/auth/sign-in/email', { email, password })).status).toBe(403)
         await verifyEmail(email)
         login = await flow()('/api/auth/sign-in/email', { email, password })

@@ -5,7 +5,6 @@ import IngestionAdminPage from '@web/pages/IngestionAdminPage.vue'
 import type { InternalAxiosRequestConfig } from 'axios'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 
-// Original readonly import page and typed HTTP client; transport/native identity are synthetic.
 vi.mock('@web/lib/auth-client', () => ({
   authClient: {
     getSession: vi.fn(async () => ({

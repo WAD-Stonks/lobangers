@@ -28,10 +28,6 @@ import {
   watch,
 } from 'vue'
 
-// Hungry Nearby on the map: who else is around (anyone may look, and it is on by default), and,
-// for signed-in people who choose it, their own fuzzed spot kept alive by a heartbeat while the
-// tab is visible. The first time a signed-in viewer is located they are asked once, with
-// "Show me too" as the main choice; nothing is shared until they tap it.
 const REFRESH_MS = 30_000
 const MOVE_SETTLE_MS = 400
 
@@ -46,8 +42,6 @@ export type HungryNearbyOptions = {
 const isUnauthorized = (error: unknown) => error instanceof ApiClientError && error.status === 401
 
 export const createHungryNearby = (options: HungryNearbyOptions) => {
-  // The shell's toast queue is provided by the same component that creates this store, so a
-  // child (the toggle) binds it; until then notices go nowhere.
   let toast: Pick<ToastQueue, 'show'> = { show: () => undefined }
   const bindToast = (queue: Pick<ToastQueue, 'show'>) => {
     toast = queue
@@ -60,7 +54,6 @@ export const createHungryNearby = (options: HungryNearbyOptions) => {
   const signedIn = computed(() => options.session.value.data !== null)
   const looking = computed(() => prefs.value.looking)
   const sharing = computed(() => prefs.value.sharing && signedIn.value)
-  // Bumped on each list request and on turning off, so a slow answer never brings people back.
   let latest = 0
   let refreshTimer: ReturnType<typeof setInterval> | null = null
   let heartbeatTimer: ReturnType<typeof setInterval> | null = null
@@ -73,7 +66,6 @@ export const createHungryNearby = (options: HungryNearbyOptions) => {
 
   const visible = () => typeof document === 'undefined' || document.visibilityState === 'visible'
 
-  // Lists around the middle of the map, or the visitor when the map looks off the island.
   const centre = (): Coordinates | null => {
     const middle = options.map.value?.getCenter()
     const candidate = middle ? { lat: middle.lat, lng: middle.lng } : options.position.value
@@ -92,7 +84,6 @@ export const createHungryNearby = (options: HungryNearbyOptions) => {
       people.value = response.items
       if (sharing.value && response.me) me.value = response.me
     } catch (error) {
-      // People nearby are extra; the map works without them.
       console.error('Could not load lobangers nearby', error)
     }
   }
@@ -135,12 +126,10 @@ export const createHungryNearby = (options: HungryNearbyOptions) => {
 
   const turnOn = () => {
     setPrefs({ looking: true })
-    // The popover explains the choice; a toast now would cover it on phones.
     popoverOpen.value = true
     void refresh()
   }
 
-  // "Just look": others stay on the map and the viewer stays hidden.
   const justLook = () => {
     popoverOpen.value = false
     if (!sharing.value) toast.show('Showing lobangers nearby. You stay hidden.')
@@ -171,7 +160,6 @@ export const createHungryNearby = (options: HungryNearbyOptions) => {
   const hideMe = async () => {
     if (pending.value === 'hide') return
     pending.value = 'hide'
-    // Stop the heartbeat first, so nothing re-shares while the request is in flight.
     stopSharingLocally()
     try {
       await api.presence.hide()
@@ -222,15 +210,12 @@ export const createHungryNearby = (options: HungryNearbyOptions) => {
     },
     { immediate: true },
   )
-  // However the question closes (Show me too, Just look, tapping away), it is not asked again.
   watch(popoverOpen, (open, wasOpen) => {
     if (!open && wasOpen && signedIn.value && !prefs.value.asked) setPrefs({ asked: true })
   })
-  // Sharing resumes once the session and position are known, e.g. after a reload.
   watch(
     () => [sharing.value, options.position.value !== null] as const,
     ([isSharing, located], previous) => {
-      // Not right after "Show me too", which has just sent the first heartbeat itself.
       if (isSharing && located && !(previous?.[0] && previous[1]) && !me.value) void heartbeat()
       if (!isSharing) me.value = null
     },
@@ -296,5 +281,4 @@ export const provideHungryNearby = (options: HungryNearbyOptions): HungryNearby 
   return store
 }
 
-// Controls mounted outside the map shell (or alone in a test) simply have no toggle.
 export const useHungryNearby = (): HungryNearby | null => inject(NEARBY_KEY, null)

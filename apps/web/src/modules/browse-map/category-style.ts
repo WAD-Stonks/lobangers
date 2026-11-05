@@ -1,6 +1,3 @@
-// Tint and icon for each deal category, used by the map pins, list rows and detail view.
-// Icons are Lucide outlines (24x24, stroked) kept as path data so both Vue templates and the
-// DOM-built Leaflet pins can draw them without parsing HTML.
 export type CategoryIcon = 'coffee' | 'soup' | 'ice-cream' | 'cookie' | 'cake' | 'tag'
 
 export type CategoryStyle = {
@@ -53,7 +50,6 @@ export const CATEGORY_ICON_PATHS: Record<CategoryIcon, readonly string[]> = {
   ],
 }
 
-// Category codes as stored on deals (upper case). Tints are CSS custom properties from main.css.
 const CATEGORY_STYLES: Record<string, CategoryStyle> = {
   DRINKS: { tint: 'var(--tint-drinks)', icon: 'coffee' },
   FOOD: { tint: 'var(--tint-food)', icon: 'soup' },
@@ -69,7 +65,6 @@ export const categoryStyle = (category: string): CategoryStyle =>
 
 const SVG_NAMESPACE = 'http://www.w3.org/2000/svg'
 
-// Builds the icon with DOM calls (never innerHTML) for Leaflet's divIcon.
 export const createCategoryIconElement = (icon: CategoryIcon): SVGSVGElement => {
   const svg = document.createElementNS(SVG_NAMESPACE, 'svg')
   svg.setAttribute('viewBox', '0 0 24 24')

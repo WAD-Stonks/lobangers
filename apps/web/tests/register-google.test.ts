@@ -4,7 +4,6 @@ import AuthPage from '@web/pages/AuthPage.vue'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { createMemoryHistory, createRouter } from 'vue-router'
 
-// Synthetic SDK boundaries only, not live Google sign-in.
 const sdk = vi.hoisted(() => ({ methods: vi.fn(), social: vi.fn(), signUp: vi.fn() }))
 vi.mock('@web/lib/api-client', () => ({ api: { infrastructure: { authMethods: sdk.methods } } }))
 vi.mock('@web/lib/auth-client', () => ({

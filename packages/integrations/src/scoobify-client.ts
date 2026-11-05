@@ -58,8 +58,6 @@ export const normalizeScoobifyPost = (value: unknown): SourcePost => {
     value,
   )
 }
-/** WordPress.com public v2 endpoint, fixed site, <=20 posts and <=1MiB JSON.
- * date_gmt/modified_gmt are authoritative; local date without GMT is deliberately null. */
 export const createScoobifyClient = (options: SourceClientOptions = {}): SourceClient => {
   boundedInteger(options.timeoutMs ?? 15_000, 15_000)
   return {

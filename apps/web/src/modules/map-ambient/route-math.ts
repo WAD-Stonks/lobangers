@@ -8,7 +8,6 @@ export type RoutePoint = {
   readonly dy: number
 }
 
-// Point at fraction t along a polyline, with the direction of the segment it is on.
 export const along = (pts: readonly L.Point[], t: number): RoutePoint => {
   const lengths = pts.slice(1).map((p, i) => p.distanceTo(pts[i] as L.Point))
   let remaining = t * lengths.reduce((a, b) => a + b, 0)
@@ -31,8 +30,6 @@ const isClosed = (route: Mover['route']) => {
   return first !== undefined && last !== undefined && first[0] === last[0] && first[1] === last[1]
 }
 
-// Where along its route a mover is after `seconds`, whether it is heading back, and how
-// visible it is (open loops fade in and out at their ends instead of jumping).
 export const progress = (m: Mover, seconds: number) => {
   const phase = (seconds / m.seconds + m.offset) % 1
   if (m.pingPong) {

@@ -4,7 +4,6 @@ import { requireTrustedOrigin } from '@api/rest/policy'
 import { parseRestInput } from '@api/rest/validation'
 import { presenceEmptyQuerySchema, presenceHiddenSchema } from '@broke-oclock/contracts/presence'
 
-// "Hide me": stops sharing straight away. Hiding when not shown is fine and changes nothing.
 export const hideMe = (dependencies: RestDependencies) =>
   createRestHandler(dependencies, async (request, response, context) => {
     requireTrustedOrigin(request.get('Origin'), dependencies.config.webOrigin)

@@ -1,5 +1,3 @@
-// Shared Intl formatters. Every deal is local, so text is formatted for en-SG and shown in
-// Singapore time whatever the visitor's browser reports. Formatters are built once and reused.
 const LOCALE = 'en-SG'
 const SINGAPORE_TIME_ZONE = 'Asia/Singapore'
 const DEFAULT_CURRENCY = 'SGD'
@@ -28,11 +26,9 @@ const currencyFormat = (currency: string): Intl.NumberFormat => {
   return created
 }
 
-// "$5.00" from 500 minor units.
 export const formatMoneyMinor = (minor: number, currency = DEFAULT_CURRENCY): string =>
   currencyFormat(currency).format(minor / MINOR_UNITS)
 
-// "$5" from 5 major units, keeping cents only when there are some: "$4.50".
 export const formatMoneyMajor = (major: number, currency = DEFAULT_CURRENCY): string =>
   Number.isInteger(major)
     ? new Intl.NumberFormat(LOCALE, {
@@ -54,7 +50,6 @@ const kilometreFormat = new Intl.NumberFormat(LOCALE, {
   maximumFractionDigits: 1,
 })
 
-// "350 m" under a kilometre (rounded to 10 m), "1.3 km" past it.
 export const formatDistance = (metres: number): string => {
   const rounded = Math.round(metres / METRE_ROUNDING) * METRE_ROUNDING
   if (rounded < KILOMETRE) return metreFormat.format(rounded)
@@ -81,13 +76,11 @@ const toDate = (value: string | number | Date): Date | null => {
   return Number.isNaN(date.getTime()) ? null : date
 }
 
-// "31 Dec 2026"; an unreadable value is returned as given rather than "Invalid Date".
 export const formatDate = (value: string | number | Date): string => {
   const date = toDate(value)
   return date ? dateFormat.format(date) : String(value)
 }
 
-// "31 Dec 2026, 3:05 pm".
 export const formatDateTime = (value: string | number | Date): string => {
   const date = toDate(value)
   return date ? dateTimeFormat.format(date) : String(value)
@@ -95,7 +88,6 @@ export const formatDateTime = (value: string | number | Date): string => {
 
 const relativeFormat = new Intl.RelativeTimeFormat(LOCALE, { numeric: 'auto', style: 'short' })
 
-// "Just now", "5 min ago", "3 hr ago", then a plain date after a day.
 export const formatRelativeTime = (value: string | number | Date, now = Date.now()): string => {
   const date = toDate(value)
   if (!date) return String(value)
@@ -110,5 +102,4 @@ export const formatRelativeTime = (value: string | number | Date, now = Date.now
 
 const countFormat = new Intl.NumberFormat(LOCALE)
 
-// "2,000".
 export const formatCount = (value: number): string => countFormat.format(value)

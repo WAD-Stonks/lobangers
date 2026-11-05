@@ -3,7 +3,6 @@ import { createConnection } from 'node:net'
 import { fileURLToPath } from 'node:url'
 import { MongoMemoryReplSet } from 'mongodb-memory-server'
 
-// Local-only single-member replica set. Never connect this helper to cloud data.
 const port = 27017
 const inUse = await new Promise<boolean>((resolve) => {
   const socket = createConnection({ host: '127.0.0.1', port })

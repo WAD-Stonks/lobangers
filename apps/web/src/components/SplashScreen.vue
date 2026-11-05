@@ -19,7 +19,6 @@ onBeforeUnmount(() => clearTimeout(timer))
 <template>
   <Transition name="splash">
     <div v-if="visible" class="splash" role="status" aria-live="polite" data-testid="splash-screen">
-      <!-- Decorative: the status text below already names the app. -->
       <img :src="logoUrl" alt="" width="288" height="60" class="splash__logo" />
       <TicketLoader class="splash__loader" />
       <span class="visually-hidden">Loading Lobangers…</span>

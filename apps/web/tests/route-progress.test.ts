@@ -7,10 +7,8 @@ import { createMemoryHistory, createRouter } from 'vue-router'
 
 const BAR = '[data-testid="route-progress"]'
 const Page = { template: '<div />' }
-// Real timers: fake ones stall the router's guard chain.
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 
-// A guard that holds every navigation until the test lets it through, like a slow session check.
 const setup = async () => {
   const router = createRouter({
     history: createMemoryHistory(),

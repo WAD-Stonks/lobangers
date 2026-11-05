@@ -13,10 +13,6 @@ import { toVenueDealRows } from '@web/modules/venues-feed/venue-deal-rows'
 import { computed, ref, watch } from 'vue'
 import { type LocationQueryValue, RouterLink, useRoute, useRouter } from 'vue-router'
 
-// An outlet over the map: its live deals (each links to the deal panel), past deals and
-// details, in three tabs. The map keeps the outlet's pin selected while this is open. A place
-// (several outlets in one building, opened from a stack on the map) is the same panel under
-// the building's name, listing every outlet's deals together.
 type VenueTab = 'now' | 'past' | 'about'
 
 const TABS: readonly { value: VenueTab; label: string }[] = [
@@ -31,8 +27,6 @@ const route = useRoute()
 const router = useRouter()
 const shell = useShell()
 
-// The open tab lives in ?tab= (like the account panel) so a shared link or the back button lands
-// on the same section. The default tab is left out of the URL.
 const readTab = (value: LocationQueryValue | LocationQueryValue[] | undefined): VenueTab =>
   TABS.find((item) => item.value === value)?.value ?? DEFAULT_TAB
 const tab = ref<VenueTab>(readTab(route.query.tab))
@@ -55,8 +49,6 @@ const title = computed(() => {
 const address = computed(() => placeAddress(venues.value))
 const logo = computed(() => initials(isPlace.value ? title.value : (detail.value?.venue.merchantName ?? '')))
 
-// Same cards as the browse list, reusing the map's loaded copy of each deal when it has one. A
-// deal that several outlets here run is listed once, at the first of them.
 const rows = computed(() => {
   const seen = new Set<string>()
   return details.value
@@ -83,7 +75,6 @@ const selectTab = (next: VenueTab) => {
   void router.replace({ query: next === DEFAULT_TAB ? rest : { ...rest, tab: next } })
 }
 
-// Arrow keys, Home and End move between tabs; only the selected tab sits in the Tab order.
 const TAB_KEYS: Readonly<Record<string, (index: number) => number>> = {
   ArrowRight: (index) => (index + 1) % TABS.length,
   ArrowLeft: (index) => (index - 1 + TABS.length) % TABS.length,
@@ -139,7 +130,6 @@ watch(venueId, () => {
       <div id="venue-tabpanel" role="tabpanel" :aria-labelledby="`venue-tab-${tab}`">
         <template v-if="tab === 'now'">
           <p v-if="rows.length === 0" class="lb-meta">No ongoing deals at this {{ noun }} right now.</p>
-          <!-- On the map a venue's deals are a list, like the map's results; All Deals keeps cards. -->
           <DealRowList v-else-if="shell.view.value === 'map'" :rows="rows" :to="toDeal" test-id="venue-deals" />
           <FoodDealGrid v-else :rows="rows" :to="toDeal" two-column />
         </template>

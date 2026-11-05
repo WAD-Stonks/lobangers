@@ -10,7 +10,6 @@ export const approvalBlockReason = (draft: Draft | undefined, now = Date.now()):
   if (!Number.isFinite(start) || !Number.isFinite(end) || start >= end)
     return 'Validity dates are invalid. Approval is disabled.'
   if (end <= now) return 'This offer has expired. Approval is disabled.'
-  // The server may expose an additional readiness veto; absence does not invent approval.
   if ('reviewReady' in draft && draft.reviewReady === false) {
     return 'The server requires source or offer clarification. Approval is disabled.'
   }

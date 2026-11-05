@@ -148,7 +148,6 @@
   .record-email {
     overflow-wrap: anywhere;
   }
-  /* Roles are read, not decoration: keep them at the 11px floor on phones. */
   .record-role {
     font-size: 0.75rem;
   }

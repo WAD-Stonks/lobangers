@@ -13,7 +13,6 @@ let baseURL = ''
 let disabledURL = ''
 let db!: typeof import('@broke-oclock/db').db
 let mailFailure = false
-// Provider codes exist only in this test process. Never snapshot or log them.
 const mail = new Map<string, { otp: string; subject: string }>()
 const nativeFetch = globalThis.fetch
 let ip = 1
@@ -64,7 +63,6 @@ beforeAll(async () => {
       mail.set(body.to, { otp, subject: body.subject })
       return Response.json({ id: randomUUID() })
     }
-    // Fail closed for external network access. Only disposable local HTTP is allowed.
     if (!url.startsWith('http://127.0.0.1:'))
       throw new Error('Unexpected external provider request')
     return nativeFetch(input, init)

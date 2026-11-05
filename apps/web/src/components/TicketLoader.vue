@@ -21,8 +21,6 @@ import { TICKET_ICON_PATHS } from '@web/components/ticket-icon'
 </template>
 
 <style scoped>
-/* A ticket tumbling down the street: hop, quarter-turn, land, rest. Four tumbles make one full
-   turn, then a longer pause before the next run so the rhythm goes bum... bum... bum... bumm. */
 .ticket-loader {
   --ticket-size: 2.5rem;
   --ticket-hop: -0.9rem;
@@ -52,7 +50,6 @@ import { TICKET_ICON_PATHS } from '@web/components/ticket-icon'
   animation: ticket-shadow var(--ticket-cycle) infinite;
 }
 
-/* Each tumble: 0.45s in the air (rise ease-out, fall ease-in), then rest on the new edge. */
 @keyframes ticket-tumble {
   0%, 21.9% { transform: translateY(0) rotate(0deg); animation-timing-function: ease-out; }
   7% { transform: translateY(var(--ticket-hop)) rotate(45deg); animation-timing-function: ease-in; }
@@ -66,7 +63,6 @@ import { TICKET_ICON_PATHS } from '@web/components/ticket-icon'
   79.6%, 100% { transform: translateY(0) rotate(360deg); }
 }
 
-/* The shadow shrinks while the ticket is airborne and spreads on each landing. */
 @keyframes ticket-shadow {
   0%, 14%, 21.9%, 35.9%, 43.75%, 57.75%, 65.6%, 79.6%, 100% { transform: scaleX(1); opacity: 0.22; }
   7%, 28.9%, 50.75%, 72.6% { transform: scaleX(0.55); opacity: 0.1; }

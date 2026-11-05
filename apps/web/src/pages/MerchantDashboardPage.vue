@@ -28,13 +28,8 @@ import { useMerchantFlashDrops } from '@web/modules/merchant/use-merchant-flash-
 import { computed, nextTick, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
-// The merchant dashboard: a summary of what is running, then the merchant's deals in three tabs
-// (Deals, Flash deals, Ended). Adding and editing happen on the deal form's own pages
-// (MerchantDealFormPage), which come back here with a message to show.
-
 const route = useRoute()
 const router = useRouter()
-// The app's own confirm dialog, in place of the browser's.
 const { ask } = useConfirm()
 
 const outlets = ref<MerchantOutlet[]>([])
@@ -42,21 +37,17 @@ const deals = ref<MerchantDeal[]>([])
 const loading = ref(true)
 const loadError = ref('')
 
-// One message at a time at the top of the page: what the last action did, or why it failed.
 const notice = ref<MerchantNotice | null>(takeMerchantNotice())
 const noticeEl = ref<HTMLElement | null>(null)
 const notify = (tone: NoticeTone, text: string) => {
   notice.value = { tone, text }
-  // Bring it into view: the button pressed may be far down the page.
   void nextTick(() => noticeEl.value?.scrollIntoView?.({ block: 'nearest' }))
 }
 
 const flash = useMerchantFlashDrops(notify)
 
-// ----- Tabs -----
 type TabId = 'deals' | 'flash' | 'ended'
 const TAB_IDS: readonly TabId[] = ['deals', 'flash', 'ended']
-// The open tab lives in the address (?tab=flash), so back, refresh and links keep it.
 const tab = computed<TabId>(() => {
   const asked = route.query.tab
   return TAB_IDS.includes(asked as TabId) ? (asked as TabId) : 'deals'
@@ -64,7 +55,6 @@ const tab = computed<TabId>(() => {
 const openTab = (id: TabId) =>
   router.replace({ query: { ...route.query, tab: id === 'deals' ? undefined : id } })
 
-// Left and right arrows move between tabs, as in any tab list.
 const tabEls = ref<HTMLElement[]>([])
 const moveTab = async (from: number, by: number) => {
   const index = (from + by + TAB_IDS.length) % TAB_IDS.length
@@ -73,9 +63,6 @@ const moveTab = async (from: number, by: number) => {
   tabEls.value[index]?.focus()
 }
 
-// ----- Deal status -----
-// Today's date as 'YYYY-MM-DD' in the merchant's own time zone, so it can be compared with
-// the deals' date strings.
 const today = new Date().toLocaleDateString('en-CA')
 
 type DealStatus = 'Live' | 'Scheduled' | 'Ended'
@@ -91,7 +78,6 @@ const scheduledDeals = computed(() => deals.value.filter((deal) => statusOf(deal
 const currentDeals = computed(() => deals.value.filter((deal) => statusOf(deal) !== 'Ended'))
 const endedDeals = computed(() => deals.value.filter((deal) => statusOf(deal) === 'Ended'))
 
-// The Deals tab's filter chips.
 type DealFilter = 'all' | 'live' | 'scheduled'
 const filter = ref<DealFilter>('all')
 const filters = computed(() => [
@@ -116,7 +102,6 @@ const tabs = computed(() => [
   { id: 'ended' as const, label: 'Ended', count: endedDeals.value.length },
 ])
 
-// ----- Text helpers for showing a deal -----
 const offerLabels: Record<OfferType, string> = {
   BUY_ONE_GET_ONE: '1-for-1',
   PERCENT_OFF: '% off',
@@ -142,8 +127,6 @@ const outletNames = (deal: MerchantDeal) =>
     .map((outlet) => outlet.name)
     .join(', ')
 
-// ----- Stats -----
-// The flash deal to feature: the live one, else the next scheduled one.
 const featuredFlash = computed<MerchantFlashDrop | null>(() => {
   const running = flash.running.value
   return (
@@ -162,7 +145,6 @@ const featuredWhen = computed(() => {
   }
   return `Starts ${whenText(drop.startsAt, now).toLowerCase()}`
 })
-// Codes claimed from the flash deals that are live or scheduled.
 const codes = computed(() =>
   flash.running.value.reduce(
     (sum, drop) => ({ claimed: sum.claimed + drop.claimedCount, limit: sum.limit + drop.codeLimit }),
@@ -177,7 +159,6 @@ const comingUpText = computed(() => {
   return drafts === 0 ? 'scheduled deals' : `scheduled · ${drafts} flash ${drafts === 1 ? 'draft' : 'drafts'}`
 })
 
-// ----- Loading -----
 const loadDashboard = async () => {
   loading.value = true
   loadError.value = ''
@@ -191,7 +172,6 @@ const loadDashboard = async () => {
   }
 }
 
-// ----- Opening the deal form pages -----
 const newDeal = () => router.push({ name: 'merchant-deal-new' })
 const newFlashDeal = () => router.push({ name: 'merchant-flash-new' })
 const editDeal = (deal: MerchantDeal) =>
@@ -201,7 +181,6 @@ const runAgain = (deal: MerchantDeal) =>
 const editFlashDraft = (drop: MerchantFlashDrop) =>
   router.push({ name: 'merchant-flash-edit', params: { id: drop.id } })
 
-// ----- Ending a deal early -----
 const confirmEndDeal = async (deal: MerchantDeal) => {
   const confirmed = await ask({
     title: 'End this deal?',
@@ -218,8 +197,6 @@ const confirmEndDeal = async (deal: MerchantDeal) => {
   }
 }
 
-// ----- Deleting a scheduled or ended deal -----
-// It leaves the map and this page. Live deals are ended instead, so they stay in Ended deals.
 const confirmDeleteDeal = async (deal: MerchantDeal) => {
   const confirmed = await ask({
     title: 'Delete this deal?',
@@ -243,7 +220,6 @@ onMounted(loadDashboard)
   <section class="merchant-page merchant-dashboard">
     <header class="merchant-dashboard__head">
       <div class="merchant-dashboard__intro">
-        <!-- Always to All deals: going back in history could land on a form just saved. -->
         <RouterLink to="/deals" class="merchant-back"><ShellIcon name="back" :size="16" />Back to all deals</RouterLink>
         <h1 class="merchant-title">Merchant dashboard</h1>
         <p v-if="outlets.length > 0" class="merchant-dashboard__outlets">
@@ -277,7 +253,6 @@ onMounted(loadDashboard)
       <button type="button" class="lb-btn lb-btn--primary merchant-dashboard__state-action" @click="loadDashboard">Try again</button>
     </div>
 
-    <!-- Merchant role, but no approved outlets yet -->
     <div v-else-if="outlets.length === 0" class="lb-state">
       <p class="lb-state__title">You don't manage any outlets yet</p>
       <p class="lb-state__body">Once an admin approves your stall, you can add deals and flash deals for it here.</p>
@@ -285,7 +260,6 @@ onMounted(loadDashboard)
     </div>
 
     <template v-else>
-      <!-- At a glance -->
       <section class="merchant-stats" aria-label="At a glance">
         <div class="merchant-stat" data-testid="stat-live">
           <span class="merchant-stat__label">Live now</span>
@@ -333,7 +307,6 @@ onMounted(loadDashboard)
         </div>
       </section>
 
-      <!-- Tabs -->
       <div class="lb-tabs merchant-dashboard__tabs" role="tablist" aria-label="Your deals">
         <button
           v-for="(item, index) in tabs"
@@ -355,7 +328,6 @@ onMounted(loadDashboard)
         </button>
       </div>
 
-      <!-- Deals: live and scheduled -->
       <div
         v-if="tab === 'deals'"
         id="merchant-panel-deals"
@@ -401,7 +373,6 @@ onMounted(loadDashboard)
                 <button type="button" class="lb-btn merchant-btn--sm" @click="editDeal(deal)">
                   Edit<span class="visually-hidden"> {{ deal.title }}</span>
                 </button>
-                <!-- A live deal is ended; one that has not started yet can simply be deleted. -->
                 <button
                   v-if="statusOf(deal) === 'Scheduled'"
                   type="button"
@@ -424,7 +395,6 @@ onMounted(loadDashboard)
         </MerchantCardGrid>
       </div>
 
-      <!-- Flash deals: drafts, live and past. Kept mounted, so live updates keep arriving. -->
       <div
         v-show="tab === 'flash'"
         id="merchant-panel-flash"
@@ -435,7 +405,6 @@ onMounted(loadDashboard)
         <FlashDropsSection :store="flash" @edit="editFlashDraft" />
       </div>
 
-      <!-- Ended deals: view only, with Run it again -->
       <div
         v-if="tab === 'ended'"
         id="merchant-panel-ended"
@@ -515,7 +484,6 @@ onMounted(loadDashboard)
   color: var(--coral);
 }
 
-/* Holds the message, so a screen reader hears it as soon as it appears. */
 .merchant-dashboard__notice:empty {
   display: none;
 }
@@ -524,7 +492,6 @@ onMounted(loadDashboard)
   align-self: flex-start;
 }
 
-/* ----- Stats ----- */
 .merchant-stats {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -542,7 +509,6 @@ onMounted(loadDashboard)
   background: var(--paper-white);
 }
 
-/* A running flash deal stands out in the sunny wash, like the flash banner on the map. */
 .merchant-stat--flash {
   border-color: var(--sunny-deep);
   background: var(--sunny-wash, var(--sunny-soft));
@@ -636,7 +602,6 @@ onMounted(loadDashboard)
   }
 }
 
-/* ----- Tabs and panels ----- */
 .merchant-dashboard__tabs {
   gap: 24px;
 }
@@ -682,8 +647,6 @@ onMounted(loadDashboard)
   align-items: flex-start;
 }
 
-/* Phones: the header buttons fill the width, the stats get compact (the flash tile, which
-   carries a name, takes a whole row), and the three tabs share the width so none is cut off. */
 @media (max-width: 575.98px) {
   .merchant-dashboard {
     gap: 20px;
@@ -710,7 +673,6 @@ onMounted(loadDashboard)
     border-radius: 20px;
   }
 
-  /* The two flash tiles carry a name and a bar, so each takes a whole row. */
   .merchant-stat[data-testid='stat-flash'],
   .merchant-stat[data-testid='stat-codes'] {
     grid-column: 1 / -1;

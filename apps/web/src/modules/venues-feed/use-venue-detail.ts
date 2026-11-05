@@ -10,10 +10,6 @@ const failureState = (failure: unknown): VenueLoadState => {
   return code === 'NOT_FOUND' || code === 'BAD_REQUEST' ? 'not-found' : 'error'
 }
 
-// Loads the outlets for the current route (one venue, or every outlet in one building), showing
-// cached copies at once when they are all there. Outlets that fail are left out as long as one
-// loads. Only the latest route's answer is applied, so fast tab or pin changes never show a
-// stale one.
 export function useVenueDetails(venueIds: Readonly<Ref<readonly string[]>>) {
   const state = ref<VenueLoadState>('loading')
   const details = ref<readonly VenueDetailResponse[]>([])

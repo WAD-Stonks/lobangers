@@ -7,7 +7,6 @@ type Source = 'ONEMAP' | 'OFFICIAL_MERCHANT' | 'OFFICIAL_PROPERTY' | 'ADMIN_VERI
 const props = defineProps<{ venue: CatalogueVenueDetail; kind: EvidenceKind; disabled: boolean }>()
 const emit = defineEmits<{ record: [body: Record<string, unknown>]; cancel: [] }>()
 
-// OneMap proves where a building is, never who trades in it, so it is offered for location only.
 const SOURCES: Record<EvidenceKind, { value: Source; label: string; hint: string }[]> = {
   GEOGRAPHY: [
     { value: 'ONEMAP', label: 'OneMap', hint: 'A OneMap search for the postal code or address lands on this pin.' },
@@ -43,8 +42,6 @@ const statementHint = computed(() =>
     : `Lists ${props.venue.name} as an outlet of ${props.venue.merchantName}`,
 )
 const record = () =>
-  // One checkbox covers both attestations the API asks for: the source was reviewed by this
-  // admin, and this exact outlet is the target.
   emit('record', {
     kind: props.kind,
     sourceType: sourceType.value,

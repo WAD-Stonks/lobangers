@@ -92,7 +92,6 @@ export const setModerationVisibility = (
       select: { id: true, updatedAt: true },
     })
     if (!parent) throw new DomainError('NOT_FOUND')
-    // Same meaningful parent write as lockCommunityWrite, without public admission.
     await tx.deal.update({
       where: { id: parent.id },
       data: { updatedAt: new Date(Math.max(Date.now(), parent.updatedAt.getTime() + 1)) },

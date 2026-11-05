@@ -1,8 +1,3 @@
-/* ----- Round results: what the room does when a vote lands -----
-   A match bounces the card; a no-match shakes and greys it, with its own banner. The dock's
-   next step rises in, and Next deal fills over five seconds as a nudge (visual only: the room
-   still waits for the squad to pick). Imported by squad.css. */
-
 .squad-match.squad-match--miss {
   color: var(--squad-text);
   background: var(--squad-surface);
@@ -15,7 +10,6 @@
   color: var(--squad-muted);
 }
 
-/* Any result dims the card behind its banner, so the banner is what you see first. */
 .squad-card--hit,
 .squad-card--miss {
   position: relative;
@@ -33,15 +27,11 @@
   animation: squad-fade 300ms ease both;
 }
 
-/* The result's icon sits half above the banner, in the result's colour. */
 .squad-live__stage .squad-match {
   z-index: 15;
   padding-top: 32px;
 }
 
-/* Layering around the banner: yay stickers, bursts and nah thumbs land on the photo under it,
-   while the vote-again and next-deal tags fly over it. The effects layer drops its own stacking
-   context so its children can sit either side of the banner. */
 .squad-room .squad-fx {
   z-index: auto;
 }
@@ -81,7 +71,6 @@
     squad-badge-shake 360ms var(--ease-out) 900ms;
 }
 
-/* Match: the hands hinge at the wrists and clap three times, sparking on each clap. */
 .squad-result-badge__hand {
   fill: currentColor;
   stroke: var(--sunny);
@@ -105,7 +94,6 @@
   animation: squad-sparks 1.2s linear 420ms both;
 }
 
-/* No match: each stroke of the X draws in, one after the other. */
 .squad-result-badge__stroke {
   stroke-dasharray: 1;
   stroke-dashoffset: 1;
@@ -132,7 +120,6 @@
     opacity 400ms ease;
 }
 
-/* Each result's lead, note and buttons rise in one after another. */
 .squad-dock__lead,
 .squad-dock__note,
 .squad-dock__votes,
@@ -155,8 +142,6 @@
   isolation: isolate;
 }
 
-/* Next deal starts grey like Vote again, and sunny fills it left to right. Its text turns dark
-   as the fill finishes, so it still reads on sunny in the dark theme. */
 .squad-dock__votes .squad-vote--next {
   animation: squad-fill-ink 5s linear 200ms both;
 }

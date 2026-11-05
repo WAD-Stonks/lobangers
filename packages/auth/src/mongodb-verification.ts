@@ -14,7 +14,6 @@ const physicalID = (value: string) =>
     .digest('hex')
     .slice(0, 24)
 
-/** Pinned native cleanup reservations only; ordinary database IDs are unchanged. */
 export const mongodbVerification = (
   factory: ReturnType<typeof prismaAdapter>,
 ): ReturnType<typeof prismaAdapter> => {
@@ -22,7 +21,7 @@ export const mongodbVerification = (
   const decorate = <A extends DBTransactionAdapter>(instance: A): A => {
     if (decorated.has(instance)) return instance
     decorated.add(instance)
-    // Decorate the SAME object: native Prisma schema registration is identity-keyed.
+    // Decorate the same object: Prisma schema registration is identity-keyed.
     const original = { ...instance }
     const translate = async <
       T extends {
@@ -67,7 +66,6 @@ export const mongodbVerification = (
           model: 'verification',
           where: [{ field: 'id', value: id }],
         })
-        // No forgeable sentinel: a missing/mismatched full digest explicitly fails closed.
         if (
           !row?.identifier.startsWith(cleanupPrefix) ||
           digest(`reserve:${row.identifier}`) !== p.value

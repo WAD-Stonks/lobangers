@@ -9,9 +9,6 @@ import {
 import ShellIcon from '@web/modules/map-shell/ShellIcon.vue'
 import { computed, ref } from 'vue'
 
-// One-tap filters under the search box. "Expiry today" is the least important, so phones hide
-// it rather than letting the row scroll sideways. "All filters" shows a badge for the active
-// selections, including the quick chips.
 const props = withDefaults(
   defineProps<{ filters: BrowseFilters; sheetOpen?: boolean; lobbieOpen?: boolean }>(),
   { sheetOpen: false, lobbieOpen: false },
@@ -154,7 +151,6 @@ defineExpose({ focusAllFilters: () => allButton.value?.focus() })
     display: none;
   }
 
-  /* One row that scrolls inside itself and snaps to chip edges, instead of wrapping. */
   .quick-chips {
     flex-wrap: nowrap;
     padding: 3px 1px 6px;
@@ -172,7 +168,6 @@ defineExpose({ focusAllFilters: () => allButton.value?.focus() })
     scroll-snap-align: start;
   }
 
-  /* for mobile view  */
   .quick-chips__lobbie-more {
     display: none;
   }

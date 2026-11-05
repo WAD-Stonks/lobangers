@@ -3,7 +3,6 @@ import { breakpointFor, useBreakpoint } from '@web/modules/map-shell/use-breakpo
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { defineComponent, h, nextTick } from 'vue'
 
-// A fake matchMedia that answers min-width queries for a given width and records listeners.
 const fakeMatchMedia = (width: { value: number }) => {
   const lists: { query: string; listeners: Set<() => void> }[] = []
   const matchMedia = vi.fn((query: string) => {

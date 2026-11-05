@@ -7,17 +7,12 @@ import PhotoViewer from '@web/modules/browse-map/PhotoViewer.vue'
 import ShellIcon from '@web/modules/map-shell/ShellIcon.vue'
 import { computed, ref, watch, watchEffect } from 'vue'
 
-// Swipeable deal photos. The frame takes the shape of the photo on screen (portrait poster,
-// square, landscape), within limits so one odd image cannot fill or flatten the panel. Photos
-// that fail to load drop out; if none are left the fallback slot shows instead.
 const props = defineProps<{ images: readonly DealImage[]; title: string }>()
-// Tells the parent whether photos are on screen, so labels can move off the hero.
 const emit = defineEmits<{ showing: [boolean] }>()
 
 const failed = ref<ReadonlySet<string>>(new Set())
 const ratios = ref<Readonly<Record<string, number>>>({})
 const active = ref(0)
-// Index of the photo open full size, or null when the viewer is closed.
 const viewing = ref<number | null>(null)
 const track = ref<HTMLElement | null>(null)
 
@@ -63,7 +58,6 @@ const goTo = (index: number) => {
   el?.scrollTo?.({ left: target * el.clientWidth, behavior: prefersReducedMotion() ? 'auto' : 'smooth' })
 }
 
-// Stepping in the full-size viewer moves the gallery behind it, so closing lands on the same photo.
 const viewPhoto = (index: number) => {
   viewing.value = index
   goTo(index)
@@ -174,7 +168,6 @@ const altFor = (image: DealImage, index: number) => image.alt?.trim() || `${prop
   pointer-events: none;
 }
 
-/* Arrows are for mouse users; touch screens swipe. */
 .deal-gallery__arrow {
   position: absolute;
   top: 50%;

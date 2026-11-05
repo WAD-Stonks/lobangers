@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 
-// One reviewed, reasoned step for actions that are hard to undo: archiving and withdrawing proof.
 const props = defineProps<{
   id: string
   title: string

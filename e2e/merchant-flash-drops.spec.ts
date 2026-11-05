@@ -1,10 +1,6 @@
 import type { MerchantFlashDrop } from '@broke-oclock/contracts/flash-drops'
 import { expect, type Page, test } from '@playwright/test'
 
-// Merchant flash deal journeys on /merchant: "Save as flash deal" in the deal form makes a
-// draft, Go live sends it out, and End now stops it. The server is a synthetic boundary that
-// keeps flash deals in memory; server rules are proved in the API integration suite. Every
-// account, outlet and deal below is a labelled synthetic fixture; nothing touches real data.
 const now = new Date().toISOString()
 const SYNTHETIC_MERCHANT = {
   id: 'e'.repeat(24),
@@ -24,7 +20,6 @@ const SYNTHETIC_SESSION = {
 }
 
 const hex = (n: number) => n.toString(16).padStart(24, '0')
-// Two branches of one synthetic franchise.
 const SYNTHETIC_OUTLETS = [
   { id: hex(1), name: 'Ah Seng Chicken Rice (Maxwell)', address: '1 Kadayanallur St, #01-10' },
   { id: hex(2), name: 'Ah Seng Chicken Rice (Tiong Bahru)', address: '30 Seng Poh Rd, #02-05' },
@@ -44,7 +39,6 @@ type Body = Record<string, unknown> & {
   codeLimit: number
 }
 
-// What the server would answer for a saved draft.
 const toDrop = (id: string, body: Body, version: number): MerchantFlashDrop => {
   const startsAt = body.startsAt ?? new Date().toISOString()
   return {
@@ -53,7 +47,6 @@ const toDrop = (id: string, body: Body, version: number): MerchantFlashDrop => {
     dealTitle: body.title,
     outletId: body.outletId,
     outletName: SYNTHETIC_OUTLETS.find((outlet) => outlet.id === body.outletId)?.name ?? '',
-    // The form's own offer is the flash offer.
     offerType: body.offerType,
     discountPercent: body.discountPercent,
     flashPriceCents: body.priceCents,
@@ -127,7 +120,6 @@ const signInAsMerchant = async (page: Page, drafts: MerchantFlashDrop[] = []) =>
       return json({ user: SYNTHETIC_MERCHANT, session: { expiresAt: SYNTHETIC_SESSION.expiresAt } })
     if (path === '/api/merchant/outlets') return json({ items: SYNTHETIC_OUTLETS })
     if (path === '/api/merchant/deals') return json({ items: [] })
-    // No Pusher here, as on a server without it: the dashboard polls.
     if (path === '/api/flash-drops/realtime') return json({ pusher: null })
     if (path.startsWith('/api/merchant/flash-drops')) state.requests.push({ method, path, body })
     if (path === '/api/merchant/flash-drops' && method === 'GET') return json({ items: drops })
@@ -162,7 +154,6 @@ const signInAsMerchant = async (page: Page, drafts: MerchantFlashDrop[] = []) =>
     }
     return json({ error: { code: 'NOT_FOUND', message: 'Not found' } }, 404)
   })
-  // Go live, Delete and End now ask in the app's own dialog, never the browser's.
   page.on('dialog', () => {
     throw new Error('The browser confirm should not be used')
   })
@@ -171,7 +162,6 @@ const signInAsMerchant = async (page: Page, drafts: MerchantFlashDrop[] = []) =>
   return state
 }
 
-// Confirms the app's own dialog, checking its title first.
 const confirmDialog = async (page: Page, title: string) => {
   const dialog = page.getByRole('alertdialog')
   await expect(dialog.getByRole('heading', { name: title })).toBeVisible()
@@ -182,8 +172,6 @@ const confirmDialog = async (page: Page, title: string) => {
 const dropCard = (page: Page, text: string) =>
   page.locator('[data-testid^="flash-drop-"]').filter({ hasText: text })
 
-// Fills the ordinary part of the deal form, step by step, and stops on the review: a $4.00
-// deal at the Maxwell branch.
 const fillDeal = async (page: Page, title: string) => {
   await page.getByRole('button', { name: 'Add a deal' }).click()
   await page.getByLabel('Title').fill(title)
@@ -211,19 +199,16 @@ test('save a flash deal as a draft, send it live and end it early', async ({ pag
   await expect(page.getByRole('button', { name: /Flash drop this/ })).toHaveCount(0)
 
   await fillDeal(page, 'Synthetic roast chicken rice')
-  // On the review, "Save as flash deal" opens the flash timing step in place of the dates.
   await page.getByRole('button', { name: 'Save as flash deal' }).click()
   await expect(page.getByRole('heading', { name: 'New flash deal' })).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Flash timing' })).toBeVisible()
   await expect(page.getByLabel('Start date (optional)')).toHaveCount(0)
 
-  // The form's offer is now the flash offer, set on the first step.
   await page.getByTestId('step-details').click()
   await expect(page.getByRole('radiogroup', { name: 'Flash offer' })).toBeVisible()
   await expect(page.getByRole('radio', { name: 'Fixed price' })).toBeChecked()
   await page.getByLabel('Flash price ($)').fill('1.20')
 
-  // A usual price is optional but must be higher; the timing step checks it before the review.
   await page.getByTestId('step-validity').click()
   await page.getByLabel('Usual price ($, optional)').fill('1')
   await page.getByRole('button', { name: 'Next: Review' }).click()
@@ -238,7 +223,6 @@ test('save a flash deal as a draft, send it live and end it early', async ({ pag
   await page.getByRole('button', { name: 'Next: Review' }).click()
   await page.getByRole('button', { name: 'Save as flash deal' }).click()
 
-  // Saving goes back to the dashboard's Flash deals tab.
   await expect(page).toHaveURL(/\/merchant\?tab=flash$/)
   await expect(page.getByRole('status').filter({ hasText: 'was saved as a draft' })).toBeVisible()
   const draft = dropCard(page, 'Synthetic roast chicken rice')
@@ -266,7 +250,6 @@ test('save a flash deal as a draft, send it live and end it early', async ({ pag
   await expect(draft.locator('.merchant-card__badge')).toHaveText('Ended')
   await expect(page.getByRole('status')).toContainText('has ended')
 
-  // A past flash deal can be deleted from the history.
   await draft.getByRole('button', { name: /Delete/ }).click()
   await confirmDialog(page, 'Delete this flash deal?')
   await expect(page.getByRole('status')).toContainText('was deleted from your past flash deals')
@@ -281,19 +264,16 @@ test('edit a draft in the deal form, then delete it', async ({ page }) => {
   await expect(draft).toContainText('Starts at Go live')
 
   await draft.getByRole('button', { name: /^Edit/ }).click()
-  // The draft opens on its own address.
   await expect(page).toHaveURL(new RegExp(`/merchant/flash/${SAVED_DRAFT.id}/edit$`))
   await expect(page.getByRole('heading', { name: 'Edit flash deal draft' })).toBeVisible()
   await expect(page.getByLabel('Title')).toHaveValue('Synthetic steamed chicken rice set')
   await expect(page.getByLabel('Flash price ($)')).toHaveValue('2.5')
   await page.getByLabel('Title').fill('Synthetic duck rice set')
-  // A saved draft can open any step straight from the stepper.
   await page.getByTestId('step-validity').click()
   await page.getByText('1 km', { exact: true }).click()
   await page.getByTestId('step-review').click()
   await page.getByRole('button', { name: 'Save draft' }).click()
 
-  // Back on the dashboard, while the flash deals reload.
   await expect(page.getByRole('status').filter({ hasText: 'was updated' })).toBeVisible()
   const edited = dropCard(page, 'Synthetic duck rice set')
   await expect(edited).toContainText('1 km')
@@ -304,7 +284,6 @@ test('edit a draft in the deal form, then delete it', async ({ page }) => {
   })
 
   await edited.getByRole('button', { name: /Delete draft/ }).click()
-  // Escape keeps the draft; confirming deletes it.
   await expect(page.getByRole('alertdialog')).toBeVisible()
   await page.keyboard.press('Escape')
   await expect(page.getByRole('alertdialog')).toHaveCount(0)

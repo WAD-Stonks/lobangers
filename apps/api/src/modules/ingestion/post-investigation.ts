@@ -74,8 +74,6 @@ const summarize = (
     processedAt: row.processedAt?.toISOString() ?? null,
   }
 }
-// Database scan is itself bounded. Unsupported records never become operational
-// authority; a sparse page may have no rows and still expose a next cursor.
 export const getPosts = async (
   db: Database,
   query: {

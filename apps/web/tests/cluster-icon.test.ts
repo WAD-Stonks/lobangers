@@ -38,7 +38,6 @@ describe('createGroupIcon', () => {
     const chip = chipOf(icon)
 
     expect(icon.options.className).toBe(CLUSTER_CLASS)
-    // Zero-size anchor: the pill centres itself on the point, whatever its width.
     expect(icon.options.iconSize).toEqual([0, 0])
     expect(chip.querySelector(`.${CLUSTER_CLASS}__name`)?.textContent).toBe('Orchard <b>')
     expect(chip.querySelector(`.${CLUSTER_CLASS}__count`)?.textContent).toBe('12 deals')

@@ -9,8 +9,6 @@ import {
 } from '@web/modules/browse-map/filters'
 import { locationLabel } from '@web/modules/browse-map/location-filter'
 
-// Removable tokens above the results, one per active filter. `next` is the filter state with
-// that one filter removed.
 export type FilterToken = {
   readonly key: string
   readonly label: string

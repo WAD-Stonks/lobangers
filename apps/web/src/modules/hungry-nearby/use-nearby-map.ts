@@ -4,8 +4,6 @@ import type { HungryNearby } from '@web/modules/hungry-nearby/use-hungry-nearby'
 import type L from 'leaflet'
 import { onBeforeUnmount, type Ref, watch } from 'vue'
 
-// Keeps the people layer on the shell's Leaflet map in step with the Hungry Nearby store.
-// Nobody is drawn while the viewer is not looking.
 export const useNearbyMap = (
   map: Readonly<Ref<L.Map | null>>,
   store: HungryNearby,
@@ -13,7 +11,6 @@ export const useNearbyMap = (
 ) => {
   let layer: NearbyLayer | null = null
 
-  // Others see a fuzzed spot, but the viewer's own lobanger stands on their real location dot.
   const ownSpot = () => {
     const me = store.me.value
     const here = position.value

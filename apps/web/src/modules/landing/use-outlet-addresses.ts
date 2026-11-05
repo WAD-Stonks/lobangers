@@ -2,7 +2,6 @@ import type { DealVenuePin } from '@broke-oclock/contracts/deals'
 import { fetchVenueDetail } from '@web/modules/venues-feed/venue-detail-cache'
 import { onBeforeUnmount, type Ref, ref, watch } from 'vue'
 
-// Only visible/selected outlets are fetched. Cache by outlet ID, never by region or chain.
 export function useOutletAddresses(outlets: Readonly<Ref<readonly DealVenuePin[]>>) {
   const addresses = ref<Record<string, string>>({})
   const requested = new Set<string>()
@@ -17,9 +16,7 @@ export function useOutletAddresses(outlets: Readonly<Ref<readonly DealVenuePin[]
           .then((result) => {
             if (active) addresses.value[venue.id] = result.venue.address.trim() || venue.name
           })
-          .catch(() => {
-            // The actual outlet name is preferable to an inferred neighbourhood.
-          })
+          .catch(() => {})
       }
     },
     { immediate: true },

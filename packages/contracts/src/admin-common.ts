@@ -1,7 +1,6 @@
 import { z } from 'zod'
 
 export const adminObjectIdSchema = z.string().regex(/^[a-f0-9]{24}$/)
-// Nullable/missing stored counters are legacy zero. Callers submit explicit zero.
 export const adminVersionSchema = z.number().int().min(0).max(2_147_483_646)
 export const adminNoteSchema = z.string().trim().min(1).max(500)
 export const adminSubjectTypeSchema = z.enum([
@@ -81,7 +80,6 @@ const auditStatusSchema = z.enum([
   'SENT_BACK',
   'STOPPED',
 ])
-// Flat, explicit facts only. Never accept arbitrary JSON, source text, auth payloads or secrets.
 export const adminAuditDetailsSchema = z
   .strictObject({
     operationVersionBefore: adminVersionSchema.optional(),

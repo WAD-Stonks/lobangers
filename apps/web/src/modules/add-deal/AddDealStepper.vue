@@ -2,9 +2,6 @@
 import { ADD_DEAL_STEPS } from '@web/modules/add-deal/add-deal-steps'
 import ShellIcon from '@web/modules/map-shell/ShellIcon.vue'
 
-// The numbered progress bar above the form. Steps already passed can be reopened; later ones
-// open only through Next, which checks the current step first. `labels` renames the steps (the
-// merchant dashboard's deal form calls its second step Outlets).
 const props = withDefaults(
   defineProps<{ current: number; reached: number; labels?: readonly string[]; navLabel?: string }>(),
   { labels: () => ADD_DEAL_STEPS.map((step) => step.label), navLabel: 'Add a deal steps' },
@@ -52,7 +49,6 @@ const emit = defineEmits<{ go: [step: number] }>()
   list-style: none;
 }
 
-/* The track runs between the first and last dot; the filled part reaches the current one. */
 .add-deal-stepper__list::before,
 .add-deal-stepper__list::after {
   content: '';
@@ -122,7 +118,6 @@ const emit = defineEmits<{ go: [step: number] }>()
 }
 .is-done .add-deal-stepper__dot {
   color: var(--ink);
-  /* Solid, so the track does not show through the tick. */
   background: color-mix(in srgb, var(--sunny) 35%, var(--paper-white));
   border-color: var(--sunny-deep);
 }

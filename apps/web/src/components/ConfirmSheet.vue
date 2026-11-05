@@ -3,8 +3,6 @@ import type { ConfirmRequest } from '@web/lib/use-confirm'
 import { useSheetFocus } from '@web/modules/squad/use-sheet-focus'
 import { ref } from 'vue'
 
-// One open question from useConfirm(). Focus starts on Cancel (the safe choice) and stays
-// inside; Escape or tapping outside cancels, and focus goes back to the button that opened it.
 defineProps<{ request: ConfirmRequest }>()
 const emit = defineEmits<{ confirm: []; cancel: [] }>()
 

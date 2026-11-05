@@ -20,7 +20,6 @@ const props = defineProps<{
   locationKnown: boolean
   sheetOpen: boolean
   lobbieOpen?: boolean
-  // The All Deals page has its own Lobbie button in the bottom-right corner instead.
   hideLobbie?: boolean
 }>()
 const emit = defineEmits<{ apply: [filters: BrowseFilters]; openSheet: []; askLobbie: [] }>()
@@ -34,7 +33,6 @@ const trigger = ref<HTMLButtonElement | null>(null)
 const active = ref<QuickKey | null>(null)
 const draft = ref<BrowseFilters>({ ...props.filters })
 const panelLeft = ref(0)
-// The popover grows out of the chip that opened it.
 const panelOrigin = ref('0px')
 const panelId = useId()
 const count = computed(() => countSheetFilters(props.filters))
@@ -82,7 +80,6 @@ const clear = () => {
   emit('apply', candidate.value)
   close(true)
 }
-// The ✕ on an active chip removes that one filter; focus moves to the chip it was attached to.
 const remove = async (key: QuickKey) => {
   close()
   emit('apply', { ...props.filters, [fields[key]]: emptyValue(key) })
@@ -111,8 +108,6 @@ const onEscape = (event: KeyboardEvent) => {
 }
 watch(() => props.sheetOpen, () => close())
 watch(() => props.filters, () => close())
-// When the chips scroll sideways (phones), each edge fades only while more chips sit past it, so
-// a chip is never cut off with a hard edge and the row reads as scrollable.
 const chipRow = ref<HTMLElement | null>(null)
 const moreBefore = ref(false)
 const moreAfter = ref(false)
@@ -123,7 +118,6 @@ const measureChipRow = () => {
   moreAfter.value = row.scrollLeft + row.clientWidth < row.scrollWidth - 1
 }
 let chipRowObserver: ResizeObserver | undefined
-// Chip labels change with the filters ("Price" becomes "Under $5"), which changes the row's width.
 watch(() => props.filters, () => void nextTick(measureChipRow))
 onMounted(() => {
   document.addEventListener('pointerdown', outside)
@@ -248,7 +242,6 @@ defineExpose({ focusAllFilters: () => allButton.value?.focus() })
 }
 
 
-/* An active chip makes room on its right for a ✕ that sits inside the pill. */
 .discovery-filters__pair { position: relative; display: inline-flex; flex: none; }
 .discovery-filters__pair .lb-chip.is-selected { padding-right: 40px; }
 .discovery-filters__remove {
@@ -277,7 +270,6 @@ defineExpose({ focusAllFilters: () => allButton.value?.focus() })
 }
 .discovery-filters__chevron { transition: transform var(--dur-small) var(--ease-out); }
 [aria-expanded='true'] > .discovery-filters__chevron { transform: rotate(180deg); }
-/* The badge is re-keyed on every count change, so it pops each time a filter is added or removed. */
 .discovery-filters__badge { animation: shell-pop 300ms var(--ease-out); }
 
 @media (prefers-reduced-motion: reduce) {
@@ -316,14 +308,12 @@ defineExpose({ focusAllFilters: () => allButton.value?.focus() })
     padding: 3px 1px;
     -webkit-overflow-scrolling: touch;
   }
-  /* Chips scroll inside their own row and settle on a chip edge; the page never scrolls sideways. */
   .discovery-filters__chips > * {
     scroll-snap-align: start;
   }
   .discovery-filters__chips::-webkit-scrollbar {
     display: none;
   }
-  /* Fade whichever edge has more chips beyond it; the last chip scrolls fully clear of the edge. */
   .discovery-filters__chips {
     --fade-before: 0px;
     --fade-after: 0px;
@@ -336,7 +326,6 @@ defineExpose({ focusAllFilters: () => allButton.value?.focus() })
   .discovery-filters__clear-all {
     flex: none;
   }
-  /* Compact row so the chips cover less of the map; popover option chips keep the full size. */
   .discovery-filters__chips {
     gap: 6px;
   }

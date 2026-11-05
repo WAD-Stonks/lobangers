@@ -21,7 +21,7 @@ const message = [
   '🏪 Synthetic Kopi — Compass One\n📅 Available from 1 Nov 2026 to 31 Dec 2026',
   "🔥 Don't miss out on this lobang!",
   `🔗 Check out the deal:\n${link}`,
-  '🦞 Found on Lobangers — Your next good lobang awaits!',
+  '🦞 Found on Lobangers. Your next good lobang awaits!',
 ].join('\n\n')
 
 const router = () =>
@@ -62,7 +62,6 @@ it('words a share as title, outlet, dates, link and sign-off', () => {
 })
 
 it('gives the date range, else the last day, else the start, from an exclusive end', () => {
-  // 1 Nov to 31 Dec 2026 in Singapore: the stored end is the instant after the last day.
   const from = '2026-10-31T16:00:00.000Z'
   const until = '2026-12-31T16:00:00.000Z'
   expect(dealShareDates(from, until)).toBe('Available from 1 Nov 2026 to 31 Dec 2026')

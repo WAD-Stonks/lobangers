@@ -412,7 +412,6 @@ onUnmounted(() => { fence.dispose(); nativeFence.dispose() })
   .overview-chart-run { grid-template-columns: minmax(0, 1fr); gap: 12px; }
   .overview-toolbar .btn { width: 100%; justify-content: center; }
 }
-/* 320px phones: a little less card padding keeps the counts and labels on one line. */
 @media (max-width: 359.98px) {
   .overview-panels > :where(.card), .overview-next-steps > :where(.card) { padding: 16px; }
   .overview-summary-link, .overview-summary-static { padding: 16px; }

@@ -1,7 +1,5 @@
 import { segment } from '@web/modules/landing/use-story-progress'
 
-// The v15 prototype's gathering, viewport handoff, map dive, portal and hawker-stall handoff
-// are coordinated here so each element has one owner and scrubbing is reversible.
 export function storyTimeline(progress: number, reduced = false) {
   if (reduced)
     return {

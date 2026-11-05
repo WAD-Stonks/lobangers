@@ -51,7 +51,6 @@ const reply = (overrides: Partial<AssistantChatResponse> = {}): AssistantChatRes
   ...overrides,
 })
 
-// A promise the test resolves by hand, to look at the chat while Lobbie is "typing".
 const deferred = <T>() => {
   let resolve: (value: T) => void = () => undefined
   const promise = new Promise<T>((done) => {
@@ -96,7 +95,6 @@ describe('createLobbieChat', () => {
 
     const asked = chat.ask('  Cheap eats near me  ')
     expect(chat.pending.value).toBe(true)
-    // A second question while Lobbie is typing is ignored.
     await chat.ask('and another')
     await asked
     expect(send).toHaveBeenCalledTimes(1)
@@ -208,7 +206,6 @@ describe('createLobbieChat', () => {
       ],
     })
 
-    // Clearing all also starts Lobbie's memory afresh; the chat on screen stays.
     chat.clearFilters()
     expect(chat.activeFilters.value).toEqual(NO_FILTERS)
     await chat.ask('dessert?')
@@ -246,14 +243,12 @@ describe('Ask Lobbie panel', () => {
     const chip = wrapper.get('[data-testid="ask-lobbie"]')
     expect(chip.attributes('aria-label')).toBe('Ask Lobbie for Lobangs')
     expect(chip.element.previousElementSibling?.getAttribute('data-testid')).toBe('all-filters')
-    // The sparkle is one path; the cross shown while the chat is open is two strokes.
     const iconPaths = () => wrapper.findAll('[data-testid="ask-lobbie"] svg path').length
     expect(iconPaths()).toBe(1)
 
     await chip.trigger('click')
     await flushPromises()
     expect(router.currentRoute.value.name).toBe('lobbie')
-    // The chips and the filter sheet are cleared; the search text and sort stay.
     expect(router.currentRoute.value.query).toEqual({ q: 'kopi', sort: 'ending' })
     const chipSelected = (key: string) =>
       wrapper.get(`[data-testid="quick-${key}"]`).classes().includes('is-selected')
@@ -278,14 +273,12 @@ describe('Ask Lobbie panel', () => {
     await wrapper.get('[data-testid="lobbie-launcher"]').trigger('click')
     await flushPromises()
     expect(wrapper.find('[data-testid="lobbie-window"]').exists()).toBe(true)
-    // The deal shows over the list, then closes back to it with the chat still open.
     await router.push(`/deals/${KOPI.id}?at=${KOPI_VENUE.id}&view=list`)
     await flushPromises()
     expect(wrapper.find('[data-testid="lobbie-window"]').exists()).toBe(false)
     await router.push('/browse?view=list')
     await flushPromises()
     expect(wrapper.find('[data-testid="lobbie-window"]').exists()).toBe(true)
-    // Leaving the list for the map puts it away.
     await router.push('/browse')
     await flushPromises()
     await router.push('/browse?view=list')
@@ -295,7 +288,6 @@ describe('Ask Lobbie panel', () => {
 
   it('opens in a floating window from the corner button on the All Deals page', async () => {
     const { router, wrapper } = await mountAt('/browse?view=list')
-    // The page has the corner button instead of the chip, and the chat stays off the URL.
     expect(wrapper.find('[data-testid="ask-lobbie"]').exists()).toBe(false)
     const launcher = wrapper.get('[data-testid="lobbie-launcher"]')
     expect(launcher.attributes('aria-expanded')).toBe('false')
@@ -349,7 +341,6 @@ describe('Ask Lobbie panel', () => {
     expect(map(wrapper).props('framed')).toBe(true)
     expect(map(wrapper).props('pins')).toEqual([expect.objectContaining({ id: HAWKER_VENUE.id })])
 
-    // A deal opened from the chat comes back to the chat, which kept the conversation.
     await wrapper.get('[data-testid="lobbie-deals"] a').trigger('click')
     await flushPromises()
     expect(router.currentRoute.value.name).toBe('deal')
@@ -409,7 +400,6 @@ describe('Ask Lobbie panel', () => {
     expect(wrapper.get('[data-testid="lobbie-avatar"]').attributes('src')).toBe(
       '/chatbot-sprites/hello.svg',
     )
-    // Decorative: the bubble text carries the message.
     expect(wrapper.get('[data-testid="lobbie-avatar"]').attributes('alt')).toBe('')
 
     await wrapper.findAll('[data-testid="lobbie-suggestion"]')[1]?.trigger('click')
@@ -423,7 +413,6 @@ describe('Ask Lobbie panel', () => {
     await wrapper.get('[data-testid="lobbie-input"]').setValue('can you do my homework?')
     await wrapper.get('[data-testid="lobbie-composer"]').trigger('submit')
     await flushPromises()
-    // A reply without deals is a miss, so Lobbie keeps thinking.
     expect(sprites()).toEqual(['hello', 'deal-found', 'thinking'])
   })
 

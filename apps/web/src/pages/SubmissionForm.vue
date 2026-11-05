@@ -36,7 +36,6 @@ const StallMapPicker = defineAsyncComponent(() => import('@web/modules/add-deal/
 import { computed, defineAsyncComponent, nextTick, ref } from 'vue'
 import { useRouter } from 'vue-router'
 
-// ----- Choices -----
 const categoryLabels: Record<string, string> = {
   FOOD: 'Food',
   DRINKS: 'Drinks',
@@ -44,7 +43,6 @@ const categoryLabels: Record<string, string> = {
   SNACKS: 'Snacks',
   BAKERY: 'Bakery',
 }
-// The app's shared cuisine list (Chinese, Malay, ...), plus our own "no cuisine" choice.
 const cuisineLabels: Record<string, string> = {
   ...DEAL_CUISINE_LABELS,
   NONE: 'No specific cuisine (e.g. drinks, desserts)',
@@ -52,7 +50,6 @@ const cuisineLabels: Record<string, string> = {
 const categoryOptions = withLeading({ value: '', label: 'Choose a category' }, optionsFromLabels(categoryLabels))
 const cuisineOptions = withLeading({ value: '', label: 'Choose a cuisine' }, optionsFromLabels(cuisineLabels))
 
-// Each step's heading icon, and Lobbie's advice for it.
 const STEP_ICONS: readonly ShellIconName[] = ['ticket', 'pin', 'calendar', 'check']
 const TIPS = [
   {
@@ -77,23 +74,19 @@ const TIPS = [
   },
 ] as const
 
-// ----- Form -----
 const form = ref(emptyDealForm())
 const photo = ref<File | null>(null)
-const photoPreview = ref('') // a temporary link to the chosen image, for the <img> preview
+const photoPreview = ref('')
 const chosenStalls = ref<Stall[]>([])
 
-// One message per field, e.g. errors.title = 'Please give the deal a title.'
 const errors = ref<DealErrors>({})
 const submitting = ref(false)
-const errorMessage = ref('') // shown above the form when fields need fixing
+const errorMessage = ref('')
 const formEl = ref<HTMLFormElement | null>(null)
 
-// Links a field to its error text so screen readers read the message with the field.
 const invalidAttrs = (field: string) =>
   errors.value[field] ? { 'aria-invalid': 'true' as const, 'aria-describedby': `error-${field}` } : {}
 
-// Anything typed, chosen or uploaded counts as unsaved work worth a warning before leaving.
 const isDirty = computed(
   () =>
     JSON.stringify(form.value) !== JSON.stringify(emptyDealForm()) ||
@@ -102,19 +95,15 @@ const isDirty = computed(
 )
 useUnsavedChanges(isDirty)
 
-// Today's date as 'YYYY-MM-DD' in the user's own time zone, to compare with the date boxes.
 const today = new Date().toLocaleDateString('en-CA')
 const findProblems = () =>
   checkDeal(form.value, { stallCount: chosenStalls.value.length, hasPhoto: photo.value !== null, today })
 
-// ----- Steps -----
 const step = ref(0)
-// The furthest step opened so far; the stepper reopens any of these.
 const reached = ref(0)
 const stepHeadings = ref<HTMLElement[]>([])
 const nextLabel = computed(() => ADD_DEAL_STEPS[step.value + 1]?.label ?? '')
 
-// Opens a step and moves focus to its heading, so keyboard and screen reader users land on it.
 const go = async (target: number) => {
   step.value = target
   reached.value = Math.max(reached.value, target)
@@ -124,7 +113,6 @@ const go = async (target: number) => {
   formEl.value?.closest('.add-deal')?.scrollIntoView?.({ block: 'start' })
 }
 
-// Shows this step's problems and focuses the first one.
 const flagStep = async (problems: DealErrors) => {
   errors.value = problems
   errorMessage.value = 'Please fix the highlighted fields.'
@@ -141,7 +129,6 @@ const next = async () => {
 
 const back = () => (step.value === 0 ? goBack() : go(step.value - 1))
 
-// ----- Stall search -----
 const stallSearch = ref('')
 const stallResults = ref<Stall[]>([])
 const searching = ref(false)
@@ -150,7 +137,7 @@ const searched = ref(false)
 const noStalls = ref(false)
 
 const findStalls = async () => {
-  if (searching.value) return // Enter pressed again while a search is still running
+  if (searching.value) return
   searching.value = true
   searchMessage.value = ''
   try {
@@ -196,7 +183,6 @@ const addFromMap = (stall: Stall) => {
   searchMessage.value = already ? `${stall.name} is already on this deal.` : `${stall.name} is added to this deal.`
 }
 
-// ----- Photo -----
 const choosePhoto = (event: Event) => {
   const input = event.target as HTMLInputElement
   const file = input.files?.[0] ?? null
@@ -205,7 +191,7 @@ const choosePhoto = (event: Event) => {
 
   if (!PHOTO_TYPES.includes(file.type)) {
     errors.value.photo = 'Please choose a JPEG, PNG or WebP image.'
-    input.value = '' // clear the file box
+    input.value = ''
     return
   }
   if (file.size > MAX_PHOTO_BYTES) {
@@ -217,7 +203,6 @@ const choosePhoto = (event: Event) => {
   photoPreview.value = URL.createObjectURL(file)
 }
 
-// ----- Review -----
 const dayFormat = new Intl.DateTimeFormat('en-SG', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })
 const formatDay = (day: string) => (day ? dayFormat.format(new Date(`${day}T00:00:00Z`)) : '')
 const offerSummary = computed(() => {
@@ -254,8 +239,6 @@ const review = computed(() => [
   },
 ])
 
-// ----- Pop-up -----
-// The pop-up (a Bootstrap modal) opens after a submit succeeds or fails.
 const showPopup = ref(false)
 const popupTitle = ref('')
 const popupMessage = ref('')
@@ -265,8 +248,6 @@ const openPopup = (title: string, message: string) => {
   showPopup.value = true
 }
 
-// ----- Submitting -----
-// Enter in a field moves on a step; on Review it sends the deal.
 const onSubmit = () => (step.value < LAST_STEP ? next() : sendDeal())
 
 const sendDeal = async () => {
@@ -290,7 +271,6 @@ const sendDeal = async () => {
   await router.replace({ path: '/me/submissions', query: { submitted: '1' } })
 }
 
-// Empties every field and goes back to the first step, so the user can add another deal.
 const photoInput = ref<InstanceType<typeof PhotoDropzone> | null>(null)
 const clearForm = () => {
   form.value = emptyDealForm()
@@ -329,14 +309,11 @@ const goBack = () => {
 
       <p v-if="errorMessage" class="add-deal__alert" role="alert">{{ errorMessage }}</p>
 
-      <!-- Pop-up after submitting. v-model opens/closes it; OK closes it. -->
       <BModal v-model="showPopup" :title="popupTitle" centered ok-only ok-title="OK">
         <p class="mb-0">{{ popupMessage }}</p>
       </BModal>
 
-      <!-- Every step stays in the form, so moving between them keeps what was typed. -->
       <form ref="formEl" class="add-deal__form" novalidate @submit.prevent="onSubmit">
-        <!-- 1. Deal details -->
         <section v-show="step === 0" class="add-deal__card" data-step="0" aria-labelledby="add-deal-step-0">
           <h2 id="add-deal-step-0" :ref="(el) => { if (el) stepHeadings[0] = el as HTMLElement }" class="add-deal__step-title" tabindex="-1">
             <span class="add-deal__step-icon" aria-hidden="true"><ShellIcon :name="STEP_ICONS[0] ?? 'ticket'" :size="20" /></span>Deal details
@@ -429,7 +406,6 @@ const goBack = () => {
             <p id="error-offerType" class="add-deal__error" aria-live="polite">{{ errors.offerType }}</p>
           </fieldset>
 
-          <!-- Only the box the chosen offer type needs. -->
           <div v-if="form.offerType === 'PERCENT_OFF'" class="add-deal__field add-deal__short">
             <label for="deal-discount" class="form-label">Discount (%) <span class="add-deal__required" aria-hidden="true">*</span></label>
             <input
@@ -478,14 +454,11 @@ const goBack = () => {
               :aria-describedby="errors.photo ? 'error-photo' : 'deal-photo-help'"
               @change="choosePhoto"
             />
-            <!-- The input sits inside the drop zone, so the error is shown here rather than by
-                 Bootstrap's "after an invalid input" rule. -->
             <div id="error-photo" class="invalid-feedback" :class="{ 'd-block': errors.photo }">{{ errors.photo }}</div>
             <img v-if="photoPreview" :src="photoPreview" alt="Your chosen deal" width="480" height="320" class="add-deal__preview" />
           </div>
         </section>
 
-        <!-- 2. Location -->
         <section v-show="step === 1" class="add-deal__card" data-step="1" aria-labelledby="add-deal-step-1">
           <h2 id="add-deal-step-1" :ref="(el) => { if (el) stepHeadings[1] = el as HTMLElement }" class="add-deal__step-title" tabindex="-1">
             <span class="add-deal__step-icon" aria-hidden="true"><ShellIcon :name="STEP_ICONS[1] ?? 'pin'" :size="20" /></span>Location
@@ -515,7 +488,6 @@ const goBack = () => {
             </div>
           </div>
 
-          <!-- Search results: Add puts a stall on the deal. -->
           <ul v-if="stallResults.length > 0" class="add-deal__stalls">
             <li v-for="stall in stallResults" :key="stall.id">
               <span class="add-deal__stall-text"><strong>{{ stall.name }}</strong><span>{{ stall.address }}</span></span>
@@ -549,11 +521,9 @@ const goBack = () => {
               </li>
             </ul>
           </div>
-          <!-- Always in the page so the message is announced when it appears. -->
           <p id="error-stalls" class="add-deal__error" aria-live="polite">{{ errors.stalls }}</p>
         </section>
 
-        <!-- 3. Validity -->
         <section v-show="step === 2" class="add-deal__card" data-step="2" aria-labelledby="add-deal-step-2">
           <h2 id="add-deal-step-2" :ref="(el) => { if (el) stepHeadings[2] = el as HTMLElement }" class="add-deal__step-title" tabindex="-1">
             <span class="add-deal__step-icon" aria-hidden="true"><ShellIcon :name="STEP_ICONS[2] ?? 'calendar'" :size="20" /></span>Validity
@@ -604,7 +574,6 @@ const goBack = () => {
           </div>
         </section>
 
-        <!-- 4. Review -->
         <section v-show="step === 3" class="add-deal__card" data-step="3" aria-labelledby="add-deal-step-3">
           <h2 id="add-deal-step-3" :ref="(el) => { if (el) stepHeadings[3] = el as HTMLElement }" class="add-deal__step-title" tabindex="-1">
             <span class="add-deal__step-icon" aria-hidden="true"><ShellIcon :name="STEP_ICONS[3] ?? 'check'" :size="20" /></span>Review

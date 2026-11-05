@@ -235,7 +235,6 @@ describe('browse panel', () => {
     await flushPromises()
     expect(router.currentRoute.value.query.max).toBe('5')
     expect(wrapper.get('[data-testid="quick-price"]').text()).toContain('Up to $5')
-    // A price cap keeps deals without a fixed price, like the API does.
     expect(rowTitles(wrapper)).toEqual(['Synthetic iced kopi', 'Synthetic chicken rice'])
     expect(wrapper.find('.browse-list__tokens').exists()).toBe(false)
     expect(wrapper.find('.browse-list__toolbar [data-testid="results-list"]').exists()).toBe(true)
@@ -917,7 +916,6 @@ describe('map navigation rail', () => {
         discovery: '1',
       })
       expect(wrapper.find('[data-testid="food-deal-grid"]').exists()).toBe(true)
-      // Desktop's All Deals page has no rail; the phone's bottom bar highlights the tab.
       if (mobile)
         expect(wrapper.get('[data-testid="map-navigation"] a[aria-current="page"]').text()).toBe(
           'All deals',
@@ -940,7 +938,6 @@ describe('map navigation rail', () => {
       'map-navigation--bottom',
     )
     expect(wrapper.get('[data-testid="map-navigation"] a[aria-current="page"]').text()).toBe('Map')
-    // The account slot is a More menu on phones, not the avatar.
     expect(wrapper.get('.map-navigation__account').text()).toBe('More')
     expect(wrapper.find('.map-navigation__avatar').exists()).toBe(false)
     expect(
@@ -948,7 +945,6 @@ describe('map navigation rail', () => {
         '--bottom-nav-h',
       ),
     ).toContain(`${BOTTOM_NAV_HEIGHT_PX}px`)
-    // The bottom nav replaces the menu button: Squad takes its slot in the header.
     expect(wrapper.find('[data-testid="nav-toggle"]').exists()).toBe(false)
     expect(wrapper.get('[data-testid="squad-header-button"]').classes()).toContain(
       'squad-nav--compact',
@@ -961,7 +957,6 @@ describe('map navigation rail', () => {
       'Saved',
     )
     expect(wrapper.get('[data-testid="shell-panel"]').classes()).toContain('shell-panel--sheet')
-    // Saved is its own tab in the bottom nav, so the page has no account tabs.
     expect(wrapper.find('[role="tablist"][aria-label="Account sections"]').exists()).toBe(false)
   })
 
@@ -1194,7 +1189,6 @@ describe('review regressions', () => {
     await wrapper.get('[data-testid="filter-show"]').trigger('click')
     await flushPromises()
     expect(router.currentRoute.value.name).toBe('browse')
-    // Only shell keys travel to browse; the outlet picker stays behind.
     expect(router.currentRoute.value.query).toEqual({ cat: 'food' })
     expect(wrapper.find('[data-testid="filter-sheet"]').exists()).toBe(false)
 

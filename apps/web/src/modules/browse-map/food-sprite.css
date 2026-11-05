@@ -1,5 +1,3 @@
-/* Animated 3D food (food-sprite.ts). The element's custom properties carry the frame maths,
-   so every step lands on a whole frame. Imported once by DealMap.vue and CategoryBubble.vue. */
 .food-sprite {
   display: block;
   background-repeat: no-repeat;

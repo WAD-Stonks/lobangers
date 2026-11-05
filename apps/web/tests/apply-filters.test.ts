@@ -13,7 +13,6 @@ import { createDefaultFilters } from '@web/modules/browse-map/filters'
 import { toDealRows, toVenuePins } from '@web/modules/browse-map/load-deals'
 import { describe, expect, it } from 'vitest'
 
-// Synthetic fixtures. 20 Oct 2026, 10:00 in Singapore (UTC+8).
 const NOW = new Date('2026-10-20T02:00:00.000Z')
 const NEAR = { id: 'a'.repeat(24), name: 'Kopi Corner', lat: 1.2966, lng: 103.8502 }
 const FAR = { id: 'b'.repeat(24), name: 'Bedok Laksa', lat: 1.3248, lng: 103.9293 }
@@ -127,7 +126,6 @@ describe('venue-level filters', () => {
   it('never narrows the searched area below a walkable minimum when zoomed in close', () => {
     const lat = NEAR.lat as number
     const lng = NEAR.lng as number
-    // A viewport a few metres wide, centred ~200 m away from the outlet.
     const centre = { lat: lat + 0.0018, lng }
     const area = {
       south: centre.lat - 0.00005,

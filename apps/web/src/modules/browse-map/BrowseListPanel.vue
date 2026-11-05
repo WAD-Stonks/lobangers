@@ -17,10 +17,8 @@ import { useSavedDeals } from '@web/modules/map-shell/use-saved-deals'
 import { computed } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 
-// Results can be displayed as compact rows or photo cards in either map or full-width mode.
 const shell = useShell()
 const saved = useSavedDeals()
-// Merchants add deals from their dashboard, so the Add a deal prompt is not for them.
 const canAddDeal = useCanAddDeal()
 const route = useRoute()
 const router = useRouter()
@@ -67,14 +65,11 @@ const clearAll = () => {
   void shell.applyFilters({ ...createDefaultFilters() })
 }
 
-// Saved hides deals that have ended until the visitor asks for them; it is the same "Valid now"
-// filter the filter sheet sets, so the choice lives in the URL (?now=0) like every other filter.
 const showExpired = computed(() => !shell.filters.value.validNow)
 const onShowExpired = (event: Event) => {
   const checked = (event.target as HTMLInputElement).checked
   void shell.applyFilters({ ...shell.filters.value, validNow: !checked }, 'replace')
 }
-// Bookmarks exist but none is live: point at the checkbox instead of saying nothing is saved.
 const savedAllEnded = computed(() => shell.savedOnly.value && !showExpired.value && saved.count.value > 0)
 
 const emptyCopy = computed(() => {
@@ -310,7 +305,6 @@ const emptyCopy = computed(() => {
   .browse-list__view-toggle button:active { transform: none; }
 }
 
-/* Outlined sort pill beside the segmented view toggle. */
 /* biome-ignore lint/style/noDescendingSpecificity: the earlier, more specific rule is a modifier override for a different state of the same element */
 .browse-list__sort {
   position: relative;
@@ -494,8 +488,6 @@ const emptyCopy = computed(() => {
   border-radius: 18px;
 }
 
-/* Phones: the count and Sort share one row, and the toolbar sits close to the results, so the
-   first deals show without scrolling. The pill's icon already says it sorts. */
 @media (max-width: 599.98px) {
   .browse-list--full-page :deep(.panel-frame__heading) {
     flex-wrap: nowrap;

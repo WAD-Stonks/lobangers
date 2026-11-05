@@ -1,7 +1,5 @@
 import { onBeforeUnmount, onMounted, type Ref, ref } from 'vue'
 
-// Explicitly started playback only. Wheel, touch, keyboard or a hidden tab hands
-// control straight back to the visitor; it never intercepts normal scrolling.
 export function useStoryPlayback(
   root: Ref<HTMLElement | null>,
   reduced: Ref<boolean>,
@@ -15,8 +13,6 @@ export function useStoryPlayback(
     frame = 0
   }
   const key = (event: KeyboardEvent) => {
-    // Native Enter/Space activation clicks the toggle. Let that click pause or
-    // resume playback, rather than stopping here and restarting in its handler.
     if (
       (event.key === 'Enter' || event.key === ' ') &&
       event.target instanceof Node &&

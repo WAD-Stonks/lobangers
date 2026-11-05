@@ -11,10 +11,6 @@ import { parseConfig } from '@api/config'
 import { MongoMemoryReplSet } from 'mongodb-memory-server'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 
-// Flash deals through real HTTP against a disposable replica set: a merchant saves a draft and
-// sends it live, visitors claim codes, admins can remove one. All stalls, deals and people are
-// SYNTHETIC.
-
 const origin = 'http://localhost:5173'
 const root = fileURLToPath(new URL('../../../../', import.meta.url))
 let mongo: MongoMemoryReplSet | undefined
@@ -32,7 +28,6 @@ let signUps = 1
 const signUp = async (name: string): Promise<Account> => {
   const response = await fetch(`${baseURL}/api/auth/sign-up/email`, {
     method: 'POST',
-    // A distinct synthetic client address per sign-up keeps the auth rate limit per person.
     headers: {
       'Content-Type': 'application/json',
       Origin: origin,
@@ -63,12 +58,10 @@ const call = async (account: Account | null, method: string, path: string, body?
     },
     body: body === undefined ? undefined : JSON.stringify(body),
   })
-  // Deleting a draft answers 204 with no body.
   const text = await response.text()
   return { status: response.status, body: text ? JSON.parse(text) : null }
 }
 
-// A synthetic stall with one outlet, granted to the merchant. Flash deals bring their own deal.
 const stall = async (owner: Account, name: string, lat = 1.3236) => {
   const brand = await db.merchant.create({ data: { name: `Synthetic ${name}` } })
   const outlet = await db.venue.create({
@@ -84,8 +77,6 @@ const stall = async (owner: Account, name: string, lat = 1.3236) => {
   return { outlet }
 }
 
-// "Save as flash deal" from the deal form: the deal, whose own offer is the flash offer ($1.50,
-// usually $4.00), plus the flash details. startsAt null means it starts at Go live.
 const dropBody = (outletId: string, overrides: Record<string, unknown> = {}) => ({
   title: 'Synthetic chicken rice',
   description: 'Fake deal. Plain chicken rice.',
@@ -106,7 +97,6 @@ const dropBody = (outletId: string, overrides: Record<string, unknown> = {}) => 
 
 const inMinutes = (minutes: number) => new Date(Date.now() + minutes * 60_000).toISOString()
 
-// A saved draft, ready for Go live.
 const draft = async (outletId: string, overrides: Record<string, unknown> = {}) => {
   const saved = await call(merchant, 'POST', '/merchant/flash-drops', dropBody(outletId, overrides))
   expect(saved.status).toBe(201)
@@ -122,7 +112,6 @@ beforeAll(async () => {
   mongo = await MongoMemoryReplSet.create({
     replSet: { count: 1, storageEngine: 'wiredTiger', ip: '127.0.0.1' },
   })
-  // The deals_ prefix lets the synthetic outlet-proof fixture write to this database.
   const databaseUrl = mongo.getUri(`deals_${randomUUID().replaceAll('-', '')}`)
   vi.stubEnv('DATABASE_URL', databaseUrl)
   vi.stubEnv('NODE_ENV', 'test')
@@ -197,7 +186,6 @@ describe('merchant flash deal drafts', () => {
     expect(
       ids((await call(otherMerchant, 'GET', '/merchant/flash-drops')).body.items),
     ).not.toContain(saved.id)
-    // Not public, not an ordinary deal, and not in any admin tab.
     expect(ids((await call(null, 'GET', '/flash-drops/active')).body.items)).not.toContain(saved.id)
     expect(ids((await call(merchant, 'GET', '/merchant/deals')).body.items)).not.toContain(
       saved.dealId,
@@ -222,7 +210,6 @@ describe('merchant flash deal drafts', () => {
       (await call(otherMerchant, 'POST', '/merchant/flash-drops', dropBody(outlet.id))).status,
     ).toBe(403)
 
-    // Someone else's draft looks missing to every write.
     const mine = await draft(outlet.id)
     const path = `/merchant/flash-drops/${mine.id}`
     expect(
@@ -236,7 +223,6 @@ describe('merchant flash deal drafts', () => {
     const { outlet } = await stall(merchant, 'Rules')
     const save = (overrides: Record<string, unknown>) =>
       call(merchant, 'POST', '/merchant/flash-drops', dropBody(outlet.id, overrides))
-    // The usual price has to be above the flash price, and only goes with a fixed price.
     expect((await save({ usualPriceCents: 150 })).status).toBe(400)
     expect(
       (await save({ offerType: 'BUY_ONE_GET_ONE', priceCents: null, usualPriceCents: 400 })).status,
@@ -245,7 +231,7 @@ describe('merchant flash deal drafts', () => {
     expect((await save({ startsAt: inMinutes(-10) })).status).toBe(400)
     expect((await save({ startsAt: inMinutes(8 * 24 * 60) })).status).toBe(400)
     expect((await save({ durationMinutes: 45 })).status).toBe(400)
-    expect((await save({ offerType: 'PERCENT_OFF' })).status).toBe(400) // no discount given
+    expect((await save({ offerType: 'PERCENT_OFF' })).status).toBe(400)
   })
 
   it('takes the same offer types as a deal: 1-for-1, % off and other', async () => {
@@ -269,7 +255,6 @@ describe('merchant flash deal drafts', () => {
     expect(off.body).toMatchObject({ offerType: 'PERCENT_OFF', discountPercent: 30 })
     expect((await save({ offerType: 'OTHER' })).body.offerType).toBe('OTHER')
 
-    // Live, the map shows the offer, and so do claimed codes.
     await goLive(bogo.body)
     const active = await call(null, 'GET', '/flash-drops/active')
     expect(
@@ -282,7 +267,6 @@ describe('merchant flash deal drafts', () => {
   it('reads a flash deal made before offer types as a fixed flash price', async () => {
     const { outlet } = await stall(merchant, 'Legacy', 1.31)
     const saved = await draft(outlet.id)
-    // Old flash deals stored only a flash price; the usual price was the deal's own price.
     await db.flashDrop.update({
       where: { id: saved.id },
       data: { offerType: null, usualPriceMinor: null, flashPriceMinor: 150 },
@@ -320,19 +304,16 @@ describe('merchant flash deal drafts', () => {
     expect(live.status).toBe(200)
     expect(live.body).toMatchObject({ status: 'SCHEDULED', version: 3 })
     expect(Date.parse(live.body.startsAt)).toBe(Date.parse(edited.body.startsAt))
-    // Scheduled, so not on the map yet, but admins can see it.
     expect(ids((await call(null, 'GET', '/flash-drops/active')).body.items)).not.toContain(saved.id)
     expect(
       ids((await call(admin, 'GET', '/admin/flash-drops?view=scheduled')).body.items),
     ).toContain(saved.id)
 
-    // Gone live: no more edits, and no second Go live.
     expect((await call(merchant, 'PUT', path, { ...dropBody(outlet.id), version: 3 })).status).toBe(
       412,
     )
     expect((await goLive(live.body)).status).toBe(412)
 
-    // Another flash deal at the same outlet and time cannot go live too.
     const rival = await draft(outlet.id, { startsAt: inMinutes(95) })
     const clash = await goLive(rival)
     expect(clash.status).toBe(409)
@@ -365,14 +346,12 @@ describe('merchant flash deal drafts', () => {
       (await db.deal.findUniqueOrThrow({ where: { id: saved.dealId } })).deletedAt,
     ).toBeInstanceOf(Date)
 
-    // A live flash deal has to be ended first.
     const live = (await goLive(await draft(outlet.id))).body
     const livePath = `/merchant/flash-drops/${live.id}`
     expect((await call(merchant, 'DELETE', livePath, { version: live.version })).status).toBe(412)
     await call(member, 'POST', `/flash-drops/${live.id}/claims`)
     const ended = (await call(merchant, 'POST', `${livePath}/end`, { version: live.version })).body
 
-    // Once past, it leaves the merchant's history but its record and the claimed code stay.
     expect((await call(otherMerchant, 'DELETE', livePath, { version: ended.version })).status).toBe(
       404,
     )
@@ -384,7 +363,6 @@ describe('merchant flash deal drafts', () => {
     expect(kept.deletedAt).toBeInstanceOf(Date)
     const codes = await call(member, 'GET', '/flash-drops/codes')
     expect(codes.body.items.map((item: { dropId: string }) => item.dropId)).toContain(live.id)
-    // Deleted means gone for the merchant: no second delete or edit.
     expect((await call(merchant, 'DELETE', livePath, { version: kept.version })).status).toBe(404)
   })
 })
@@ -408,7 +386,6 @@ describe('live flash deals', () => {
       usualPriceCents: 400,
       codesLeft: 10,
     })
-    // Its deal opens on the map while it runs, but never joins the merchant's ordinary deals.
     expect(await publicDealIds()).toContain(saved.dealId)
     expect(ids((await call(merchant, 'GET', '/merchant/deals')).body.items)).not.toContain(
       saved.dealId,
@@ -442,7 +419,6 @@ describe('live flash deals', () => {
     expect(again.status).toBe(200)
     expect(again.body.code).toBe(first.body.code)
 
-    // Fifteen people tap at once for the nine codes left.
     const crowd = await Promise.all(
       Array.from({ length: 15 }, (_, index) => signUp(`Synthetic crowd ${index}`)),
     )
@@ -481,7 +457,6 @@ describe('claimed codes', () => {
       version: live.version,
     })
     expect(ended.body.status).toBe('ENDED')
-    // Nobody new can claim, but the code already claimed still works at the counter.
     expect((await call(otherMerchant, 'POST', `/flash-drops/${saved.id}/claims`)).status).toBe(412)
     const codes = await call(member, 'GET', '/flash-drops/codes')
     expect(
@@ -494,7 +469,6 @@ describe('claimed codes', () => {
     const saved = await draft(outlet.id)
     expect(saved.codeValidity).toBe('END_OF_DAY')
     const live = (await goLive(saved)).body
-    // 11:59:59.999 pm in Singapore is 3:59:59.999 pm UTC.
     expect(live.codesExpireAt).toMatch(/T15:59:59\.999Z$/)
     expect(Date.parse(live.codesExpireAt)).toBeGreaterThan(Date.parse(live.endsAt))
   })
@@ -569,7 +543,6 @@ describe('live updates', () => {
       const kinds = () => pushes.map((push) => (push.data as { kind: string }).kind)
       const { outlet } = await stall(merchant, 'Pushed', 1.42)
       const saved = await draft(outlet.id)
-      // A draft is private: nothing is pushed.
       expect(pushes).toEqual([])
 
       const live = (await goLive(saved)).body
@@ -579,7 +552,6 @@ describe('live updates', () => {
         data: { dropId: saved.id, kind: 'LIVE' },
       })
       await call(member, 'POST', `/flash-drops/${saved.id}/claims`)
-      // Claiming again returns the same code and changes nothing, so nothing is pushed.
       await call(member, 'POST', `/flash-drops/${saved.id}/claims`)
       expect(kinds()).toEqual(['LIVE', 'CLAIMED'])
 
@@ -646,7 +618,6 @@ describe('admin removal', () => {
     const decide = (body: Record<string, unknown>) =>
       call(admin, 'POST', `/admin/flash-drops/${saved.id}/decision`, body)
     expect((await decide({ decision: 'STOP', note: '', version: live.version })).status).toBe(400)
-    // There is no review step any more.
     expect((await decide({ decision: 'APPROVE', note: '', version: live.version })).status).toBe(
       400,
     )

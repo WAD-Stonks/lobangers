@@ -1,13 +1,11 @@
 <script setup lang="ts" generic="T extends string | number">
-// A row of pill-shaped radio buttons, e.g. 15 min / 30 min / 60 min.
-// They are real radio inputs, so the keyboard and screen readers treat them as one choice.
 withDefaults(
   defineProps<{
-    name: string // groups the radios; also used to build each input's id
+    name: string
     legend: string
     choices: { value: T; label: string }[]
-    invalid?: boolean // marks the group for an error shown by the parent
-    describedby?: string // id of that error
+    invalid?: boolean
+    describedby?: string
   }>(),
   { invalid: false, describedby: undefined },
 )
@@ -53,7 +51,6 @@ const model = defineModel<T>({ required: true })
     min-height: 44px;
   }
 }
-/* The chosen chip is dark, like the app's other selected pills. */
 .btn-check:checked + .chip {
   background: var(--ink-strong);
   border-color: var(--ink-strong);

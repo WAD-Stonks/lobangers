@@ -3,8 +3,6 @@ import type { DealPin } from '@broke-oclock/contracts/deals'
 import { dealFreshness } from '@web/modules/browse-map/deal-format'
 import { computed } from 'vue'
 
-// Unverified is the usual state, so it is a quiet dotted ring rather than a word, named by an
-// instant tooltip. The other statuses stay as readable tags because they ask for attention.
 const UNVERIFIED_LABEL = 'Unverified'
 const UNVERIFIED_HINT = 'Unverified: no recent community reports yet'
 
@@ -46,7 +44,6 @@ const freshness = computed(() => dealFreshness(props.deal))
   background: var(--paper-white);
 }
 
-/* Instant tooltip; the native title waits about a second and never shows on touch. */
 .freshness-ring::after {
   position: absolute;
   bottom: calc(100% + 4px);

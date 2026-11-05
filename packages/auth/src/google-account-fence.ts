@@ -28,7 +28,6 @@ const advance = (previous: Date) => {
   return new Date(Math.max(Date.now(), value + 1))
 }
 
-/** Request-owned native hook proof; no JSON field or global request context can supply it. */
 export const createGoogleAccountFence = () => {
   const key = Symbol('native-google-admission')
   const trusted = new WeakSet<Proof>()
@@ -74,14 +73,12 @@ export const createGoogleAccountFence = () => {
             local.email.toLowerCase() !== proof.provenEmail
           )
             throw denied()
-          // The exact raw email predicate below is bound to the normalized provider proof above.
           const userWhere: Where[] = [
             { field: 'id', value: proof.userId },
             { field: 'email', value: proof.email },
             { field: 'emailVerified', value: true },
             { field: 'updatedAt', value: local.updatedAt },
           ]
-          // A meaningful conditional write, not a same-value no-op: Mongo conflicts fence proof loss.
           if (
             (await tx.updateMany({
               model: 'user',
@@ -102,7 +99,6 @@ export const createGoogleAccountFence = () => {
               session.expiresAt.getTime() <= Date.now()
             )
               throw denied()
-            // updatedAt is not native renewal/freshness age; never alter expiry or createdAt.
             if (
               (await tx.updateMany({
                 model: 'session',
@@ -122,7 +118,6 @@ export const createGoogleAccountFence = () => {
           return original<T, R>({ ...args, data })
         }
         if (inTransaction) return insert(instance)
-        // Root and native first-OAuth creation share the same decorated transaction boundary.
         const root = instance as A & {
           transaction: ReturnType<ReturnType<typeof prismaAdapter>>['transaction']
         }

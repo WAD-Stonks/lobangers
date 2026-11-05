@@ -17,17 +17,12 @@ import {
 } from '@api/modules/squad/store'
 import type { SquadCreate, SquadJoin, SquadState } from '@broke-oclock/contracts/squad'
 
-// Opening, joining and running a Makan Squad lobby. Anyone signed in can host or join; only
-// the host starts, removes people, adds deals or closes the room. People who join after the
-// room has started watch everything live but cannot vote.
-
 const CODE_ATTEMPTS = 30
 const MAX_ROOM_DEALS = 20
 
 const isDuplicate = (error: unknown) =>
   typeof error === 'object' && !!error && 'code' in error && String(error.code) === 'P2002'
 
-// Deals a room may vote on: approved, published, not deleted and still running.
 const requireVotableDeals = async (
   database: Database | Tx,
   dealIds: readonly string[],
@@ -127,7 +122,6 @@ export const joinRoom = (
         'CONFLICT',
         `Someone here is already called ${taken.displayName}. Add an initial?`,
       )
-    // A late joiner watches; someone who stepped out of a live room gets their vote back.
     const spectator = room.status === 'LIVE' && !(existing && !existing.spectator)
     if (!spectator && others.filter((seat) => !seat.spectator).length >= room.capacity)
       throw new DomainError(
@@ -165,7 +159,6 @@ export const startRoom = (database: Database, actor: AuthenticatedActor, code: s
     return stateFor(tx, code, actor.userId, now)
   })
 
-// Leaving hands the host role on; a lobby nobody is left in closes.
 export const leaveRoom = (database: Database, actor: AuthenticatedActor, code: string, now: Date) =>
   roomTransaction(database, async (tx) => {
     const room = await requireRoom(tx, code)
@@ -226,7 +219,6 @@ export const closeRoomAsHost = (
     return stateFor(tx, code, actor.userId, now)
   })
 
-// After every deal was voted down, the host can add more and voting carries on.
 export const addDeals = (
   database: Database,
   actor: AuthenticatedActor,

@@ -48,7 +48,6 @@ const grants = new Map<
   string,
   { email: string; verified: boolean; subject: string; challenge: string }
 >()
-// Synthetic Google credentials and signed profiles stay process-local. No snapshots of secrets.
 const { privateKey, publicKey } = generateKeyPairSync('rsa', { modulusLength: 2048 })
 const jwk = {
   ...publicKey.export({ format: 'jwk' }),
@@ -73,9 +72,6 @@ const googleIdToken = (profile: { email: string; verified: boolean; subject: str
   return `${payload}.${sign('RSA-SHA256', Buffer.from(payload), privateKey).toString('base64url')}`
 }
 
-// Observe the supplied transaction without mutating Prisma's generated delegates.
-// Never relabel an eager native Promise as PrismaPromise: its inherited tag is
-// read-only, so Object.assign throws while the already-started query is orphaned.
 const observeTransactionMethod = <T extends object>(
   tx: T,
   model: 'user' | 'session' | 'account',
@@ -233,7 +229,6 @@ const localPasswordIdentity = async (email: string, verified: boolean) => {
     ).status,
   ).toBe(200)
   const original = await db.user.findUniqueOrThrow({ where: { email } })
-  // Explicit locally verified fixture is required for the verified-link scenario only.
   if (verified) await db.user.update({ where: { id: original.id }, data: { emailVerified: true } })
   return { browser, original }
 }
@@ -435,9 +430,7 @@ describe('native Google authorization code callback through Express and disposab
       try {
         const result = await admit({ ...account, accountId: randomUUID() }, ctx)
         admitted = Boolean(result)
-      } catch {
-        // The narrow hook boundary must fail closed; no adapter create is attempted here.
-      }
+      } catch {}
     }
     try {
       const returning = await googleLogin({ email, verified: true, subject })

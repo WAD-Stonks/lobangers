@@ -6,9 +6,6 @@ import { useToast } from '@web/modules/map-shell/use-toast'
 import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 
-// "Lobangers nearby" in the map's control stack. It starts on, showing other people. Turning it
-// on (or, once, being located while signed in) opens a small choice: show yourself too (signed
-// in only) or just look. Turning it off hides you.
 const store = useHungryNearby()
 store?.bindToast(useToast())
 const route = useRoute()
@@ -30,7 +27,6 @@ const close = () => {
 const onDocumentPointer = (event: PointerEvent) => {
   if (root.value && event.target instanceof Node && !root.value.contains(event.target)) close()
 }
-// Escape hands focus back to the toggle so keyboard users are not dropped on the page body.
 const onKey = (event: KeyboardEvent) => {
   if (event.key !== 'Escape') return
   const hadFocus = !!popover.value?.contains(document.activeElement)
@@ -47,7 +43,6 @@ watch(
     document.addEventListener('pointerdown', onDocumentPointer)
     document.addEventListener('keydown', onKey)
     await nextTick()
-    // Opened by the toggle, focus moves in; asked unprompted, it never pulls focus from elsewhere.
     const active = document.activeElement
     if (active === document.body || (active && root.value?.contains(active)))
       popover.value?.querySelector<HTMLElement>('button, a')?.focus({ preventScroll: true })
@@ -184,7 +179,6 @@ onBeforeUnmount(() => {
   bottom: 0;
   z-index: 30;
   width: min(272px, calc(100vw - 96px));
-  /* A phone held sideways has little height above the controls; scroll inside instead. */
   max-height: calc(100dvh - 140px);
   overflow-y: auto;
   overscroll-behavior: contain;

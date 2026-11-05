@@ -165,7 +165,6 @@ onUnmounted(() => { fence.dispose(); nativeFence.dispose() })
       </dl>
       <AdminWorkspaceTabs :model-value="workspace" :tabs="workspaceTabs" id-prefix="ingestion-workspace" label="Ingestion workspace" :disabled="workspaceBusy" @update:model-value="chooseWorkspace" />
       <p v-if="workspaceBusy" class="ingestion-pending" role="status">Finish the current operation before switching workspaces.</p>
-      <!-- Keep protected controllers mounted: switching tasks must retain captured versions and unknown-result locks. -->
       <div id="ingestion-workspace-panel-drafts" role="tabpanel" aria-labelledby="ingestion-workspace-tab-drafts" :hidden="workspace !== 'drafts'" :inert="workspace !== 'drafts' ? true : undefined">
         <ImportedDealQueue :key="panelKey" :initial-status="initialStatus" :initial-cursor="initialCursor" :initial-draft-id="initialDraftId" :revision="revision" @denied="denied" />
       </div>

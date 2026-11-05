@@ -432,7 +432,6 @@ describe('native delivery and session compatibility', () => {
     })
     const before = await db.session.findUniqueOrThrow({ where: { id: record.id } })
     const trace: string[] = []
-    // Transport only supplies the disposable socket and browser headers; responses remain real native HTTP.
     const spy = vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
       const url = new URL(input instanceof Request ? input.url : String(input), baseURL)
       const headers = new Headers(init?.headers)

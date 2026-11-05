@@ -12,8 +12,6 @@ import {
   squadPeekSchema,
 } from '@broke-oclock/contracts/squad'
 
-// Before joining: whether the room is open, started or full. Signed-in only, so codes cannot
-// be scanned anonymously.
 export const peekRoomHandler = (dependencies: RestDependencies) =>
   createRestHandler(dependencies, async (request, response, context) => {
     parseRestInput(squadEmptyQuerySchema, request.query)

@@ -2,8 +2,6 @@
 import { useTheme } from '@web/lib/theme'
 import ShellIcon from '@web/modules/map-shell/ShellIcon.vue'
 
-// Light/dark switch shared by the site menu drawer and the admin sidebar. `admin` matches the
-// denser admin navigation rows; `collapsed` is the admin icon rail, where only the moon shows.
 withDefaults(defineProps<{ variant?: 'menu' | 'admin'; collapsed?: boolean }>(), {
   variant: 'menu',
   collapsed: false,
@@ -66,7 +64,6 @@ const LABEL = 'Dark mode'
   border-radius: 99px;
 }
 
-/* The knob is a pseudo-element, so it still slides while .theme-switching pauses transitions. */
 .theme-toggle__switch::after {
   content: '';
   position: absolute;
@@ -98,7 +95,6 @@ const LABEL = 'Dark mode'
   }
 }
 
-/* Admin rows: the sidebar's own size, colour and hover. */
 .theme-toggle--admin {
   --toggle-track-w: 32px;
   --toggle-track-h: 18px;

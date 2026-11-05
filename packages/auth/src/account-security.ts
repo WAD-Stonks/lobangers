@@ -1,7 +1,6 @@
 import type { DBTransactionAdapter, Session, User } from 'better-auth'
 import { APIError } from 'better-auth/api'
 
-// Pinned 1.7.5 core registry; public sign-in/recovery/callbacks are deliberately not cookie-gated.
 export const sessionAuthorizedNativePaths = new Set([
   '/update-user',
   '/change-password',
@@ -47,7 +46,6 @@ export const generation = (value: unknown): number => {
 }
 export const isActive = (user: SecurityUser | null): user is SecurityUser =>
   user !== null && user.suspendedAt == null
-/** Read-only, exact persisted identity; additional fields are deliberately absent from native output. */
 export const readActiveNativeSession = async (
   adapter: DBTransactionAdapter,
   id: string,
@@ -65,7 +63,7 @@ export const readActiveNativeSession = async (
     where: [{ field: 'id', value: userId }],
   })
   if (!session || !isActive(user) || session.expiresAt.getTime() <= Date.now()) return null
-  // Only normalization is caught. Store/adapter errors above must never become anonymous success.
+  // Only normalization errors are caught. Store errors must not become an anonymous success.
   try {
     if (generation(session.authVersion) !== generation(user.authVersion)) return null
   } catch {

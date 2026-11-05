@@ -8,10 +8,6 @@ import ProfilePage from '@web/pages/ProfilePage.vue'
 import { type Component, computed, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
-// The visitor's account over the map, in tabs, opening on Settings. The tab lives in ?tab= so
-// each tab has its own link and scrolls from the top. Saved deals live in the navigation's own
-// Saved view, not here. With a bottom nav (below desktop) the account opens on More: the site
-// menu's rows, since that layout has no menu button.
 type ProfileTab = 'more' | 'submitted' | 'settings'
 type Tab = { value: ProfileTab; label: string; component: Component }
 
@@ -38,7 +34,6 @@ const title = computed(() => session.value.data?.user.name ?? 'Your account')
 
 const pick = (next: ProfileTab) => router.replace({ query: { ...route.query, tab: next } })
 
-// Arrow keys, Home and End move between tabs (roving tabindex), selecting as they go.
 const STEP: Readonly<Record<string, number>> = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 }
 const onTabKeydown = async (event: KeyboardEvent) => {
   const list = tabs.value
@@ -80,7 +75,6 @@ const onTabKeydown = async (event: KeyboardEvent) => {
 </template>
 
 <style scoped>
-/* The embedded pages were built as full pages; inside the panel the tab names them. */
 .profile-panel__body :deep(.container) {
   max-width: none;
   /* biome-ignore lint/complexity/noImportantStyles: beats Bootstrap's py-4 utility, itself !important */

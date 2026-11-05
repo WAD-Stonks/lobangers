@@ -3,7 +3,6 @@ import routes from '@web/router/routes'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createMemoryHistory, createRouter } from 'vue-router'
 
-// Synthetic identity boundary; the actual route assembly and guard run unchanged.
 const { getSession } = vi.hoisted(() => ({ getSession: vi.fn() }))
 vi.mock('@web/lib/auth-client', () => ({ authClient: { getSession } }))
 

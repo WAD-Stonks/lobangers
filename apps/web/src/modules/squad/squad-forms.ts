@@ -8,13 +8,9 @@ import {
 import { distanceMetres } from '@web/modules/browse-map/distance'
 import type { Coordinates } from '@web/modules/browse-map/types'
 
-// Pure helpers behind the Squad create and join screens: room codes, names, room size and the
-// order deals are offered in. Every function returns new values and never edits its input.
-
 export const SQUAD_CODE_LENGTH = 4
 export const DEFAULT_CAPACITY = 4
 
-// What someone typed or pasted ("kopi", "K O P I", "kopi-") as the four capital letters.
 export const normaliseCode = (raw: string): string =>
   raw
     .toUpperCase()
@@ -23,14 +19,12 @@ export const normaliseCode = (raw: string): string =>
 
 export const isCompleteCode = (code: string): boolean => /^[A-Z]{4}$/.test(code)
 
-// A route query value (?code=, ?room=) as a code, or null when it is not one.
 export const codeFromQuery = (value: unknown): string | null => {
   if (typeof value !== 'string') return null
   const code = normaliseCode(value)
   return isCompleteCode(code) ? code : null
 }
 
-// The account's first name, trimmed to what a room allows.
 export const defaultSquadName = (fullName: string | null | undefined): string =>
   (fullName ?? '').trim().split(/\s+/)[0]?.slice(0, SQUAD_NAME_MAX) ?? ''
 
@@ -44,7 +38,6 @@ export const squadNameError = (name: string): string => {
 export const clampCapacity = (value: number): number =>
   Math.min(SQUAD_MAX_SIZE, Math.max(SQUAD_MIN_SIZE, Math.round(value)))
 
-// Adds or removes one deal; adding past the limit leaves the list as it was.
 export const toggleDealId = (
   selected: readonly string[],
   dealId: string,
@@ -61,7 +54,6 @@ export type PickableDeal = {
   readonly distanceMetres: number | null
 }
 
-// Each deal once, at its nearest outlet, nearest first. Without a position, the list order.
 export const nearestDeals = (
   deals: readonly DealPin[],
   position: Coordinates | null,
@@ -84,11 +76,8 @@ export const nearestDeals = (
     : rows
 }
 
-// How far "near me" reaches when someone's position is known.
 export const NEARBY_METRES = 1500
 
-// Every deal within walking distance (all of them when the position is unknown), in a random
-// order and cut to `max`, for a room that picks its own deals. `random` is injectable for tests.
 export const nearbyDealIds = (
   rows: readonly PickableDeal[],
   max: number = SQUAD_MAX_DEALS,
@@ -109,7 +98,6 @@ export const nearbyDealIds = (
   return shuffled.slice(0, max)
 }
 
-// "27:41" until the lobby closes itself; "0:00" once it is due.
 export const formatCountdown = (ms: number): string => {
   const total = Math.max(0, Math.ceil(ms / 1000))
   const minutes = Math.floor(total / 60)
@@ -119,7 +107,6 @@ export const formatCountdown = (ms: number): string => {
 
 export type JoinProblem = 'name' | 'full' | 'code'
 
-// Which field a join refusal belongs to, from the server's readable message.
 export const joinProblemFor = (message: string): JoinProblem => {
   if (/already called/i.test(message)) return 'name'
   if (/is full/i.test(message)) return 'full'

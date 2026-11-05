@@ -10,9 +10,6 @@ import {
 import type { SelectOption } from '@web/components/select-options'
 import { computed, nextTick, onBeforeUnmount, ref, useId, watch } from 'vue'
 
-// The app's dropdown, in place of a native <select>. The button is the root element, so a
-// caller's class (form-select, page styles), id, name and data-testid land on it and <label for>
-// still names it. The option list is teleported out so card overflow never clips it.
 const props = withDefaults(
   defineProps<{
     modelValue: string
@@ -45,11 +42,8 @@ const selectedLabel = computed(
   () => props.options.find((option) => option.value === props.modelValue)?.label ?? props.placeholder,
 )
 
-// A modal <dialog> sits in the browser's top layer and makes the rest of the page inert, so a
-// select inside one must render its list inside that dialog rather than in <body>.
 const host = ref<HTMLElement | 'body'>('body')
 
-// position: fixed measures from the viewport, unless the host dialog is transformed.
 const fixedOrigin = () => {
   const dialog = host.value
   if (dialog === 'body' || getComputedStyle(dialog).transform === 'none') {
@@ -153,7 +147,6 @@ const onKeydown = (event: KeyboardEvent) => {
 const inside = (target: EventTarget | null) =>
   target instanceof Node && (trigger.value?.contains(target) || list.value?.contains(target))
 
-// A <label> naming this select clicks the button itself, which already toggles the list.
 const onOwnLabel = (target: EventTarget | null) =>
   target instanceof Element && target.closest('label')?.control === trigger.value
 
@@ -213,7 +206,6 @@ onBeforeUnmount(() => listen(false))
         :style="placement"
         @mousedown.prevent
       >
-        <!-- Keys are handled on the combobox, which keeps focus (aria-activedescendant). -->
         <!-- biome-ignore lint/a11y/useKeyWithClickEvents: the combobox owns keyboard selection -->
         <div
           v-for="(option, index) in options"
@@ -241,7 +233,6 @@ onBeforeUnmount(() => listen(false))
 </template>
 
 <style>
-/* Not scoped: callers style the trigger with their own classes, and the list lives in <body>. */
 .app-select {
   position: relative;
   display: inline-flex;

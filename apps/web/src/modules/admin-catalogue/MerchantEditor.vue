@@ -10,7 +10,6 @@ const emit = defineEmits<{
 const name = ref(props.merchant?.name ?? '')
 const note = ref('')
 const confirmed = ref(false)
-// The reason and confirmation sit with the field: renaming a merchant is always deliberate.
 const changed = computed(() => {
   const next = name.value.trim()
   return next !== '' && next !== (props.merchant?.name ?? '')
@@ -36,7 +35,6 @@ const changed = computed(() => {
           <label class="form-check mt-3"><input v-model="confirmed" name="confirmed" type="checkbox" class="form-check-input" required /><span class="form-check-label">{{ merchant ? `I checked this is still the same business as ${merchant.name}, not a rebrand` : 'I checked this merchant is not already in the list' }}</span></label>
         </div>
       </fieldset>
-      <!-- Outside the fieldset so a locked form can still be closed. -->
       <div class="catalogue-form-actions">
         <button class="btn btn-primary" type="submit" :disabled="disabled || !changed">{{ merchant ? 'Save name' : 'Create merchant' }}</button>
         <button class="btn btn-outline-secondary" type="button" @click="emit('cancel')">Cancel</button>

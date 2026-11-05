@@ -6,7 +6,6 @@ export const segment = (n: number, start: number, end: number) => {
   return t * t * (3 - 2 * t)
 }
 
-// One scroll reader per story, coalesced to a frame. No scroll interception.
 export function useStoryProgress(element: Ref<HTMLElement | null>) {
   const progress = ref(0)
   const reduced = ref(false)

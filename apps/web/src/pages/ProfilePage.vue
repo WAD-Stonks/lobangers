@@ -43,7 +43,6 @@ const loadProfile = async () => {
   }
 }
 
-// Only the display name is editable here. Email and role are never sent from this form.
 const saveName = async () => {
   const trimmed = name.value.trim()
   saveError.value = ''
@@ -109,14 +108,12 @@ onMounted(loadProfile)
           />
           <BButton type="submit" variant="primary" :disabled="saving">{{ saving ? 'Saving…' : 'Save name' }}</BButton>
         </div>
-        <!-- Always mounted so a save error is announced; the field points at it. -->
         <div role="alert">
           <p v-if="saveError" id="profile-name-error" class="text-danger small mb-0">{{ saveError }}</p>
         </div>
         <p v-if="saveNotice" class="text-success small mb-0" role="status">{{ saveNotice }}</p>
       </form>
 
-      <!-- Saved and Submitted have their own tabs; only the role's merchant link stays here. -->
       <template v-if="profile.role === 'MERCHANT' || profile.role === 'USER'">
         <hr />
         <p class="mb-0 small">
@@ -129,7 +126,6 @@ onMounted(loadProfile)
 </template>
 
 <style scoped>
-/* A readable width on wide screens; the input group still fills a phone. */
 .profile-page {
   max-width: 52rem;
 }

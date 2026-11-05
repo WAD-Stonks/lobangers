@@ -15,7 +15,6 @@ export const singaporeInputToIso = (value: string): string | null => {
   const [seconds = '', fraction = ''] = withSeconds.split('.')
   const normalized = `${seconds}.${fraction.padEnd(3, '0')}`
   const instant = new Date(`${normalized}+08:00`)
-  // Date parsing can roll an invalid day into the following month; do not accept that silently.
   if (
     !Number.isFinite(instant.getTime()) ||
     isoToSingaporeInput(instant.toISOString()) !== normalized

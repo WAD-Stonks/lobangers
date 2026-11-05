@@ -1,4 +1,3 @@
-/* Local operate-mode system. Every selector is fenced to the admin workspace. */
 .admin-shell {
   --admin-bg: var(--paper);
   --admin-surface: var(--paper-white);
@@ -7,7 +6,6 @@
   --admin-muted: var(--ink-muted);
   --admin-border: var(--hairline);
   --admin-accent: var(--sunny);
-  /* Neutral surfaces and states. */
   --admin-subtle-bg: var(--paper-hover);
   --admin-overview-bg: var(--paper);
   --admin-neutral-bg: var(--paper-sunk);
@@ -30,10 +28,8 @@
   --admin-shadow-card: 0 2px 10px rgb(27 27 31 / 0.035);
   --admin-shadow-lift: 0 5px 18px #7c64100b;
   --admin-shadow-popover: 0 8px 24px #20242b12;
-  /* Filled "strong" controls (selected tabs) use the text colour as a fill. */
   --admin-on-strong: #fff;
   --admin-strong-hover: #343a44;
-  /* Sunny accent: fills keep dark text in both themes. */
   --admin-on-accent: var(--on-accent);
   --admin-accent-edge: var(--sunny-deep);
   --admin-accent-hover: var(--sunny-deep);
@@ -54,7 +50,6 @@
   --admin-notice-ink: #5c4700;
   --admin-fake-border: #b98a12;
   --admin-fake-ink: #7a5a00;
-  /* Status tones. */
   --admin-success-bg: #edf7f0;
   --admin-success-wash: #f5faf6;
   --admin-success-border: #d6e9dc;
@@ -81,7 +76,6 @@
   --admin-neutral-status-bg: #edf0f4;
   --admin-neutral-status-border: #dde2ea;
   --admin-neutral-status-ink: #465366;
-  /* Chart marks. */
   --admin-chart-created: #3b8062;
   --admin-chart-updated: #6675ae;
   --admin-chart-failed: #be6254;
@@ -102,8 +96,6 @@
 .admin-shell--collapsed {
   --admin-sidebar-width: 72px;
 }
-/* Dark theme: warm charcoal like the rest of the app. Tones reuse the main tag pairs; contrast on
-   the card (#2a2926): text 13:1, muted 5.9:1, status inks 6:1+, control borders 3:1+. */
 :root.app-palette[data-theme="dark"] .admin-shell {
   --admin-bg: var(--paper);
   --admin-surface: var(--paper-white);
@@ -179,7 +171,6 @@
   --admin-chart-failed: #e5846f;
   --admin-chart-highlight: #e9c74a;
   --admin-chart-live: var(--coral-deep);
-  /* Bootstrap utilities used inside admin panels (.text-secondary, .text-danger, .alert-*). */
   --bs-secondary-rgb: 168, 165, 157;
   --bs-danger-rgb: 246, 173, 148;
   --bs-warning-text-emphasis: var(--tag-build-ink);
@@ -647,7 +638,6 @@
   border-color: var(--admin-focus);
   box-shadow: 0 0 0 1px var(--admin-focus);
 }
-/* Bootstrap's outline: 0 on :focus must not hide the keyboard ring. */
 .admin-shell .form-control:focus-visible,
 .admin-shell .form-select:focus-visible {
   outline: 2px solid var(--admin-focus);
@@ -739,7 +729,6 @@
   border: 1px solid var(--admin-danger-border);
   border-radius: 12px;
 }
-/* Live regions stay mounted so errors are announced; draw nothing while they are empty. */
 .admin-shell [role="alert"]:empty {
   padding: 0;
   border: 0;
@@ -966,7 +955,6 @@
   }
 }
 
-/* Touch screens: header controls and buttons reach the 44px touch target. */
 @media (pointer: coarse) {
   .admin-shell .admin-icon-button {
     flex-basis: 44px;
@@ -981,7 +969,6 @@
   }
 }
 
-/* Access is established before the operational navigation is shown. */
 .admin-shell.admin-shell--auth {
   display: block;
 }

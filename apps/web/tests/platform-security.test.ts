@@ -4,7 +4,6 @@ import AccountSecurityPanel from '@web/modules/platform-security/AccountSecurity
 import { chooseOption, optionLabels } from '@web-tests/support/select'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 
-// Labelled synthetic REST responses: mounted UI proof, not server authorization.
 const rest = vi.hoisted(() => ({
   account: vi.fn(),
   sessions: vi.fn(),

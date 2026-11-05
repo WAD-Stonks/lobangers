@@ -9,9 +9,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const { request } = vi.hoisted(() => ({ request: vi.fn() }))
 vi.mock('node:https', () => ({ request }))
-// A separate Node process has no Vitest https mock or process-level error handlers.
-// Only the socket destination is replaced: production pinnedFetch receives a real
-// IncomingMessage, while the allowed source URL and validated public DNS stay intact.
 const nativeProbe = String.raw`
 import assert from 'node:assert/strict'
 import { createHash } from 'node:crypto'

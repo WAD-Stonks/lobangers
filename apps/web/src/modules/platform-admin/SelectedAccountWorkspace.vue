@@ -18,8 +18,6 @@ const detailTabs = [{ id: 'access', label: 'Access' }, { id: 'security', label: 
 watch([detailTab, () => props.active], (_value, previous) => {
   props.s.note = ''
   props.s.confirmed = false
-  // Revision resets security consent through its existing public input without
-  // disposing the controller (and its per-identity unknown-result locks).
   if (previous[0] === 'security' && previous[1]) consentRevision.value++
 }, { flush: 'sync' })
 </script>

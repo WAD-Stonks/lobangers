@@ -34,7 +34,6 @@ export const createIngestionRouter = (dependencies: RestDependencies): Router =>
     response.setHeader('Cache-Control', 'no-store')
     next()
   })
-  // Express implicitly dispatches HEAD to GET unless HEAD is registered first.
   router.head('/scheduled-runs', methodNotAllowed('GET'))
   router.get('/scheduled-runs', getScheduledIngestionRun(dependencies))
   router.all('/scheduled-runs', methodNotAllowed('GET'))

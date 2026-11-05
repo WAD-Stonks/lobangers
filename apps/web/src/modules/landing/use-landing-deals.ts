@@ -4,7 +4,6 @@ import { onBeforeUnmount, onMounted, ref } from 'vue'
 
 export type LandingDealsStatus = 'loading' | 'ready' | 'error'
 
-// The page reads the same public contract as the existing Leaflet discovery map.
 export function useLandingDeals() {
   const deals = ref<DealPin[]>([])
   const status = ref<LandingDealsStatus>('loading')

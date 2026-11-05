@@ -7,8 +7,6 @@ type DraftSource = {
   importedPost: Awaited<ReturnType<AccessTransaction['importedPost']['findUniqueOrThrow']>>
 }
 
-// Fence current processing evidence without changing pinned citation bytes.
-// Rejection intentionally need not satisfy approval/association readiness.
 export const fenceDraftEvidence = async (
   tx: AccessTransaction,
   sources: DraftSource[],

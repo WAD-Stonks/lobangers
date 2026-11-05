@@ -22,7 +22,6 @@ const providers: Record<string, string> = {
 export const providerLabel = (provider: string | null) =>
   provider ? (providers[provider] ?? provider) : 'Unknown source'
 
-/** What still stands between this outlet and deals, in the order an admin should fix it. */
 export const missingChecks = (venue: CatalogueVenue): EvidenceKind[] => [
   ...(venue.occupancyVerified ? [] : (['OCCUPANCY'] as const)),
   ...(venue.geographyVerified ? [] : (['GEOGRAPHY'] as const)),
@@ -34,7 +33,6 @@ export const missingSummary = (venue: CatalogueVenue) => {
   return `Needs ${missing.map((kind) => checkName[kind]).join(' and ')}`
 }
 
-/** The newest receipt for one check, as "OneMap · 28 Oct 2026 · Noah". */
 export const latestReceipt = (venue: CatalogueVenueDetail, kind: EvidenceKind) => {
   const receipt = venue.evidence.find((item) => item.kind === kind)
   if (!receipt) return ''
@@ -45,8 +43,6 @@ export const latestReceipt = (venue: CatalogueVenueDetail, kind: EvidenceKind) =
 
 export type Readiness = { tone: 'ready' | 'partial' | 'blocked'; title: string; detail: string }
 
-// Picking an outlet for a deal needs occupancy proof. Showing that deal on the map also needs
-// verified location. Both need a usable point.
 export const readiness = (venue: CatalogueVenue): Readiness => {
   if (venue.archived)
     return {

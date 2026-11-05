@@ -4,7 +4,6 @@ import type { FlashDrops } from '@web/modules/flash-drop/use-flash-drops'
 import { describe, expect, it, vi } from 'vitest'
 import { nextTick, ref, shallowRef } from 'vue'
 
-// Labelled synthetic fixtures: none of these are real stalls or flash deals.
 const NOW = Date.parse('2026-11-03T10:00:00.000Z')
 const LOADED_DEAL = 'a'.repeat(24)
 const FLASH_DEAL = 'b'.repeat(24)
@@ -51,7 +50,6 @@ describe('flash deal sync', () => {
     await nextTick()
     expect(shell.reload).toHaveBeenCalledOnce()
 
-    // Still missing after the reload (and every later refresh): no reload loop.
     drops.value = [live({ codesLeft: 9 })]
     await nextTick()
     expect(shell.reload).toHaveBeenCalledOnce()

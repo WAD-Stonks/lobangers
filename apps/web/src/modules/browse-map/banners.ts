@@ -3,9 +3,6 @@ import { categoryStyle } from '@web/modules/browse-map/category-style'
 import { type BrowseFilters, toggleValue } from '@web/modules/browse-map/filters'
 import { type FoodKind, foodKindForCategory } from '@web/modules/browse-map/food-kind'
 
-// The coloured banners above the deal list: two hero tiles and a row of category tiles. Each
-// tile is a shortcut into filters the sheet already has, so the URL still describes the view.
-
 export type CategoryTile = {
   readonly code: DealCategory
   readonly label: string
@@ -33,8 +30,6 @@ export const toggleCategory = (filters: BrowseFilters, code: DealCategory): Brow
   categories: toggleValue(filters.categories, code),
 })
 
-// Categories with at least one deal, busiest first. Each is counted with only itself selected,
-// so choosing one never makes the others read zero.
 export const categoryTiles = (
   filters: BrowseFilters,
   countFor: (next: BrowseFilters) => number,

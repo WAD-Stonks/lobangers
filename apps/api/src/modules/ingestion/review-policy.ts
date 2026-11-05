@@ -36,7 +36,6 @@ type ScopeReviewDeal = Omit<OutletScopeDeal, 'selectedVenueIds'> & {
   }[]
 }
 
-// A stored receipt must still bind a pinned, unchanged source; UI/search inputs are not proof.
 export const hasCurrentSourceScope = (deal: ScopeReviewDeal): boolean =>
   hasConfirmedOutletScope({ ...deal, selectedVenueIds: deal.venues.map((link) => link.venueId) }) &&
   deal.scopeConfirmation?.basis !== 'LEGACY_RETAINED' &&
@@ -48,7 +47,6 @@ export const hasCurrentSourceScope = (deal: ScopeReviewDeal): boolean =>
       !source.importedPost.errorCode,
   )
 
-// The complete selected edge set, never the bounded display list, drives readiness.
 export const hasVerifiedPhysicalScope = (
   deal: ScopeReviewDeal,
   venues: readonly OutletPolicyVenue[],
@@ -77,8 +75,6 @@ export const hasVerifiedPhysicalScope = (
   )
 }
 
-// Physical approval requires source scope plus current write-fenced outlet authority.
-// Nonspatial content review and rejection do not require map points.
 export const requireSelectedOutletAuthority = async (
   tx: AccessTransaction,
   deal: ScopeReviewDeal,

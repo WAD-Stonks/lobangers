@@ -70,8 +70,6 @@ export const acquireLease = async (
   definition: SourceDefinition = { kind: 'moneydigest', ...MONEYDIGEST_SOURCE },
   actor?: AuthenticatedActor,
 ) => {
-  // Bootstrap remains durable even when the default source is disabled. Manual
-  // admission authorizes this write too; no actorless seed is made on its behalf.
   const { kind: _, ...identity } = definition
   const source = await retryAdmission(() =>
     db.$transaction(async (tx) => {
@@ -205,8 +203,6 @@ export const processPost = async (
       url: post.link,
       title: draft?.title ?? null,
       rawContent: post.content.rendered,
-      // Exact promotion evidence is unchanged: retain its pinned evidence hash/citation,
-      // while processedContentHash tracks the newly observed transport snapshot.
       contentHash: unchangedPromotion?.sourceContentHash ?? contentHash,
       status: sourceChanged ? ('NEEDS_REVIEW' as const) : parsed.status,
       processedContentHash: contentHash,
@@ -267,7 +263,6 @@ export const processPost = async (
     const contentVersion = previous?.deals.length
       ? Math.max(...previous.deals.map((link) => link.deal.contentVersion)) + 1
       : 1
-    // DealSource is immutable. Refresh by replacing the pending revision, not rewriting its citation.
     for (const link of pending) {
       const changed = await tx.deal.updateMany({
         where: {
@@ -346,8 +341,6 @@ export const recordPostFailure = async (
     })
     if (fence.count !== 1) return
     const { id, link } = identity
-    // Read and preserve the blocker under the same source/actor write fence as
-    // the failure update. A new attempt is not a successful processing receipt.
     const previous = await tx.importedPost.findUnique({
       where: { sourceId_externalId: { sourceId: lease.sourceId, externalId: String(id) } },
       select: { errorCode: true },
@@ -417,8 +410,6 @@ export const capturePostEnvelope = async (
     })
   })
 }
-// Media storage may pause at a provider promise. Fence each local write in its
-// own transaction, never keep a database transaction open across remote I/O.
 const controlledMediaDatabase = (db: Database, runtime: IngestionRuntime, lease: Lease): Database =>
   new Proxy(db, {
     get(target, key, receiver) {
@@ -498,8 +489,6 @@ const runSource = async (
     await publishIngestionProgress()
   }
   try {
-    // Re-fence immediately at the external-request boundary. Persist its actual
-    // start so a later process applies cooldown even if this process crashes.
     const requestPage = async (options: {
       page: number
       perPage: number
@@ -589,8 +578,6 @@ const runSource = async (
           ),
         )
       }
-      // A progress-write failure stops the run, but does not relabel a post
-      // whose content transaction has already committed as a failed import.
       await persistProgress()
     }
     if (provider) {
@@ -638,8 +625,6 @@ const runSource = async (
   return { runId: lease.run.id, status, fetchedCount, createdCount, updatedCount, failedCount }
 }
 
-// Manual and scheduled callers share this service, durable source leases and IDs.
-// One bounded page per source per invocation; run history retains each outcome.
 export const runIngestion = async (
   db: Database,
   runtime: IngestionRuntime,
@@ -649,8 +634,6 @@ export const runIngestion = async (
   runtime = { ...runtime, deadline: new Date(runtime.now().getTime() + 90_000) }
   let providers = runtime.sources
   if (runtime.sourceRuntime) {
-    // Oldest updated source first: claiming/completing rotates its timestamp, so
-    // a bounded run does not perpetually starve channels beyond its first page.
     const registered = await db.importSource.findMany({
       where: { enabled: true },
       orderBy: [{ updatedAt: 'asc' }, { id: 'asc' }],

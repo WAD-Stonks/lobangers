@@ -4,7 +4,6 @@ import DealCard from '@web/modules/browse-map/DealCard.vue'
 import { OUTLET_NOT_CONFIRMED } from '@web/modules/browse-map/deal-format'
 import { describe, expect, it } from 'vitest'
 
-// A guessed outlet must carry its warning on every surface that names it, not only rows and the panel.
 const venue = { id: '222222222222222222222222', name: 'Synthetic outlet', lat: 1.32, lng: 103.93 }
 
 const dealWith = (outletUnconfirmed: boolean | undefined): DealPin => ({

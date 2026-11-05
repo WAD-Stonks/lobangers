@@ -21,7 +21,6 @@ const WINDOW_MS = 60_000
 const MAX_TRACKED_KEYS = 5_000
 const PRIMARY_TIMEOUT_MS = 8_000
 
-// Fixed one-minute windows in memory
 export const createRateLimiter = (
   options: { visitorLimit?: number; globalLimit?: number; now?: () => number } = {},
 ): RateLimiter => {

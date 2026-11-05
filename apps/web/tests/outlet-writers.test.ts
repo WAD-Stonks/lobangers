@@ -4,8 +4,6 @@ import { api } from '@web/lib/api-client'
 import DraftQueue from '@web/modules/ingestion-admin/DraftQueue.vue'
 import { expect, it, type TestContext } from 'vitest'
 
-// Synthetic Axios responses exercise the real contract parser and mounted Vue UI.
-// Real HTTP/native authorization and disposable Mongo are covered by the API writer suite.
 const id = '111111111111111111111111'
 const draft: IngestionDraft = {
   id,

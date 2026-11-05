@@ -23,9 +23,6 @@ import { computed, nextTick, ref, watch } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import '@web/modules/squad/squad.css'
 
-// Start a Makan Squad room: pick deals, set the room size, choose a name and face, then open
-// the lobby. With ?room=KOPI the host is topping up a room that ran out of deals, so only the
-// deal picker shows. With ?deal=<id> that deal starts picked.
 const DEAL_ID = /^[a-f0-9]{24}$/
 const route = useRoute()
 const router = useRouter()
@@ -37,7 +34,6 @@ const addTo = computed(() => codeFromQuery(route.query.room))
 const fromDeal = typeof route.query.deal === 'string' && DEAL_ID.test(route.query.deal) ? route.query.deal : null
 
 const picked = ref<readonly string[]>(fromDeal ? [fromDeal] : [])
-// "Surprise me": the room picks every deal near the host (up to the limit) when it opens.
 const randomise = ref(false)
 const capacity = ref(DEFAULT_CAPACITY)
 const name = ref(defaultSquadName(session.value.data?.user.name))
@@ -47,7 +43,6 @@ const nameError = ref('')
 const formError = ref('')
 const form = ref<HTMLFormElement | null>(null)
 
-// Picked deals or a typed name would be lost by leaving; once the room opens nothing is.
 const initialPicked = [...picked.value]
 const initialName = name.value
 const opened = ref(false)
@@ -60,7 +55,6 @@ const isDirty = computed(
 )
 useUnsavedChanges(isDirty)
 
-// The session may arrive after the panel opens; fill the name once, unless they typed already.
 watch(
   () => session.value.data?.user.name,
   (full) => {
@@ -73,7 +67,6 @@ const onName = (next: string) => {
   if (nameError.value) nameError.value = squadNameError(next)
 }
 
-// In add mode the room's own deals are already in; follow the room if it is not open yet.
 watch(
   addTo,
   (code) => {

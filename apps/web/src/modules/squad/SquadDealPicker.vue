@@ -6,8 +6,6 @@ import { useSavedDeals } from '@web/modules/map-shell/use-saved-deals'
 import { nearestDeals, type PickableDeal, toggleDealId } from '@web/modules/squad/squad-forms'
 import { computed, ref } from 'vue'
 
-// Deals to vote on: the visitor's saved deals first, then everything nearby, nearest first.
-// Picked deals always stay in view, so a deal brought in from its page is never hidden.
 const PAGE = 8
 const props = withDefaults(
   defineProps<{ modelValue: readonly string[]; exclude?: readonly string[]; max?: number; disabled?: boolean }>(),

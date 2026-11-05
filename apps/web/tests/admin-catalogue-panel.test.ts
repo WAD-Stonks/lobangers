@@ -25,12 +25,10 @@ const clickButton = async (wrapper: ReturnType<typeof mount>, text: string) => {
   if (!button) throw new Error(`Missing button: ${text}`)
   await button.trigger('click')
 }
-// The page opens on the verification queue. These flows start from the merchant directory.
 const merchantsTab = async (wrapper: ReturnType<typeof mount>) => {
   await clickButton(wrapper, 'Merchants')
   await flushPromises()
 }
-// Opens the merchant and its name form, where the reason and confirmation live.
 const openMerchant = async (wrapper: ReturnType<typeof mount>) => {
   await wrapper.get('button[data-open-row="Synthetic mounted merchant"]').trigger('click')
   await flushPromises()
@@ -93,8 +91,6 @@ it.each(['UNKNOWN', 'CONFLICT'])(
     const editButton = () =>
       w.findAll('button').find((candidate) => candidate.text() === 'Edit name')
     const submit = async () => {
-      // A reopened detail starts read-only. While it is locked, Edit name stays disabled, so
-      // there is no form to resubmit.
       if (!w.find('[name="merchantName"]').exists()) {
         if (editButton()?.attributes('disabled') !== undefined) return
         await clickButton(w, 'Edit name')
@@ -129,7 +125,6 @@ it.each(['UNKNOWN', 'CONFLICT'])(
       rest.merchant.mockResolvedValue({ ...row, version: 8 })
       await clickButton(w, 'Reload target detail')
       await flushPromises()
-      // The newer version reopens read-only, so earlier consent cannot carry over.
       expect(w.find('[name="note"]').exists()).toBe(false)
       expect(editButton()?.attributes('disabled')).toBeUndefined()
       await submit()
