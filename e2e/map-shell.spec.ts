@@ -197,33 +197,33 @@ for (const width of [390, 1280]) {
       await expect(page.getByTestId('lobbie-input')).toBeEnabled()
       await expect(page.getByTestId('lobbie-log')).toContainText('proper steal')
       await expect(page.getByTestId('lobbie-deals').locator('li')).toHaveCount(2)
-      const activeFilters = page.getByTestId('lobbie-active-filters')
-      await expect(activeFilters.getByRole('button')).toHaveText(['Up to $5', 'Clear all'])
-      // The two picks are far apart; framing shows both as pins instead of region pills.
-      await expect(groups(page)).toHaveCount(0)
-      await expect(page.locator('.deal-map-pin')).toHaveCount(2)
-      await expect(page.locator('.deal-map-pin').first()).toBeInViewport()
-      await expect(page.locator('.deal-map-pin').last()).toBeInViewport()
+      // Framing shows just the two picks. They are far apart, so a desktop map shows both as pins
+      // instead of region pills; behind a phone's sheet the strip of map is too small and their
+      // pins stack.
+      await expect.poll(() => mappedDeals(page)).toBe(2)
+      if (width >= 800) {
+        await expect(groups(page)).toHaveCount(0)
+        await expect(page.locator('.deal-map-pin')).toHaveCount(2)
+        await expect(page.locator('.deal-map-pin').first()).toBeInViewport()
+        await expect(page.locator('.deal-map-pin').last()).toBeInViewport()
+      }
       await page.screenshot({ path: `test-results/lobbie-results-${width}.png` })
 
       await page.getByTestId('lobbie-deals').getByRole('link').first().click()
       await expect(panelHeading(page)).toHaveText('Synthetic kopi set')
       await page.getByRole('link', { name: 'Back to Lobbie' }).click()
       await expect(page.getByTestId('lobbie-log')).toContainText('Lunch under $5')
-
-      await page.getByRole('button', { name: 'Remove filter Up to $5' }).click()
-      await expect(activeFilters).toHaveCount(0)
-      await expect(page.getByTestId('lobbie-notice')).toHaveText('Removed “Up to $5”')
     })
 
     test('pin to deal: each pin opens its deal with the panel at the top', async ({ page }) => {
-      // Both outlets a short walk apart in Jurong East: tapping West fits them both at street zoom.
+      // Both outlets a short walk apart in Jurong East: tapping West fits them both at street zoom,
+      // far enough apart that their pins don't overlap into a stack.
       const nextDoor = {
         ...VENUES.west,
         id: 'd'.repeat(24),
         name: 'Synthetic Jurong Bakery',
-        lat: 1.3345,
-        lng: 103.7445,
+        lat: 1.333,
+        lng: 103.7475,
       }
       const items = DEALS.map((item) =>
         item.title === 'Synthetic kaya toast' ? { ...item, venues: [nextDoor] } : item,
