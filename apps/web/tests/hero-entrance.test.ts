@@ -31,6 +31,7 @@ const mountHero = (initiallyReady = true) => {
 }
 const enter = () =>
   intersection([{ isIntersecting: true } as IntersectionObserverEntry], {} as IntersectionObserver)
+const firstFrame = () => gsap.ticker.tick()
 
 beforeEach(() => {
   preference = { matches: false, addEventListener: vi.fn(), removeEventListener: vi.fn() }
@@ -58,6 +59,8 @@ describe('mini-hero entrance', () => {
     const spy = vi.spyOn(gsap, 'timeline')
     const wrapper = mountHero()
     const timeline = defined(spy.mock.results[0]).value as gsap.core.Timeline
+    expect(timeline.paused()).toBe(true)
+    firstFrame()
     expect(timeline.paused()).toBe(true)
     expect(wrapper.get('[data-hero-word]').attributes('style')).toContain('opacity: 0')
     const play = vi.spyOn(timeline, 'play')
@@ -106,6 +109,7 @@ describe('mini-hero entrance', () => {
     await flushPromises()
     expect(spy).toHaveBeenCalledTimes(1)
     expect(wrapper.text()).toContain('Hey Damien,')
+    firstFrame()
     expect(wrapper.get('[data-hero-word]').attributes('style')).toContain('opacity: 0')
     const timeline = defined(spy.mock.results[0]).value as gsap.core.Timeline
     const play = vi.spyOn(timeline, 'play')

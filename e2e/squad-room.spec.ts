@@ -1,6 +1,10 @@
 import { expect, type Page, test } from '@playwright/test'
 // biome-ignore lint/style/noRestrictedImports: E2E-only fixtures; no E2E alias exists.
 import * as fixtures from './community-fixtures'
+// biome-ignore lint/style/noRestrictedImports: E2E-only fixtures; no E2E alias exists.
+import { failUnmockedApi } from './unmocked-api'
+
+test.beforeEach(({ page }) => failUnmockedApi(page))
 
 const { DEALS, HOME, mockPublicApi, mockSignedIn, VENUES } = fixtures
 test.use({ geolocation: HOME, permissions: ['geolocation'] })

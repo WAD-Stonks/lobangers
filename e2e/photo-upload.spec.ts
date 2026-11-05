@@ -1,4 +1,8 @@
 import { expect, test } from '@playwright/test'
+// biome-ignore lint/style/noRestrictedImports: E2E-only fixtures; no E2E alias exists.
+import { failUnmockedApi } from './unmocked-api'
+
+test.beforeEach(({ page }) => failUnmockedApi(page))
 
 test('photo uploader uses the same-origin SDK route and surfaces unavailable storage', async ({
   page,
