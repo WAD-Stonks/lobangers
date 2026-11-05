@@ -1,4 +1,8 @@
 import { expect, type Page, test } from '@playwright/test'
+// biome-ignore lint/style/noRestrictedImports: E2E-only fixtures; no E2E alias exists.
+import { failUnmockedApi } from './unmocked-api'
+
+test.beforeEach(({ page }) => failUnmockedApi(page))
 
 const VENUES = {
   north: { id: 'a'.repeat(24), name: 'Synthetic Woodlands Kopi', lat: 1.436, lng: 103.786 },

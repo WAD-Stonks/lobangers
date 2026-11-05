@@ -1,5 +1,9 @@
 import { commentsResponseSchema, communitySummarySchema } from '@broke-oclock/contracts/community'
 import { expect, type Page, test } from '@playwright/test'
+// biome-ignore lint/style/noRestrictedImports: E2E-only fixtures; no E2E alias exists.
+import { failUnmockedApi } from './unmocked-api'
+
+test.beforeEach(({ page }) => failUnmockedApi(page))
 
 const browserObservations = new WeakMap<
   Page,

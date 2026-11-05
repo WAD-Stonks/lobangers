@@ -5,6 +5,10 @@ import { expect, type Page, type TestInfo, test } from '@playwright/test'
 import * as fixtures from './community-fixtures'
 // biome-ignore lint/style/noRestrictedImports: E2E-only fixtures; no E2E alias exists.
 import * as squad from './squad-fake'
+// biome-ignore lint/style/noRestrictedImports: E2E-only fixtures; no E2E alias exists.
+import { failUnmockedApi } from './unmocked-api'
+
+test.beforeEach(({ page }) => failUnmockedApi(page))
 
 const { HOME, mockPublicApi, mockSignedIn, VENUES } = fixtures
 const { fakeMember, mockSquadApi } = squad
