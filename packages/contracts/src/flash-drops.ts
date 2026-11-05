@@ -109,7 +109,6 @@ export const merchantFlashDropBodySchema = z
       })
   })
 export const merchantFlashDropVersionSchema = z.strictObject({ version: z.number().int().min(1) })
-export const merchantFlashDropEndSchema = merchantFlashDropVersionSchema
 
 export const flashDealContentSchema = z.strictObject({
   title: z.string(),
