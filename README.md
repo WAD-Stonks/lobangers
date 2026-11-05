@@ -33,24 +33,25 @@ Sign in at https://lobangers.vercel.app/sign-in.
 | Merchant | `Isaacfromisaac@gmail.com` | `1234567890`|
 
 ## 1. How to Set Up
-From the repository root, install dependencies and create local configuration by running the following commands:
+1. Ensure Node ≥ 22.18.0 and pnpm 10.34.6 are installed.
 
+2. From the repository root, install dependencies and create local configuration by running the following commands:
 ```sh
 pnpm install --frozen-lockfile --ignore-scripts
 pnpm run setup
 ```
-`pnpm run setup` creates a `.env` file at the repository root. Replace its contents with the contents of the `.env` file included in our submission.
+3. `pnpm run setup` creates a `.env` file at the repository root. Replace its contents with the contents of the `.env` file included in our submission.
 
 ## 2. How to Run
 
-Open a terminal at the repository root. Run the following command:
+1. Open a terminal at the repository root and run the following command:
 
 ```sh
 pnpm run dev
 ```
 You should see the following lines printed in the terminal: "Local:   http://localhost:5173/" and "Lobangers API listening on http://localhost:3000"
 
-Then, open http://localhost:5173 in your browser.
+2. Open http://localhost:5173 in your browser to access the app.
 
 ## 3. Testing the application
 
@@ -61,9 +62,9 @@ The tests cover the customer journey (finding, opening, saving and discussing de
 | Unit | `pnpm run test:unit` | ~2,800 | ~1 min |
 | End-to-end (browser) | `pnpm run test:e2e` | 103 | ~2–3 min |
 
-Run every command from the repository root, after the install and `pnpm run setup` steps in section 1.
-
 ### Unit testing
+
+Open a terminal at the repository root and run the following command:
 
 ```sh
 pnpm run test:unit
@@ -74,19 +75,18 @@ pnpm run test:unit
 
 The end-to-end tests drive a Chromium browser through the app with [Playwright](https://playwright.dev).
 
-**1. Install the browser (once):**
+1. Install the browser by running this command in a terminal in the repository root (once):
 
 ```sh
 pnpm exec playwright install chromium
 ```
 
-**2. Run the tests:**
+2. Run the tests using the following command:
 
 ```sh
 pnpm run test:e2e
 ```
 
-You do **not** need to start the app, the API or the database first. Playwright starts its own copy of the frontend on port 5180 and the tests supply fake API responses, so results don't depend on live data. Port 5180 must be free; the normal dev server (port 5173) can stay running.
 
 **What you should see:** Playwright prints one line per test as it runs, using several browsers in parallel, and ends with a summary like:
 
