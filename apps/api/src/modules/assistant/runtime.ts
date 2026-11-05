@@ -15,7 +15,7 @@ export type AssistantRuntime = {
   now: () => Date
 }
 
-const VISITOR_LIMIT = 8
+const VISITOR_LIMIT = 24
 const GLOBAL_LIMIT = 120
 const WINDOW_MS = 60_000
 const MAX_TRACKED_KEYS = 5_000

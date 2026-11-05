@@ -250,12 +250,17 @@ test('a phone can tuck the room away, other deals stay locked, and the bar opens
   await page.getByTestId('squad-minimise').click()
   await expect(page.getByTestId('squad-mini')).toBeVisible()
   // The camera follows the room's deal and the map only draws pins in view; the kopi stall sits
-  // just above the header, so pan north with the map's arrow keys until its pin is drawn.
+  // just above the header and its pin overlaps its neighbours, so open their stack, then pan
+  // north with the map's arrow keys until its pin is drawn.
   const otherPin = page.locator('.deal-map-pin', { has: page.getByText('$1.20') })
+  const stack = page.locator('.deal-map-cluster[title$="close together"]')
   const locked = page.getByText(`You're in Room ${CODE}. Leave the room to open other deals.`)
   await page.locator('.leaflet-container').focus()
   await expect(async () => {
-    if ((await otherPin.count()) === 0) await page.keyboard.press('ArrowUp')
+    if ((await otherPin.count()) === 0) {
+      if (await stack.count()) await stack.first().dispatchEvent('click')
+      else await page.keyboard.press('ArrowUp')
+    }
     await otherPin.dispatchEvent('click', undefined, { timeout: 1000 })
     await expect(locked).toBeVisible({ timeout: 1000 })
   }).toPass({ timeout: 15_000 })
