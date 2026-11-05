@@ -39,7 +39,9 @@ From the repository root, install dependencies and create local configuration by
 pnpm install --frozen-lockfile --ignore-scripts
 pnpm run setup
 ```
-Fill in the .env file. Then, open two terminals at the repository root.
+`pnpm run setup` creates a `.env` file at the repository root. Replace its contents with the contents of the `.env` file included in our submission.
+
+Then open two terminals at the repository root.
 
 **Terminal 1: start the local database**
 
@@ -59,15 +61,6 @@ Then open:
 
 - Frontend: http://localhost:5173
 - API: http://localhost:3000
-
-### Optional: load demo data
-
-The local database can be seeded with fake data. First register two  accounts at http://localhost:5173/register, then run this command:
-
-```sh
-pnpm --dir apps/api run seed:local-demo 
-```
-
 
 ## 2. Testing the application
 
